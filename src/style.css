@@ -1,0 +1,718 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root{
+  --bg:#0A1626;
+  --panel:#142A44;
+  --borde:#24405F;
+  --ink:#E8EEF5;
+  --ink-dim:#8FA3BD;
+  --accent:#F5A623;
+  --accent-soft:rgba(245,166,35,.16);
+  --exito:#5FD9A4;
+  --peligro:#FF6B5E;
+  --display:'Space Grotesk',sans-serif;
+  --body:'Inter',sans-serif;
+  --mono:'JetBrains Mono',monospace;
+}
+
+*{box-sizing:border-box;}
+
+html, body{
+  height:100%;
+  margin:0;
+  overflow:hidden;
+}
+
+body{
+  display:grid;
+  grid-template-columns:240px 1fr;
+  height:100vh;
+  overflow:hidden;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--body);
+}
+
+/* --- Sidebar --- */
+#sidebar{
+  background:var(--panel);
+  border-right:1px solid var(--borde);
+  padding:24px 0;
+  height:100vh;
+  overflow-y:auto;
+}
+#sidebar h1{
+  font-family:var(--display);
+  font-size:1.1rem;
+  letter-spacing:.04em;
+  margin:0 20px 20px;
+  color:var(--accent);
+  text-transform:uppercase;
+}
+#nav-list{list-style:none; margin:0; padding:0;}
+.nav-categoria{
+  font-family:var(--mono);
+  font-size:.7rem;
+  letter-spacing:.08em;
+  color:var(--ink-dim);
+  text-transform:uppercase;
+  padding:18px 20px 6px;
+  border-top:1px dashed var(--borde);
+}
+#nav-list li:first-child.nav-categoria{border-top:none;}
+#nav-list a{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:8px 20px;
+  color:var(--ink);
+  text-decoration:none;
+  font-size:.92rem;
+  border-left:3px solid transparent;
+}
+#nav-list a:hover{background:rgba(255,255,255,.04);}
+#nav-list a.activo{
+  border-left-color:var(--accent);
+  background:var(--accent-soft);
+  color:var(--accent);
+}
+.nav-num{
+  font-family:var(--mono);
+  font-size:.72rem;
+  color:var(--ink-dim);
+  width:18px;
+}
+#nav-list a.activo .nav-num{color:var(--accent);}
+
+/* --- Main --- */
+main{
+  padding:28px 36px;
+  display:flex;
+  flex-direction:column;
+  gap:18px;
+  height:100vh;
+  overflow-y:auto;
+}
+
+#titulo-bloque{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  border-bottom:1px solid var(--borde);
+  padding-bottom:14px;
+  order:0;
+  flex:0 0 auto;
+}
+#nombre-estructura{
+  font-family:var(--display);
+  font-weight:700;
+  font-size:1.6rem;
+  margin:0;
+}
+#complejidad{
+  font-family:var(--mono);
+  font-size:.82rem;
+  color:var(--accent);
+  background:var(--accent-soft);
+  padding:4px 10px;
+  border-radius:4px;
+}
+
+/* --- Panel de Operaciones (Inferior) --- */
+#panel-operaciones {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+#panel-operaciones input {
+  font-family: var(--mono);
+  background: var(--bg);
+  border: 1px solid var(--borde);
+  color: var(--ink);
+  padding: 7px 10px;
+  border-radius: 5px;
+  width: 90px;
+  font-size: 0.85rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+#panel-operaciones input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 8px var(--accent-soft);
+}
+#panel-operaciones button {
+  font-family: var(--body);
+  font-size: 0.85rem;
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--borde);
+  padding: 7px 14px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+#panel-operaciones button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+#panel-operaciones #btn-eliminar:hover {
+  border-color: var(--peligro);
+  color: var(--peligro);
+  background: rgba(255, 107, 94, 0.1);
+}
+
+/* --- Stage (lienzo cuadriculado) --- */
+#area-visual{
+  order:1;
+  flex:1 1 auto;
+  min-height:0;
+  display:flex;
+  gap:16px;
+}
+#stage{
+  flex:1 1 auto;
+  min-height:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  position:relative;
+  background:
+    linear-gradient(var(--borde) 1px, transparent 1px) 0 0/24px 24px,
+    linear-gradient(90deg, var(--borde) 1px, transparent 1px) 0 0/24px 24px;
+  background-color:#081320;
+  border:1px solid var(--borde);
+  border-radius:8px;
+  overflow:hidden;
+}
+#codigo{
+  flex:0 0 380px;
+  min-height:0;
+  background:#081320;
+  border:1px solid var(--borde);
+  border-radius:8px;
+  padding:16px;
+  overflow:auto;
+}
+#codigo .titulo-codigo{
+  font-family:var(--mono);
+  font-size:.7rem;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--ink-dim);
+  margin-bottom:10px;
+  padding-bottom:8px;
+  border-bottom:1px dashed var(--borde);
+}
+#codigo pre{
+  margin:0;
+  font-family:var(--mono);
+  font-size:.8rem;
+  line-height:1.6;
+  color:var(--ink);
+  white-space:pre-wrap;
+}
+
+/* --- Resaltado Dinámico de Líneas de Código --- */
+.linea-codigo {
+  display: block;
+  padding: 0 8px;
+  margin: 0 -16px;
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+.linea-codigo.activa {
+  background: var(--accent-soft);
+  border-left-color: var(--accent);
+  color: var(--ink);
+}
+
+/* --- Log --- */
+#log{
+  order:2;
+  flex:0 0 auto;
+  font-family:var(--mono);
+  font-size:.82rem;
+  line-height:1.6;
+  color:var(--ink-dim);
+  background:var(--panel);
+  border:1px solid var(--borde);
+  border-radius:8px;
+  padding:14px 18px;
+  max-height:140px;
+  overflow-y:auto;
+}
+#log .paso-actual{color:var(--ink);}
+#log .paso-actual::before{content:"▸ "; color:var(--accent);}
+
+/* --- Controles --- */
+#controles{
+  position:sticky;
+  bottom:0;
+  z-index:5;
+  order:3;
+  flex:0 0 auto;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:16px;
+  background:var(--panel);
+  border:1px solid var(--borde);
+  border-radius:8px;
+  padding:14px 18px;
+  flex-wrap:wrap;
+}
+button{
+  font-family:var(--body);
+  font-size:.85rem;
+  background:var(--bg);
+  color:var(--ink);
+  border:1px solid var(--borde);
+  padding:7px 14px;
+  border-radius:5px;
+  cursor:pointer;
+}
+button:hover{border-color:var(--accent);}
+button:focus-visible{outline:2px solid var(--accent); outline-offset:1px;}
+
+#controles-reproductor{display:flex; align-items:center; gap:10px;}
+#btn-play{
+  background:var(--accent);
+  color:#0A1626;
+  border:none;
+  font-weight:600;
+  min-width:42px;
+}
+#velocidad{accent-color:var(--accent);}
+
+/* --- Scrollbars --- */
+#sidebar, main, #log{
+  scrollbar-width: thin;
+  scrollbar-color: var(--borde) transparent;
+}
+#sidebar::-webkit-scrollbar,
+main::-webkit-scrollbar,
+#log::-webkit-scrollbar{
+  width: 8px;
+}
+#sidebar::-webkit-scrollbar-track,
+main::-webkit-scrollbar-track,
+#log::-webkit-scrollbar-track{
+  background: transparent;
+}
+#sidebar::-webkit-scrollbar-thumb,
+main::-webkit-scrollbar-thumb,
+#log::-webkit-scrollbar-thumb{
+  background: var(--borde);
+  border-radius: 4px;
+}
+#sidebar::-webkit-scrollbar-thumb:hover,
+main::-webkit-scrollbar-thumb:hover,
+#log::-webkit-scrollbar-thumb:hover{
+  background: var(--accent);
+}
+
+/* =========================================================
+   Estilos genéricos para visualizaciones de estructuras
+   (array, pila, cola, listas, árboles, etc. los reutilizan)
+   ========================================================= */
+
+.array-wrapper{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.array-fila{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.array-celda{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  min-width:54px;
+}
+
+.array-valor{
+  width:54px;
+  height:54px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--panel);
+  border:1px solid var(--borde);
+  border-radius:6px;
+  font-family:var(--mono);
+  font-size:1.05rem;
+  color:var(--ink);
+  transition:transform .2s ease, border-color .2s ease, background-color .2s ease, color .2s ease;
+}
+
+.array-indice{
+  margin-top:6px;
+  font-family:var(--mono);
+  font-size:.72rem;
+  color:var(--ink-dim);
+}
+
+.array-celda.celda-activa .array-valor{
+  border-color:var(--accent);
+  background:var(--accent-soft);
+  color:var(--accent);
+  transform:translateY(-4px);
+}
+
+.array-celda.celda-encontrada .array-valor{
+  border-color:var(--exito);
+  background:rgba(95,217,164,.16);
+  color:var(--exito);
+  transform:translateY(-4px);
+}
+
+.array-celda.celda-descartada .array-valor{
+  opacity:.45;
+}
+
+.array-celda.celda-nueva .array-valor{
+  border-color:var(--accent);
+  animation:array-pop .35s ease;
+}
+
+@keyframes array-pop{
+  from{ transform:scale(.7); }
+  to{ transform:scale(1); }
+}
+
+.array-vacio{
+  font-family:var(--mono);
+  color:var(--ink-dim);
+  font-size:.9rem;
+}
+
+/* =========================================================
+   Estilos del módulo Pila (Stack)
+   ========================================================= */
+
+.pila-wrapper{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.pila-columna{
+  display:flex;
+  flex-direction:column-reverse;
+  align-items:center;
+  gap:6px;
+}
+
+.pila-celda{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.pila-etiqueta-tope{
+  font-family:var(--mono);
+  font-size:.72rem;
+  color:var(--accent);
+  white-space:nowrap;
+}
+
+/* =========================================================
+   Estilos del módulo Lista Simple (Linked List)
+   ========================================================= */
+
+.lista-wrapper{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow-x:auto;
+  overflow-y:visible;
+  max-width:100%;
+  position:relative;
+  padding-top:54px;
+}
+
+.lista-fila{
+  display:flex;
+  align-items:center;
+  gap:0;
+  flex-wrap:wrap;
+}
+
+.lista-grupo{
+  display:flex;
+  align-items:center;
+}
+
+.lista-nodo{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+
+.lista-etiqueta-head{
+  margin-top:6px;
+  font-family:var(--mono);
+  font-size:.72rem;
+  color:var(--accent);
+}
+
+.lista-flecha{
+  margin:0 8px;
+  font-size:1.3rem;
+  color:var(--ink-dim);
+}
+
+.lista-svg-circular{
+  position:absolute;
+  left:0;
+  pointer-events:none;
+  overflow:visible;
+}
+
+.lista-path-circular{
+  fill:none;
+  stroke:var(--accent);
+  stroke-width:2;
+}
+
+.lista-path-circular-prev{
+  stroke:var(--ink-dim);
+}
+
+.lista-flecha-punta{
+  fill:var(--accent);
+}
+
+.lista-flecha-punta-prev{
+  fill:var(--ink-dim);
+}
+
+.lista-wrapper-doble-circular{
+  padding-bottom:54px;
+}
+
+.lista-flecha-doble{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  margin:0 6px;
+  line-height:1;
+}
+
+.lista-flecha-doble .flecha-prev,
+.lista-flecha-doble .flecha-next{
+  font-size:1rem;
+  color:var(--ink-dim);
+}
+
+.lista-null{
+  font-family:var(--mono);
+  font-size:.82rem;
+  color:var(--ink-dim);
+  border:1px dashed var(--borde);
+  padding:6px 12px;
+  border-radius:6px;
+}
+
+/* =========================================================
+   Estilos del módulo Árbol General (y otros árboles N-arios)
+   ========================================================= */
+
+.arbol-wrapper{
+  position:relative;
+  margin:0 auto;
+}
+
+.arbol-svg{
+  position:absolute;
+  top:0;
+  left:0;
+  pointer-events:none;
+}
+
+.arbol-linea{
+  stroke:var(--borde);
+  stroke-width:2;
+}
+
+.arbol-nodo{
+  position:absolute;
+  transform:translate(-50%, 0);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+
+.arbol-nodo-raiz .array-valor{
+  border-color:var(--accent);
+}
+
+.arbol-factor-balance{
+  margin-top:4px;
+  font-family:var(--mono);
+  font-size:.68rem;
+  color:var(--ink-dim);
+}
+
+/* =========================================================
+   Estilos del módulo Árbol B+ (orden 4)
+   ========================================================= */
+
+.bplus-wrapper{
+  position:relative;
+  margin:0 auto;
+}
+
+.bplus-nodo{
+  position:absolute;
+  transform:translate(-50%, 0);
+  display:flex;
+  border:1px solid var(--borde);
+  border-radius:6px;
+  background:var(--panel);
+  overflow:hidden;
+}
+
+.bplus-interno{
+  border-color:var(--borde);
+}
+
+.bplus-hoja{
+  border-color:var(--accent);
+}
+
+.bplus-clave{
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-width:36px;
+  height:42px;
+  font-family:var(--mono);
+  font-size:.92rem;
+  color:var(--ink);
+  border-right:1px solid var(--borde);
+}
+
+.bplus-clave:last-child{
+  border-right:none;
+}
+
+.bplus-clave-vacia{
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  height:42px;
+  color:var(--ink-dim);
+}
+
+.bplus-clave-resaltada{
+  background:var(--accent-soft);
+  color:var(--accent);
+  font-weight:600;
+}
+
+.bplus-nodo.celda-activa{
+  border-color:var(--accent);
+  box-shadow:0 0 0 1px var(--accent);
+}
+
+.bplus-nodo.celda-encontrada{
+  border-color:var(--exito);
+  box-shadow:0 0 0 1px var(--exito);
+}
+
+.bplus-nodo.celda-nueva{
+  animation:array-pop .35s ease;
+}
+
+.bplus-linea-hojas{
+  stroke:var(--ink-dim);
+  stroke-width:1.5;
+  stroke-dasharray:4 4;
+}
+
+/* =========================================================
+   Estilos del módulo Skip List
+   ========================================================= */
+
+.skip-wrapper{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow-x:auto;
+  max-width:100%;
+}
+
+.skip-tabla{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+.skip-fila{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.skip-etiqueta-nivel{
+  width:64px;
+  flex:0 0 64px;
+  font-family:var(--mono);
+  font-size:.72rem;
+  color:var(--ink-dim);
+  text-align:right;
+}
+
+.skip-pista{
+  display:flex;
+  align-items:center;
+  gap:18px;
+}
+
+.skip-nodo{
+  width:46px;
+  height:38px;
+  flex:0 0 46px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--panel);
+  border:1px solid var(--borde);
+  border-radius:6px;
+  font-family:var(--mono);
+  font-size:.85rem;
+  color:var(--ink);
+  transition:border-color .2s ease, background-color .2s ease, color .2s ease;
+}
+
+.skip-head{
+  border-color:var(--accent);
+  color:var(--accent);
+  font-size:.68rem;
+}
+
+.skip-nodo-inactivo{
+  opacity:.25;
+}
+
+.skip-null{
+  border-style:dashed;
+  color:var(--ink-dim);
+}
+
+.skip-espaciador{
+  width:46px;
+  height:38px;
+  flex:0 0 46px;
+}

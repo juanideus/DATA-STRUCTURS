@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Visualizador de Estructuras de Datos</title>
+
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <!-- ===================================== -->
+    <!-- SIDEBAR -->
+    <!-- ===================================== -->
+    <nav id="sidebar">
+      <h1>Estructuras</h1>
+
+      <ul id="nav-list">
+        <!-- ===================================== -->
+        <!-- ESTRUCTURAS LINEALES -->
+        <!-- ===================================== -->
+        <li class="nav-categoria">Estructuras Lineales</li>
+
+        <li>
+          <a href="#" data-id="array"> <span class="nav-num">01</span>Array </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="pila">
+            <span class="nav-num">02</span>Pila (Stack)
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="cola">
+            <span class="nav-num">03</span>Cola (Queue)
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="deque"> <span class="nav-num">04</span>Deque </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="lista-simple">
+            <span class="nav-num">05</span>Lista Simple
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="lista-doble">
+            <span class="nav-num">06</span>Lista Doble
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="lista-circular-simple">
+            <span class="nav-num">07</span>Lista Circular Simple
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="lista-circular-doble">
+            <span class="nav-num">08</span>Lista Circular Doble
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="skip-list">
+            <span class="nav-num">09</span>Skip List
+          </a>
+        </li>
+
+        <!-- ===================================== -->
+        <!-- ÁRBOLES -->
+        <!-- ===================================== -->
+        <li class="nav-categoria">Árboles</li>
+
+        <li>
+          <a href="#" data-id="arbol-general">
+            <span class="nav-num">10</span>Árbol General
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="arbol-nario">
+            <span class="nav-num">11</span>Árbol N-ario
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="arbol-binario">
+            <span class="nav-num">12</span>Árbol Binario
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="bst">
+            <span class="nav-num">13</span>Binary Search Tree
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="avl"> <span class="nav-num">14</span>AVL </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="rojo-negro">
+            <span class="nav-num">15</span>Rojo-Negro
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="splay-tree">
+            <span class="nav-num">16</span>Splay Tree
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="heap"> <span class="nav-num">17</span>Heap </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="fibonacci-heap">
+            <span class="nav-num">18</span>Fibonacci Heap
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="trie"> <span class="nav-num">19</span>Trie </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="suffix-tree">
+            <span class="nav-num">20</span>Suffix Tree
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="segment-tree">
+            <span class="nav-num">21</span>Segment Tree
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="fenwick-tree">
+            <span class="nav-num">22</span>Fenwick Tree
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="btree">
+            <span class="nav-num">23</span>B-Tree
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="bplus-tree">
+            <span class="nav-num">24</span>B+ Tree
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="bstar-tree">
+            <span class="nav-num">25</span>B* Tree
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="merkle-tree">
+            <span class="nav-num">26</span>Merkle Tree
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="kd-tree">
+            <span class="nav-num">27</span>KD-Tree
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="quadtree">
+            <span class="nav-num">28</span>QuadTree
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="octree">
+            <span class="nav-num">29</span>Octree
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="expression-tree">
+            <span class="nav-num">30</span>Expression Tree
+          </a>
+        </li>
+
+        <!-- ===================================== -->
+        <!-- HASHING -->
+        <!-- ===================================== -->
+        <li class="nav-categoria">Hashing</li>
+
+        <li>
+          <a href="#" data-id="hash-table">
+            <span class="nav-num">31</span>Hash Table
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="hash-open">
+            <span class="nav-num">32</span>Open Addressing
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="hash-chaining">
+            <span class="nav-num">33</span>Separate Chaining
+          </a>
+        </li>
+
+        <!-- ===================================== -->
+        <!-- GRAFOS -->
+        <!-- ===================================== -->
+        <li class="nav-categoria">Grafos</li>
+
+        <li>
+          <a href="#" data-id="grafo"> <span class="nav-num">34</span>Grafo </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="grafo-dirigido">
+            <span class="nav-num">35</span>Grafo Dirigido
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="dfs"> <span class="nav-num">36</span>DFS </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="bfs"> <span class="nav-num">37</span>BFS </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="dijkstra">
+            <span class="nav-num">38</span>Dijkstra
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="prim"> <span class="nav-num">39</span>Prim </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="kruskal">
+            <span class="nav-num">40</span>Kruskal
+          </a>
+        </li>
+
+        <!-- ===================================== -->
+        <!-- RECURSIÓN -->
+        <!-- ===================================== -->
+        <li class="nav-categoria">Recursión</li>
+
+        <li>
+          <a href="#" data-id="fibonacci">
+            <span class="nav-num">41</span>Fibonacci
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="factorial">
+            <span class="nav-num">42</span>Factorial
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="hanoi">
+            <span class="nav-num">43</span>Torres de Hanoi
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="merge-sort">
+            <span class="nav-num">44</span>Merge Sort
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="quick-sort">
+            <span class="nav-num">45</span>Quick Sort
+          </a>
+        </li>
+
+        <!-- ===================================== -->
+        <!-- BACKTRACKING -->
+        <!-- ===================================== -->
+        <li class="nav-categoria">Backtracking</li>
+
+        <li>
+          <a href="#" data-id="n-reinas">
+            <span class="nav-num">46</span>N-Reinas
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="laberinto">
+            <span class="nav-num">47</span>Laberinto
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="sudoku">
+            <span class="nav-num">48</span>Sudoku Solver
+          </a>
+        </li>
+
+        <!-- ===================================== -->
+        <!-- OTROS -->
+        <!-- ===================================== -->
+        <li class="nav-categoria">Otros</li>
+
+        <li>
+          <a href="#" data-id="union-find">
+            <span class="nav-num">49</span>Union-Find
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="lru-cache">
+            <span class="nav-num">50</span>LRU Cache
+          </a>
+        </li>
+
+        <li>
+          <a href="#" data-id="bloom-filter">
+            <span class="nav-num">51</span>Bloom Filter
+          </a>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- ===================================== -->
+    <!-- MAIN -->
+    <!-- ===================================== -->
+    <main>
+      <header id="titulo-bloque">
+        <h2 id="nombre-estructura">Selecciona una estructura</h2>
+
+        <span id="complejidad"></span>
+      </header>
+
+      <!-- ÁREA VISUAL: lienzo + pseudocódigo -->
+      <section id="area-visual">
+        <div id="stage"></div>
+
+        <div id="codigo">
+          <div class="titulo-codigo">Pseudocódigo</div>
+          <pre id="codigo-contenido"></pre>
+        </div>
+      </section>
+
+      <!-- LOG -->
+      <section id="log"></section>
+
+      <!-- CONTROLES -->
+      <section id="controles">
+        <div id="panel-operaciones"></div>
+
+        <div id="controles-reproductor">
+          <button id="btn-prev" title="Paso anterior">⏮</button>
+
+          <button id="btn-play" title="Reproducir / Pausar">▶</button>
+
+          <button id="btn-next" title="Paso siguiente">⏭</button>
+
+          <input
+            type="range"
+            id="velocidad"
+            min="1"
+            max="10"
+            value="5"
+            title="Velocidad"
+          />
+        </div>
+      </section>
+    </main>
+
+    <!-- ===================================== -->
+    <!-- SCRIPTS -->
+    <!-- ===================================== -->
+
+    <script src="app.js" defer></script>
+
+    <!-- Lineales -->
+    <script src="/src/estructuras/array.js" defer></script>
+    <script src="/src/estructuras/stack.js" defer></script>
+    <script src="/src/estructuras/queue.js" defer></script>
+    <script src="/src/estructuras/deque.js" defer></script>
+    <script src="/src/estructuras/simpleList.js" defer></script>
+    <script src="/src/estructuras/doubleList.js" defer></script>
+    <script src="/src/estructuras/circularList.js" defer></script>
+    <script src="/src/estructuras/doubleCircularList.js" defer></script>
+    <script src="/src/estructuras/skipList.js" defer></script>
+
+    <!-- Árboles -->
+    <script src="/src/estructuras/arbolGeneral.js" defer></script>
+    <script src="/src/estructuras/arbolBinario.js" defer></script>
+    <script src="/src/estructuras/bst.js" defer></script>
+    <script src="/src/estructuras/avl.js" defer></script>
+    <script src="/src/estructuras/bplustree.js" defer></script>
+    <script src="/src/estructuras/heap.js" defer></script>
+    <script src="/src/estructuras/trie.js" defer></script>
+
+    <!-- Grafos -->
+    <script src="/src/estructuras/graph.js" defer></script>
+
+    <!-- Recursión -->
+    <script src="/src/estructuras/fibonacci.js" defer></script>
+    <script src="/src/estructuras/hanoi.js" defer></script>
+  </body>
+</html>
