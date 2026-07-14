@@ -482,15 +482,33 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     case 'set-word': {
       const word = String(fields.value ?? '').trim().toUpperCase();
       if (!word) return fail('Escribe una palabra.');
+      if (algorithm.id === 'trie') {
+        if (word.length > 8) return fail('Usa una palabra de hasta 8 letras para mantener visible el árbol.');
+        if (next.includes(word)) return fail(`${word} ya existe en el Trie.`);
+        if (next.length >= 6) return fail('El Trie visual admite hasta 6 palabras.');
+        next.push(word);
+        return done(next, `La palabra ${word} fue insertada en el Trie.`, next.length - 1);
+      }
       return done([...word], `La palabra ${word} fue insertada en el Trie.`, word.length - 1);
     }
     case 'word-find': {
       const word = String(fields.value ?? '').trim().toUpperCase();
+      if (algorithm.id === 'trie') {
+        const found = next.indexOf(word);
+        return found >= 0 ? done(next, `${word} existe y termina en un nodo marcado como FIN.`, found) : fail(`${word || 'La palabra'} no existe en el Trie.`);
+      }
       const current = next.join('');
       return word && current.includes(word) ? done(next, `${word} coincide con la ruta de prefijos.`, word.length - 1) : fail(`${word || 'La palabra'} no aparece en la ruta actual.`);
     }
     case 'remove-word': {
       const word = String(fields.value ?? '').trim().toUpperCase();
+      if (algorithm.id === 'trie') {
+        const found = next.indexOf(word);
+        if (!word) return fail('Escribe la palabra que quieres eliminar.');
+        if (found < 0) return fail(`${word} no existe en el Trie.`);
+        next.splice(found, 1);
+        return done(next, `La palabra ${word} fue eliminada del Trie.`, Math.max(0, found - 1));
+      }
       const current = next.join('');
       if (!word) return fail('Escribe la palabra que quieres eliminar.');
       if (!current.includes(word)) return fail(`${word} no aparece en la ruta actual.`);

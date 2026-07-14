@@ -68,12 +68,20 @@ function LinearVisual({ algorithm, step }) {
   }
   if (type === 'circular') return <CircularListVisual algorithm={algorithm} step={step}/>;
   const linked = type === 'linked';
+  const doubleLinked = algorithm.id === 'lista-doble';
   return <div className={`linear-visual ${type}`}>
     {values.map((value, index) => <div className="linear-unit" key={`${value}-${index}`}>
       <div className={`data-cell ${index === step % values.length ? 'active' : ''}`}>
-        <span>{value}</span><small>{linked ? 'next' : index}</small>
+        <span>{value}</span><small>{doubleLinked ? 'prev · next' : linked ? 'next' : index}</small>
       </div>
-      {index < values.length - 1 && <span className="connector">{type === 'linked' ? '→' : type === 'queue' ? '›' : '—'}</span>}
+      {index < values.length - 1 && (doubleLinked
+        ? <svg className="double-connector" viewBox="0 0 54 32" role="img" aria-label="Enlace hacia adelante y hacia atrás">
+            <line className="forward" x1="2" y1="9" x2="47" y2="9"/>
+            <path className="forward" d="M46 5 L52 9 L46 13"/>
+            <line className="reverse" x1="52" y1="23" x2="7" y2="23"/>
+            <path className="reverse" d="M8 19 L2 23 L8 27"/>
+          </svg>
+        : <span className="connector">{type === 'linked' ? '→' : type === 'queue' ? '›' : '—'}</span>)}
     </div>)}
   </div>;
 }
@@ -206,6 +214,59 @@ function FenwickVisual({ algorithm, step }) {
   })}</div></div>;
 }
 
+function TrieTreeVisual({ algorithm, step }) {
+  const words = algorithm.values.map(value=>String(value).trim().toUpperCase()).filter(Boolean);
+  const nodes = [{ id:0, letter:'∅', depth:0, parent:null, children:new Map(), endings:[] }];
+
+  words.forEach(word => {
+    let current = 0;
+    [...word].forEach(letter => {
+      if (!nodes[current].children.has(letter)) {
+        const id = nodes.length;
+        nodes[current].children.set(letter, id);
+        nodes.push({ id, letter, depth:nodes[current].depth + 1, parent:current, children:new Map(), endings:[] });
+      }
+      current = nodes[current].children.get(letter);
+    });
+    nodes[current].endings.push(word);
+  });
+
+  let leafPosition = 0;
+  const placeNode = id => {
+    const children = [...nodes[id].children.values()];
+    if (!children.length) {
+      nodes[id].rawX = leafPosition++;
+      return nodes[id].rawX;
+    }
+    const childPositions = children.map(placeNode);
+    nodes[id].rawX = childPositions.reduce((sum,value)=>sum+value,0) / childPositions.length;
+    return nodes[id].rawX;
+  };
+  placeNode(0);
+  const leafCount = Math.max(1, leafPosition);
+  const maximumDepth = Math.max(1, ...nodes.map(node=>node.depth));
+  nodes.forEach(node => {
+    node.x = leafCount === 1 ? 50 : 12 + (node.rawX / (leafCount - 1)) * 76;
+    node.y = 9 + (node.depth / maximumDepth) * 76;
+  });
+  const activeWord = words.length ? words[step % words.length] : '';
+
+  return <div className="trie-tree-canvas">
+    <span className="tree-kind-label">PREFIJOS COMPARTIDOS</span>
+    <svg className="trie-edge-layer" aria-hidden="true">
+      {nodes.slice(1).map(node => {
+        const parent = nodes[node.parent];
+        return <line key={`edge-${node.id}`} x1={`${parent.x}%`} y1={`${parent.y}%`} x2={`${node.x}%`} y2={`${node.y}%`}/>;
+      })}
+    </svg>
+    {nodes.map(node => <div className={`trie-tree-node ${node.id===0?'root':''} ${node.endings.length?'terminal':''} ${node.endings.includes(activeWord)?'active':''}`} style={{left:`${node.x}%`,top:`${node.y}%`}} key={node.id}>
+      <strong>{node.letter}</strong>
+      {node.endings.length > 0 && <small>FIN · {node.endings.join(', ')}</small>}
+    </div>)}
+    <div className="trie-legend"><i/> FIN indica el último nodo de una palabra</div>
+  </div>;
+}
+
 function SpecialVisual({ algorithm, step }) {
   if (algorithm.type === 'queens') {
     const size = algorithm.values.length;
@@ -223,7 +284,7 @@ function SpecialVisual({ algorithm, step }) {
       {disks.filter(disk=>disk.rod===rod).sort((a,b)=>b.size-a.size).map(disk=><i key={disk.size} style={{width:`${35+disk.size*9}px`}} className={disk.size===step?'active':''}/>) }
     </div>)}</div>;
   }
-  if (algorithm.id === 'trie') return <div className="trie-visual"><span className="tree-kind-label">PREFIJOS COMPARTIDOS</span><div className="root-dot">∅</div><div className="word-path">{algorithm.values.map((v,i)=><span className={i===step%algorithm.values.length?'active':''} key={i}>{v}</span>)}</div><small>cada arista representa una letra</small></div>;
+  if (algorithm.id === 'trie') return <TrieTreeVisual algorithm={algorithm} step={step}/>;
   if (algorithm.id === 'suffix-tree') { const text=algorithm.values.join(''); return <div className="suffix-visual"><span className="tree-kind-label">TODOS LOS SUFIJOS DE “{text}”</span><div className="suffix-root">ROOT</div><div className="suffix-branches">{Array.from({length:Math.min(5,text.length)},(_,index)=><div className={index===step%Math.min(5,text.length)?'active':''} key={index}><i/>{text.slice(index)}</div>)}</div></div>; }
   if (algorithm.type === 'hash' || algorithm.type === 'bloom') return <div className="hash-visual">{algorithm.values.map((v,i)=><div className={`hash-slot ${i===step%algorithm.values.length?'active':''}`} key={i}><small>{i.toString().padStart(2,'0')}</small><strong>{v}</strong></div>)}</div>;
   if (algorithm.type === 'recursion') return <div className="recursion-visual">{algorithm.values.slice(0,6).map((v,i)=><div className={i===step%6?'active':''} style={{transform:`translateX(${i*16}px)`}} key={i}><span>llamada {i}</span><strong>{v}</strong></div>)}</div>;
@@ -461,13 +522,53 @@ function App() {
         </article>
       </section>
 
-      <section className="future-description" aria-labelledby="future-description-title">
+      <section className={`future-description ${algorithm.id === 'array' ? 'available-description' : ''}`} aria-labelledby="future-description-title">
         <div className="future-description-icon"><BookOpen size={20}/></div>
-        <div>
+        {algorithm.id === 'array' ? <div>
+          <span>DESCRIPCIÓN</span>
+          <h2 id="future-description-title">¿Qué es un Array?</h2>
+          <p>Un Array es una estructura que guarda varios elementos en un orden definido. Cada elemento ocupa una posición llamada <strong>índice</strong>. En Java, el primer índice siempre es <strong>0</strong>, el segundo es 1 y así sucesivamente.</p>
+          <div className="description-details">
+            <article><strong>¿Cómo funciona?</strong><p>Imagina una fila de casilleros numerados. Para encontrar un valor sólo necesitas conocer el número de su casillero.</p></article>
+            <article><strong>Características</strong><p>Mantiene el orden, permite acceso directo y normalmente almacena elementos del mismo tipo.</p></article>
+            <article><strong>Ejemplo cotidiano</strong><p>Una lista con las notas de un curso: <code>notas[0]</code> contiene la primera nota y <code>notas[1]</code> la segunda.</p></article>
+          </div>
+          <div className="description-learning-grid">
+            <article>
+              <strong>Operaciones más comunes</strong>
+              <ul>
+                <li><b>Leer:</b> obtener un elemento usando su índice.</li>
+                <li><b>Actualizar:</b> reemplazar el valor que ocupa una posición.</li>
+                <li><b>Recorrer:</b> visitar todos los elementos mediante un ciclo.</li>
+                <li><b>Insertar o eliminar:</b> mover elementos cuando se modifica una posición intermedia.</li>
+              </ul>
+            </article>
+            <article>
+              <strong>Ventajas y consideraciones</strong>
+              <ul>
+                <li>Acceder a una posición conocida es muy rápido.</li>
+                <li>Sus elementos permanecen ordenados por índice.</li>
+                <li>En Java tradicional, su tamaño se define al crearlo.</li>
+                <li>Buscar un valor puede requerir revisar el Array completo.</li>
+              </ul>
+            </article>
+          </div>
+          <div className="description-java-example">
+            <div><strong>Ejemplo básico en Java</strong><p>Se crea un Array, se consulta una posición y luego se recorren todas sus notas.</p></div>
+            <pre><code>{`int[] notas = {65, 70, 58, 66};
+
+System.out.println(notas[0]);
+
+for (int i = 0; i < notas.length; i++) {
+    System.out.println(notas[i]);
+}`}</code></pre>
+          </div>
+          <div className="description-tip"><Sparkles size={15}/><p><strong>Regla importante:</strong> si el tamaño del Array es <code>n</code>, sus índices van desde <code>0</code> hasta <code>n - 1</code>. Por ejemplo, un Array de tamaño 5 utiliza los índices 0, 1, 2, 3 y 4; por eso su último índice es <code>5 - 1 = 4</code>.</p></div>
+        </div> : <div>
           <span>PRÓXIMAMENTE</span>
           <h2 id="future-description-title">Descripción de {algorithm.name}</h2>
           <p>Este espacio incluirá una explicación sencilla, características principales, casos de uso y ejemplos cotidianos de esta estructura.</p>
-        </div>
+        </div>}
       </section>
 
       <section className="learning-strip"><div><BookOpen size={18}/><span><b>{categoryLabels[algorithm.category]}</b> · {algorithm.name}</span></div><button onClick={resetDemo}><RotateCcw size={15}/> Reiniciar</button></section>
