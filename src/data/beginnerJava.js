@@ -401,6 +401,16 @@ const basic = {
 };
 
 const special = {
+  'btree:sorted-add': `void insert(int value) {
+    Node leaf = findLeaf(value);
+    insertInOrder(leaf, value);
+
+    if (leaf.keyCount > MAX_KEYS) {
+        Node rightLeaf = splitLeaf(leaf);
+        int separator = rightLeaf.keys[0];
+        insertIntoParent(leaf, separator, rightLeaf);
+    }
+}`,
   'sudoku:solve': `boolean solveSudoku(int row, int column) {
     if (row == 9) return true; // base case: board completed
     if (column == 9) return solveSudoku(row + 1, 0);

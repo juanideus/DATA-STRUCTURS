@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, ArrowRight, BookOpen, Boxes, ChevronDown, CircleHelp, Gauge,
+  ArrowLeft, ArrowRight, BookOpen, Boxes, Bug, ChevronDown, CircleHelp, ExternalLink, Gauge,
   Menu, Pause, Play, RotateCcw, Search, Shuffle, Sparkles, X,
 } from 'lucide-react';
 import { algorithms, categories, categoryLabels } from './data/algorithms.js';
 import { getBeginnerJava } from './data/beginnerJava.js';
+import EducationalDescription from './components/EducationalDescription.jsx';
 import OperationsPanel from './components/OperationsPanel.jsx';
 import { DEFAULT_GRAPH_EDGES, executeOperation, getOperationDefinition } from './logic/operations.js';
 import ucnLogo from './assets/LogoUCN.png';
@@ -14,6 +15,137 @@ const SUDOKU_START = [
   8,0,0,0,6,0,0,0,3, 4,0,0,8,0,3,0,0,1, 7,0,0,0,2,0,0,0,6,
   0,6,0,0,0,0,2,8,0, 0,0,0,4,1,9,0,0,5, 0,0,0,0,8,0,0,7,9,
 ];
+
+const NORMAL_FRAME_DELAY = 800;
+
+const randomNumber = (minimum, maximum) => Math.floor(Math.random() * (maximum - minimum + 1)) + minimum;
+
+function randomUniqueNumbers(amount, minimum = 1, maximum = 60) {
+  const numbers = new Set();
+  while (numbers.size < amount) numbers.add(randomNumber(minimum, maximum));
+  return [...numbers];
+}
+
+function balancedLevelOrder(sortedValues) {
+  const result = [];
+  const ranges = [[0, sortedValues.length - 1]];
+  while (ranges.length) {
+    const [start, end] = ranges.shift();
+    if (start > end) continue;
+    const middle = Math.floor((start + end) / 2);
+    result.push(sortedValues[middle]);
+    ranges.push([start, middle - 1], [middle + 1, end]);
+  }
+  return result;
+}
+
+function createRandomValues(algorithm) {
+  const amount = algorithm.values.length;
+
+  if (algorithm.id === 'sudoku') {
+    const digits = randomUniqueNumbers(9, 1, 9);
+    return SUDOKU_START.map(value => value === 0 ? 0 : digits[value - 1]);
+  }
+  if (algorithm.id === 'laberinto') {
+    const maze = new Array(36).fill(1);
+    let row = 0, column = 0;
+    maze[0] = 0;
+    while (row < 5 || column < 5) {
+      if (row === 5) column++;
+      else if (column === 5) row++;
+      else if (Math.random() < .5) row++;
+      else column++;
+      maze[row * 6 + column] = 0;
+    }
+    for (let index = 1; index < 35; index++) if (Math.random() < .28) maze[index] = 0;
+    return maze;
+  }
+  if (algorithm.id === 'n-reinas') return new Array(randomNumber(4, 8)).fill(-1);
+  if (algorithm.id === 'hanoi') {
+    const disks = randomNumber(3, 6);
+    return Array.from({ length: disks }, (_, index) => disks - index);
+  }
+  if (algorithm.id === 'fibonacci') {
+    const length = randomNumber(6, 9), values = [0, 1];
+    while (values.length < length) values.push(values.at(-1) + values.at(-2));
+    return values;
+  }
+  if (algorithm.id === 'factorial') {
+    const length = randomNumber(4, 7);
+    return Array.from({ length }, (_, index) => Array.from({ length: index + 1 }, (__, item) => item + 1).reduce((total, value) => total * value, 1));
+  }
+  if (algorithm.id === 'trie') {
+    const examples = [['SOL','SOLA','SOLO','SOLAR'],['PAN','PANA','PANEL','PANERA'],['MAR','MAREA','MARINO','MARTA']];
+    return examples[randomNumber(0, examples.length - 1)];
+  }
+  if (algorithm.id === 'suffix-tree') return [...['ALGORITMO','BANANA','DATOS','CASACA'][randomNumber(0, 3)]];
+  if (algorithm.id === 'expression-tree') return ['+','×','−',...randomUniqueNumbers(4, 1, 9).map(String)];
+  if (algorithm.id === 'merkle-tree') return Array.from({ length: amount }, () => `B${randomNumber(10, 99)}`);
+  if (algorithm.category === 'Grafos') {
+    const offset = randomNumber(0, 19);
+    return Array.from({ length: amount }, (_, index) => String.fromCharCode(65 + (offset + index) % 26));
+  }
+  if (algorithm.id === 'hash-table') {
+    const keys = ['nube','luna','rio','cobre','norte','aula','dato','java'];
+    return keys.sort(() => Math.random() - .5).slice(0, amount);
+  }
+  if (algorithm.id === 'lru-cache') {
+    const offset = randomNumber(0, 18);
+    return Array.from({ length: amount }, (_, index) => String.fromCharCode(65 + offset + index)).sort(() => Math.random() - .5);
+  }
+  if (algorithm.id === 'union-find') {
+    const parents = Array.from({ length: amount }, (_, index) => index);
+    for (let index = 1; index < amount; index++) if (Math.random() < .55) parents[index] = parents[index - 1];
+    return parents;
+  }
+  if (algorithm.id === 'bloom-filter') return Array.from({ length: amount }, () => randomNumber(0, 1));
+
+  const values = randomUniqueNumbers(amount);
+  if (['bst','avl','rojo-negro','splay-tree','kd-tree'].includes(algorithm.id)) return balancedLevelOrder(values.sort((a, b) => a - b));
+  if (algorithm.type === 'heap') return values.sort((a, b) => b - a);
+  if (['skip-list','btree','bplus-tree','bstar-tree'].includes(algorithm.id)) return values.sort((a, b) => a - b);
+  return values;
+}
+
+const copyVisualValues = values => values.map(value => (
+  value && typeof value === 'object' ? { ...value } : value
+));
+
+function executableCodeLines(code) {
+  return code.split('\n')
+    .map((text, index) => ({ index, text: text.trim() }))
+    .filter(line => line.text && line.text !== '}' && line.text !== '};');
+}
+
+function createCodeSynchronizedFrames({ code, beforeValues, afterValues, beforeEdges, afterEdges, finalStep, finalMessage }) {
+  const lines = executableCodeLines(code);
+  const sequence = lines.length ? lines : [{ index: 0, text: 'operation' }];
+  const lastFrame = sequence.length - 1;
+  const target = Math.max(0, finalStep ?? afterValues.length - 1);
+
+  return sequence.map((line, frameIndex) => {
+    const completed = frameIndex === lastFrame;
+    const progress = lastFrame === 0 ? 1 : frameIndex / lastFrame;
+    return {
+      values: copyVisualValues(completed ? afterValues : beforeValues),
+      edges: (completed ? afterEdges : beforeEdges).map(edge => [...edge]),
+      position: completed ? target : Math.round(target * progress),
+      codeLine: line.index,
+      message: completed ? finalMessage : `Ejecutando línea ${line.index + 1}: ${line.text}`,
+    };
+  });
+}
+
+function adaptFramesToCode(frames, code, keepOriginalLines) {
+  const lines = executableCodeLines(code);
+  const lastCodeLine = Math.max(0, code.split('\n').length - 1);
+  return frames.map((frame, index) => {
+    if (keepOriginalLines) return { ...frame, codeLine: Math.min(lastCodeLine, Math.max(0, frame.codeLine ?? 0)) };
+    const progress = frames.length <= 1 ? 1 : index / (frames.length - 1);
+    const line = lines[Math.min(lines.length - 1, Math.round(progress * Math.max(0, lines.length - 1)))];
+    return { ...frame, codeLine: line?.index ?? 0 };
+  });
+}
 
 function CircularListVisual({ algorithm, step }) {
   const values = algorithm.values;
@@ -127,19 +259,41 @@ function NaryTreeDiagram({ algorithm, step }) {
 }
 
 function MultiwayTreeDiagram({ algorithm, step }) {
-  const values = algorithm.values.slice(0,9);
-  const childX = [16,50,84];
-  const perGroup = Math.max(1,Math.ceil(values.length/3));
-  const groups = [values.slice(0,perGroup),values.slice(perGroup,perGroup*2),values.slice(perGroup*2)];
-  const rootKeys = [groups[1][0],groups[2][0]].filter(value=>value!==undefined);
-  const activeGroup = Math.min(2,Math.floor((step%values.length)/perGroup));
-  return <div className={`btree-visual ${algorithm.id}`}>
+  const values = algorithm.values.slice(0,24);
+  const groupCount = Math.ceil(values.length / 3);
+  const groupBaseSize = Math.floor(values.length / groupCount);
+  const largerGroups = values.length % groupCount;
+  let groupCursor = 0;
+  const groups = Array.from({ length: groupCount }, (_, index) => {
+    const groupSize = groupBaseSize + (index < largerGroups ? 1 : 0);
+    const group = values.slice(groupCursor, groupCursor + groupSize);
+    groupCursor += groupSize;
+    return group;
+  });
+  let startCursor = 0;
+  const groupStarts = groups.map(group => {
+    const start = startCursor;
+    startCursor += group.length;
+    return start;
+  });
+  const childX = groups.map((_, index) => ((index + .5) / groups.length) * 100);
+  const rootKeys = groups.slice(1).map(group => group[0]);
+  const frame = algorithm.animationFrame;
+  const promotedKey = frame?.promotedKey;
+  const promotionPending = ['insert','split','promote'].includes(frame?.treePhase) && promotedKey !== null && promotedKey !== undefined;
+  const visibleRootKeys = promotionPending ? rootKeys.filter(key => String(key) !== String(promotedKey)) : rootKeys;
+  const promotedLeaf = Math.max(0, groups.findIndex(group => String(group[0]) === String(promotedKey)));
+  const activePosition = step % values.length;
+  const activeGroup = Math.max(0, groupStarts.findIndex((start,index) => activePosition >= start && activePosition < start + groups[index].length));
+  const nodeWidth = Math.min(17, 84 / groups.length);
+  return <div className={`btree-visual ${algorithm.id} ${groups.length > 5 ? 'many-leaves' : ''}`}>
     <span className="tree-kind-label">{algorithm.id==='bplus-tree'?'DATOS SOLO EN HOJAS':algorithm.id==='bstar-tree'?'OCUPACIÓN MÍNIMA 2/3':'NODOS MULTICLAVE'}</span>
     <svg className="btree-edges">{childX.map((x,index)=><line key={index} x1="50%" y1="22%" x2={`${x}%`} y2="70%"/>)}</svg>
-    <div className="bnode root-bnode"><small>ROOT</small>{rootKeys.join(' | ')}</div>
-    {groups.map((group,index)=><div className={`bnode child-bnode ${index===activeGroup?'active':''}`} style={{left:`${childX[index]}%`}} key={index}><small>{algorithm.id==='bplus-tree'?'LEAF':'NODE'}</small>{group.join(' | ')||'·'}</div>)}
-    {algorithm.id==='bplus-tree' && <svg className="bplus-leaf-chain"><line x1="22%" y1="50%" x2="43%" y2="50%"/><line x1="57%" y1="50%" x2="78%" y2="50%"/></svg>}
-    <div className="leaf-link">{algorithm.id==='bplus-tree'?'HOJAS ENLAZADAS →':algorithm.id==='bstar-tree'?'REDISTRIBUYE ANTES DE DIVIDIR':'CLAVES Y DATOS EN CADA NIVEL'}</div>
+    <div className={`bnode root-bnode ${frame?.treePhase==='settled'?'promoting':''}`}><small>ROOT · SEPARADORES</small>{visibleRootKeys.join(' | ') || '·'}</div>
+    {groups.map((group,index)=><div className={`bnode child-bnode ${index===activeGroup?'active':''} ${frame?.treePhase==='split'&&index===promotedLeaf?'splitting':''}`} style={{left:`${childX[index]}%`,width:`${nodeWidth}%`}} key={index}><small>{algorithm.id==='bplus-tree'?'HOJA':'NODO'}</small>{group.join(' | ')||'·'}</div>)}
+    {algorithm.id==='bplus-tree' && groups.length > 1 && <svg className="bplus-leaf-chain"><defs><marker id="bplus-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z"/></marker></defs>{childX.slice(0,-1).map((x,index)=><line key={index} x1={`${x + nodeWidth / 2}%`} y1="50%" x2={`${childX[index+1] - nodeWidth / 2}%`} y2="50%" markerEnd="url(#bplus-arrow)"/>)}</svg>}
+    {frame?.treePhase==='promote' && promotedKey !== null && promotedKey !== undefined && <span className="promoted-key" style={{left:`${childX[promotedLeaf]}%`}}><small>SUBE</small>{promotedKey}</span>}
+    <div className="leaf-link">{algorithm.id==='bplus-tree'?'MÁX. 3 CLAVES POR HOJA · HOJAS ENLAZADAS →':algorithm.id==='bstar-tree'?'MÁX. 3 CLAVES · REDISTRIBUYE ANTES DE DIVIDIR':'MÁX. 3 CLAVES POR NODO · LOS SEPARADORES SUBEN'}</div>
   </div>;
 }
 
@@ -328,11 +482,63 @@ function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setM
   </aside>;
 }
 
+function OpeningIntro({ onDone }) {
+  const [leaving, setLeaving] = useState(false);
+  const onDoneRef = useRef(onDone);
+  const exitTimer = useRef(null);
+  const finishTimer = useRef(null);
+
+  useEffect(() => { onDoneRef.current = onDone; }, [onDone]);
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    exitTimer.current = window.setTimeout(() => setLeaving(true), 7200);
+    finishTimer.current = window.setTimeout(() => onDoneRef.current(), 7850);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.clearTimeout(exitTimer.current);
+      window.clearTimeout(finishTimer.current);
+    };
+  }, []);
+
+  const enterNow = () => {
+    window.clearTimeout(exitTimer.current);
+    window.clearTimeout(finishTimer.current);
+    setLeaving(true);
+    finishTimer.current = window.setTimeout(() => onDoneRef.current(), 620);
+  };
+
+  return <section className={`opening-intro ${leaving ? 'is-leaving' : ''}`} role="dialog" aria-modal="true" aria-labelledby="opening-title">
+    <div className="opening-surface">
+      <header className="opening-header">
+        <div><span className="opening-logo"><Boxes size={22}/></span><p><strong>DSA Lab</strong><small>Algoritmos visuales</small></p></div>
+        <button type="button" onClick={enterNow}>Entrar ahora <ArrowRight size={15}/></button>
+      </header>
+
+      <div className="opening-content">
+        <div className="opening-message">
+          <span className="opening-kicker"><Sparkles size={14}/> Inspirada en aprender mejor</span>
+          <h1 id="opening-title"><span>Comprender es más fácil</span><span>cuando puedes verlo.</span></h1>
+          <p>Esta página fue creada para mejorar el aprendizaje de los estudiantes: permite visualizar cada paso, experimentar con las estructuras y realizar sus propios algoritmos de una manera más sencilla.</p>
+        </div>
+
+        <div className="opening-journey" aria-hidden="true">
+          <div><span><Play size={17}/></span><p><small>01</small><strong>Visualiza</strong><em>Observa qué ocurre en cada paso.</em></p></div>
+          <div><span><BookOpen size={17}/></span><p><small>02</small><strong>Comprende</strong><em>Relaciona la animación con Java.</em></p></div>
+          <div><span><Boxes size={17}/></span><p><small>03</small><strong>Crea</strong><em>Construye tus propios algoritmos.</em></p></div>
+        </div>
+      </div>
+
+      <footer className="opening-footer"><span>Preparando tu espacio de aprendizaje</span><div><i/></div><small>El límite es tu imaginación</small></footer>
+    </div>
+  </section>;
+}
+
 function Welcome({ onStart }) {
   return <div className="welcome-page">
     <section className="welcome-hero">
       <div className="welcome-copy">
-        <div className="eyebrow"><span>BIENVENIDO A DSA LAB</span><i>APRENDE HACIENDO</i></div>
+        <div className="eyebrow"><span>Bienvenido a DSA Lab</span><i>Aprende practicando</i></div>
         <h1>Algoritmos que puedes ver, tocar y entender.</h1>
         <p>Esta página es un laboratorio educativo creado para visualizar estructuras de datos y algoritmos de una manera más sencilla. Los alumnos pueden modificar ejemplos, reproducir cada ejecución paso a paso y usar el código Java como punto de apoyo para comprender, practicar y desarrollar sus propios algoritmos.</p>
         <button className="welcome-start" onClick={onStart}><Play size={17}/> Comenzar con Array <ArrowRight size={16}/></button>
@@ -351,7 +557,7 @@ function Welcome({ onStart }) {
 
     <section className="welcome-about" aria-labelledby="welcome-about-title">
       <div className="welcome-section-heading">
-        <span>¿DE QUÉ TRATA ESTA PÁGINA?</span>
+        <span>Sobre este proyecto</span>
         <h2 id="welcome-about-title">Un espacio para experimentar sin miedo a equivocarse</h2>
         <p>Cada tema combina una representación visual, controles interactivos y código sencillo. El objetivo es que los alumnos entiendan qué ocurre internamente y dispongan de una base clara desde la cual puedan construir sus propios algoritmos.</p>
       </div>
@@ -363,22 +569,63 @@ function Welcome({ onStart }) {
     </section>
 
     <section className="welcome-path">
-      <div><small>PASO 01</small><strong>Elige un tema</strong><p>Usa el menú lateral para entrar a cualquier estructura o algoritmo.</p></div>
+      <div><small>Paso 1</small><strong>Elige un tema</strong><p>Usa el menú lateral para entrar a cualquier estructura o algoritmo.</p></div>
       <ArrowRight size={18}/>
-      <div><small>PASO 02</small><strong>Ejecuta una función</strong><p>Completa los campos y pulsa una operación para modificar el ejemplo.</p></div>
+      <div><small>Paso 2</small><strong>Ejecuta una función</strong><p>Completa los campos y pulsa una operación para modificar el ejemplo.</p></div>
       <ArrowRight size={18}/>
-      <div><small>PASO 03</small><strong>Observa y aprende</strong><p>Compara la animación con las líneas destacadas del código Java.</p></div>
+      <div><small>Paso 3</small><strong>Observa y aprende</strong><p>Compara la animación con las líneas destacadas del código Java.</p></div>
     </section>
   </div>;
 }
 
+function BugReporter({ section }) {
+  const [open, setOpen] = useState(false);
+  const [report, setReport] = useState({ title:'', type:'Algo no funciona', description:'', steps:'' });
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const closeWithEscape = event => { if (event.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', closeWithEscape);
+    return () => window.removeEventListener('keydown', closeWithEscape);
+  }, [open]);
+
+  const update = (field, value) => setReport(current=>({...current,[field]:value}));
+  const submit = event => {
+    event.preventDefault();
+    const body = `## Sección afectada\n${section}\n\n## Tipo de problema\n${report.type}\n\n## Descripción\n${report.description.trim()}\n\n## Pasos para reproducirlo\n${report.steps.trim() || 'No especificados.'}\n\n---\nReporte generado desde DSA Lab.`;
+    const issueUrl = `https://github.com/juanideus/DATA-STRUCTURS/issues/new?title=${encodeURIComponent(`[Bug] ${report.title.trim()}`)}&body=${encodeURIComponent(body)}`;
+    window.open(issueUrl, '_blank', 'noopener,noreferrer');
+    setOpen(false);
+    setReport({ title:'', type:'Algo no funciona', description:'', steps:'' });
+  };
+
+  return <>
+    <button className="bug-fab" onClick={()=>setOpen(true)} aria-label="Informar un problema"><Bug size={20}/><span>Informar problema</span></button>
+    {open && <div className="bug-modal-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)setOpen(false)}}>
+      <section className="bug-modal" role="dialog" aria-modal="true" aria-labelledby="bug-dialog-title">
+        <header><div className="bug-modal-icon"><Bug size={20}/></div><div><span>Ayúdanos a mejorar</span><h2 id="bug-dialog-title">¿Encontraste algo extraño?</h2></div><button type="button" onClick={()=>setOpen(false)} aria-label="Cerrar reporte"><X size={18}/></button></header>
+        <p className="bug-intro">Cuéntanos qué pasó y cómo podemos repetirlo. Con esos datos será mucho más fácil encontrar y corregir el problema.</p>
+        <div className="bug-section-label"><small>Estabas viendo</small><strong>{section}</strong></div>
+        <form onSubmit={submit}>
+          <label><span>Resumen corto</span><input required maxLength="90" value={report.title} onChange={event=>update('title',event.target.value)} placeholder="Ej.: El botón eliminar no responde"/></label>
+          <label><span>¿Qué tipo de problema es?</span><select value={report.type} onChange={event=>update('type',event.target.value)}><option>Algo no funciona</option><option>Se ve incorrecto</option><option>Problema en el código Java</option><option>Contenido difícil de entender</option><option>Otro problema</option></select></label>
+          <label><span>Cuéntanos qué ocurrió</span><textarea required rows="4" value={report.description} onChange={event=>update('description',event.target.value)} placeholder="¿Qué hiciste, qué apareció y qué esperabas que ocurriera?"/></label>
+          <label><span>¿Cómo podemos repetirlo?</span><textarea rows="3" value={report.steps} onChange={event=>update('steps',event.target.value)} placeholder={'1. Entré a la estructura...\n2. Presioné el botón...\n3. Entonces ocurrió...'}/></label>
+          <div className="bug-form-actions"><p><ExternalLink size={13}/> Podrás revisar el reporte antes de publicarlo en GitHub.</p><button type="button" onClick={()=>setOpen(false)}>Ahora no</button><button type="submit">Revisar reporte <ExternalLink size={15}/></button></div>
+        </form>
+      </section>
+    </div>}
+  </>;
+}
+
 function App() {
+  const [showOpeningIntro, setShowOpeningIntro] = useState(true);
   const [selectedId, setSelectedId] = useState('array');
   const [showWelcome, setShowWelcome] = useState(true);
   const [query, setQuery] = useState('');
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed] = useState(900);
+  const [speed, setSpeed] = useState(1);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [codeMode, setCodeMode] = useState('java');
   const [copied, setCopied] = useState(false);
@@ -400,7 +647,8 @@ function App() {
 
   const applyFrame = (frame, frameIndex) => {
     if (!frame) return;
-    setDemoValues([...frame.values]);
+    setDemoValues(copyVisualValues(frame.values));
+    if (frame.edges) setDemoEdges(frame.edges.map(edge => [...edge]));
     setStep(frameIndex);
     setActiveCodeLine(frame.codeLine ?? null);
     setOperationMessage(frame.message);
@@ -414,11 +662,12 @@ function App() {
     setActiveCodeLine(null);
     setOperationMessage('Usa los controles para modificar la estructura y observar el resultado.');
   },[selectedId]);
+  useEffect(()=>{ window.scrollTo({ top: 0, behavior: 'auto' }); },[showWelcome, selectedId]);
   useEffect(()=>{ setStep(0); setPlaying(false); setCopied(false); setOperationFrames([]); setActiveCodeLine(null); },[selectedId, codeMode]);
   useEffect(()=>{
     if (!playing) return;
     if (step >= totalSteps - 1) { setPlaying(false); return; }
-    const delay = operationFrames.length ? Math.max(90, speed / 4) : speed;
+    const delay = NORMAL_FRAME_DELAY / speed;
     const timer = window.setTimeout(() => {
       const nextStep = step + 1;
       if (operationFrames.length) applyFrame(operationFrames[nextStep], nextStep);
@@ -444,6 +693,17 @@ function App() {
     setStep(0);
     setPlaying(false);
   };
+  const createNewExample = () => {
+    setDemoValues(createRandomValues(baseAlgorithm));
+    setDemoEdges(baseAlgorithm.category === 'Grafos'
+      ? DEFAULT_GRAPH_EDGES.map(([from, to]) => [from, to, randomNumber(1, 9)])
+      : DEFAULT_GRAPH_EDGES.map(edge => [...edge]));
+    setOperationFrames([]);
+    setActiveCodeLine(null);
+    setOperationMessage(`Se generó un nuevo ejemplo para ${baseAlgorithm.name}.`);
+    setStep(0);
+    setPlaying(false);
+  };
   const copyCode = async () => {
     await navigator.clipboard.writeText(displayedCode);
     setCopied(true);
@@ -451,24 +711,29 @@ function App() {
   };
   const handleOperation = (actionId, fields) => {
     setActiveOperation(actionId);
+    const codeForAnimation = codeMode === 'java' ? getBeginnerJava(baseAlgorithm, actionId) : baseAlgorithm.code;
+    const previousValues = copyVisualValues(demoValues);
+    const previousEdges = demoEdges.map(edge => [...edge]);
     const result = executeOperation({ algorithm: baseAlgorithm, actionId, fields, values: demoValues, edges: demoEdges, initialValues: baseAlgorithm.values });
-    if (result.frames?.length) {
-      setOperationFrames(result.frames);
-      setDemoEdges(result.edges);
-      setStep(0);
-      setDemoValues([...result.frames[0].values]);
-      setActiveCodeLine(result.frames[0].codeLine);
-      setOperationMessage(result.frames[0].message);
-      setPlaying(true);
-      return;
-    }
-    setOperationFrames([]);
-    setActiveCodeLine(null);
-    setDemoValues(result.values);
-    setDemoEdges(result.edges);
-    setOperationMessage(result.message);
-    setStep(result.step ?? 0);
-    setPlaying(false);
+    const frames = result.frames?.length
+      ? adaptFramesToCode(result.frames, codeForAnimation, codeMode === 'java')
+      : createCodeSynchronizedFrames({
+          code: codeForAnimation,
+          beforeValues: previousValues,
+          afterValues: result.values,
+          beforeEdges: previousEdges,
+          afterEdges: result.edges,
+          finalStep: result.step,
+          finalMessage: result.message,
+        });
+    const firstFrame = frames[0];
+    setOperationFrames(frames);
+    setDemoValues(copyVisualValues(firstFrame.values));
+    setDemoEdges((firstFrame.edges ?? result.edges).map(edge => [...edge]));
+    setOperationMessage(firstFrame.message);
+    setActiveCodeLine(firstFrame.codeLine ?? 0);
+    setStep(0);
+    setPlaying(frames.length > 1);
   };
   const goToStep = requestedStep => {
     const nextStep = Math.max(0, Math.min(totalSteps - 1, requestedStep));
@@ -487,6 +752,7 @@ function App() {
   };
 
   return <div className="app-shell">
+    {showOpeningIntro && <OpeningIntro onDone={()=>setShowOpeningIntro(false)}/>}
     <Sidebar selected={showWelcome ? null : selectedId} onSelect={openAlgorithm} onHome={()=>{setShowWelcome(true);setPlaying(false)}} query={query} setQuery={setQuery} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen}/>
     <main className="workspace">
       <button className="menu-button mobile-menu-button" onClick={()=>setMobileOpen(true)} aria-label="Abrir menú"><Menu/></button>
@@ -494,16 +760,16 @@ function App() {
       {showWelcome ? <Welcome onStart={()=>openAlgorithm('array')}/> : <>
 
       <section className="hero">
-        <div><div className="eyebrow"><span>{algorithm.category}</span><i>INTERACTIVO</i></div><h1>{algorithm.name}</h1><p>{algorithm.description}</p></div>
+        <div><div className="eyebrow"><span>{algorithm.category}</span><i>Práctica interactiva</i></div><h1>{algorithm.name}</h1><p>{algorithm.description}</p></div>
         <div className="complexity-card"><small>Complejidad</small><strong>{algorithm.complexity}</strong><div><Gauge size={16}/><span>Análisis asintótico</span></div></div>
       </section>
 
       <section className="lab-grid">
         <article className="panel visual-panel">
-          <div className="panel-head"><div><span className="panel-index">01</span><h2>Visualización</h2></div><button onClick={()=>goToStep(Math.floor(Math.random()*totalSteps))}><Shuffle size={15}/> Nuevo ejemplo</button></div>
-          <div className="canvas-grid"><Visualizer algorithm={algorithm} step={operationFrames.length ? operationFrames[step]?.position ?? step : step}/><div className="step-badge">PASO <b>{String(step+1).padStart(2,'0')}</b></div></div>
+          <div className="panel-head"><div><span className="panel-index">01</span><h2>Visualización</h2></div><div className="panel-head-actions"><button onClick={createNewExample} title="Generar datos nuevos"><Shuffle size={15}/> Nuevo ejemplo</button><button onClick={resetDemo} title="Volver a los datos originales"><RotateCcw size={15}/> Restablecer</button></div></div>
+          <div className="canvas-grid"><Visualizer algorithm={{...algorithm, animationFrame: operationFrames[step] ?? null}} step={operationFrames.length ? operationFrames[step]?.position ?? step : step}/><div className="step-badge">Paso <b>{String(step+1).padStart(2,'0')}</b></div></div>
           <OperationsPanel algorithm={baseAlgorithm} message={operationMessage} activeOperation={activeOperation} onAction={handleOperation}/>
-          <div className="player"><button onClick={()=>goToStep(step-1)} aria-label="Anterior"><ArrowLeft size={17}/></button><button className="play" onClick={togglePlayback}>{playing?<Pause size={18}/>:<Play size={18}/>}<span>{playing?'Pausar':'Reproducir'}</span></button><button onClick={()=>goToStep(step+1)} aria-label="Siguiente"><ArrowRight size={17}/></button><div className="timeline"><span style={{width:`${((step+1)/totalSteps)*100}%`}}/></div><label><span>Velocidad</span><select value={speed} onChange={e=>setSpeed(Number(e.target.value))}><option value="1400">0.5×</option><option value="900">1×</option><option value="450">2×</option></select><ChevronDown size={13}/></label></div>
+          <div className="player"><button onClick={()=>goToStep(step-1)} aria-label="Anterior"><ArrowLeft size={17}/></button><button className="play" onClick={togglePlayback}>{playing?<Pause size={18}/>:<Play size={18}/>}<span>{playing?'Pausar':'Reproducir'}</span></button><button onClick={()=>goToStep(step+1)} aria-label="Siguiente"><ArrowRight size={17}/></button><div className="timeline"><span style={{width:`${((step+1)/totalSteps)*100}%`}}/></div><label><span>Velocidad</span><select value={speed} onChange={e=>setSpeed(Number(e.target.value))}><option value="0.5">0.5×</option><option value="1">1×</option><option value="2">2×</option></select><ChevronDown size={13}/></label></div>
         </article>
 
         <article className="panel code-panel">
@@ -511,10 +777,10 @@ function App() {
             <div><span className="panel-index">02</span><h2>{codeMode === 'java' ? activeOperationLabel : 'Pseudocódigo'}</h2></div>
             <div className="code-actions">
               <div className="code-tabs" aria-label="Formato de código">
-                <button className={codeMode === 'java' ? 'active' : ''} onClick={()=>setCodeMode('java')}>JAVA · EN</button>
-                <button className={codeMode === 'pseudo' ? 'active' : ''} onClick={()=>setCodeMode('pseudo')}>PSEUDO</button>
+                <button className={codeMode === 'java' ? 'active' : ''} onClick={()=>setCodeMode('java')}>Java</button>
+                <button className={codeMode === 'pseudo' ? 'active' : ''} onClick={()=>setCodeMode('pseudo')}>Pseudocódigo</button>
               </div>
-              <button className="copy-button" onClick={copyCode}>{copied ? 'COPIADO' : 'COPIAR'}</button>
+              <button className="copy-button" onClick={copyCode}>{copied ? 'Copiado' : 'Copiar'}</button>
             </div>
           </div>
           <pre ref={codePanelRef}>{codeLines.map((line,i)=><code className={i===(activeCodeLine ?? step%codeLines.length)?'active':''} key={i}><i>{String(i+1).padStart(2,'0')}</i>{line || ' '}</code>)}</pre>
@@ -522,59 +788,13 @@ function App() {
         </article>
       </section>
 
-      <section className={`future-description ${algorithm.id === 'array' ? 'available-description' : ''}`} aria-labelledby="future-description-title">
-        <div className="future-description-icon"><BookOpen size={20}/></div>
-        {algorithm.id === 'array' ? <div>
-          <span>DESCRIPCIÓN</span>
-          <h2 id="future-description-title">¿Qué es un Array?</h2>
-          <p>Un Array es una estructura que guarda varios elementos en un orden definido. Cada elemento ocupa una posición llamada <strong>índice</strong>. En Java, el primer índice siempre es <strong>0</strong>, el segundo es 1 y así sucesivamente.</p>
-          <div className="description-details">
-            <article><strong>¿Cómo funciona?</strong><p>Imagina una fila de casilleros numerados. Para encontrar un valor sólo necesitas conocer el número de su casillero.</p></article>
-            <article><strong>Características</strong><p>Mantiene el orden, permite acceso directo y normalmente almacena elementos del mismo tipo.</p></article>
-            <article><strong>Ejemplo cotidiano</strong><p>Una lista con las notas de un curso: <code>notas[0]</code> contiene la primera nota y <code>notas[1]</code> la segunda.</p></article>
-          </div>
-          <div className="description-learning-grid">
-            <article>
-              <strong>Operaciones más comunes</strong>
-              <ul>
-                <li><b>Leer:</b> obtener un elemento usando su índice.</li>
-                <li><b>Actualizar:</b> reemplazar el valor que ocupa una posición.</li>
-                <li><b>Recorrer:</b> visitar todos los elementos mediante un ciclo.</li>
-                <li><b>Insertar o eliminar:</b> mover elementos cuando se modifica una posición intermedia.</li>
-              </ul>
-            </article>
-            <article>
-              <strong>Ventajas y consideraciones</strong>
-              <ul>
-                <li>Acceder a una posición conocida es muy rápido.</li>
-                <li>Sus elementos permanecen ordenados por índice.</li>
-                <li>En Java tradicional, su tamaño se define al crearlo.</li>
-                <li>Buscar un valor puede requerir revisar el Array completo.</li>
-              </ul>
-            </article>
-          </div>
-          <div className="description-java-example">
-            <div><strong>Ejemplo básico en Java</strong><p>Se crea un Array, se consulta una posición y luego se recorren todas sus notas.</p></div>
-            <pre><code>{`int[] notas = {65, 70, 58, 66};
+      <EducationalDescription algorithm={algorithm}/>
 
-System.out.println(notas[0]);
-
-for (int i = 0; i < notas.length; i++) {
-    System.out.println(notas[i]);
-}`}</code></pre>
-          </div>
-          <div className="description-tip"><Sparkles size={15}/><p><strong>Regla importante:</strong> si el tamaño del Array es <code>n</code>, sus índices van desde <code>0</code> hasta <code>n - 1</code>. Por ejemplo, un Array de tamaño 5 utiliza los índices 0, 1, 2, 3 y 4; por eso su último índice es <code>5 - 1 = 4</code>.</p></div>
-        </div> : <div>
-          <span>PRÓXIMAMENTE</span>
-          <h2 id="future-description-title">Descripción de {algorithm.name}</h2>
-          <p>Este espacio incluirá una explicación sencilla, características principales, casos de uso y ejemplos cotidianos de esta estructura.</p>
-        </div>}
-      </section>
-
-      <section className="learning-strip"><div><BookOpen size={18}/><span><b>{categoryLabels[algorithm.category]}</b> · {algorithm.name}</span></div><button onClick={resetDemo}><RotateCcw size={15}/> Reiniciar</button></section>
+      <section className="learning-strip"><div><BookOpen size={18}/><span><b>{categoryLabels[algorithm.category]}</b> · {algorithm.name}</span></div></section>
       <footer className="algorithm-nav"><button onClick={()=>selectRelative(-1)}><ArrowLeft size={16}/><span><small>Anterior</small>{algorithms[(selectedIndex-1+algorithms.length)%algorithms.length].name}</span></button><button onClick={()=>selectRelative(1)}><span><small>Siguiente</small>{algorithms[(selectedIndex+1)%algorithms.length].name}</span><ArrowRight size={16}/></button></footer>
       </>}
     </main>
+    <BugReporter section={showWelcome ? 'Bienvenida' : algorithm.name}/>
     {mobileOpen && <button className="scrim" onClick={()=>setMobileOpen(false)} aria-label="Cerrar menú"/>}
   </div>;
 }

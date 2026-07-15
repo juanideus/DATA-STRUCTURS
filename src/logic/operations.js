@@ -383,7 +383,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
   if (actionId === 'clear-bits') return done(values.map(() => 0), 'Todos los bits fueron limpiados.', 0);
   if (['add-start','add-end','add-index','push','enqueue','sorted-add','tree-add','heap-add'].includes(actionId) && value === null) return fail('Ingresa un valor válido antes de ejecutar la operación.');
   if (group === 'merkle' && actionId === 'add-end' && next.length >= 8) return fail('La demostración Merkle admite hasta 8 bloques visibles.');
-  if (group === 'btree' && actionId === 'sorted-add' && next.length >= 9) return fail('El árbol multicamino admite hasta 9 claves en esta demostración.');
+  if (group === 'btree' && actionId === 'sorted-add' && next.length >= 24) return fail('El árbol multicamino admite hasta 24 claves visibles en esta demostración.');
 
   switch (actionId) {
     case 'add-start': next.unshift(value); return done(next, `${value} fue agregado al inicio.`, 0);
@@ -437,7 +437,68 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     case 'sorted-add': {
       if (value === null) return fail('Ingresa una clave válida.');
       if (next.some(item => String(item) === String(value))) return fail(`${value} ya existe.`);
+      const before = [...next];
+      const leavesBefore = Math.ceil(before.length / 3);
       next.push(value); next.sort((a,b) => Number(a) - Number(b));
+      if (group === 'btree') {
+        const position = next.indexOf(value);
+        const leavesAfter = Math.ceil(next.length / 3);
+        const splitOccurred = leavesAfter > leavesBefore;
+        const leafBaseSize = Math.floor(next.length / leavesAfter);
+        const largerLeaves = next.length % leavesAfter;
+        const lastLeafStart = (leavesAfter - 1) * leafBaseSize + largerLeaves;
+        const promotedKey = splitOccurred ? next[lastLeafStart] : null;
+        const frames = [
+          {
+            values: before,
+            position: Math.min(position, Math.max(0, before.length - 1)),
+            codeLine: 1,
+            treePhase: 'search',
+            message: `Se busca la hoja ordenada donde debe entrar ${value}.`,
+          },
+          {
+            values: [...next],
+            position,
+            codeLine: 2,
+            treePhase: 'insert',
+            promotedKey,
+            message: `${value} se inserta en orden dentro de la hoja.`,
+          },
+        ];
+
+        if (splitOccurred) {
+          frames.push(
+            {
+              values: [...next],
+              position,
+              codeLine: 5,
+              treePhase: 'split',
+              promotedKey,
+              message: 'La hoja superó el máximo de 3 claves, por eso se divide en dos nodos.',
+            },
+            {
+              values: [...next],
+              position,
+              codeLine: 6,
+              treePhase: 'promote',
+              promotedKey,
+              message: `${promotedKey} se convierte en separador y sube al nodo padre.`,
+            },
+            {
+              values: [...next],
+              position,
+              codeLine: 7,
+              treePhase: 'settled',
+              promotedKey,
+              message: `${value} fue insertado: la nueva hoja quedó conectada y ${promotedKey} ya está en el padre.`,
+            },
+          );
+        } else {
+          frames[1].message = `${value} fue insertado manteniendo el orden; la hoja aún tiene espacio.`;
+        }
+
+        return { ...done(next, frames.at(-1).message, position), frames };
+      }
       return done(next, `${value} fue insertado manteniendo el orden.`, next.indexOf(value));
     }
     case 'tree-add': {

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { algorithms } from '../src/data/algorithms.js';
 import { getBeginnerJava } from '../src/data/beginnerJava.js';
+import { educationalDescriptions } from '../src/data/educationalDescriptions.js';
+import { guideJavaExamples } from '../src/data/guideJavaExamples.js';
 import {
   DEFAULT_GRAPH_EDGES,
   executeOperation,
@@ -84,6 +86,14 @@ assert.equal(algorithms.length, 51, 'El catálogo debe contener 51 temas.');
 let actionCount = 0;
 const actionIds = new Set();
 for (const algorithm of algorithms) {
+  const description = educationalDescriptions[algorithm.id];
+  const guideExample = guideJavaExamples[algorithm.id];
+  assert.ok(description, `${algorithm.id}: falta descripción educativa.`);
+  assert.ok(description.definition.length > 80, `${algorithm.id}: la definición es demasiado breve.`);
+  assert.ok(description.how.length > 100, `${algorithm.id}: falta explicar el funcionamiento interno.`);
+  assert.ok([description.operations, description.strengths, description.limits, description.uses].every(list => list.length >= 4), `${algorithm.id}: la guía debe incluir al menos cuatro puntos por sección.`);
+  assert.ok(guideExample?.title && guideExample?.explanation, `${algorithm.id}: falta presentar el ejemplo Java.`);
+  assert.ok(guideExample.code.split('\n').length >= 3, `${algorithm.id}: el ejemplo Java es demasiado corto.`);
   const definition = getOperationDefinition(algorithm);
   assert.ok(definition.fields && definition.actions.length, `${algorithm.id}: faltan controles.`);
   for (const action of definition.actions) {
@@ -135,6 +145,17 @@ assert.match(rootResult.message, /es 0/i, 'Union-Find: find no sigue la cadena h
 const fibonacciHeap = algorithms.find(item => item.id === 'fibonacci-heap');
 const heapInsert = run(fibonacciHeap, 'heap-add', { value: '1', second: '', index: '' });
 assert.equal(heapInsert.values[0], 1, 'Fibonacci Heap: la raíz debe representar el mínimo.');
+
+const bplus = algorithms.find(item => item.id === 'bplus-tree');
+let bplusValues = [...bplus.values];
+let sawBplusPromotion = false;
+for (let value = 100; value < 115; value++) {
+  const result = run(bplus, 'sorted-add', { value: String(value), second: '', index: '' }, bplusValues);
+  bplusValues = result.values;
+  sawBplusPromotion ||= result.frames?.some(frame => frame.treePhase === 'promote') ?? false;
+}
+assert.equal(bplusValues.length, bplus.values.length + 15, 'B+ Tree: debe aceptar al menos 15 inserciones consecutivas.');
+assert.ok(sawBplusPromotion, 'B+ Tree: la animacion debe mostrar una clave subiendo al nodo padre.');
 
 const graph = algorithms.find(item => item.id === 'grafo');
 const bfsResult = run(graph, 'bfs-run', { value: 'A', second: '', index: '' });

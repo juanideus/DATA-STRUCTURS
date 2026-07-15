@@ -24,6 +24,6 @@ export default function OperationsPanel({ algorithm, message, activeOperation, o
     <div className="operation-actions">
       {definition.actions.map(button => <button className={`${button.tone === 'danger' ? 'danger ' : ''}${activeOperation === button.id ? 'selected-operation' : ''}`} onClick={()=>run(button.id)} key={button.id}>{button.label}</button>)}
     </div>
-    <div className="operation-message" role="status"><span>OUTPUT</span><p>{message}</p></div>
+    <div className="operation-message" role="status"><span>Resultado</span><p>{message}</p></div>
   </section>;
 }
