@@ -2,6 +2,15 @@
   "name": "dsa-lab",
   "private": true,
   "version": "1.0.0",
+  "description": "Laboratorio interactivo para aprender estructuras de datos y algoritmos mediante visualizaciones y código Java.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/juanideus/DATA-STRUCTURS.git"
+  },
+  "bugs": {
+    "url": "https://github.com/juanideus/DATA-STRUCTURS/issues"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
