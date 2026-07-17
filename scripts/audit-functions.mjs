@@ -9,37 +9,45 @@ import {
   getOperationDefinition,
   operationGroup,
 } from '../src/logic/operations.js';
+import {
+  adaptFramesToCode,
+  buildCodeExecutionTrace,
+  createCodeSynchronizedFrames,
+  estimateLoopIterations,
+} from '../src/logic/codeAnimation.js';
 
 const edges = () => DEFAULT_GRAPH_EDGES.map(edge => [...edge]);
 
-function fieldsFor(algorithm, actionId) {
-  const first = algorithm.values[0];
+function fieldsFor(algorithm, actionId, trial = 0) {
+  const length = Math.max(1, algorithm.values.length);
+  const first = algorithm.values[trial % length] ?? algorithm.values[0];
   const samples = {
-    value: typeof first === 'number' ? '17' : 'NUEVO',
-    second: 'VALOR',
-    index: '1',
+    value: typeof first === 'number' ? String(70 + trial) : `NUEVO${trial}`,
+    second: `VALOR${trial}`,
+    index: String(trial % length),
   };
 
   if (['remove-value', 'find'].includes(actionId)) samples.value = String(first);
-  if (actionId === 'sorted-add') samples.value = '99';
-  if (['set-index', 'range-update'].includes(actionId)) samples.value = '23';
-  if (actionId === 'add-index') samples.index = '1';
-  if (['prefix-sum', 'range-min'].includes(actionId)) samples.index = '2';
-  if (['set-word', 'word-find', 'remove-word'].includes(actionId)) samples.value = algorithm.id === 'suffix-tree' ? 'ANA' : 'CASA';
-  if (['hash-put', 'cache-put'].includes(actionId)) Object.assign(samples, { value: 'NUEVA', second: '42' });
+  if (actionId === 'sorted-add') samples.value = String(90 + trial);
+  if (['set-index', 'range-update'].includes(actionId)) samples.value = String(23 + trial);
+  if (actionId === 'add-index') samples.index = String(trial % (algorithm.values.length + 1));
+  if (['prefix-sum', 'range-min'].includes(actionId)) samples.index = String(trial % length);
+  if (actionId === 'set-word') samples.value = algorithm.id === 'suffix-tree' ? `CASA${trial}` : `NODO${trial}`;
+  if (['word-find', 'remove-word'].includes(actionId)) samples.value = algorithm.id === 'suffix-tree' ? 'ANA' : String(first);
+  if (['hash-put', 'cache-put'].includes(actionId)) Object.assign(samples, { value: `NUEVA${trial}`, second: String(42 + trial) });
   if (actionId === 'cache-get') samples.value = String(first).split(':')[0];
-  if (['bloom-add', 'bloom-check'].includes(actionId)) samples.value = 'hola';
+  if (['bloom-add', 'bloom-check'].includes(actionId)) samples.value = `hola${trial}`;
   if (actionId === 'set-expression' || actionId === 'evaluate') samples.value = '8+3*2';
-  if (actionId === 'calculate') samples.value = '6';
-  if (actionId === 'hanoi-set') samples.value = '4';
-  if (algorithm.id === 'n-reinas') samples.value = '4';
-  if (actionId === 'union') Object.assign(samples, { value: '1', second: '2' });
-  if (actionId === 'find-root') samples.value = '1';
-  if (actionId === 'vertex-add') samples.value = 'G';
-  if (actionId === 'vertex-remove') samples.value = 'A';
+  if (actionId === 'calculate') samples.value = String(trial % 10);
+  if (actionId === 'hanoi-set') samples.value = String(1 + (trial % 7));
+  if (algorithm.id === 'n-reinas') samples.value = String(4 + (trial % 5));
+  if (actionId === 'union') Object.assign(samples, { value: String(trial % length), second: String((trial + 1) % length) });
+  if (actionId === 'find-root') samples.value = String(trial % length);
+  if (actionId === 'vertex-add') samples.value = String.fromCharCode(71 + trial);
+  if (actionId === 'vertex-remove') samples.value = String(first);
   if (actionId === 'edge-add') Object.assign(samples, { value: 'A', second: 'C', index: '5' });
   if (actionId === 'edge-remove') Object.assign(samples, { value: 'A', second: 'B' });
-  if (['bfs-run', 'dfs-run'].includes(actionId)) samples.value = 'A';
+  if (['bfs-run', 'dfs-run'].includes(actionId)) samples.value = String(first);
   return samples;
 }
 
@@ -84,6 +92,7 @@ function validQueens(queens) {
 assert.equal(algorithms.length, 51, 'El catálogo debe contener 51 temas.');
 
 let actionCount = 0;
+let executionCount = 0;
 const actionIds = new Set();
 for (const algorithm of algorithms) {
   const description = educationalDescriptions[algorithm.id];
@@ -99,15 +108,66 @@ for (const algorithm of algorithms) {
   for (const action of definition.actions) {
     actionCount++;
     actionIds.add(action.id);
-    const result = run(algorithm, action.id);
-    assert.ok(Array.isArray(result.values), `${algorithm.id}/${action.id}: values no es un arreglo.`);
-    assert.ok(Array.isArray(result.edges), `${algorithm.id}/${action.id}: edges no es un arreglo.`);
-    assert.equal(typeof result.message, 'string', `${algorithm.id}/${action.id}: falta mensaje.`);
-    assert.ok(result.message.length > 0, `${algorithm.id}/${action.id}: mensaje vacío.`);
     const java = getBeginnerJava(algorithm, action.id);
     assert.ok(!java.includes('Follow the visual steps'), `${algorithm.id}/${action.id}: falta código Java.`);
+    for (let trial = 0; trial < 10; trial++) {
+      executionCount++;
+      const initialValues = [...algorithm.values];
+      const initialEdges = edges();
+      const result = run(algorithm, action.id, fieldsFor(algorithm, action.id, trial), initialValues, initialEdges);
+      const label = `${algorithm.id}/${action.id}/prueba-${trial + 1}`;
+      assert.ok(Array.isArray(result.values), `${label}: values no es un arreglo.`);
+      assert.ok(Array.isArray(result.edges), `${label}: edges no es un arreglo.`);
+      assert.equal(typeof result.message, 'string', `${label}: falta mensaje.`);
+      assert.ok(result.message.length > 0, `${label}: mensaje vacío.`);
+      assert.equal(typeof result.ok, 'boolean', `${label}: no informa si la operación tuvo éxito.`);
+
+      const usesCustomFrames = Boolean(result.frames?.length);
+      const frames = usesCustomFrames
+        ? adaptFramesToCode(result.frames, java, true)
+        : createCodeSynchronizedFrames({
+            code: java,
+            actionId: action.id,
+            beforeValues: initialValues,
+            afterValues: result.values,
+            beforeEdges: initialEdges,
+            afterEdges: result.edges,
+            finalStep: result.step,
+            finalMessage: result.message,
+            succeeded: result.ok,
+          });
+      assert.ok(frames.length > 0, `${label}: no genera fotogramas.`);
+      assert.ok(frames.every(frame => Array.isArray(frame.values)), `${label}: un fotograma no contiene values.`);
+      assert.ok(frames.every(frame => Number.isInteger(frame.codeLine)), `${label}: una línea de código no está sincronizada.`);
+      assert.ok(frames.every(frame => typeof frame.message === 'string' && frame.message.length > 0), `${label}: un fotograma no explica lo que ocurre.`);
+      assert.deepEqual(frames.at(-1).values, result.values, `${label}: el último fotograma no coincide con el resultado.`);
+
+      if (!usesCustomFrames) {
+        assert.deepEqual(frames.at(-1).edges, result.edges, `${label}: las aristas finales no coinciden.`);
+        if (!result.ok) assert.equal(frames.length, 1, `${label}: un error no debe reproducir una animación falsa.`);
+
+        const firstLoopLine = java.split('\n').findIndex(line => /\b(?:for|while)\s*\(/.test(line));
+        const iterations = estimateLoopIterations({
+          actionId: action.id,
+          beforeValues: initialValues,
+          afterValues: result.values,
+          finalStep: result.step,
+          finalMessage: result.message,
+        });
+        if (result.ok && firstLoopLine >= 0 && iterations > 1) {
+          assert.ok(frames.filter(frame => frame.codeLine === firstLoopLine).length >= 2, `${label}: el ciclo no vuelve a su condición.`);
+        }
+      }
+    }
   }
 }
+
+const loopExample = algorithms.find(item => item.id === 'array');
+const loopCode = getBeginnerJava(loopExample, 'add-start');
+const loopIterations = loopExample.values.length;
+const loopTrace = buildCodeExecutionTrace(loopCode, loopIterations);
+const loopLine = loopCode.split('\n').findIndex(line => /\bfor\s*\(/.test(line));
+assert.ok(loopTrace.filter(frame => frame.index === loopLine).length >= loopIterations, 'Motor visual: el for no repite su condición en cada iteración.');
 
 const sudoku = algorithms.find(item => item.id === 'sudoku');
 const sudokuResult = run(sudoku, 'solve');
@@ -172,4 +232,4 @@ assert.match(getBeginnerJava(sudoku, 'solve'), /boolean isValid/, 'Sudoku: falta
 assert.match(getBeginnerJava(maze, 'solve'), /boolean isFree/, 'Laberinto: falta mostrar isFree en Java.');
 assert.match(getBeginnerJava(maze, 'solve'), /boolean isExit/, 'Laberinto: falta mostrar isExit en Java.');
 
-console.log(`AUDITORÍA OK: ${algorithms.length} temas, ${actionCount} acciones y ${actionIds.size} funciones distintas.`);
+console.log(`AUDITORÍA OK: ${algorithms.length} temas, ${actionCount} acciones, ${executionCount} pruebas funcionales y ${actionIds.size} funciones distintas.`);

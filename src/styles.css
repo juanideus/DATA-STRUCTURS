@@ -72,6 +72,56 @@ body{background:
   .btree-visual{width:94%;height:230px}
   .bnode{min-width:78px;padding:11px 8px;font-size:10px}
 }
+
+/* Collapsible navigation and live execution state */
+.sidebar,.workspace{transition:transform .28s ease,margin-left .28s ease}
+.app-shell.sidebar-collapsed .sidebar{transform:translateX(-100%)}
+.app-shell.sidebar-collapsed .workspace{margin-left:0}
+.sidebar-collapse-button{width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.14);border-radius:7px;background:rgba(255,255,255,.045);color:#dce4e1;cursor:pointer;transition:background .18s,border-color .18s}
+.sidebar-collapse-button:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.28)}
+.sidebar-collapse-button:focus-visible,.sidebar-reveal-button:focus-visible{outline:3px solid rgba(200,95,67,.3);outline-offset:2px}
+.sidebar-reveal-button{position:fixed;left:0;top:50%;z-index:19;width:43px;height:52px;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;border:1px solid #35445b;border-left:0;border-radius:0 9px 9px 0;background:#202a38;color:#fff;cursor:pointer;box-shadow:0 8px 24px rgba(32,42,56,.18);transition:width .2s ease,background .2s ease}
+.sidebar-reveal-button span{position:absolute;left:44px;width:0;overflow:hidden;white-space:nowrap;font-size:12px;font-weight:700;opacity:0;transition:opacity .15s ease}
+.sidebar-reveal-button:hover{width:48px;background:#2b394d}
+
+.variables-panel{padding:14px 16px 13px;border-top:1px solid var(--line);background:#f5f7fa}
+.variables-panel header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.variables-panel header>div{display:flex;align-items:center;gap:7px;color:var(--ink)}
+.variables-panel header>div svg{color:var(--green)}
+.variables-panel header strong{font-size:13px}
+.variables-panel header>span{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:10px;font-weight:650}
+.variables-panel header>span i{width:7px;height:7px;border-radius:50%;background:#98a2b3}
+.variables-panel header>span.is-running i{background:#2f8f68;box-shadow:0 0 0 4px rgba(47,143,104,.12);animation:variableStatusPulse 1s ease-in-out infinite}
+.variables-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:7px}
+.variable-item{min-width:0;padding:8px 10px;border:1px solid #dce1e9;border-radius:6px;background:#fff;box-shadow:inset 3px 0 #a9b4c4}
+.variable-item small,.variable-item strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.variable-item small{margin-bottom:3px;color:#758094;font-family:'DM Mono',monospace;font-size:9px}
+.variable-item strong{color:#27354a;font-family:'DM Mono',monospace;font-size:13px;font-weight:650}
+.variable-item.role-index,.variable-item.role-position{box-shadow:inset 3px 0 #6281aa}
+.variable-item.role-input{box-shadow:inset 3px 0 var(--orange)}
+.variable-item.role-true{box-shadow:inset 3px 0 #2f8f68}
+.variable-item.role-false{box-shadow:inset 3px 0 #c44848}
+.variable-item.role-false strong{color:#b83d3d}
+.variables-panel>p{margin:9px 0 0;color:var(--muted);font-size:11px;line-height:1.45}
+@keyframes variableStatusPulse{50%{opacity:.48}}
+
+@media(max-width:780px){
+  .app-shell.sidebar-collapsed .sidebar{transform:translateX(-100%)}
+  .app-shell.sidebar-collapsed .sidebar.open{transform:none}
+  .app-shell.sidebar-collapsed .workspace{margin-left:0}
+  .sidebar-collapse-button,.sidebar-reveal-button{display:none}
+  .variables-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+/* Execution feedback: loops, success and validation */
+.step-badge.loop-step{display:flex;align-items:center;gap:5px;background:#1d2735;border-color:#34445a;color:#dfe7f1;box-shadow:0 6px 16px rgba(29,39,53,.16)}
+.step-badge.loop-step b{color:#f1a38d}
+.operation-message.success{border-left-color:#49698f;background:#edf2f8}
+.operation-message.success>span{color:#405f84}
+.operation-message.error{border-left-color:#b24a3c;background:#fbefed}
+.operation-message.error>span{color:#a13e32}
+.operation-message.error p{color:#713d36}
+.operation-fields input::placeholder{color:#a5adb8}
 @media(max-width:430px){
   .lab-grid{display:block}
   .code-panel{margin-top:14px}

@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, BookOpen, Boxes, Bug, ChevronDown, CircleHelp, ExternalLink, Gauge,
-  Menu, Pause, Play, RotateCcw, Search, Shuffle, Sparkles, X,
+  Menu, PanelLeftClose, PanelLeftOpen, Pause, Play, RotateCcw, Search, Shuffle, Sparkles, X,
 } from 'lucide-react';
 import { algorithms, categories, categoryLabels } from './data/algorithms.js';
 import { getBeginnerJava } from './data/beginnerJava.js';
 import EducationalDescription from './components/EducationalDescription.jsx';
 import OperationsPanel from './components/OperationsPanel.jsx';
+import VariablesPanel from './components/VariablesPanel.jsx';
+import { adaptFramesToCode, copyVisualValues, createCodeSynchronizedFrames } from './logic/codeAnimation.js';
 import { DEFAULT_GRAPH_EDGES, executeOperation, getOperationDefinition } from './logic/operations.js';
 import ucnLogo from './assets/LogoUCN.png';
 
@@ -105,46 +107,6 @@ function createRandomValues(algorithm) {
   if (algorithm.type === 'heap') return values.sort((a, b) => b - a);
   if (['skip-list','btree','bplus-tree','bstar-tree'].includes(algorithm.id)) return values.sort((a, b) => a - b);
   return values;
-}
-
-const copyVisualValues = values => values.map(value => (
-  value && typeof value === 'object' ? { ...value } : value
-));
-
-function executableCodeLines(code) {
-  return code.split('\n')
-    .map((text, index) => ({ index, text: text.trim() }))
-    .filter(line => line.text && line.text !== '}' && line.text !== '};');
-}
-
-function createCodeSynchronizedFrames({ code, beforeValues, afterValues, beforeEdges, afterEdges, finalStep, finalMessage }) {
-  const lines = executableCodeLines(code);
-  const sequence = lines.length ? lines : [{ index: 0, text: 'operation' }];
-  const lastFrame = sequence.length - 1;
-  const target = Math.max(0, finalStep ?? afterValues.length - 1);
-
-  return sequence.map((line, frameIndex) => {
-    const completed = frameIndex === lastFrame;
-    const progress = lastFrame === 0 ? 1 : frameIndex / lastFrame;
-    return {
-      values: copyVisualValues(completed ? afterValues : beforeValues),
-      edges: (completed ? afterEdges : beforeEdges).map(edge => [...edge]),
-      position: completed ? target : Math.round(target * progress),
-      codeLine: line.index,
-      message: completed ? finalMessage : `Ejecutando línea ${line.index + 1}: ${line.text}`,
-    };
-  });
-}
-
-function adaptFramesToCode(frames, code, keepOriginalLines) {
-  const lines = executableCodeLines(code);
-  const lastCodeLine = Math.max(0, code.split('\n').length - 1);
-  return frames.map((frame, index) => {
-    if (keepOriginalLines) return { ...frame, codeLine: Math.min(lastCodeLine, Math.max(0, frame.codeLine ?? 0)) };
-    const progress = frames.length <= 1 ? 1 : index / (frames.length - 1);
-    const line = lines[Math.min(lines.length - 1, Math.round(progress * Math.max(0, lines.length - 1)))];
-    return { ...frame, codeLine: line?.index ?? 0 };
-  });
 }
 
 function CircularListVisual({ algorithm, step }) {
@@ -454,14 +416,15 @@ function Visualizer({ algorithm, step }) {
   return <SpecialVisual algorithm={algorithm} step={step}/>;
 }
 
-function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setMobileOpen }) {
+function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setMobileOpen, collapsed, onToggle }) {
   const filtered = useMemo(() => algorithms.filter(a => `${a.name} ${a.category}`.toLowerCase().includes(query.toLowerCase())), [query]);
-  return <aside className={`sidebar ${mobileOpen ? 'open' : ''}`}>
+  return <aside className={`sidebar ${mobileOpen ? 'open' : ''} ${collapsed ? 'collapsed' : ''}`}>
     <div className="brand">
       <button className="brand-home" onClick={()=>{onHome();setMobileOpen(false)}} aria-label="Ir a la bienvenida">
         <span className="brand-mark"><Boxes size={21}/></span>
         <span className="brand-copy"><strong>DSA Lab</strong><span>Algoritmos visuales</span></span>
       </button>
+      <button className="sidebar-collapse-button" onClick={onToggle} aria-label="Ocultar menú lateral" title="Ocultar menú lateral"><PanelLeftClose size={18}/></button>
       <button className="close-mobile" onClick={()=>setMobileOpen(false)} aria-label="Cerrar"><X/></button>
     </div>
     <div className="search"><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar algoritmo…"/></div>
@@ -627,6 +590,7 @@ function App() {
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => typeof window !== 'undefined' && window.localStorage.getItem('dsa-sidebar-collapsed') === 'true');
   const [codeMode, setCodeMode] = useState('java');
   const [copied, setCopied] = useState(false);
   const codePanelRef = useRef(null);
@@ -637,6 +601,7 @@ function App() {
   const [demoValues, setDemoValues] = useState([...algorithms[0].values]);
   const [demoEdges, setDemoEdges] = useState(DEFAULT_GRAPH_EDGES.map(edge=>[...edge]));
   const [operationMessage, setOperationMessage] = useState('Usa los controles para modificar la estructura y observar el resultado.');
+  const [operationStatus, setOperationStatus] = useState('idle');
   const algorithm = { ...baseAlgorithm, values: demoValues, edges: demoEdges };
   const selectedIndex = algorithms.findIndex(item => item.id === baseAlgorithm.id);
   const operationDefinition = getOperationDefinition(baseAlgorithm);
@@ -644,6 +609,11 @@ function App() {
   const displayedCode = codeMode === 'java' ? getBeginnerJava(baseAlgorithm, activeOperation) : baseAlgorithm.code;
   const codeLines = displayedCode.split('\n');
   const totalSteps = operationFrames.length || Math.max(algorithm.values.length, codeLines.length);
+  const currentAnimationFrame = operationFrames[step] ?? null;
+
+  useEffect(() => {
+    window.localStorage.setItem('dsa-sidebar-collapsed', String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
 
   const applyFrame = (frame, frameIndex) => {
     if (!frame) return;
@@ -661,13 +631,14 @@ function App() {
     setOperationFrames([]);
     setActiveCodeLine(null);
     setOperationMessage('Usa los controles para modificar la estructura y observar el resultado.');
+    setOperationStatus('idle');
   },[selectedId]);
   useEffect(()=>{ window.scrollTo({ top: 0, behavior: 'auto' }); },[showWelcome, selectedId]);
   useEffect(()=>{ setStep(0); setPlaying(false); setCopied(false); setOperationFrames([]); setActiveCodeLine(null); },[selectedId, codeMode]);
   useEffect(()=>{
     if (!playing) return;
     if (step >= totalSteps - 1) { setPlaying(false); return; }
-    const delay = NORMAL_FRAME_DELAY / speed;
+    const delay = (operationFrames[step]?.delayMs ?? NORMAL_FRAME_DELAY) / speed;
     const timer = window.setTimeout(() => {
       const nextStep = step + 1;
       if (operationFrames.length) applyFrame(operationFrames[nextStep], nextStep);
@@ -690,6 +661,7 @@ function App() {
     setOperationFrames([]);
     setActiveCodeLine(null);
     setOperationMessage('Estructura restablecida a su estado inicial.');
+    setOperationStatus('idle');
     setStep(0);
     setPlaying(false);
   };
@@ -701,6 +673,7 @@ function App() {
     setOperationFrames([]);
     setActiveCodeLine(null);
     setOperationMessage(`Se generó un nuevo ejemplo para ${baseAlgorithm.name}.`);
+    setOperationStatus('idle');
     setStep(0);
     setPlaying(false);
   };
@@ -719,18 +692,22 @@ function App() {
       ? adaptFramesToCode(result.frames, codeForAnimation, codeMode === 'java')
       : createCodeSynchronizedFrames({
           code: codeForAnimation,
+          actionId,
           beforeValues: previousValues,
           afterValues: result.values,
           beforeEdges: previousEdges,
           afterEdges: result.edges,
           finalStep: result.step,
           finalMessage: result.message,
+          succeeded: result.ok !== false,
+          inputValues: fields,
         });
     const firstFrame = frames[0];
     setOperationFrames(frames);
     setDemoValues(copyVisualValues(firstFrame.values));
     setDemoEdges((firstFrame.edges ?? result.edges).map(edge => [...edge]));
     setOperationMessage(firstFrame.message);
+    setOperationStatus(result.ok === false ? 'error' : 'success');
     setActiveCodeLine(firstFrame.codeLine ?? 0);
     setStep(0);
     setPlaying(frames.length > 1);
@@ -751,9 +728,10 @@ function App() {
     setPlaying(true);
   };
 
-  return <div className="app-shell">
+  return <div className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
     {showOpeningIntro && <OpeningIntro onDone={()=>setShowOpeningIntro(false)}/>}
-    <Sidebar selected={showWelcome ? null : selectedId} onSelect={openAlgorithm} onHome={()=>{setShowWelcome(true);setPlaying(false)}} query={query} setQuery={setQuery} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen}/>
+    <Sidebar selected={showWelcome ? null : selectedId} onSelect={openAlgorithm} onHome={()=>{setShowWelcome(true);setPlaying(false)}} query={query} setQuery={setQuery} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} collapsed={sidebarCollapsed} onToggle={()=>setSidebarCollapsed(value=>!value)}/>
+    {sidebarCollapsed && <button className="sidebar-reveal-button" onClick={()=>setSidebarCollapsed(false)} aria-label="Mostrar menú lateral" title="Mostrar menú lateral"><PanelLeftOpen size={20}/><span>Mostrar menú</span></button>}
     <main className="workspace">
       <button className="menu-button mobile-menu-button" onClick={()=>setMobileOpen(true)} aria-label="Abrir menú"><Menu/></button>
 
@@ -767,8 +745,8 @@ function App() {
       <section className="lab-grid">
         <article className="panel visual-panel">
           <div className="panel-head"><div><span className="panel-index">01</span><h2>Visualización</h2></div><div className="panel-head-actions"><button onClick={createNewExample} title="Generar datos nuevos"><Shuffle size={15}/> Nuevo ejemplo</button><button onClick={resetDemo} title="Volver a los datos originales"><RotateCcw size={15}/> Restablecer</button></div></div>
-          <div className="canvas-grid"><Visualizer algorithm={{...algorithm, animationFrame: operationFrames[step] ?? null}} step={operationFrames.length ? operationFrames[step]?.position ?? step : step}/><div className="step-badge">Paso <b>{String(step+1).padStart(2,'0')}</b></div></div>
-          <OperationsPanel algorithm={baseAlgorithm} message={operationMessage} activeOperation={activeOperation} onAction={handleOperation}/>
+          <div className="canvas-grid"><Visualizer algorithm={{...algorithm, animationFrame: currentAnimationFrame}} step={operationFrames.length ? currentAnimationFrame?.position ?? step : step}/><div className={`step-badge ${currentAnimationFrame?.iteration != null ? 'loop-step' : ''}`}>{currentAnimationFrame?.loopExit ? <>Fin <b>bucle</b></> : currentAnimationFrame?.iteration != null ? <>Iteración <b>{Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)}/{currentAnimationFrame.totalIterations}</b></> : <>Paso <b>{String(step+1).padStart(2,'0')}</b></>}</div></div>
+          <OperationsPanel algorithm={baseAlgorithm} message={operationMessage} status={operationStatus} activeOperation={activeOperation} onAction={handleOperation}/>
           <div className="player"><button onClick={()=>goToStep(step-1)} aria-label="Anterior"><ArrowLeft size={17}/></button><button className="play" onClick={togglePlayback}>{playing?<Pause size={18}/>:<Play size={18}/>}<span>{playing?'Pausar':'Reproducir'}</span></button><button onClick={()=>goToStep(step+1)} aria-label="Siguiente"><ArrowRight size={17}/></button><div className="timeline"><span style={{width:`${((step+1)/totalSteps)*100}%`}}/></div><label><span>Velocidad</span><select value={speed} onChange={e=>setSpeed(Number(e.target.value))}><option value="0.5">0.5×</option><option value="1">1×</option><option value="2">2×</option></select><ChevronDown size={13}/></label></div>
         </article>
 
@@ -784,7 +762,8 @@ function App() {
             </div>
           </div>
           <pre ref={codePanelRef}>{codeLines.map((line,i)=><code className={i===(activeCodeLine ?? step%codeLines.length)?'active':''} key={i}><i>{String(i+1).padStart(2,'0')}</i>{line || ' '}</code>)}</pre>
-          <div className="note"><CircleHelp size={17}/><p><strong>{codeMode === 'java' ? `Java básico · ${activeOperationLabel}` : '¿Qué ocurre aquí?'}</strong><span>{codeMode === 'java' ? 'Código pensado para comenzar: variables, arreglos, ciclos, condiciones y métodos pequeños. Pulsa otra operación para cambiar el código.' : step === 0 ? 'Se prepara el estado inicial y la estructura auxiliar.' : step >= totalSteps-1 ? 'El algoritmo completa la operación y devuelve el resultado.' : `Se procesa el elemento activo del paso ${step+1} y se actualiza el estado.`}</span></p></div>
+          <VariablesPanel frame={currentAnimationFrame} algorithm={algorithm} step={step} playing={playing}/>
+          <div className="note"><CircleHelp size={17}/><p><strong>{codeMode === 'java' ? `Java básico · ${activeOperationLabel}` : '¿Qué ocurre aquí?'}</strong><span>{codeMode === 'java' ? currentAnimationFrame?.iteration != null ? `El ciclo está en la iteración ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} de ${currentAnimationFrame.totalIterations}. La línea iluminada y el elemento activo avanzan juntos.` : 'El código usa variables, arreglos, ciclos, condiciones y métodos pequeños. Cada línea iluminada corresponde al cambio mostrado en la estructura.' : step === 0 ? 'Se prepara el estado inicial y la estructura auxiliar.' : step >= totalSteps-1 ? 'El algoritmo completa la operación y devuelve el resultado.' : `Se procesa el elemento activo del paso ${step+1} y se actualiza el estado.`}</span></p></div>
         </article>
       </section>
 

@@ -375,8 +375,8 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
   const forceText = ['merkle', 'spatial', 'hash', 'cache'].includes(group);
   const value = numericValue(fields.value ?? '', values, forceText);
   const index = validIndex(fields.index ?? '', values.length, actionId === 'add-index');
-  const fail = message => ({ values, edges, message, step: 0 });
-  const done = (updated, message, step = Math.max(0, updated.length - 1), updatedEdges = edges) => ({ values: updated, edges: updatedEdges, message, step });
+  const fail = message => ({ ok: false, values, edges, message, step: 0 });
+  const done = (updated, message, step = Math.max(0, updated.length - 1), updatedEdges = edges) => ({ ok: true, values: updated, edges: updatedEdges, message, step });
 
   if (actionId === 'reset') return done([...initialValues], 'Estructura restablecida a su estado inicial.', 0, DEFAULT_GRAPH_EDGES.map(edge => [...edge]));
   if (actionId === 'clear') return done([], 'Estructura vaciada.', 0);
