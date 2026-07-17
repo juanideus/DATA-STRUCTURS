@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, ArrowRight, BookOpen, Boxes, Bug, ChevronDown, CircleHelp, ExternalLink, Gauge,
-  Menu, PanelLeftClose, PanelLeftOpen, Pause, Play, RotateCcw, Search, Shuffle, Sparkles, X,
+  ArrowLeft, ArrowRight, BookOpen, Boxes, Bug, ChevronDown, CircleHelp, ExternalLink, Flag, Gauge,
+  MapPin, Menu, Navigation, PanelLeftClose, PanelLeftOpen, Pause, Play, RotateCcw, Search, Shuffle, Sparkles, X,
 } from 'lucide-react';
 import { algorithms, categories, categoryLabels } from './data/algorithms.js';
 import { getBeginnerJava } from './data/beginnerJava.js';
@@ -9,7 +9,8 @@ import EducationalDescription from './components/EducationalDescription.jsx';
 import OperationsPanel from './components/OperationsPanel.jsx';
 import VariablesPanel from './components/VariablesPanel.jsx';
 import { adaptFramesToCode, copyVisualValues, createCodeSynchronizedFrames } from './logic/codeAnimation.js';
-import { DEFAULT_GRAPH_EDGES, executeOperation, getOperationDefinition } from './logic/operations.js';
+import { DEFAULT_GRAPH_EDGES, DEFAULT_GRAPH_POSITIONS, executeOperation, getOperationDefinition } from './logic/operations.js';
+import { createRandomPathMap, DEFAULT_PATH_MAP } from './logic/pathfindingMap.js';
 import ucnLogo from './assets/LogoUCN.png';
 
 const SUDOKU_START = [
@@ -39,6 +40,27 @@ function balancedLevelOrder(sortedValues) {
     ranges.push([start, middle - 1], [middle + 1, end]);
   }
   return result;
+}
+
+function createRandomGraphPositions(amount, previous = []) {
+  const transforms = [
+    ([x,y]) => [100 - x, y],
+    ([x,y]) => [x, 92 - y],
+    ([x,y]) => [100 - x, 92 - y],
+    ([x,y]) => [50 - (y - 46), 46 + (x - 50) * .72],
+    ([x,y]) => [50 + (y - 46), 46 - (x - 50) * .72],
+  ];
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const transform = transforms[randomNumber(0, transforms.length - 1)];
+    const positions = DEFAULT_GRAPH_POSITIONS.slice(0, amount).map(position => transform(position)).map(([x, y]) => [
+      Math.max(8, Math.min(92, x + randomNumber(-3, 3))),
+      Math.max(10, Math.min(82, y + randomNumber(-3, 3))),
+    ]);
+    const startMoved = !previous[0] || positions[0].some((value,index)=>value!==previous[0][index]);
+    const goalMoved = !previous[amount - 1] || positions[amount - 1].some((value,index)=>value!==previous[amount - 1][index]);
+    if (startMoved && goalMoved) return positions;
+  }
+  return DEFAULT_GRAPH_POSITIONS.slice(0, amount).map(([x,y]) => [100 - x, y]);
 }
 
 function createRandomValues(algorithm) {
@@ -310,15 +332,101 @@ function TreeVisual({ algorithm, step }) {
   return <BinaryTreeDiagram algorithm={algorithm} step={step} badges={badges} kindLabel={labels[algorithm.id]}/>;
 }
 
+function PathMapVisual({ algorithm }) {
+  const map = algorithm.map ?? DEFAULT_PATH_MAP;
+  const state = algorithm.animationFrame?.mapState;
+  const open = new Set(state?.open ?? []);
+  const closed = new Set(state?.closed ?? []);
+  const path = new Set(state?.path ?? []);
+  const current = state?.current ?? null;
+  const modeName = algorithm.id === 'a-star' ? 'A*' : 'Dijkstra';
+
+  return <div className="path-map-visual" role="img" aria-label={`Mapa cuadriculado para visualizar ${modeName}`}>
+    <div className="path-map-heading">
+      <span><MapPin size={15}/> Búsqueda sobre mapa</span>
+      <em>{algorithm.id === 'a-star' ? 'f = g + h' : 'menor distancia primero'}</em>
+    </div>
+    <div className="path-map-grid" style={{ gridTemplateColumns: `repeat(${map.columns}, 1fr)` }}>
+      {map.cells.map((cell, index) => {
+        const isStart = index === map.start;
+        const isGoal = index === map.goal;
+        const classes = [
+          'path-map-cell',
+          cell.kind,
+          closed.has(index) ? 'explored' : '',
+          open.has(index) ? 'frontier' : '',
+          path.has(index) ? 'route' : '',
+          current === index ? 'current' : '',
+          isStart ? 'start' : '',
+          isGoal ? 'goal' : '',
+        ].filter(Boolean).join(' ');
+        return <div className={classes} key={index} title={isStart ? 'Inicio' : isGoal ? 'Meta' : cell.kind === 'building' || cell.kind === 'water' ? 'Obstáculo' : 'Casilla transitable'}>
+          {isStart && <span className="path-map-pin start-pin"><MapPin size={13}/></span>}
+          {isGoal && <span className="path-map-pin goal-pin"><Flag size={13}/></span>}
+          {current === index && !isStart && !isGoal && <Navigation className="path-map-searcher" size={12}/>}
+        </div>;
+      })}
+    </div>
+    <div className="path-map-legend">
+      <span><i className="legend-start"/>Inicio</span>
+      <span><i className="legend-goal"/>Meta</span>
+      <span><i className="legend-frontier"/>Por revisar</span>
+      <span><i className="legend-explored"/>Explorado</span>
+      <span><i className="legend-route"/>Ruta final</span>
+      <span><i className="legend-wall"/>Obstáculo</span>
+    </div>
+    <div className="path-map-summary">
+      {state ? <><span>Exploradas <b>{closed.size}</b></span><span>Frontera <b>{open.size}</b></span>{state.path.length > 0 && <span>Costo <b>{state.cost}</b></span>}</> : <span>Presiona <b>Ejecutar {modeName}</b> para ver cómo avanza la búsqueda.</span>}
+    </div>
+  </div>;
+}
+
 function GraphVisual({ algorithm, step }) {
-  const nodes = [[14,24],[42,12],[72,20],[90,48],[72,76],[42,68],[14,76],[7,48]];
+  const isRouteMap = ['dijkstra','a-star'].includes(algorithm.id);
+  const nodes = (algorithm.positions ?? DEFAULT_GRAPH_POSITIONS).slice(0,algorithm.values.length);
   const edges = (algorithm.edges ?? DEFAULT_GRAPH_EDGES).filter(([from,to])=>from<algorithm.values.length&&to<algorithm.values.length);
   const directed = algorithm.type === 'digraph';
+  const graphState = algorithm.animationFrame?.graphState;
+  const edgeMatches = (edge, candidate) => candidate && (
+    (edge[0] === candidate[0] && edge[1] === candidate[1]) ||
+    (!directed && edge[0] === candidate[1] && edge[1] === candidate[0])
+  );
+  const labelsFor = indexes => indexes?.length ? indexes.map(index=>algorithm.values[index]).join(', ') : '∅';
+  const startIndex = graphState?.start ?? 0;
+  const goalIndex = graphState?.goal ?? Math.max(0, algorithm.values.length - 1);
+  const currentPosition = nodes[graphState?.searchPosition ?? graphState?.current ?? startIndex] ?? nodes[0];
   if (!algorithm.values.length) return <div className="empty-visual"><strong>∅</strong><span>Grafo vacío</span></div>;
-  return <div className="graph-canvas"><svg className="edge-layer">
+  return <div className={`graph-canvas ${graphState ? 'pathfinding-canvas' : ''} ${isRouteMap ? 'route-map-canvas' : ''}`} role="img" aria-label={isRouteMap ? `Mapa de rutas para ${algorithm.name}` : `Grafo de ${algorithm.name}`}>
+  {isRouteMap && <div className="map-surface" aria-hidden="true">
+    <span className="map-block block-one"/><span className="map-block block-two"/><span className="map-block block-three"/><span className="map-block block-four"/>
+    <span className="map-park">PARQUE</span><span className="map-water"/><span className="map-place place-campus">CAMPUS</span><span className="map-place place-centre">CENTRO</span>
+    <span className="map-name"><MapPin size={13}/> Mapa de rutas</span>
+  </div>}
+  <svg className="edge-layer">
     <defs><marker id="arrow" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 z" /></marker></defs>
-    {edges.map(([a,b,w],i) => <g key={i}><line className={i <= step % edges.length ? 'visited-edge' : ''} x1={`${nodes[a][0]}%`} y1={`${nodes[a][1]}%`} x2={`${nodes[b][0]}%`} y2={`${nodes[b][1]}%`} markerEnd={directed ? 'url(#arrow)' : undefined}/>{algorithm.type === 'weighted' && <text x={`${(nodes[a][0]+nodes[b][0])/2}%`} y={`${(nodes[a][1]+nodes[b][1])/2}%`}>{w}</text>}</g>)}
-  </svg>{nodes.slice(0,algorithm.values.length).map(([x,y],i) => <div className={`graph-node ${i === step % algorithm.values.length ? 'active' : ''}`} style={{left:`${x}%`,top:`${y}%`}} key={i}>{algorithm.values[i]}</div>)}</div>;
+    {edges.map(([a,b,w],i) => {
+      const edge = [a,b];
+      const className = graphState?.pathEdges?.some(candidate=>edgeMatches(edge,candidate)) ? 'path-edge'
+        : edgeMatches(edge,graphState?.relaxedEdge) ? 'relaxed-edge'
+          : graphState?.visitedEdges?.some(candidate=>edgeMatches(edge,candidate)) || (!graphState && i <= step % edges.length) ? 'visited-edge' : '';
+      return <g key={i}>{isRouteMap && <line className="map-road" x1={`${nodes[a][0]}%`} y1={`${nodes[a][1]}%`} x2={`${nodes[b][0]}%`} y2={`${nodes[b][1]}%`}/>}<line className={className} x1={`${nodes[a][0]}%`} y1={`${nodes[a][1]}%`} x2={`${nodes[b][0]}%`} y2={`${nodes[b][1]}%`} markerEnd={directed ? 'url(#arrow)' : undefined}/>{algorithm.type === 'weighted' && <text x={`${(nodes[a][0]+nodes[b][0])/2}%`} y={`${(nodes[a][1]+nodes[b][1])/2}%`}>{w}</text>}</g>;
+    })}
+  </svg>{nodes.slice(0,algorithm.values.length).map(([x,y],i) => {
+    const isCurrent = graphState ? i === graphState.current : !isRouteMap && i === step % algorithm.values.length;
+    const isPath = graphState?.path?.includes(i);
+    const stateClass = isPath ? 'path-node' : graphState?.closed?.includes(i) ? 'closed-node' : graphState?.open?.includes(i) ? 'open-node' : '';
+    const metric = graphState ? (graphState.mode === 'astar' ? `f=${graphState.scores[i]}` : `d=${graphState.distances[i]}`) : null;
+    const endpointClass = isRouteMap ? i === startIndex ? 'origin-node' : i === goalIndex ? 'goal-node' : '' : '';
+    return <div className={`graph-node ${isCurrent ? 'active' : ''} ${stateClass} ${endpointClass}`} style={{left:`${x}%`,top:`${y}%`}} key={i}><span>{algorithm.values[i]}</span>{metric && <small>{metric}</small>}{endpointClass && <em>{i === startIndex ? 'INICIO' : 'META'}</em>}</div>;
+  })}
+  {isRouteMap && graphState && currentPosition && <div className="map-search-marker" style={{left:`${currentPosition[0]}%`,top:`${currentPosition[1]}%`}} aria-hidden="true"><Navigation size={13}/></div>}
+  {graphState && <div className="pathfinding-status">
+    <span><i className="open-dot"/>Abiertos: <b>{labelsFor(graphState.open)}</b></span>
+    <span><i className="closed-dot"/>Cerrados: <b>{labelsFor(graphState.closed)}</b></span>
+    {graphState.mode === 'astar' && <em>f = g + h</em>}
+  </div>}
+  {isRouteMap && !graphState && <div className="pathfinding-status map-ready-status"><span><i className="origin-dot"/>Inicio: <b>{algorithm.values[startIndex]}</b></span><span><i className="goal-dot"/>Meta: <b>{algorithm.values[goalIndex]}</b></span></div>}
+  </div>;
 }
 
 function FenwickVisual({ algorithm, step }) {
@@ -409,6 +517,7 @@ function SpecialVisual({ algorithm, step }) {
 
 function Visualizer({ algorithm, step }) {
   if (!algorithm.values.length) return <div className="empty-visual"><strong>∅</strong><span>Estructura vacía</span></div>;
+  if (['dijkstra','a-star'].includes(algorithm.id)) return <PathMapVisual algorithm={algorithm}/>;
   if (algorithm.id==='fenwick-tree') return <FenwickVisual algorithm={algorithm} step={step}/>;
   if (['tree','heap','btree'].includes(algorithm.type)) return <TreeVisual algorithm={algorithm} step={step}/>;
   if (['graph','digraph','weighted'].includes(algorithm.type)) return <GraphVisual algorithm={algorithm} step={step}/>;
@@ -435,7 +544,7 @@ function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setM
       </div>})}
     </nav>
     <div className="sidebar-foot">
-      <span><Sparkles size={14}/> 51 temas incluidos</span>
+      <span><Sparkles size={14}/> {algorithms.length} temas incluidos</span>
       <div className="author-credit"><small>Autor</small><strong>Juan Zúñiga Maluenda</strong></div>
       <div className="ucn-credit">
         <img src={ucnLogo} alt="Logo de la Universidad Católica del Norte"/>
@@ -525,7 +634,7 @@ function Welcome({ onStart }) {
         <p>Cada tema combina una representación visual, controles interactivos y código sencillo. El objetivo es que los alumnos entiendan qué ocurre internamente y dispongan de una base clara desde la cual puedan construir sus propios algoritmos.</p>
       </div>
       <div className="welcome-features">
-        <article><span>01</span><Sparkles size={21}/><h3>51 temas visuales</h3><p>Desde arrays y listas hasta árboles, grafos, recursividad y backtracking.</p></article>
+        <article><span>01</span><Sparkles size={21}/><h3>{algorithms.length} temas visuales</h3><p>Desde arrays y listas hasta árboles, grafos, recursividad y backtracking.</p></article>
         <article><span>02</span><Play size={21}/><h3>Práctica interactiva</h3><p>Agrega, elimina, busca y recorre elementos mientras observas cada cambio.</p></article>
         <article><span>03</span><BookOpen size={21}/><h3>Java para principiantes</h3><p>Código directo y legible, pensado para estudiantes que están comenzando.</p></article>
       </div>
@@ -600,9 +709,12 @@ function App() {
   const [activeCodeLine, setActiveCodeLine] = useState(null);
   const [demoValues, setDemoValues] = useState([...algorithms[0].values]);
   const [demoEdges, setDemoEdges] = useState(DEFAULT_GRAPH_EDGES.map(edge=>[...edge]));
+  const [demoPositions, setDemoPositions] = useState(DEFAULT_GRAPH_POSITIONS.map(position=>[...position]));
+  const [demoMap, setDemoMap] = useState(DEFAULT_PATH_MAP);
   const [operationMessage, setOperationMessage] = useState('Usa los controles para modificar la estructura y observar el resultado.');
   const [operationStatus, setOperationStatus] = useState('idle');
-  const algorithm = { ...baseAlgorithm, values: demoValues, edges: demoEdges };
+  const algorithm = { ...baseAlgorithm, values: demoValues, edges: demoEdges, positions: demoPositions, map: demoMap };
+  const hideCodePanel = ['dijkstra','a-star'].includes(baseAlgorithm.id);
   const selectedIndex = algorithms.findIndex(item => item.id === baseAlgorithm.id);
   const operationDefinition = getOperationDefinition(baseAlgorithm);
   const activeOperationLabel = operationDefinition.actions.find(item=>item.id===activeOperation)?.label ?? 'Operación';
@@ -627,6 +739,8 @@ function App() {
   useEffect(()=>{
     setDemoValues([...baseAlgorithm.values]);
     setDemoEdges(DEFAULT_GRAPH_EDGES.map(edge=>[...edge]));
+    setDemoPositions(DEFAULT_GRAPH_POSITIONS.map(position=>[...position]));
+    setDemoMap(DEFAULT_PATH_MAP);
     setActiveOperation(getOperationDefinition(baseAlgorithm).actions[0].id);
     setOperationFrames([]);
     setActiveCodeLine(null);
@@ -651,13 +765,25 @@ function App() {
     const panel = codePanelRef.current;
     const activeLine = panel?.querySelector('code.active');
     if (!panel || !activeLine) return;
-    panel.scrollTo({ top: Math.max(0, activeLine.offsetTop - panel.clientHeight / 2), behavior: 'smooth' });
-  },[activeCodeLine,step,displayedCode]);
+    const isFastPathfindingTrace = playing && ['dijkstra','a-star'].includes(baseAlgorithm.id);
+    const margin = isFastPathfindingTrace ? 4 : 28;
+    const visibleTop = panel.scrollTop + margin;
+    const visibleBottom = panel.scrollTop + panel.clientHeight - margin;
+    const lineTop = activeLine.offsetTop;
+    const lineBottom = lineTop + activeLine.offsetHeight;
+    let target = null;
+    if (lineTop < visibleTop) target = Math.max(0, lineTop - margin);
+    else if (lineBottom > visibleBottom) target = Math.max(0, lineBottom - panel.clientHeight + margin);
+    if (target === null) return;
+    panel.scrollTo({ top: target, behavior: isFastPathfindingTrace ? 'auto' : 'smooth' });
+  },[activeCodeLine,step,displayedCode,playing,baseAlgorithm.id]);
   const selectRelative = (delta) => { const i=algorithms.findIndex(a=>a.id===algorithm.id); setSelectedId(algorithms[(i+delta+algorithms.length)%algorithms.length].id); setShowWelcome(false); };
   const openAlgorithm = id => { setSelectedId(id); setShowWelcome(false); };
   const resetDemo = () => {
     setDemoValues([...baseAlgorithm.values]);
     setDemoEdges(DEFAULT_GRAPH_EDGES.map(edge => [...edge]));
+    setDemoPositions(DEFAULT_GRAPH_POSITIONS.map(position => [...position]));
+    setDemoMap(DEFAULT_PATH_MAP);
     setOperationFrames([]);
     setActiveCodeLine(null);
     setOperationMessage('Estructura restablecida a su estado inicial.');
@@ -666,13 +792,22 @@ function App() {
     setPlaying(false);
   };
   const createNewExample = () => {
-    setDemoValues(createRandomValues(baseAlgorithm));
+    const nextValues = createRandomValues(baseAlgorithm);
+    setDemoValues(nextValues);
     setDemoEdges(baseAlgorithm.category === 'Grafos'
       ? DEFAULT_GRAPH_EDGES.map(([from, to]) => [from, to, randomNumber(1, 9)])
       : DEFAULT_GRAPH_EDGES.map(edge => [...edge]));
+    setDemoPositions(['dijkstra','a-star'].includes(baseAlgorithm.id)
+      ? createRandomGraphPositions(nextValues.length, demoPositions)
+      : DEFAULT_GRAPH_POSITIONS.map(position => [...position]));
+    setDemoMap(['dijkstra','a-star'].includes(baseAlgorithm.id)
+      ? createRandomPathMap(demoMap)
+      : DEFAULT_PATH_MAP);
     setOperationFrames([]);
     setActiveCodeLine(null);
-    setOperationMessage(`Se generó un nuevo ejemplo para ${baseAlgorithm.name}.`);
+    setOperationMessage(['dijkstra','a-star'].includes(baseAlgorithm.id)
+      ? `Se generó un mapa nuevo para ${baseAlgorithm.name}. Los puntos cambiaron de ubicación.`
+      : `Se generó un nuevo ejemplo para ${baseAlgorithm.name}.`);
     setOperationStatus('idle');
     setStep(0);
     setPlaying(false);
@@ -684,10 +819,14 @@ function App() {
   };
   const handleOperation = (actionId, fields) => {
     setActiveOperation(actionId);
+    if (actionId === 'reset' && ['dijkstra','a-star'].includes(baseAlgorithm.id)) {
+      setDemoPositions(DEFAULT_GRAPH_POSITIONS.map(position=>[...position]));
+      setDemoMap(DEFAULT_PATH_MAP);
+    }
     const codeForAnimation = codeMode === 'java' ? getBeginnerJava(baseAlgorithm, actionId) : baseAlgorithm.code;
     const previousValues = copyVisualValues(demoValues);
     const previousEdges = demoEdges.map(edge => [...edge]);
-    const result = executeOperation({ algorithm: baseAlgorithm, actionId, fields, values: demoValues, edges: demoEdges, initialValues: baseAlgorithm.values });
+    const result = executeOperation({ algorithm: { ...baseAlgorithm, positions: demoPositions, map: actionId === 'reset' ? DEFAULT_PATH_MAP : demoMap }, actionId, fields, values: demoValues, edges: demoEdges, initialValues: baseAlgorithm.values });
     const frames = result.frames?.length
       ? adaptFramesToCode(result.frames, codeForAnimation, codeMode === 'java')
       : createCodeSynchronizedFrames({
@@ -742,15 +881,16 @@ function App() {
         <div className="complexity-card"><small>Complejidad</small><strong>{algorithm.complexity}</strong><div><Gauge size={16}/><span>Análisis asintótico</span></div></div>
       </section>
 
-      <section className="lab-grid">
+      <section className={`lab-grid ${hideCodePanel ? 'visual-only' : ''}`}>
         <article className="panel visual-panel">
           <div className="panel-head"><div><span className="panel-index">01</span><h2>Visualización</h2></div><div className="panel-head-actions"><button onClick={createNewExample} title="Generar datos nuevos"><Shuffle size={15}/> Nuevo ejemplo</button><button onClick={resetDemo} title="Volver a los datos originales"><RotateCcw size={15}/> Restablecer</button></div></div>
           <div className="canvas-grid"><Visualizer algorithm={{...algorithm, animationFrame: currentAnimationFrame}} step={operationFrames.length ? currentAnimationFrame?.position ?? step : step}/><div className={`step-badge ${currentAnimationFrame?.iteration != null ? 'loop-step' : ''}`}>{currentAnimationFrame?.loopExit ? <>Fin <b>bucle</b></> : currentAnimationFrame?.iteration != null ? <>Iteración <b>{Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)}/{currentAnimationFrame.totalIterations}</b></> : <>Paso <b>{String(step+1).padStart(2,'0')}</b></>}</div></div>
           <OperationsPanel algorithm={baseAlgorithm} message={operationMessage} status={operationStatus} activeOperation={activeOperation} onAction={handleOperation}/>
+          {hideCodePanel && <VariablesPanel frame={currentAnimationFrame} algorithm={algorithm} step={step} playing={playing}/>}
           <div className="player"><button onClick={()=>goToStep(step-1)} aria-label="Anterior"><ArrowLeft size={17}/></button><button className="play" onClick={togglePlayback}>{playing?<Pause size={18}/>:<Play size={18}/>}<span>{playing?'Pausar':'Reproducir'}</span></button><button onClick={()=>goToStep(step+1)} aria-label="Siguiente"><ArrowRight size={17}/></button><div className="timeline"><span style={{width:`${((step+1)/totalSteps)*100}%`}}/></div><label><span>Velocidad</span><select value={speed} onChange={e=>setSpeed(Number(e.target.value))}><option value="0.5">0.5×</option><option value="1">1×</option><option value="2">2×</option></select><ChevronDown size={13}/></label></div>
         </article>
 
-        <article className="panel code-panel">
+        {!hideCodePanel && <article className="panel code-panel">
           <div className="panel-head code-head">
             <div><span className="panel-index">02</span><h2>{codeMode === 'java' ? activeOperationLabel : 'Pseudocódigo'}</h2></div>
             <div className="code-actions">
@@ -764,7 +904,7 @@ function App() {
           <pre ref={codePanelRef}>{codeLines.map((line,i)=><code className={i===(activeCodeLine ?? step%codeLines.length)?'active':''} key={i}><i>{String(i+1).padStart(2,'0')}</i>{line || ' '}</code>)}</pre>
           <VariablesPanel frame={currentAnimationFrame} algorithm={algorithm} step={step} playing={playing}/>
           <div className="note"><CircleHelp size={17}/><p><strong>{codeMode === 'java' ? `Java básico · ${activeOperationLabel}` : '¿Qué ocurre aquí?'}</strong><span>{codeMode === 'java' ? currentAnimationFrame?.iteration != null ? `El ciclo está en la iteración ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} de ${currentAnimationFrame.totalIterations}. La línea iluminada y el elemento activo avanzan juntos.` : 'El código usa variables, arreglos, ciclos, condiciones y métodos pequeños. Cada línea iluminada corresponde al cambio mostrado en la estructura.' : step === 0 ? 'Se prepara el estado inicial y la estructura auxiliar.' : step >= totalSteps-1 ? 'El algoritmo completa la operación y devuelve el resultado.' : `Se procesa el elemento activo del paso ${step+1} y se actualiza el estado.`}</span></p></div>
-        </article>
+        </article>}
       </section>
 
       <EducationalDescription algorithm={algorithm}/>

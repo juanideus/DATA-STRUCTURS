@@ -121,7 +121,7 @@ Cada tema incluye una guía con:
 
 ## Catálogo de contenidos
 
-La versión actual contiene **51 temas**, agrupados en siete categorías.
+La versión actual contiene **52 temas**, agrupados en siete categorías.
 
 ### 1. Estructuras lineales — 9 temas
 
@@ -165,35 +165,36 @@ La versión actual contiene **51 temas**, agrupados en siete categorías.
 32. Open Addressing
 33. Separate Chaining
 
-### 4. Grafos — 7 temas
+### 4. Grafos — 8 temas
 
 34. Grafo
 35. Grafo dirigido
 36. DFS
 37. BFS
 38. Dijkstra
-39. Prim
-40. Kruskal
+39. A* (A-Star)
+40. Prim
+41. Kruskal
 
 ### 5. Recursión — 5 temas
 
-41. Fibonacci
-42. Factorial
-43. Torres de Hanoi
-44. Merge Sort
-45. Quick Sort
+42. Fibonacci
+43. Factorial
+44. Torres de Hanoi
+45. Merge Sort
+46. Quick Sort
 
 ### 6. Backtracking — 3 temas
 
-46. N-Reinas
-47. Laberinto
-48. Sudoku Solver 9×9
+47. N-Reinas
+48. Laberinto
+49. Sudoku Solver 9×9
 
 ### 7. Otros — 3 temas
 
-49. Union-Find
-50. LRU Cache
-51. Bloom Filter
+50. Union-Find
+51. LRU Cache
+52. Bloom Filter
 
 ## Cómo funciona la experiencia
 
@@ -321,7 +322,7 @@ DSA/
 │   │   ├── EducationalDescription.jsx # Guía educativa de cada tema
 │   │   └── OperationsPanel.jsx        # Campos y botones de operaciones
 │   ├── data/
-│   │   ├── algorithms.js              # Catálogo de 51 temas
+│   │   ├── algorithms.js              # Catálogo de 52 temas
 │   │   ├── beginnerJava.js            # Código Java por operación
 │   │   ├── educationalDescriptions.js # Contenido educativo detallado
 │   │   └── guideJavaExamples.js       # Ejemplos Java de las guías
@@ -353,7 +354,7 @@ npm run audit
 
 comprueba automáticamente, entre otros puntos:
 
-- Que existan los 51 temas esperados.
+- Que existan los 52 temas esperados.
 - Que cada tema tenga descripción educativa suficiente.
 - Que cada tema incluya un ejemplo Java.
 - Que todas las acciones devuelvan valores, aristas y mensajes válidos.
@@ -364,10 +365,11 @@ comprueba automáticamente, entre otros puntos:
 - Que Hash Table busque y elimine por clave.
 - Que Union-Find siga correctamente la cadena hacia la raíz.
 - Que BFS y DFS respeten sus recorridos esperados.
+- Que Dijkstra y A* encuentren la ruta mínima A-F con costo 12.
 - Que Torres de Hanoi complete todos sus movimientos.
 - Que B+ Tree acepte al menos 15 inserciones consecutivas y muestre una promoción al padre.
 
-La auditoría actual cubre **51 temas, 231 acciones y 55 funciones distintas**.
+La auditoría actual cubre **52 temas, 229 acciones, 2290 pruebas funcionales y 56 funciones distintas**.
 
 ## Despliegue
 

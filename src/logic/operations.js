@@ -1,7 +1,11 @@
+import { DEFAULT_PATH_MAP, runGridPathfinding } from './pathfindingMap.js';
+
 export const DEFAULT_GRAPH_EDGES = [
   [0, 1, 4], [1, 2, 2], [0, 3, 7], [1, 3, 3], [1, 4, 5],
   [2, 4, 6], [3, 4, 1], [4, 5, 4], [2, 5, 8],
 ];
+
+export const DEFAULT_GRAPH_POSITIONS = [[14,24],[42,12],[72,20],[90,48],[72,76],[42,68],[14,76],[7,48]];
 
 const field = (id, label, type = 'text') => ({ id, label, type });
 const action = (id, label, tone = 'default') => ({ id, label, tone });
@@ -71,6 +75,10 @@ const definitions = {
     fields: [field('value', 'Origen / vértice'), field('second', 'Destino'), field('index', 'Peso', 'number')],
     actions: [action('vertex-add', 'Agregar vértice'), action('vertex-remove', 'Eliminar vértice', 'danger'), action('edge-add', 'Agregar arista'), action('edge-remove', 'Eliminar arista', 'danger'), action('bfs-run', 'Recorrer BFS'), action('dfs-run', 'Recorrer DFS')],
   },
+  shortestPath: {
+    fields: [],
+    actions: [action('shortest-path', 'Buscar ruta'), action('reset', 'Restablecer')],
+  },
   sort: {
     fields: [field('value', 'Valor', 'number')],
     actions: [action('add-end', 'Agregar'), action('remove-value', 'Eliminar', 'danger'), action('shuffle', 'Mezclar'), action('sort', 'Ordenar'), action('reset', 'Restablecer')],
@@ -125,6 +133,7 @@ export function operationGroup(algorithm) {
   if (algorithm.type === 'trie') return 'trie';
   if (algorithm.category === 'Árboles') return 'tree';
   if (algorithm.type === 'hash') return 'hash';
+  if (['dijkstra', 'a-star'].includes(algorithm.id)) return 'shortestPath';
   if (algorithm.category === 'Grafos') return 'graph';
   if (algorithm.type === 'sort') return 'sort';
   if (algorithm.type === 'recursion') return 'math';
@@ -139,7 +148,15 @@ export function operationGroup(algorithm) {
 }
 
 export function getOperationDefinition(algorithm) {
-  return definitions[operationGroup(algorithm)];
+  const group = operationGroup(algorithm);
+  const definition = definitions[group];
+  if (group !== 'shortestPath') return definition;
+  return {
+    ...definition,
+    actions: definition.actions.map(item => item.id === 'shortest-path'
+      ? { ...item, label: algorithm.id === 'a-star' ? 'Ejecutar A*' : 'Ejecutar Dijkstra' }
+      : item),
+  };
 }
 
 const numericValue = (raw, current, forceText = false) => {
@@ -208,6 +225,164 @@ const graphTraversal = (values, edges, start, depthFirst, directed) => {
     }
   }
   return result;
+};
+
+const pathFromParents = (parents, start, goal) => {
+  const path = [];
+  let current = goal;
+  const seen = new Set();
+  while (current !== -1 && !seen.has(current)) {
+    seen.add(current);
+    path.unshift(current);
+    if (current === start) return path;
+    current = parents[current];
+  }
+  return [];
+};
+
+const pathEdges = path => path.slice(1).map((vertex, index) => [path[index], vertex]);
+const printableCost = value => Number.isFinite(value) ? Number(value.toFixed(2)) : '∞';
+
+const shortestPathTrace = ({ algorithm, values, edges, start, goal }) => {
+  const size = values.length;
+  const positions = (algorithm.positions ?? DEFAULT_GRAPH_POSITIONS).map(position => [...position]);
+  const adjacency = Array.from({ length: size }, () => []);
+  const usableEdges = edges.filter(([from, to, weight]) => (
+    from < size && to < size && Number.isFinite(Number(weight)) && Number(weight) >= 0
+  ));
+  usableEdges.forEach(([from, to, weight]) => {
+    adjacency[from].push({ vertex: to, weight: Number(weight), edge: [from, to] });
+    adjacency[to].push({ vertex: from, weight: Number(weight), edge: [from, to] });
+  });
+
+  const isAStar = algorithm.id === 'a-star';
+  const distance = new Array(size).fill(Infinity);
+  const score = new Array(size).fill(Infinity);
+  const heuristic = new Array(size).fill(0);
+  const parents = new Array(size).fill(-1);
+  const closed = new Set();
+  const open = new Set([start]);
+  const examinedEdges = [];
+  const ratios = usableEdges.map(([from, to, weight]) => {
+    const [x1, y1] = positions[from] ?? DEFAULT_GRAPH_POSITIONS[from];
+    const [x2, y2] = positions[to] ?? DEFAULT_GRAPH_POSITIONS[to];
+    const geometricDistance = Math.hypot(x2 - x1, y2 - y1);
+    return geometricDistance > 0 ? Number(weight) / geometricDistance : 0;
+  }).filter(value => value > 0);
+  const heuristicScale = ratios.length ? Math.min(...ratios) : 0;
+  if (isAStar) {
+    const [goalX, goalY] = positions[goal] ?? DEFAULT_GRAPH_POSITIONS[goal];
+    for (let vertex = 0; vertex < size; vertex++) {
+      const [x, y] = positions[vertex] ?? DEFAULT_GRAPH_POSITIONS[vertex];
+      heuristic[vertex] = Math.hypot(goalX - x, goalY - y) * heuristicScale;
+    }
+  }
+  distance[start] = 0;
+  score[start] = heuristic[start];
+
+  const state = ({ current = start, searchPosition = current, relaxedEdge = null, candidate = null, condition = null, finalPath = [] } = {}) => ({
+    current,
+    searchPosition,
+    start,
+    goal,
+    distances: distance.map(printableCost),
+    heuristic: heuristic.map(printableCost),
+    scores: score.map(printableCost),
+    parents: [...parents],
+    open: [...open],
+    closed: [...closed],
+    visitedEdges: examinedEdges.map(edge => [...edge]),
+    relaxedEdge,
+    candidate: printableCost(candidate),
+    condition,
+    path: [...finalPath],
+    pathEdges: pathEdges(finalPath),
+    cost: printableCost(distance[goal]),
+    mode: isAStar ? 'astar' : 'dijkstra',
+  });
+  const variables = (current, candidate = null, condition = null) => {
+    const result = [
+      { name: 'actual', value: values[current], role: 'position' },
+      { name: isAStar ? 'g' : 'distancia', value: printableCost(distance[current]), role: 'value' },
+    ];
+    if (isAStar) result.push(
+      { name: 'h', value: printableCost(heuristic[current]), role: 'input' },
+      { name: 'f = g + h', value: printableCost(score[current]), role: 'size' },
+    );
+    if (candidate !== null) result.push({ name: 'nuevo costo', value: printableCost(candidate), role: 'input' });
+    if (condition !== null) result.push({ name: '¿mejora?', value: condition ? 'true' : 'false', role: condition ? 'true' : 'false' });
+    return result;
+  };
+  const frames = [{
+    values: [...values], edges: edges.map(edge => [...edge]), position: start,
+    codeLine: isAStar ? 11 : 8,
+    message: `Origen ${values[start]} con costo 0. Los demás vértices comienzan en infinito.`,
+    graphState: state(), variables: variables(start),
+  }];
+
+  while (open.size) {
+    let current = -1;
+    let best = Infinity;
+    for (const vertex of open) {
+      const value = isAStar ? score[vertex] : distance[vertex];
+      if (value < best) { best = value; current = vertex; }
+    }
+    if (current === -1) break;
+    open.delete(current);
+    closed.add(current);
+    frames.push({
+      values: [...values], edges: edges.map(edge => [...edge]), position: current,
+      codeLine: isAStar ? 16 : 10,
+      message: `${values[current]} tiene el menor ${isAStar ? 'valor f' : 'costo tentativo'} y pasa a ser el vértice actual.`,
+      graphState: state({ current }), variables: variables(current),
+    });
+    if (current === goal) break;
+
+    for (const neighbor of adjacency[current]) {
+      if (closed.has(neighbor.vertex)) continue;
+      examinedEdges.push(neighbor.edge);
+      const candidate = distance[current] + neighbor.weight;
+      const improves = candidate < distance[neighbor.vertex];
+      frames.push({
+        values: [...values], edges: edges.map(edge => [...edge]), position: neighbor.vertex,
+        codeLine: isAStar ? 23 : 17,
+        message: `${values[current]} → ${values[neighbor.vertex]}: ${printableCost(distance[current])} + ${neighbor.weight} = ${printableCost(candidate)}. ${improves ? 'Mejora la ruta conocida.' : 'No mejora la ruta conocida.'}`,
+        graphState: state({ current, searchPosition: neighbor.vertex, relaxedEdge: neighbor.edge, candidate, condition: improves }),
+        variables: variables(current, candidate, improves),
+      });
+      if (!improves) continue;
+      parents[neighbor.vertex] = current;
+      distance[neighbor.vertex] = candidate;
+      score[neighbor.vertex] = candidate + heuristic[neighbor.vertex];
+      open.add(neighbor.vertex);
+      frames.push({
+        values: [...values], edges: edges.map(edge => [...edge]), position: neighbor.vertex,
+        codeLine: isAStar ? 26 : 19,
+        message: `Se actualiza ${values[neighbor.vertex]}: ${isAStar ? `g=${printableCost(candidate)}, h=${printableCost(heuristic[neighbor.vertex])}, f=${printableCost(score[neighbor.vertex])}` : `distancia=${printableCost(candidate)}`}. Su anterior ahora es ${values[current]}.`,
+        graphState: state({ current: neighbor.vertex, relaxedEdge: neighbor.edge, candidate, condition: true }),
+        variables: variables(neighbor.vertex, candidate, true),
+      });
+    }
+  }
+
+  const path = pathFromParents(parents, start, goal);
+  const found = path.length > 0;
+  frames.push({
+    values: [...values], edges: edges.map(edge => [...edge]), position: goal,
+    codeLine: isAStar ? 33 : 24,
+    message: found
+      ? `Ruta mínima: ${path.map(vertex => values[vertex]).join(' → ')}. Costo total: ${printableCost(distance[goal])}.`
+      : `No existe una ruta entre ${values[start]} y ${values[goal]}.`,
+    graphState: state({ current: goal, finalPath: path }),
+    variables: [
+      { name: 'ruta', value: found ? path.map(vertex => values[vertex]).join(' → ') : 'sin ruta', role: 'position' },
+      { name: 'costo total', value: printableCost(distance[goal]), role: found ? 'true' : 'false' },
+      { name: 'visitados', value: closed.size, role: 'size' },
+    ],
+    completed: true,
+  });
+
+  return { found, path, cost: distance[goal], frames };
 };
 
 const solveHanoiWithTrace = diskValues => {
@@ -644,8 +819,26 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       if (found >= 0) return fail('Esa arista ya existe.');
       const weight = fields.index === '' ? 1 : Number(fields.index);
       if (!Number.isFinite(weight)) return fail('El peso debe ser un número válido.');
-      if (algorithm.id === 'dijkstra' && weight < 0) return fail('Dijkstra no admite pesos negativos.');
+      if (['dijkstra', 'a-star'].includes(algorithm.id) && weight < 0) return fail(`${algorithm.name} no admite pesos negativos.`);
       return done(next, `Arista agregada con peso ${weight}.`, 0, [...edges,[from,to,weight]]);
+    }
+    case 'shortest-path': {
+      const result = runGridPathfinding({
+        map: algorithm.map ?? DEFAULT_PATH_MAP,
+        mode: algorithm.id === 'a-star' ? 'astar' : 'dijkstra',
+      });
+      const frames = result.frames.map(frame => ({
+        ...frame,
+        values: [...next],
+        edges: edges.map(edge => [...edge]),
+      }));
+      return {
+        ...done(next, frames.at(-1).message, result.map.goal),
+        ok: result.found,
+        frames,
+        path: result.path,
+        cost: result.cost,
+      };
     }
     case 'bfs-run':
     case 'dfs-run': {

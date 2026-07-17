@@ -401,6 +401,163 @@ const basic = {
 };
 
 const special = {
+  'dijkstra:shortest-path': `int[] dijkstra(int[] map, int rows, int columns,
+                       int start, int goal) {
+    int total = rows * columns;
+    int[] distance = new int[total];
+    int[] previous = new int[total];
+    boolean[] visited = new boolean[total];
+    for (int i = 0; i < total; i++) {
+        distance[i] = 999999; // infinito
+        previous[i] = -1;
+    }
+    distance[start] = 0;
+    int[][] directions = {{-1,0},{0,1},{1,0},{0,-1}};
+
+    for (int step = 0; step < total; step++) {
+        int current = smallestDistance(distance, visited);
+        if (current == -1) break;
+        visited[current] = true;
+        if (current == goal) break;
+
+        int row = current / columns;
+        int column = current % columns;
+        for (int i = 0; i < 4; i++) {
+            int nextRow = row + directions[i][0];
+            int nextColumn = column + directions[i][1];
+            if (nextRow < 0 || nextRow >= rows) continue;
+            if (nextColumn < 0 || nextColumn >= columns) continue;
+
+            int next = nextRow * columns + nextColumn;
+            if (map[next] == 1 || visited[next]) continue;
+            int newDistance = distance[current] + 1;
+            if (newDistance < distance[next]) {
+                distance[next] = newDistance;
+                previous[next] = current;
+            }
+        }
+    }
+    return reconstructPath(previous, start, goal);
+}
+
+int smallestDistance(int[] distance, boolean[] visited) {
+    int best = -1;
+    for (int i = 0; i < distance.length; i++) {
+        if (!visited[i] && (best == -1 || distance[i] < distance[best])) {
+            best = i;
+        }
+    }
+    if (best != -1 && distance[best] == 999999) return -1;
+    return best;
+}
+
+int[] reconstructPath(int[] previous, int start, int goal) {
+    int length = 1;
+    int current = goal;
+    while (current != start && current != -1) {
+        current = previous[current];
+        length++;
+    }
+    if (current == -1) return new int[0];
+
+    int[] path = new int[length];
+    current = goal;
+    for (int i = length - 1; i >= 0; i--) {
+        path[i] = current;
+        current = previous[current];
+    }
+    return path;
+}`,
+  'a-star:shortest-path': `int[] aStar(int[] map, int rows, int columns,
+                    int start, int goal) {
+    int total = rows * columns;
+    int[] g = new int[total];       // costo recorrido
+    int[] f = new int[total];       // g + heurística
+    int[] previous = new int[total];
+    boolean[] open = new boolean[total];
+    boolean[] closed = new boolean[total];
+    for (int i = 0; i < total; i++) {
+        g[i] = 999999;
+        f[i] = 999999;
+        previous[i] = -1;
+    }
+    g[start] = 0;
+    f[start] = heuristic(start, goal, columns);
+    open[start] = true;
+    int[][] directions = {{-1,0},{0,1},{1,0},{0,-1}};
+
+    while (hasOpenCell(open)) {
+        int current = smallestF(f, open);
+        if (current == goal) {
+            return reconstructPath(previous, start, goal);
+        }
+        open[current] = false;
+        closed[current] = true;
+
+        int row = current / columns;
+        int column = current % columns;
+        for (int i = 0; i < 4; i++) {
+            int nextRow = row + directions[i][0];
+            int nextColumn = column + directions[i][1];
+            if (nextRow < 0 || nextRow >= rows) continue;
+            if (nextColumn < 0 || nextColumn >= columns) continue;
+
+            int next = nextRow * columns + nextColumn;
+            if (map[next] == 1 || closed[next]) continue;
+            int newG = g[current] + 1;
+            if (newG < g[next]) {
+                previous[next] = current;
+                g[next] = newG;
+                f[next] = newG + heuristic(next, goal, columns);
+                open[next] = true;
+            }
+        }
+    }
+    return new int[0]; // no existe una ruta
+}
+
+boolean hasOpenCell(boolean[] open) {
+    for (int i = 0; i < open.length; i++) {
+        if (open[i]) return true;
+    }
+    return false;
+}
+
+int smallestF(int[] f, boolean[] open) {
+    int best = -1;
+    for (int i = 0; i < f.length; i++) {
+        if (open[i] && (best == -1 || f[i] < f[best])) best = i;
+    }
+    return best;
+}
+
+int heuristic(int from, int goal, int columns) {
+    int fromRow = from / columns;
+    int fromColumn = from % columns;
+    int goalRow = goal / columns;
+    int goalColumn = goal % columns;
+    int vertical = fromRow > goalRow ? fromRow - goalRow : goalRow - fromRow;
+    int horizontal = fromColumn > goalColumn ? fromColumn - goalColumn : goalColumn - fromColumn;
+    return vertical + horizontal;
+}
+
+int[] reconstructPath(int[] previous, int start, int goal) {
+    int length = 1;
+    int current = goal;
+    while (current != start && current != -1) {
+        current = previous[current];
+        length++;
+    }
+    if (current == -1) return new int[0];
+
+    int[] path = new int[length];
+    current = goal;
+    for (int i = length - 1; i >= 0; i--) {
+        path[i] = current;
+        current = previous[current];
+    }
+    return path;
+}`,
   'btree:sorted-add': `void insert(int value) {
     Node leaf = findLeaf(value);
     insertInOrder(leaf, value);

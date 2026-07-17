@@ -387,13 +387,23 @@ export const educationalDescriptions = {
   ),
   dijkstra: guide(
     'Dijkstra calcula las distancias mínimas desde un origen en un grafo con pesos no negativos.',
-    'Mantiene una distancia tentativa para cada vértice y extrae siempre el no procesado con menor distancia. Relajar una arista significa comprobar si pasar por el vértice actual mejora la ruta conocida.',
-    'Inicializar distancias en infinito|Extraer el mínimo de una cola de prioridad|Relajar las aristas salientes|Guardar predecesores para reconstruir rutas',
+    'En esta visualización el grafo se representa como un mapa cuadriculado: las casillas transitables son posiciones posibles, las casillas negras son obstáculos y cada movimiento conecta con arriba, abajo, izquierda o derecha. Dijkstra guarda una distancia para cada casilla y siempre continúa desde la que tenga el menor costo conocido.',
+    'Inicializar las casillas en infinito|Elegir la casilla con menor distancia|Revisar sus cuatro vecinas transitables|Guardar la casilla anterior para reconstruir la ruta amarilla',
     'Encuentra rutas óptimas con pesos no negativos|Produce distancias a todos los vértices|Combina bien con un heap|Es ampliamente aplicable',
     'No acepta pesos negativos|Requiere una cola de prioridad para ser eficiente|Puede procesar gran parte del grafo|Hay que evitar trabajar con entradas obsoletas del heap',
     'GPS y mapas|Enrutamiento de redes|Costos mínimos|Planificación de movimientos',
     'Elige siempre la ciudad alcanzable con menor costo conocido y desde ella intenta mejorar las demás.',
     'Con una arista negativa, una distancia considerada definitiva podría mejorar después; usa Bellman-Ford en ese caso.'
+  ),
+  'a-star': guide(
+    'A* (A-Star) encuentra una ruta de costo mínimo entre un origen y un destino. Combina el costo real ya recorrido con una estimación de lo que todavía falta.',
+    'En el mapa cuadriculado, A* calcula f = g + h para cada casilla. El valor g cuenta los pasos ya recorridos y h usa la distancia Manhattan para estimar cuántos faltan hasta la bandera. A* elige la casilla abierta con menor f, revisa sus cuatro vecinas y recuerda desde dónde llegó. Como la heurística no sobreestima, conserva la ruta óptima.',
+    'Inicializar g del inicio en cero|Calcular h hasta la bandera|Elegir la casilla abierta con menor f|Revisar vecinas y reconstruir la ruta amarilla con previous',
+    'Se dirige hacia un destino concreto|Puede visitar menos vértices que Dijkstra|Encuentra rutas óptimas con una heurística admisible|Permite observar claramente g, h y f',
+    'La calidad depende de la heurística|No acepta pesos negativos|Puede consumir bastante memoria con muchos abiertos|Una heurística que sobreestima puede perder la ruta óptima',
+    'Movimiento de personajes|Navegación en mapas|Robótica y planificación|Resolución de laberintos con costos',
+    'En un mapa, g es lo que ya caminaste, h es una estimación de lo que falta y f ayuda a decidir qué camino probar primero.',
+    'Si h siempre vale cero, A* se comporta como Dijkstra. Una buena heurística acelera la búsqueda sin inventar costos imposibles.'
   ),
   prim: guide(
     'Prim construye un Minimum Spanning Tree conectando todos los vértices de un grafo no dirigido con el menor peso total.',

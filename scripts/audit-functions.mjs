@@ -15,6 +15,7 @@ import {
   createCodeSynchronizedFrames,
   estimateLoopIterations,
 } from '../src/logic/codeAnimation.js';
+import { DEFAULT_PATH_MAP } from '../src/logic/pathfindingMap.js';
 
 const edges = () => DEFAULT_GRAPH_EDGES.map(edge => [...edge]);
 
@@ -48,6 +49,7 @@ function fieldsFor(algorithm, actionId, trial = 0) {
   if (actionId === 'edge-add') Object.assign(samples, { value: 'A', second: 'C', index: '5' });
   if (actionId === 'edge-remove') Object.assign(samples, { value: 'A', second: 'B' });
   if (['bfs-run', 'dfs-run'].includes(actionId)) samples.value = String(first);
+  if (actionId === 'shortest-path') Object.assign(samples, { value: String(algorithm.values[0]), second: String(algorithm.values.at(-1)), index: '' });
   return samples;
 }
 
@@ -89,7 +91,7 @@ function validQueens(queens) {
   )));
 }
 
-assert.equal(algorithms.length, 51, 'El catálogo debe contener 51 temas.');
+assert.equal(algorithms.length, 52, 'El catálogo debe contener 52 temas.');
 
 let actionCount = 0;
 let executionCount = 0;
@@ -222,6 +224,29 @@ const bfsResult = run(graph, 'bfs-run', { value: 'A', second: '', index: '' });
 const dfsResult = run(graph, 'dfs-run', { value: 'A', second: '', index: '' });
 assert.match(bfsResult.message, /A → B → D → C → E → F/, 'Grafo: BFS no respeta niveles y aristas.');
 assert.match(dfsResult.message, /A → B → C → E → D → F/, 'Grafo: DFS no recorre en profundidad.');
+
+for (const algorithmId of ['dijkstra', 'a-star']) {
+  const pathAlgorithm = algorithms.find(item => item.id === algorithmId);
+  const pathResult = run(pathAlgorithm, 'shortest-path');
+  const finalState = pathResult.frames?.at(-1)?.mapState;
+  assert.equal(pathResult.ok, true, `${pathAlgorithm.name}: no encuentra una ruta existente.`);
+  assert.ok(Number.isFinite(pathResult.cost), `${pathAlgorithm.name}: el costo de la ruta debe ser finito.`);
+  assert.deepEqual([pathResult.path[0], pathResult.path.at(-1)], [DEFAULT_PATH_MAP.start, DEFAULT_PATH_MAP.goal], `${pathAlgorithm.name}: la ruta debe unir el inicio y la meta del mapa.`);
+  assert.ok(pathResult.frames?.length > 4, `${pathAlgorithm.name}: falta animación paso a paso.`);
+  assert.deepEqual(finalState?.path, pathResult.path, `${pathAlgorithm.name}: la ruta final no resalta todas sus casillas.`);
+  const visibleClosedCounts = new Set(pathResult.frames.map(frame => frame.mapState.closed.length));
+  for (let closedCount = 0; closedCount <= finalState.closed.length; closedCount++) {
+    assert.ok(visibleClosedCounts.has(closedCount), `${pathAlgorithm.name}: falta mostrar el estado con ${closedCount} casillas exploradas.`);
+  }
+  for (let frameIndex = 1; frameIndex < pathResult.frames.length; frameIndex++) {
+    const previousClosed = pathResult.frames[frameIndex - 1].mapState.closed.length;
+    const currentClosed = pathResult.frames[frameIndex].mapState.closed.length;
+    assert.ok(currentClosed - previousClosed <= 1, `${pathAlgorithm.name}: la animación salta varias casillas en un solo cuadro.`);
+  }
+  assert.ok(new Set(pathResult.frames.map(frame => frame.codeLine)).size >= 5, `${pathAlgorithm.name}: el código debe avanzar por las fases de selección, visita, vecinos y resultado.`);
+  assert.ok(pathResult.frames.some(frame => frame.variables?.some(variable => variable.name === (algorithmId === 'a-star' ? 'prioridad f' : 'distancia g'))), `${pathAlgorithm.name}: faltan variables educativas.`);
+  assert.match(getBeginnerJava(pathAlgorithm, 'shortest-path'), /int\[\] map/, `${pathAlgorithm.name}: el código Java debe recorrer el mismo mapa cuadriculado.`);
+}
 
 const hanoi = algorithms.find(item => item.id === 'hanoi');
 const hanoiResult = run(hanoi, 'hanoi-solve');
