@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { algorithms } from '../src/data/algorithms.js';
-import { getBeginnerJava } from '../src/data/beginnerJava.js';
+import { completeJavaSnippet, getBeginnerJava } from '../src/data/beginnerJava.js';
 import { educationalDescriptions } from '../src/data/educationalDescriptions.js';
 import { guideJavaExamples } from '../src/data/guideJavaExamples.js';
 import {
@@ -28,6 +28,26 @@ function balanced(source, opening, closing) {
     if (depth < 0) return false;
   }
   return depth === 0;
+}
+
+function missingJavaMethods(source) {
+  const cleanSource = source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/.*$/gm, '');
+  const definitions = new Set(
+    [...cleanSource.matchAll(/(?:^|\n)\s*(?:(?:public|private|protected|static|final|synchronized)\s+)*(?:[\w<>\[\],?]+\s+)+([A-Za-z_]\w*)\s*\([^;{}]*\)\s*\{/g)]
+      .map(match => match[1]),
+  );
+  const languageWords = new Set(['if', 'for', 'while', 'switch', 'catch', 'return', 'new', 'throw', 'super', 'this']);
+  const calls = new Set();
+  for (const match of cleanSource.matchAll(/\b([A-Za-z_]\w*)\s*\(/g)) {
+    const name = match[1];
+    const prefix = cleanSource.slice(Math.max(0, match.index - 6), match.index);
+    const previousCharacter = cleanSource[match.index - 1];
+    if (languageWords.has(name) || previousCharacter === '.' || /\bnew\s+$/.test(prefix)) continue;
+    calls.add(name);
+  }
+  return [...calls].filter(name => !definitions.has(name)).sort();
 }
 
 function fieldsFor(algorithm, actionId, trial = 0) {
@@ -111,6 +131,7 @@ assert.equal(Object.keys(guideJavaExamples).length, algorithms.length, 'La canti
 let actionCount = 0;
 let executionCount = 0;
 const actionIds = new Set();
+const incompleteJavaSnippets = [];
 for (const algorithm of algorithms) {
   assert.ok(algorithm.id && algorithm.name && algorithm.category && algorithm.type, `${algorithm.id || '(sin id)'}: faltan datos principales.`);
   assert.ok(algorithm.complexity.length >= 4, `${algorithm.id}: falta indicar una complejidad útil.`);
@@ -129,6 +150,12 @@ for (const algorithm of algorithms) {
   assert.ok(guideExample?.title && guideExample?.explanation, `${algorithm.id}: falta presentar el ejemplo Java.`);
   assert.ok(guideExample.code.split('\n').length >= 3, `${algorithm.id}: el ejemplo Java es demasiado corto.`);
   assert.ok(!mojibake.test(`${guideExample.title} ${guideExample.explanation} ${guideExample.code}`), `${algorithm.id}: el ejemplo Java contiene texto mal codificado.`);
+  const completeGuideCode = completeJavaSnippet(guideExample.code, algorithm.id);
+  assert.ok(balanced(completeGuideCode, '{', '}'), `${algorithm.id}/guía: el código Java tiene llaves desbalanceadas.`);
+  assert.ok(balanced(completeGuideCode, '(', ')'), `${algorithm.id}/guía: el código Java tiene paréntesis desbalanceados.`);
+  assert.ok(balanced(completeGuideCode, '[', ']'), `${algorithm.id}/guía: el código Java tiene corchetes desbalanceados.`);
+  const missingGuideMethods = missingJavaMethods(completeGuideCode);
+  if (missingGuideMethods.length) incompleteJavaSnippets.push({ source: `${algorithm.id}/guía`, methods: missingGuideMethods });
   const definition = getOperationDefinition(algorithm);
   assert.ok(definition.fields && definition.actions.length, `${algorithm.id}: faltan controles.`);
   assert.equal(new Set(definition.fields.map(item => item.id)).size, definition.fields.length, `${algorithm.id}: hay campos duplicados.`);
@@ -143,6 +170,8 @@ for (const algorithm of algorithms) {
     assert.ok(balanced(java, '(', ')'), `${algorithm.id}/${action.id}: el código Java tiene paréntesis desbalanceados.`);
     assert.ok(balanced(java, '[', ']'), `${algorithm.id}/${action.id}: el código Java tiene corchetes desbalanceados.`);
     assert.ok(!mojibake.test(java), `${algorithm.id}/${action.id}: el código Java contiene texto mal codificado.`);
+    const missingActionMethods = missingJavaMethods(java);
+    if (missingActionMethods.length) incompleteJavaSnippets.push({ source: `${algorithm.id}/${action.id}`, methods: missingActionMethods });
     for (let trial = 0; trial < 10; trial++) {
       executionCount++;
       const initialValues = [...algorithm.values];
@@ -198,6 +227,8 @@ for (const algorithm of algorithms) {
     }
   }
 }
+
+assert.deepEqual(incompleteJavaSnippets, [], `Hay métodos Java utilizados pero no mostrados:\n${JSON.stringify(incompleteJavaSnippets, null, 2)}`);
 
 const loopExample = algorithms.find(item => item.id === 'array');
 const loopCode = getBeginnerJava(loopExample, 'add-start');

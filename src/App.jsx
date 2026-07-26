@@ -1,17 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, memo, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, BookOpen, Boxes, Bug, ChevronDown, CircleHelp, ExternalLink, Flag, Gauge,
   MapPin, Menu, Navigation, PanelLeftClose, PanelLeftOpen, Pause, Play, RotateCcw, Search, Shuffle, Sparkles, X,
 } from 'lucide-react';
 import { algorithms, categories, categoryLabels } from './data/algorithms.js';
 import { getBeginnerJava } from './data/beginnerJava.js';
-import EducationalDescription from './components/EducationalDescription.jsx';
 import OperationsPanel from './components/OperationsPanel.jsx';
 import VariablesPanel from './components/VariablesPanel.jsx';
 import { adaptFramesToCode, copyVisualValues, createCodeSynchronizedFrames } from './logic/codeAnimation.js';
 import { DEFAULT_GRAPH_EDGES, DEFAULT_GRAPH_POSITIONS, executeOperation, getOperationDefinition } from './logic/operations.js';
 import { createRandomPathMap, DEFAULT_PATH_MAP } from './logic/pathfindingMap.js';
 import ucnLogo from './assets/LogoUCN.png';
+
+const EducationalDescription = lazy(() => import('./components/EducationalDescription.jsx'));
 
 const SUDOKU_START = [
   5,3,0,0,7,0,0,0,0, 6,0,0,1,9,5,0,0,0, 0,9,8,0,0,0,0,6,0,
@@ -22,6 +23,51 @@ const SUDOKU_START = [
 const NORMAL_FRAME_DELAY = 800;
 
 const randomNumber = (minimum, maximum) => Math.floor(Math.random() * (maximum - minimum + 1)) + minimum;
+
+function shortenEdge(from, to, startPadding = 22, endPadding = 22, width = 620, height = 300) {
+  const deltaX = (to[0] - from[0]) * width / 100;
+  const deltaY = (to[1] - from[1]) * height / 100;
+  const distance = Math.hypot(deltaX, deltaY) || 1;
+  const unitX = deltaX / distance;
+  const unitY = deltaY / distance;
+  return {
+    x1: from[0] + unitX * startPadding / width * 100,
+    y1: from[1] + unitY * startPadding / height * 100,
+    x2: to[0] - unitX * endPadding / width * 100,
+    y2: to[1] - unitY * endPadding / height * 100,
+  };
+}
+
+function TreeEdge({ from, to, label = null, startPadding = 21, endPadding = 21, width = 620 }) {
+  const edge = shortenEdge(from, to, startPadding, endPadding, width, 300);
+  const middleX = (edge.x1 + edge.x2) / 2;
+  const middleY = (edge.y1 + edge.y2) / 2;
+  return <g>
+    <line x1={`${edge.x1}%`} y1={`${edge.y1}%`} x2={`${edge.x2}%`} y2={`${edge.y2}%`} />
+    {label && <text className="tree-edge-label" x={`${middleX}%`} y={`${middleY}%`}>{label}</text>}
+  </g>;
+}
+
+function LinearConnector({ variant }) {
+  const isDouble = variant === 'double';
+  const isBidirectional = variant === 'bidirectional';
+  return <svg className={`linear-connector ${variant}`} viewBox="0 0 56 34" aria-hidden="true" focusable="false">
+    {isDouble ? <>
+      <path className="connector-line forward" d="M3 10 H49"/>
+      <path className="connector-head forward" d="M43 5 L51 10 L43 15"/>
+      <path className="connector-line reverse" d="M53 24 H7"/>
+      <path className="connector-head reverse" d="M13 19 L5 24 L13 29"/>
+    </> : isBidirectional ? <>
+      <path className="connector-line forward" d="M6 17 H50"/>
+      <path className="connector-head forward" d="M43 11 L51 17 L43 23"/>
+      <path className="connector-head reverse" d="M13 11 L5 17 L13 23"/>
+    </> : <>
+      <path className="connector-line forward" d="M5 17 H50"/>
+      {variant === 'forward' && <path className="connector-head forward" d="M43 11 L51 17 L43 23"/>}
+      {variant === 'rail' && <><circle cx="5" cy="17" r="2.2"/><circle cx="51" cy="17" r="2.2"/></>}
+    </>}
+  </svg>;
+}
 
 function randomUniqueNumbers(amount, minimum = 1, maximum = 60) {
   const numbers = new Set();
@@ -40,27 +86,6 @@ function balancedLevelOrder(sortedValues) {
     ranges.push([start, middle - 1], [middle + 1, end]);
   }
   return result;
-}
-
-function createRandomGraphPositions(amount, previous = []) {
-  const transforms = [
-    ([x,y]) => [100 - x, y],
-    ([x,y]) => [x, 92 - y],
-    ([x,y]) => [100 - x, 92 - y],
-    ([x,y]) => [50 - (y - 46), 46 + (x - 50) * .72],
-    ([x,y]) => [50 + (y - 46), 46 - (x - 50) * .72],
-  ];
-  for (let attempt = 0; attempt < 12; attempt++) {
-    const transform = transforms[randomNumber(0, transforms.length - 1)];
-    const positions = DEFAULT_GRAPH_POSITIONS.slice(0, amount).map(position => transform(position)).map(([x, y]) => [
-      Math.max(8, Math.min(92, x + randomNumber(-3, 3))),
-      Math.max(10, Math.min(82, y + randomNumber(-3, 3))),
-    ]);
-    const startMoved = !previous[0] || positions[0].some((value,index)=>value!==previous[0][index]);
-    const goalMoved = !previous[amount - 1] || positions[amount - 1].some((value,index)=>value!==previous[amount - 1][index]);
-    if (startMoved && goalMoved) return positions;
-  }
-  return DEFAULT_GRAPH_POSITIONS.slice(0, amount).map(([x,y]) => [100 - x, y]);
 }
 
 function createRandomValues(algorithm) {
@@ -144,10 +169,11 @@ function CircularListVisual({ algorithm, step }) {
   const forwardMarker = `circle-forward-${algorithm.id}`;
   const reverseMarker = `circle-reverse-${algorithm.id}`;
 
-  return <svg className="circular-list-visual" viewBox={`0 0 ${width} 160`} aria-label={doubleCircular ? 'Lista doble circular' : 'Lista circular simple'}>
+  return <div className="circular-scroll" role="img" aria-label={doubleCircular ? 'Lista doble circular' : 'Lista circular simple'}>
+  <svg className="circular-list-visual" viewBox={`0 0 ${width} 160`} style={{ width: `${width}px` }} aria-hidden="true">
     <defs>
-      <marker id={forwardMarker} markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7,3.5 L0,7 z" /></marker>
-      <marker id={reverseMarker} markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7,3.5 L0,7 z" /></marker>
+      <marker id={forwardMarker} viewBox="0 0 8 8" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 z" /></marker>
+      <marker id={reverseMarker} viewBox="0 0 8 8" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 z" /></marker>
     </defs>
 
     {values.slice(0,-1).map((_,index) => doubleCircular
@@ -168,8 +194,9 @@ function CircularListVisual({ algorithm, step }) {
       <text className="circle-value" x={center(index)} y="51" textAnchor="middle" dominantBaseline="middle">{value}</text>
       <text className="circle-pointer" x={center(index)} y="70" textAnchor="middle">{doubleCircular ? 'prev · next' : 'next'}</text>
     </g>)}
-    <text className="circle-caption" x={width/2} y="153" textAnchor="middle">ÚLTIMO NODO → PRIMER NODO</text>
-  </svg>;
+    <text className="circle-caption" x={width/2} y="153" textAnchor="middle">{doubleCircular ? 'NEXT: ÚLTIMO → PRIMERO  ·  PREV: PRIMERO → ÚLTIMO' : 'NEXT: ÚLTIMO NODO → PRIMER NODO'}</text>
+  </svg>
+  </div>;
 }
 
 function LinearVisual({ algorithm, step }) {
@@ -185,19 +212,22 @@ function LinearVisual({ algorithm, step }) {
   if (type === 'circular') return <CircularListVisual algorithm={algorithm} step={step}/>;
   const linked = type === 'linked';
   const doubleLinked = algorithm.id === 'lista-doble';
-  return <div className={`linear-visual ${type}`}>
+  const connectorVariant = doubleLinked ? 'double'
+    : algorithm.id === 'deque' ? 'bidirectional'
+      : ['linked','queue','skip'].includes(type) ? 'forward' : 'rail';
+  const cellHint = index => {
+    if (doubleLinked) return 'prev · next';
+    if (linked) return index === values.length - 1 ? 'next: null' : 'next';
+    if (algorithm.id === 'cola') return index === 0 ? 'FRENTE' : index === values.length - 1 ? 'FINAL' : index;
+    if (algorithm.id === 'deque') return index === 0 ? 'INICIO' : index === values.length - 1 ? 'FINAL' : index;
+    return index;
+  };
+  return <div className={`linear-visual ${type}`} role="img" aria-label={`Visualización de ${algorithm.name}`}>
     {values.map((value, index) => <div className="linear-unit" key={`${value}-${index}`}>
-      <div className={`data-cell ${index === step % values.length ? 'active' : ''}`}>
-        <span>{value}</span><small>{doubleLinked ? 'prev · next' : linked ? 'next' : index}</small>
+      <div className={`data-cell ${index === 0 ? 'first-cell' : ''} ${index === values.length - 1 ? 'last-cell' : ''} ${index === step % values.length ? 'active' : ''}`}>
+        <span>{value}</span><small>{cellHint(index)}</small>
       </div>
-      {index < values.length - 1 && (doubleLinked
-        ? <svg className="double-connector" viewBox="0 0 54 32" role="img" aria-label="Enlace hacia adelante y hacia atrás">
-            <line className="forward" x1="2" y1="9" x2="47" y2="9"/>
-            <path className="forward" d="M46 5 L52 9 L46 13"/>
-            <line className="reverse" x1="52" y1="23" x2="7" y2="23"/>
-            <path className="reverse" d="M8 19 L2 23 L8 27"/>
-          </svg>
-        : <span className="connector">{type === 'linked' ? '→' : type === 'queue' ? '›' : '—'}</span>)}
+      {index < values.length - 1 && <LinearConnector variant={connectorVariant}/>}
     </div>)}
   </div>;
 }
@@ -219,10 +249,9 @@ function BinaryTreeDiagram({ algorithm, step, displayValues = algorithm.values.s
   return <div className={`tree-canvas tree-${algorithm.id}`}>
     {kindLabel && <span className="tree-kind-label">{kindLabel}</span>}
     <svg className="edge-layer" aria-hidden="true">
-      {BINARY_EDGES.filter(([,to])=>to<values.length).map(([from,to]) => <g key={`${from}-${to}`}>
-        <line x1={`${BINARY_POSITIONS[from][0]}%`} y1={`${BINARY_POSITIONS[from][1]}%`} x2={`${BINARY_POSITIONS[to][0]}%`} y2={`${BINARY_POSITIONS[to][1]}%`} />
-        {orderedTree && <text className="tree-edge-label" x={`${(BINARY_POSITIONS[from][0]+BINARY_POSITIONS[to][0])/2}%`} y={`${(BINARY_POSITIONS[from][1]+BINARY_POSITIONS[to][1])/2}%`}>{to===from*2+1?'L':'R'}</text>}
-      </g>)}
+      {BINARY_EDGES.filter(([,to])=>to<values.length).map(([from,to]) =>
+        <TreeEdge key={`${from}-${to}`} from={BINARY_POSITIONS[from]} to={BINARY_POSITIONS[to]} label={orderedTree ? to===from*2+1?'L':'R' : null}/>
+      )}
     </svg>
     {BINARY_POSITIONS.map(([x,y],index) => values[index] !== undefined && <div key={index} className={`tree-node ${index>=7?'deep-node':''} ${index===step%values.length?'active':''} ${algorithm.id==='rojo-negro'?(index===0||index>=3?'black-node':'red-node'):''} ${algorithm.id==='expression-tree'&&index<3?'operator-node':''}`} style={{left:`${x}%`,top:`${y}%`}}>
       <span className="tree-value">{values[index]}</span>
@@ -237,7 +266,7 @@ function NaryTreeDiagram({ algorithm, step }) {
   const edges = [[0,1],[0,2],[0,3],[1,4],[1,5],[1,6],[2,7],[2,8],[3,9]];
   return <div className="tree-canvas nary-tree-canvas">
     <span className="tree-kind-label">{algorithm.id==='arbol-nario'?'MÁXIMO N HIJOS':'CANTIDAD LIBRE DE HIJOS'}</span>
-    <svg className="edge-layer">{edges.filter(([,to])=>to<values.length).map(([from,to])=><line key={`${from}-${to}`} x1={`${positions[from][0]}%`} y1={`${positions[from][1]}%`} x2={`${positions[to][0]}%`} y2={`${positions[to][1]}%`}/>)}</svg>
+    <svg className="edge-layer" aria-hidden="true">{edges.filter(([,to])=>to<values.length).map(([from,to])=><TreeEdge key={`${from}-${to}`} from={positions[from]} to={positions[to]}/>)}</svg>
     {positions.map(([x,y],index)=>values[index]!==undefined&&<div className={`tree-node nary-node ${index===step%values.length?'active':''}`} style={{left:`${x}%`,top:`${y}%`}} key={index}><span className="tree-value">{values[index]}</span><small className="tree-node-badge">{index===0?'ROOT':`CHILD ${index}`}</small></div>)}
   </div>;
 }
@@ -272,7 +301,7 @@ function MultiwayTreeDiagram({ algorithm, step }) {
   const nodeWidth = Math.min(17, 84 / groups.length);
   return <div className={`btree-visual ${algorithm.id} ${groups.length > 5 ? 'many-leaves' : ''}`}>
     <span className="tree-kind-label">{algorithm.id==='bplus-tree'?'DATOS SOLO EN HOJAS':algorithm.id==='bstar-tree'?'OCUPACIÓN MÍNIMA 2/3':'NODOS MULTICLAVE'}</span>
-    <svg className="btree-edges">{childX.map((x,index)=><line key={index} x1="50%" y1="22%" x2={`${x}%`} y2="70%"/>)}</svg>
+    <svg className="btree-edges" aria-hidden="true">{childX.map((x,index)=><TreeEdge key={index} from={[50,22]} to={[x,70]} startPadding={42} endPadding={27} width={720}/>)}</svg>
     <div className={`bnode root-bnode ${frame?.treePhase==='settled'?'promoting':''}`}><small>ROOT · SEPARADORES</small>{visibleRootKeys.join(' | ') || '·'}</div>
     {groups.map((group,index)=><div className={`bnode child-bnode ${index===activeGroup?'active':''} ${frame?.treePhase==='split'&&index===promotedLeaf?'splitting':''}`} style={{left:`${childX[index]}%`,width:`${nodeWidth}%`}} key={index}><small>{algorithm.id==='bplus-tree'?'HOJA':'NODO'}</small>{group.join(' | ')||'·'}</div>)}
     {algorithm.id==='bplus-tree' && groups.length > 1 && <svg className="bplus-leaf-chain"><defs><marker id="bplus-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z"/></marker></defs>{childX.slice(0,-1).map((x,index)=><line key={index} x1={`${x + nodeWidth / 2}%`} y1="50%" x2={`${childX[index+1] - nodeWidth / 2}%`} y2="50%" markerEnd="url(#bplus-arrow)"/>)}</svg>}
@@ -301,7 +330,7 @@ function FibonacciHeapDiagram({ algorithm, step }) {
   const values = algorithm.values.slice(0,9);
   const positions = [[12,22],[38,22],[64,22],[88,22],[12,68],[31,68],[45,68],[64,68],[88,68]];
   const edges = [[0,4],[1,5],[1,6],[2,7],[3,8]];
-  return <div className="tree-canvas fibonacci-forest"><span className="tree-kind-label">BOSQUE DE ÁRBOLES · MIN: {Math.min(...values.map(Number))}</span><svg className="edge-layer">{edges.filter(([,to])=>to<values.length).map(([from,to])=><line key={`${from}-${to}`} x1={`${positions[from][0]}%`} y1={`${positions[from][1]}%`} x2={`${positions[to][0]}%`} y2={`${positions[to][1]}%`}/>)}</svg>{positions.map(([x,y],index)=>values[index]!==undefined&&<div className={`tree-node fib-node ${index===step%values.length?'active':''}`} style={{left:`${x}%`,top:`${y}%`}} key={index}><span className="tree-value">{values[index]}</span><small className="tree-node-badge">{index<3?'ROOT':'CHILD'}</small></div>)}</div>;
+  return <div className="tree-canvas fibonacci-forest"><span className="tree-kind-label">BOSQUE DE ÁRBOLES · MIN: {Math.min(...values.map(Number))}</span><svg className="edge-layer" aria-hidden="true">{edges.filter(([,to])=>to<values.length).map(([from,to])=><TreeEdge key={`${from}-${to}`} from={positions[from]} to={positions[to]}/>)}</svg>{positions.map(([x,y],index)=>values[index]!==undefined&&<div className={`tree-node fib-node ${index===step%values.length?'active':''}`} style={{left:`${x}%`,top:`${y}%`}} key={index}><span className="tree-value">{values[index]}</span><small className="tree-node-badge">{index<3?'ROOT':'CHILD'}</small></div>)}</div>;
 }
 
 function SpatialTreeDiagram({ algorithm, step }) {
@@ -382,50 +411,43 @@ function PathMapVisual({ algorithm }) {
 }
 
 function GraphVisual({ algorithm, step }) {
-  const isRouteMap = ['dijkstra','a-star'].includes(algorithm.id);
   const nodes = (algorithm.positions ?? DEFAULT_GRAPH_POSITIONS).slice(0,algorithm.values.length);
   const edges = (algorithm.edges ?? DEFAULT_GRAPH_EDGES).filter(([from,to])=>from<algorithm.values.length&&to<algorithm.values.length);
   const directed = algorithm.type === 'digraph';
+  const arrowMarker = `graph-arrow-${algorithm.id}`;
   const graphState = algorithm.animationFrame?.graphState;
   const edgeMatches = (edge, candidate) => candidate && (
     (edge[0] === candidate[0] && edge[1] === candidate[1]) ||
     (!directed && edge[0] === candidate[1] && edge[1] === candidate[0])
   );
   const labelsFor = indexes => indexes?.length ? indexes.map(index=>algorithm.values[index]).join(', ') : '∅';
-  const startIndex = graphState?.start ?? 0;
-  const goalIndex = graphState?.goal ?? Math.max(0, algorithm.values.length - 1);
-  const currentPosition = nodes[graphState?.searchPosition ?? graphState?.current ?? startIndex] ?? nodes[0];
   if (!algorithm.values.length) return <div className="empty-visual"><strong>∅</strong><span>Grafo vacío</span></div>;
-  return <div className={`graph-canvas ${graphState ? 'pathfinding-canvas' : ''} ${isRouteMap ? 'route-map-canvas' : ''}`} role="img" aria-label={isRouteMap ? `Mapa de rutas para ${algorithm.name}` : `Grafo de ${algorithm.name}`}>
-  {isRouteMap && <div className="map-surface" aria-hidden="true">
-    <span className="map-block block-one"/><span className="map-block block-two"/><span className="map-block block-three"/><span className="map-block block-four"/>
-    <span className="map-park">PARQUE</span><span className="map-water"/><span className="map-place place-campus">CAMPUS</span><span className="map-place place-centre">CENTRO</span>
-    <span className="map-name"><MapPin size={13}/> Mapa de rutas</span>
-  </div>}
-  <svg className="edge-layer">
-    <defs><marker id="arrow" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 z" /></marker></defs>
+  return <div className={`graph-canvas ${graphState ? 'pathfinding-canvas' : ''}`} role="img" aria-label={`Grafo de ${algorithm.name}`}>
+  <svg className="edge-layer" aria-hidden="true">
+    <defs>
+      {['default','visited','relaxed','path'].map(tone => <marker key={tone} id={`${arrowMarker}-${tone}`} viewBox="0 0 10 10" markerWidth="8" markerHeight="8" refX="9" refY="5" orient="auto" markerUnits="strokeWidth"><path className={`arrow-${tone}`} d="M0,0 L10,5 L0,10 z" /></marker>)}
+    </defs>
     {edges.map(([a,b,w],i) => {
       const edge = [a,b];
       const className = graphState?.pathEdges?.some(candidate=>edgeMatches(edge,candidate)) ? 'path-edge'
         : edgeMatches(edge,graphState?.relaxedEdge) ? 'relaxed-edge'
           : graphState?.visitedEdges?.some(candidate=>edgeMatches(edge,candidate)) || (!graphState && i <= step % edges.length) ? 'visited-edge' : '';
-      return <g key={i}>{isRouteMap && <line className="map-road" x1={`${nodes[a][0]}%`} y1={`${nodes[a][1]}%`} x2={`${nodes[b][0]}%`} y2={`${nodes[b][1]}%`}/>}<line className={className} x1={`${nodes[a][0]}%`} y1={`${nodes[a][1]}%`} x2={`${nodes[b][0]}%`} y2={`${nodes[b][1]}%`} markerEnd={directed ? 'url(#arrow)' : undefined}/>{algorithm.type === 'weighted' && <text x={`${(nodes[a][0]+nodes[b][0])/2}%`} y={`${(nodes[a][1]+nodes[b][1])/2}%`}>{w}</text>}</g>;
+      const points = shortenEdge(nodes[a], nodes[b], 23, directed ? 31 : 23);
+      const markerTone = className === 'visited-edge' ? 'visited' : className === 'relaxed-edge' ? 'relaxed' : className === 'path-edge' ? 'path' : 'default';
+      return <g key={i}><line className={className} x1={`${points.x1}%`} y1={`${points.y1}%`} x2={`${points.x2}%`} y2={`${points.y2}%`} markerEnd={directed ? `url(#${arrowMarker}-${markerTone})` : undefined}/>{algorithm.type === 'weighted' && <text x={`${(nodes[a][0]+nodes[b][0])/2}%`} y={`${(nodes[a][1]+nodes[b][1])/2}%`}>{w}</text>}</g>;
     })}
   </svg>{nodes.slice(0,algorithm.values.length).map(([x,y],i) => {
-    const isCurrent = graphState ? i === graphState.current : !isRouteMap && i === step % algorithm.values.length;
+    const isCurrent = graphState ? i === graphState.current : i === step % algorithm.values.length;
     const isPath = graphState?.path?.includes(i);
     const stateClass = isPath ? 'path-node' : graphState?.closed?.includes(i) ? 'closed-node' : graphState?.open?.includes(i) ? 'open-node' : '';
     const metric = graphState ? (graphState.mode === 'astar' ? `f=${graphState.scores[i]}` : `d=${graphState.distances[i]}`) : null;
-    const endpointClass = isRouteMap ? i === startIndex ? 'origin-node' : i === goalIndex ? 'goal-node' : '' : '';
-    return <div className={`graph-node ${isCurrent ? 'active' : ''} ${stateClass} ${endpointClass}`} style={{left:`${x}%`,top:`${y}%`}} key={i}><span>{algorithm.values[i]}</span>{metric && <small>{metric}</small>}{endpointClass && <em>{i === startIndex ? 'INICIO' : 'META'}</em>}</div>;
+    return <div className={`graph-node ${isCurrent ? 'active' : ''} ${stateClass}`} style={{left:`${x}%`,top:`${y}%`}} key={i}><span>{algorithm.values[i]}</span>{metric && <small>{metric}</small>}</div>;
   })}
-  {isRouteMap && graphState && currentPosition && <div className="map-search-marker" style={{left:`${currentPosition[0]}%`,top:`${currentPosition[1]}%`}} aria-hidden="true"><Navigation size={13}/></div>}
   {graphState && <div className="pathfinding-status">
     <span><i className="open-dot"/>Abiertos: <b>{labelsFor(graphState.open)}</b></span>
     <span><i className="closed-dot"/>Cerrados: <b>{labelsFor(graphState.closed)}</b></span>
     {graphState.mode === 'astar' && <em>f = g + h</em>}
   </div>}
-  {isRouteMap && !graphState && <div className="pathfinding-status map-ready-status"><span><i className="origin-dot"/>Inicio: <b>{algorithm.values[startIndex]}</b></span><span><i className="goal-dot"/>Meta: <b>{algorithm.values[goalIndex]}</b></span></div>}
   </div>;
 }
 
@@ -525,6 +547,14 @@ function Visualizer({ algorithm, step }) {
   return <SpecialVisual algorithm={algorithm} step={step}/>;
 }
 
+const MemoizedVisualizer = memo(Visualizer);
+
+function DescriptionFallback() {
+  return <section className="description-loading" aria-label="Cargando descripción">
+    <span/><div><i/><i/><i/></div>
+  </section>;
+}
+
 function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setMobileOpen, collapsed, onToggle }) {
   const filtered = useMemo(() => algorithms.filter(a => `${a.name} ${a.category}`.toLowerCase().includes(query.toLowerCase())), [query]);
   return <aside className={`sidebar ${mobileOpen ? 'open' : ''} ${collapsed ? 'collapsed' : ''}`}>
@@ -540,7 +570,7 @@ function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setM
     <nav>
       {categories.map(category => { const list = filtered.filter(a=>a.category===category); if (!list.length) return null; return <div className="nav-group" key={category}>
         <div className="nav-heading"><span>{category}</span><em>{String(list.length).padStart(2,'0')}</em></div>
-        {list.map((a) => <button className={selected===a.id?'selected':''} onClick={()=>{onSelect(a.id);setMobileOpen(false)}} key={a.id}><span>{String(algorithms.indexOf(a)+1).padStart(2,'0')}</span>{a.name}</button>)}
+        {list.map((a) => <button data-algorithm-id={a.id} className={selected===a.id?'selected':''} onClick={()=>{onSelect(a.id);setMobileOpen(false)}} key={a.id}><span>{String(algorithms.indexOf(a)+1).padStart(2,'0')}</span>{a.name}</button>)}
       </div>})}
     </nav>
     <div className="sidebar-foot">
@@ -713,7 +743,10 @@ function App() {
   const [demoMap, setDemoMap] = useState(DEFAULT_PATH_MAP);
   const [operationMessage, setOperationMessage] = useState('Usa los controles para modificar la estructura y observar el resultado.');
   const [operationStatus, setOperationStatus] = useState('idle');
-  const algorithm = { ...baseAlgorithm, values: demoValues, edges: demoEdges, positions: demoPositions, map: demoMap };
+  const algorithm = useMemo(
+    () => ({ ...baseAlgorithm, values: demoValues, edges: demoEdges, positions: demoPositions, map: demoMap }),
+    [baseAlgorithm, demoValues, demoEdges, demoPositions, demoMap],
+  );
   const hideCodePanel = ['dijkstra','a-star'].includes(baseAlgorithm.id);
   const selectedIndex = algorithms.findIndex(item => item.id === baseAlgorithm.id);
   const operationDefinition = getOperationDefinition(baseAlgorithm);
@@ -722,6 +755,10 @@ function App() {
   const codeLines = displayedCode.split('\n');
   const totalSteps = operationFrames.length || Math.max(algorithm.values.length, codeLines.length);
   const currentAnimationFrame = operationFrames[step] ?? null;
+  const visualAlgorithm = useMemo(
+    () => ({ ...algorithm, animationFrame: currentAnimationFrame }),
+    [algorithm, currentAnimationFrame],
+  );
 
   useEffect(() => {
     window.localStorage.setItem('dsa-sidebar-collapsed', String(sidebarCollapsed));
@@ -736,19 +773,8 @@ function App() {
     setOperationMessage(frame.message);
   };
 
-  useEffect(()=>{
-    setDemoValues([...baseAlgorithm.values]);
-    setDemoEdges(DEFAULT_GRAPH_EDGES.map(edge=>[...edge]));
-    setDemoPositions(DEFAULT_GRAPH_POSITIONS.map(position=>[...position]));
-    setDemoMap(DEFAULT_PATH_MAP);
-    setActiveOperation(getOperationDefinition(baseAlgorithm).actions[0].id);
-    setOperationFrames([]);
-    setActiveCodeLine(null);
-    setOperationMessage('Usa los controles para modificar la estructura y observar el resultado.');
-    setOperationStatus('idle');
-  },[selectedId]);
   useEffect(()=>{ window.scrollTo({ top: 0, behavior: 'auto' }); },[showWelcome, selectedId]);
-  useEffect(()=>{ setStep(0); setPlaying(false); setCopied(false); setOperationFrames([]); setActiveCodeLine(null); },[selectedId, codeMode]);
+  useEffect(()=>{ setStep(0); setPlaying(false); setCopied(false); setOperationFrames([]); setActiveCodeLine(null); },[codeMode]);
   useEffect(()=>{
     if (!playing) return;
     if (step >= totalSteps - 1) { setPlaying(false); return; }
@@ -777,8 +803,31 @@ function App() {
     if (target === null) return;
     panel.scrollTo({ top: target, behavior: isFastPathfindingTrace ? 'auto' : 'smooth' });
   },[activeCodeLine,step,displayedCode,playing,baseAlgorithm.id]);
-  const selectRelative = (delta) => { const i=algorithms.findIndex(a=>a.id===algorithm.id); setSelectedId(algorithms[(i+delta+algorithms.length)%algorithms.length].id); setShowWelcome(false); };
-  const openAlgorithm = id => { setSelectedId(id); setShowWelcome(false); };
+  const loadAlgorithm = id => {
+    const nextAlgorithm = algorithms.find(item => item.id === id) ?? algorithms[0];
+    setSelectedId(nextAlgorithm.id);
+    setDemoValues([...nextAlgorithm.values]);
+    setDemoEdges(DEFAULT_GRAPH_EDGES.map(edge=>[...edge]));
+    setDemoPositions(DEFAULT_GRAPH_POSITIONS.map(position=>[...position]));
+    setDemoMap(DEFAULT_PATH_MAP);
+    setActiveOperation(getOperationDefinition(nextAlgorithm).actions[0].id);
+    setOperationFrames([]);
+    setActiveCodeLine(null);
+    setOperationMessage('Usa los controles para modificar la estructura y observar el resultado.');
+    setOperationStatus('idle');
+    setStep(0);
+    setPlaying(false);
+    setCopied(false);
+  };
+  const selectRelative = (delta) => {
+    const index = algorithms.findIndex(item=>item.id===algorithm.id);
+    loadAlgorithm(algorithms[(index+delta+algorithms.length)%algorithms.length].id);
+    setShowWelcome(false);
+  };
+  const openAlgorithm = id => {
+    loadAlgorithm(id);
+    setShowWelcome(false);
+  };
   const resetDemo = () => {
     setDemoValues([...baseAlgorithm.values]);
     setDemoEdges(DEFAULT_GRAPH_EDGES.map(edge => [...edge]));
@@ -797,9 +846,7 @@ function App() {
     setDemoEdges(baseAlgorithm.category === 'Grafos'
       ? DEFAULT_GRAPH_EDGES.map(([from, to]) => [from, to, randomNumber(1, 9)])
       : DEFAULT_GRAPH_EDGES.map(edge => [...edge]));
-    setDemoPositions(['dijkstra','a-star'].includes(baseAlgorithm.id)
-      ? createRandomGraphPositions(nextValues.length, demoPositions)
-      : DEFAULT_GRAPH_POSITIONS.map(position => [...position]));
+    setDemoPositions(DEFAULT_GRAPH_POSITIONS.map(position => [...position]));
     setDemoMap(['dijkstra','a-star'].includes(baseAlgorithm.id)
       ? createRandomPathMap(demoMap)
       : DEFAULT_PATH_MAP);
@@ -884,7 +931,7 @@ function App() {
       <section className={`lab-grid ${hideCodePanel ? 'visual-only' : ''}`}>
         <article className="panel visual-panel">
           <div className="panel-head"><div><span className="panel-index">01</span><h2>Visualización</h2></div><div className="panel-head-actions"><button onClick={createNewExample} title="Generar datos nuevos"><Shuffle size={15}/> Nuevo ejemplo</button><button onClick={resetDemo} title="Volver a los datos originales"><RotateCcw size={15}/> Restablecer</button></div></div>
-          <div className="canvas-grid"><Visualizer algorithm={{...algorithm, animationFrame: currentAnimationFrame}} step={operationFrames.length ? currentAnimationFrame?.position ?? step : step}/><div className={`step-badge ${currentAnimationFrame?.iteration != null ? 'loop-step' : ''}`}>{currentAnimationFrame?.loopExit ? <>Fin <b>bucle</b></> : currentAnimationFrame?.iteration != null ? <>Iteración <b>{Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)}/{currentAnimationFrame.totalIterations}</b></> : <>Paso <b>{String(step+1).padStart(2,'0')}</b></>}</div></div>
+          <div className="canvas-grid" data-visualizer={algorithm.id}><MemoizedVisualizer algorithm={visualAlgorithm} step={operationFrames.length ? currentAnimationFrame?.position ?? step : step}/><div className={`step-badge ${currentAnimationFrame?.iteration != null ? 'loop-step' : ''}`}>{currentAnimationFrame?.loopExit ? <>Fin <b>bucle</b></> : currentAnimationFrame?.iteration != null ? <>Iteración <b>{Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)}/{currentAnimationFrame.totalIterations}</b></> : <>Paso <b>{String(step+1).padStart(2,'0')}</b></>}</div></div>
           <OperationsPanel algorithm={baseAlgorithm} message={operationMessage} status={operationStatus} activeOperation={activeOperation} onAction={handleOperation}/>
           {hideCodePanel && <VariablesPanel frame={currentAnimationFrame} algorithm={algorithm} step={step} playing={playing}/>}
           <div className="player"><button onClick={()=>goToStep(step-1)} aria-label="Anterior"><ArrowLeft size={17}/></button><button className="play" onClick={togglePlayback}>{playing?<Pause size={18}/>:<Play size={18}/>}<span>{playing?'Pausar':'Reproducir'}</span></button><button onClick={()=>goToStep(step+1)} aria-label="Siguiente"><ArrowRight size={17}/></button><div className="timeline"><span style={{width:`${((step+1)/totalSteps)*100}%`}}/></div><label><span>Velocidad</span><select value={speed} onChange={e=>setSpeed(Number(e.target.value))}><option value="0.5">0.5×</option><option value="1">1×</option><option value="2">2×</option></select><ChevronDown size={13}/></label></div>
@@ -901,13 +948,17 @@ function App() {
               <button className="copy-button" onClick={copyCode}>{copied ? 'Copiado' : 'Copiar'}</button>
             </div>
           </div>
-          <pre ref={codePanelRef}>{codeLines.map((line,i)=><code className={i===(activeCodeLine ?? step%codeLines.length)?'active':''} key={i}><i>{String(i+1).padStart(2,'0')}</i>{line || ' '}</code>)}</pre>
+          <pre ref={codePanelRef}>{codeLines.map((line,i)=>{
+            const isActive = i === (activeCodeLine ?? step%codeLines.length);
+            const isHelperLabel = line.trim().startsWith('// Método auxiliar utilizado arriba:');
+            return <code className={`${isActive?'active':''} ${isHelperLabel?'helper-method-label':''}`.trim()} key={i}><i>{String(i+1).padStart(2,'0')}</i>{line || ' '}</code>;
+          })}</pre>
           <VariablesPanel frame={currentAnimationFrame} algorithm={algorithm} step={step} playing={playing}/>
           <div className="note"><CircleHelp size={17}/><p><strong>{codeMode === 'java' ? `Java básico · ${activeOperationLabel}` : '¿Qué ocurre aquí?'}</strong><span>{codeMode === 'java' ? currentAnimationFrame?.iteration != null ? `El ciclo está en la iteración ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} de ${currentAnimationFrame.totalIterations}. La línea iluminada y el elemento activo avanzan juntos.` : 'El código usa variables, arreglos, ciclos, condiciones y métodos pequeños. Cada línea iluminada corresponde al cambio mostrado en la estructura.' : step === 0 ? 'Se prepara el estado inicial y la estructura auxiliar.' : step >= totalSteps-1 ? 'El algoritmo completa la operación y devuelve el resultado.' : `Se procesa el elemento activo del paso ${step+1} y se actualiza el estado.`}</span></p></div>
         </article>}
       </section>
 
-      <EducationalDescription algorithm={algorithm}/>
+      <Suspense fallback={<DescriptionFallback/>}><EducationalDescription algorithm={algorithm}/></Suspense>
 
       <section className="learning-strip"><div><BookOpen size={18}/><span><b>{categoryLabels[algorithm.category]}</b> · {algorithm.name}</span></div></section>
       <footer className="algorithm-nav"><button onClick={()=>selectRelative(-1)}><ArrowLeft size={16}/><span><small>Anterior</small>{algorithms[(selectedIndex-1+algorithms.length)%algorithms.length].name}</span></button><button onClick={()=>selectRelative(1)}><span><small>Siguiente</small>{algorithms[(selectedIndex+1)%algorithms.length].name}</span><ArrowRight size={16}/></button></footer>

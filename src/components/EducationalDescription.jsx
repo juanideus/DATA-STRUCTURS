@@ -1,5 +1,5 @@
 import { AlertTriangle, BookOpen, CheckCircle2, Cog, Gauge, Lightbulb, ListChecks, MapPinned } from 'lucide-react';
-import { getBeginnerJava } from '../data/beginnerJava.js';
+import { completeJavaSnippet, getBeginnerJava } from '../data/beginnerJava.js';
 import { getEducationalDescription } from '../data/educationalDescriptions.js';
 import { getGuideJavaExample } from '../data/guideJavaExamples.js';
 import { getOperationDefinition } from '../logic/operations.js';
@@ -16,7 +16,9 @@ export default function EducationalDescription({ algorithm }) {
   if (!description) return null;
   const firstAction = getOperationDefinition(algorithm).actions[0];
   const guideExample = getGuideJavaExample(algorithm.id);
-  const javaExample = guideExample?.code ?? getBeginnerJava(algorithm, firstAction.id);
+  const javaExample = guideExample?.code
+    ? completeJavaSnippet(guideExample.code, algorithm.id)
+    : getBeginnerJava(algorithm, firstAction.id);
   const javaLines = javaExample.split('\n');
 
   return <section className="future-description available-description educational-description" aria-labelledby="educational-description-title">
@@ -64,7 +66,7 @@ export default function EducationalDescription({ algorithm }) {
           <strong>Qué debes observar</strong>
           <p>Identifica los datos de entrada, la condición principal, el cambio realizado y el valor que devuelve el método cuando corresponde.</p>
         </div>
-        <pre aria-label={`Ejemplo básico de ${algorithm.name} en Java`}><code>{javaLines.map((line, index) => <span key={`${index}-${line}`}><i>{String(index + 1).padStart(2, '0')}</i>{line || ' '}</span>)}</code></pre>
+        <pre aria-label={`Ejemplo básico de ${algorithm.name} en Java`}><code>{javaLines.map((line, index) => <span className={line.trim().startsWith('// Método auxiliar utilizado arriba:') ? 'helper-method-label' : ''} key={`${index}-${line}`}><i>{String(index + 1).padStart(2, '0')}</i>{line || ' '}</span>)}</code></pre>
       </div>
 
       <div className="description-tip"><Lightbulb size={17}/><p><strong>Idea importante:</strong> {description.tip}</p></div>
