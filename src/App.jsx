@@ -1,7 +1,7 @@
 import { lazy, memo, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, ArrowRight, BookOpen, Boxes, Bug, ChevronDown, CircleHelp, ExternalLink, Flag, Gauge,
-  MapPin, Menu, Navigation, PanelLeftClose, PanelLeftOpen, Pause, Play, RotateCcw, Search, Shuffle, Sparkles, X,
+  ArrowLeft, ArrowRight, BookOpen, Boxes, Bug, ChevronDown, CircleHelp, ExternalLink, Gauge,
+  MapPin, Menu, PanelLeftClose, PanelLeftOpen, Pause, Play, RotateCcw, Search, Shuffle, Sparkles, X,
 } from 'lucide-react';
 import { algorithms, categories, categoryLabels } from './data/algorithms.js';
 import { getBeginnerJava } from './data/beginnerJava.js';
@@ -361,51 +361,186 @@ function TreeVisual({ algorithm, step }) {
   return <BinaryTreeDiagram algorithm={algorithm} step={step} badges={badges} kindLabel={labels[algorithm.id]}/>;
 }
 
+const CITY_MAP_WIDTH = 1000;
+const CITY_MAP_HEIGHT = 510;
+
+function mapNoise(seed, salt) {
+  const value = Math.sin((seed % 100000 + salt * 91.73) * 0.0174533) * 43758.5453;
+  return value - Math.floor(value);
+}
+
+function buildCityGeometry(map) {
+  const horizontalSpace = (CITY_MAP_WIDTH - 70) / Math.max(1, map.columns - 1);
+  const verticalSpace = (CITY_MAP_HEIGHT - 70) / Math.max(1, map.rows - 1);
+  const points = map.cells.map((cell, index) => {
+    const row = Math.floor(index / map.columns);
+    const column = index % map.columns;
+    const seed = map.seed ?? 1;
+    return {
+      index,
+      row,
+      column,
+      cell,
+      x: 35 + column * horizontalSpace + (mapNoise(seed, index * 2 + 1) - 0.5) * horizontalSpace * 0.44,
+      y: 35 + row * verticalSpace + (mapNoise(seed, index * 2 + 2) - 0.5) * verticalSpace * 0.48,
+    };
+  });
+  const streets = [];
+
+  points.forEach((point) => {
+    if (!Number.isFinite(point.cell.cost)) return;
+    [[0, 1], [1, 0]].forEach(([rowDelta, columnDelta]) => {
+      const nextRow = point.row + rowDelta;
+      const nextColumn = point.column + columnDelta;
+      if (nextRow >= map.rows || nextColumn >= map.columns) return;
+      const nextIndex = nextRow * map.columns + nextColumn;
+      if (!Number.isFinite(map.cells[nextIndex].cost)) return;
+      const next = points[nextIndex];
+      const bend = (mapNoise(map.seed ?? 1, point.index * 7 + nextIndex) - 0.5) * 12;
+      streets.push({
+        from: point.index,
+        to: nextIndex,
+        key: `${point.index}-${nextIndex}`,
+        path: `M ${point.x.toFixed(1)} ${point.y.toFixed(1)} Q ${((point.x + next.x) / 2 + (rowDelta ? bend : 0)).toFixed(1)} ${((point.y + next.y) / 2 + (columnDelta ? bend : 0)).toFixed(1)} ${next.x.toFixed(1)} ${next.y.toFixed(1)}`,
+        avenue: (point.row * 3 + point.column * 5) % 11 === 0,
+      });
+    });
+  });
+
+  const blocks = points.filter((point) => !Number.isFinite(point.cell.cost)).map((point) => ({
+    ...point,
+    width: 13 + mapNoise(map.seed ?? 1, point.index * 11) * 18,
+    height: 9 + mapNoise(map.seed ?? 1, point.index * 13) * 15,
+    rotation: (mapNoise(map.seed ?? 1, point.index * 17) - 0.5) * 24,
+  }));
+
+  return { points, streets, blocks };
+}
+
 function PathMapVisual({ algorithm }) {
   const map = algorithm.map ?? DEFAULT_PATH_MAP;
   const state = algorithm.animationFrame?.mapState;
+  const geometry = useMemo(() => buildCityGeometry(map), [map]);
   const open = new Set(state?.open ?? []);
   const closed = new Set(state?.closed ?? []);
-  const path = new Set(state?.path ?? []);
+  const route = state?.path ?? [];
+  const routeNodes = new Set(route);
+  const routeEdges = new Set(route.slice(1).map((node, index) => {
+    const previous = route[index];
+    return previous < node ? `${previous}-${node}` : `${node}-${previous}`;
+  }));
   const current = state?.current ?? null;
+  const currentPoint = current == null ? null : geometry.points[current];
+  const startPoint = geometry.points[map.start];
+  const goalPoint = geometry.points[map.goal];
   const modeName = algorithm.id === 'a-star' ? 'A*' : 'Dijkstra';
+  const mapId = `city-map-${algorithm.id}`;
 
-  return <div className="path-map-visual" role="img" aria-label={`Mapa cuadriculado para visualizar ${modeName}`}>
+  return <div className={`path-map-visual ${algorithm.id === 'a-star' ? 'is-astar' : ''}`} role="img" aria-label={`Mapa urbano para visualizar la búsqueda de rutas con ${modeName}`}>
     <div className="path-map-heading">
-      <span><MapPin size={15}/> Búsqueda sobre mapa</span>
-      <em>{algorithm.id === 'a-star' ? 'f = g + h' : 'menor distancia primero'}</em>
+      <div>
+        <span className="path-map-kicker"><i/> Simulación en vivo</span>
+        <strong><MapPin size={15}/> Red urbana</strong>
+      </div>
+      <em>{algorithm.id === 'a-star' ? 'prioridad: f = g + h' : 'prioridad: menor distancia'}</em>
     </div>
-    <div className="path-map-grid" style={{ gridTemplateColumns: `repeat(${map.columns}, 1fr)` }}>
-      {map.cells.map((cell, index) => {
-        const isStart = index === map.start;
-        const isGoal = index === map.goal;
-        const classes = [
-          'path-map-cell',
-          cell.kind,
-          closed.has(index) ? 'explored' : '',
-          open.has(index) ? 'frontier' : '',
-          path.has(index) ? 'route' : '',
-          current === index ? 'current' : '',
-          isStart ? 'start' : '',
-          isGoal ? 'goal' : '',
-        ].filter(Boolean).join(' ');
-        return <div className={classes} key={index} title={isStart ? 'Inicio' : isGoal ? 'Meta' : cell.kind === 'building' || cell.kind === 'water' ? 'Obstáculo' : 'Casilla transitable'}>
-          {isStart && <span className="path-map-pin start-pin"><MapPin size={13}/></span>}
-          {isGoal && <span className="path-map-pin goal-pin"><Flag size={13}/></span>}
-          {current === index && !isStart && !isGoal && <Navigation className="path-map-searcher" size={12}/>}
-        </div>;
-      })}
-    </div>
+
+    <svg className="path-map-city" viewBox={`0 0 ${CITY_MAP_WIDTH} ${CITY_MAP_HEIGHT}`} aria-hidden="true" preserveAspectRatio="none">
+      <defs>
+        <filter id={`${mapId}-soft-glow`} x="-80%" y="-80%" width="260%" height="260%">
+          <feGaussianBlur stdDeviation="12" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id={`${mapId}-route-glow`} x="-80%" y="-80%" width="260%" height="260%">
+          <feGaussianBlur stdDeviation="4" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <radialGradient id={`${mapId}-search-area`}>
+          <stop offset="0%" stopColor="var(--map-search)" stopOpacity=".28"/>
+          <stop offset="48%" stopColor="var(--map-search)" stopOpacity=".11"/>
+          <stop offset="100%" stopColor="var(--map-search)" stopOpacity="0"/>
+        </radialGradient>
+      </defs>
+
+      <g className="city-blocks">
+        {geometry.blocks.map((block) => <rect
+          className={block.cell.kind === 'water' ? 'water-block' : ''}
+          key={`block-${block.index}`}
+          x={block.x - block.width / 2}
+          y={block.y - block.height / 2}
+          width={block.width}
+          height={block.height}
+          rx="2"
+          transform={`rotate(${block.rotation.toFixed(1)} ${block.x.toFixed(1)} ${block.y.toFixed(1)})`}
+        />)}
+      </g>
+
+      <g className="city-road-shadow">
+        {geometry.streets.map((street) => <path key={`shadow-${street.key}`} className={street.avenue ? 'avenue' : ''} d={street.path}/>)}
+      </g>
+      <g className="city-road-base">
+        {geometry.streets.map((street) => <path key={`base-${street.key}`} className={street.avenue ? 'avenue' : ''} d={street.path}/>)}
+      </g>
+
+      {currentPoint && <circle className="path-search-area" cx={currentPoint.x} cy={currentPoint.y} r="122" fill={`url(#${mapId}-search-area)`}/>}
+
+      <g className="city-road-explored">
+        {geometry.streets.filter((street) => closed.has(street.from) && closed.has(street.to)).map((street) =>
+          <path key={`explored-${street.key}`} d={street.path}/>)}
+      </g>
+      <g className="city-road-frontier">
+        {geometry.streets.filter((street) => (
+          (open.has(street.from) && closed.has(street.to))
+          || (open.has(street.to) && closed.has(street.from))
+        )).map((street) => <path key={`frontier-${street.key}`} d={street.path}/>)}
+      </g>
+      <g className="city-road-route" filter={`url(#${mapId}-route-glow)`}>
+        {geometry.streets.filter((street) => routeEdges.has(street.key)).map((street) =>
+          <path key={`route-${street.key}`} d={street.path}/>)}
+      </g>
+
+      <g className="city-intersections">
+        {geometry.points.filter((point) => Number.isFinite(point.cell.cost) && point.index % 3 === 0).map((point) =>
+          <circle key={`intersection-${point.index}`} cx={point.x} cy={point.y} r="1.35"/>)}
+      </g>
+      <g className="city-visited-points">
+        {[...closed].filter((index) => index % 2 === 0).map((index) =>
+          <circle key={`closed-${index}`} cx={geometry.points[index].x} cy={geometry.points[index].y} r="2.15"/>)}
+      </g>
+      <g className="city-frontier-points">
+        {[...open].map((index) =>
+          <circle key={`open-${index}`} cx={geometry.points[index].x} cy={geometry.points[index].y} r="3.1"/>)}
+      </g>
+      <g className="city-route-points">
+        {[...routeNodes].map((index) =>
+          <circle key={`route-node-${index}`} cx={geometry.points[index].x} cy={geometry.points[index].y} r="2.8"/>)}
+      </g>
+
+      {currentPoint && <g className="path-map-searcher" transform={`translate(${currentPoint.x} ${currentPoint.y})`} filter={`url(#${mapId}-soft-glow)`}>
+        <path d="M -5 -8 L 9 0 L -5 8 L -1 0 Z"/>
+      </g>}
+
+      <g className="path-map-marker start-marker" transform={`translate(${startPoint.x} ${startPoint.y})`}>
+        <circle r="10"/><circle r="3"/><text x="15" y="4">INICIO</text>
+      </g>
+      <g className="path-map-marker goal-marker" transform={`translate(${goalPoint.x} ${goalPoint.y})`}>
+        <circle r="10"/><path d="M-3 -5 L5 -2 L-3 1 Z M-3 -5 V6"/><text x={goalPoint.x > 820 ? -15 : 15} y="4" textAnchor={goalPoint.x > 820 ? 'end' : 'start'}>META</text>
+      </g>
+    </svg>
+
     <div className="path-map-legend">
       <span><i className="legend-start"/>Inicio</span>
       <span><i className="legend-goal"/>Meta</span>
-      <span><i className="legend-frontier"/>Por revisar</span>
+      <span><i className="legend-frontier"/>Frontera</span>
       <span><i className="legend-explored"/>Explorado</span>
-      <span><i className="legend-route"/>Ruta final</span>
-      <span><i className="legend-wall"/>Obstáculo</span>
+      <span><i className="legend-route"/>Ruta óptima</span>
     </div>
     <div className="path-map-summary">
-      {state ? <><span>Exploradas <b>{closed.size}</b></span><span>Frontera <b>{open.size}</b></span>{state.path.length > 0 && <span>Costo <b>{state.cost}</b></span>}</> : <span>Presiona <b>Ejecutar {modeName}</b> para ver cómo avanza la búsqueda.</span>}
+      {state ? <>
+        <span><small>Exploradas</small><b>{closed.size}</b></span>
+        <span><small>Frontera</small><b>{open.size}</b></span>
+        <span><small>{route.length > 0 ? 'Costo final' : 'Estado'}</small><b>{route.length > 0 ? state.cost : 'Buscando'}</b></span>
+      </> : <span className="path-map-empty"><small>Listo para comenzar</small><b>Ejecuta {modeName} para iluminar la búsqueda</b></span>}
     </div>
   </div>;
 }
