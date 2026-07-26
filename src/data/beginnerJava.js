@@ -801,12 +801,283 @@ boolean isExit(int row, int column) {
 }`,
 };
 
+const commonHelpers = {
+  removeAtIndex: `void removeAtIndex(int index) {
+    for (int i = index; i < size - 1; i++) {
+        values[i] = values[i + 1];
+    }
+    size--;
+}`,
+  findNode: `TrieNode findNode(String word) {
+    TrieNode current = root;
+    for (int i = 0; i < word.length(); i++) {
+        int letter = word.charAt(i) - 'A';
+        if (current.children[letter] == null) return null;
+        current = current.children[letter];
+    }
+    return current;
+}`,
+  findRoot: `int findRoot(int value) {
+    while (parent[value] != value) {
+        value = parent[value];
+    }
+    return value;
+}`,
+  removeOldest: `void removeOldest() {
+    for (int i = 0; i < size - 1; i++) {
+        keys[i] = keys[i + 1];
+        values[i] = values[i + 1];
+    }
+    size--;
+}`,
+  simpleHash: `int simpleHash(String text) {
+    int hash = 0;
+    for (int i = 0; i < text.length(); i++) {
+        hash = hash * 31 + text.charAt(i);
+    }
+    return hash;
+}`,
+  findLeaf: `Node findLeaf(int value) {
+    Node current = root;
+    while (!current.isLeaf) {
+        int child = 0;
+        while (child < current.keyCount
+                && value > current.keys[child]) {
+            child++;
+        }
+        current = current.children[child];
+    }
+    return current;
+}`,
+  insertInOrder: `void insertInOrder(Node node, int value) {
+    int index = node.keyCount;
+    while (index > 0 && node.keys[index - 1] > value) {
+        node.keys[index] = node.keys[index - 1];
+        index--;
+    }
+    node.keys[index] = value;
+    node.keyCount++;
+}`,
+  splitLeaf: `Node splitLeaf(Node leaf) {
+    Node right = new Node();
+    right.isLeaf = true;
+    int middle = leaf.keyCount / 2;
+
+    for (int i = middle; i < leaf.keyCount; i++) {
+        right.keys[right.keyCount] = leaf.keys[i];
+        right.keyCount++;
+    }
+    leaf.keyCount = middle;
+    right.next = leaf.next;
+    leaf.next = right;
+    return right;
+}`,
+  insertIntoParent: `void insertIntoParent(Node left, int separator, Node right) {
+    if (left == root) {
+        Node newRoot = new Node();
+        newRoot.keys[0] = separator;
+        newRoot.keyCount = 1;
+        newRoot.children[0] = left;
+        newRoot.children[1] = right;
+        newRoot.isLeaf = false;
+        root = newRoot;
+        return;
+    }
+
+    Node parent = left.parent;
+    insertInOrder(parent, separator);
+    right.parent = parent;
+}`,
+  solveSudoku: `boolean solveSudoku(int row, int column) {
+    if (row == 9) return true;
+    if (column == 9) return solveSudoku(row + 1, 0);
+    if (board[row][column] != 0) {
+        return solveSudoku(row, column + 1);
+    }
+
+    for (int number = 1; number <= 9; number++) {
+        if (isValid(row, column, number)) {
+            board[row][column] = number;
+            if (solveSudoku(row, column + 1)) return true;
+            board[row][column] = 0;
+        }
+    }
+    return false;
+}`,
+};
+
+const contextualHelpers = {
+  avl: {
+    height: `int height(Node node) {
+    if (node == null) return 0;
+    return node.height;
+}`,
+  },
+  heap: {
+    swap: `void swap(int first, int second) {
+    int temporary = heap[first];
+    heap[first] = heap[second];
+    heap[second] = temporary;
+}`,
+  },
+  'quick-sort': {
+    swap: `void swap(int first, int second) {
+    int temporary = values[first];
+    values[first] = values[second];
+    values[second] = temporary;
+}`,
+  },
+  'fibonacci-heap': {
+    addToRootList: `void addToRootList(Node node) {
+    if (minimum == null) {
+        node.next = node;
+        node.previous = node;
+        minimum = node;
+        return;
+    }
+    node.next = minimum.next;
+    node.previous = minimum;
+    minimum.next.previous = node;
+    minimum.next = node;
+}`,
+  },
+  'bplus-tree': {
+    findFirstLeaf: `Leaf findFirstLeaf() {
+    Node current = root;
+    while (!current.isLeaf) {
+        current = current.children[0];
+    }
+    return (Leaf) current;
+}`,
+  },
+  'bstar-tree': {
+    redistribute: `void redistribute(Node full, Node sibling) {
+    int moved = full.keys[full.keyCount - 1];
+    full.keyCount--;
+
+    for (int i = sibling.keyCount; i > 0; i--) {
+        sibling.keys[i] = sibling.keys[i - 1];
+    }
+    sibling.keys[0] = moved;
+    sibling.keyCount++;
+}`,
+    splitTwoNodesIntoThree: `void splitTwoNodesIntoThree(Node left, Node right) {
+    Node middle = new Node();
+    int value = right.keys[0];
+    middle.keys[0] = value;
+    middle.keyCount = 1;
+
+    for (int i = 0; i < right.keyCount - 1; i++) {
+        right.keys[i] = right.keys[i + 1];
+    }
+    right.keyCount--;
+}`,
+  },
+  'a-star': {
+    heuristic: `int heuristic(int from, int goal, int columns) {
+    int fromRow = from / columns;
+    int fromColumn = from % columns;
+    int goalRow = goal / columns;
+    int goalColumn = goal % columns;
+    return Math.abs(fromRow - goalRow)
+            + Math.abs(fromColumn - goalColumn);
+}`,
+  },
+  kruskal: {
+    find: `int find(int value) {
+    while (parent[value] != value) {
+        value = parent[value];
+    }
+    return value;
+}`,
+  },
+  laberinto: {
+    isFree: `boolean isFree(int row, int column) {
+    if (row < 0 || row >= 6) return false;
+    if (column < 0 || column >= 6) return false;
+    return maze[row][column] == 0 && !path[row][column];
+}`,
+    isExit: `boolean isExit(int row, int column) {
+    return row == 5 && column == 5;
+}`,
+  },
+  sudoku: {
+    isValid: `boolean isValid(int row, int column, int number) {
+    for (int index = 0; index < 9; index++) {
+        if (board[row][index] == number) return false;
+        if (board[index][column] == number) return false;
+    }
+
+    int firstRow = (row / 3) * 3;
+    int firstColumn = (column / 3) * 3;
+    for (int r = firstRow; r < firstRow + 3; r++) {
+        for (int c = firstColumn; c < firstColumn + 3; c++) {
+            if (board[r][c] == number) return false;
+        }
+    }
+    return true;
+}`,
+    solveNext: `boolean solveNext(int row, int column) {
+    if (column == 8) return solveSudoku(row + 1, 0);
+    return solveSudoku(row, column + 1);
+}`,
+  },
+  'lru-cache': {
+    removeFromList: `void removeFromList(Node node) {
+    if (node.prev != null) node.prev.next = node.next;
+    if (node.next != null) node.next.prev = node.prev;
+    if (node == head) head = node.next;
+    if (node == tail) tail = node.prev;
+}`,
+  },
+};
+
+function definedMethods(source) {
+  return new Set(
+    [...source.matchAll(/(?:^|\n)\s*(?:(?:public|private|protected|static|final)\s+)*(?:[\w<>\[\],?]+\s+)+([A-Za-z_]\w*)\s*\([^;{}]*\)\s*\{/g)]
+      .map(match => match[1]),
+  );
+}
+
+function calledMethods(source) {
+  const languageWords = new Set(['if', 'for', 'while', 'switch', 'catch', 'return', 'new', 'throw', 'super', 'this']);
+  const calls = new Set();
+  const cleanSource = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  for (const match of cleanSource.matchAll(/\b([A-Za-z_]\w*)\s*\(/g)) {
+    const name = match[1];
+    const prefix = cleanSource.slice(Math.max(0, match.index - 6), match.index);
+    if (languageWords.has(name) || cleanSource[match.index - 1] === '.' || /\bnew\s+$/.test(prefix)) continue;
+    calls.add(name);
+  }
+  return calls;
+}
+
+export function completeJavaSnippet(source, contextId = '') {
+  let completed = source.trim();
+  const appended = new Set();
+
+  while (true) {
+    const definitions = definedMethods(completed);
+    const missing = [...calledMethods(completed)].filter(name => !definitions.has(name) && !appended.has(name));
+    const method = missing.find(name => contextualHelpers[contextId]?.[name] || commonHelpers[name]);
+    if (!method) break;
+
+    const helper = contextualHelpers[contextId]?.[method] ?? commonHelpers[method];
+    completed += `\n\n// Método auxiliar utilizado arriba: ${method}\n${helper}`;
+    appended.add(method);
+  }
+  return completed;
+}
+
 export function getBeginnerJava(algorithm, actionId) {
   const group = operationGroup(algorithm);
+  let source;
   if (algorithm.id === 'factorial' && actionId === 'calculate') {
-    return special['math:calculate:factorial'];
-  }
-  return special[`${algorithm.id}:${actionId}`] ?? special[`${group}:${actionId}`] ?? basic[actionId] ?? `void operation() {
+    source = special['math:calculate:factorial'];
+  } else {
+    source = special[`${algorithm.id}:${actionId}`] ?? special[`${group}:${actionId}`] ?? basic[actionId] ?? `void operation() {
     // Follow the visual steps.
 }`;
+  }
+  return completeJavaSnippet(source, algorithm.id);
 }
