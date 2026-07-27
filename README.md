@@ -479,10 +479,6 @@ El navegador conserva localmente:
 
 La aplicación no almacena información personal ni envía estas preferencias a un servidor.
 
-## Aviso institucional
-
-DSA Lab es un proyecto académico independiente y no corresponde a un sitio oficial de la Universidad Católica del Norte.
-
 ## Accesibilidad y diseño adaptable
 
 El proyecto incorpora:

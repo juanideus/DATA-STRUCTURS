@@ -313,7 +313,6 @@ body{background:
   .welcome-orbit,.welcome-root,.welcome-node{animation:none}
 }
 
-.project-disclaimer{margin:7px 0 0;color:#8fa39e;font-size:8px;line-height:1.45}
 .bug-copy-status{grid-column:1/-1;margin:-4px 0 0;color:var(--green);font-size:10px}
 .bug-form-actions button.copy-report{border-color:var(--green);color:var(--green)}
 .bug-form-actions button:disabled{cursor:not-allowed;opacity:.48}

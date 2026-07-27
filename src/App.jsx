@@ -783,7 +783,6 @@ function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setM
     <div className="sidebar-foot">
       <span><Sparkles size={14}/> {algorithms.length} temas incluidos</span>
       <div className="author-credit"><small>Autor</small><strong>Juan Zúñiga Maluenda</strong></div>
-      <p className="project-disclaimer">Proyecto académico independiente. No corresponde a un sitio oficial de la Universidad Católica del Norte.</p>
     </div>
   </aside>;
 }
