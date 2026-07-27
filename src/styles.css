@@ -1327,6 +1327,117 @@ body{background:var(--paper)}
   stroke-width:3px;
 }
 
+/* A distinct visual language for every graph family */
+.graph-canvas[class*="graph-design-"]{
+  width:min(720px,94%);
+  height:310px;
+  overflow:hidden;
+  isolation:isolate;
+  border:1px solid #cfd7dc;
+  border-radius:15px;
+  background:#f7f8f7;
+  box-shadow:inset 0 1px rgba(255,255,255,.8),0 12px 28px rgba(35,52,66,.09);
+}
+.graph-canvas[class*="graph-design-"] .edge-layer{z-index:2;inset:20px 14px 10px;width:calc(100% - 28px);height:calc(100% - 30px)}
+.graph-canvas[class*="graph-design-"] .graph-node{z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:52px;height:52px}
+.graph-canvas[class*="graph-design-"] .graph-node>span{font-size:13px;line-height:1;font-weight:750}
+.graph-canvas[class*="graph-design-"] .graph-node>small{max-width:46px;overflow:hidden;color:#75818b;font-family:'DM Mono',monospace;font-size:6.5px;line-height:1;white-space:nowrap;text-overflow:ellipsis}
+.graph-canvas[class*="graph-design-"] .graph-node.active>small{color:#fff1eb}
+.graph-design-title{position:absolute;z-index:5;top:10px;right:12px;display:grid;justify-items:end;gap:2px;pointer-events:none}
+.graph-design-title span{color:#40515e;font-size:8px;font-weight:800;letter-spacing:.13em;text-transform:uppercase}
+.graph-design-title small{max-width:260px;color:#87939b;font-size:7px;text-align:right}
+.graph-design-motif{position:absolute;inset:0;z-index:0;pointer-events:none}
+.graph-design-motif i{position:absolute;display:block}
+
+.graph-design-grafo{background:radial-gradient(circle at 50% 48%,#fff 0 6%,transparent 7%),radial-gradient(circle at 50% 48%,rgba(71,112,137,.08),transparent 52%),#f7f9fa!important}
+.graph-design-grafo .graph-design-motif{background-image:radial-gradient(#78909d 1px,transparent 1px);background-size:20px 20px;opacity:.24}
+.graph-design-grafo .edge-layer line{stroke:#52768a}
+.graph-design-grafo .graph-node{border-color:#4b7187;background:#fbfdfe}
+.graph-design-grafo .graph-node.origin-node{background:#334f60;color:#fff}
+.graph-design-grafo .graph-node.origin-node small{color:#c9dce5}
+
+.graph-design-grafo-dirigido{background:linear-gradient(90deg,#f8f7fb,#f2f0f8)!important}
+.graph-design-grafo-dirigido .graph-design-motif i{left:7%;right:7%;height:1px;background:linear-gradient(90deg,transparent,#a49abc 12% 88%,transparent);opacity:.24}
+.graph-design-grafo-dirigido .graph-design-motif i:nth-child(1){top:25%}.graph-design-grafo-dirigido .graph-design-motif i:nth-child(2){top:50%}.graph-design-grafo-dirigido .graph-design-motif i:nth-child(3){top:75%}
+.graph-design-grafo-dirigido .edge-layer line{stroke:#74699a;stroke-dasharray:5 3}
+.graph-design-grafo-dirigido marker .arrow-default{fill:#74699a}
+.graph-design-grafo-dirigido .graph-node{width:58px!important;height:42px!important;border-color:#756a9e;border-radius:10px;background:#fbfaff}
+.graph-design-grafo-dirigido .graph-node.origin-node{background:#544b78;color:#fff}
+.graph-design-grafo-dirigido .graph-node.origin-node small{color:#d9d4ec}
+
+.graph-design-dfs{background:linear-gradient(90deg,transparent 49.8%,rgba(187,98,62,.08) 50%,transparent 50.2%),linear-gradient(#fbf8f4,#f7f2ec)!important}
+.graph-design-dfs .graph-design-motif i{left:6%;right:6%;height:1px;border-top:1px dashed rgba(184,103,69,.18)}
+.graph-design-dfs .graph-design-motif i:nth-child(1){top:26%}.graph-design-dfs .graph-design-motif i:nth-child(2){top:52%}.graph-design-dfs .graph-design-motif i:nth-child(3){top:78%}
+.graph-design-dfs .edge-layer line{stroke:#a7674c}
+.graph-design-dfs .graph-node{border-color:#a86043;border-radius:11px;background:#fffaf5}
+.graph-design-dfs .graph-node.origin-node{background:#75442f;color:#fff}
+.graph-design-dfs .graph-node.origin-node small{color:#f0d8cb}
+.graph-design-dfs .graph-node.active{box-shadow:0 0 0 6px rgba(198,92,55,.12),0 9px 18px rgba(95,52,36,.2)}
+
+.graph-design-bfs{background:radial-gradient(circle at 50% 50%,transparent 0 17%,rgba(77,119,164,.08) 17.4% 17.8%,transparent 18.2% 34%,rgba(77,119,164,.07) 34.4% 34.8%,transparent 35.2% 52%,rgba(77,119,164,.06) 52.4% 52.8%,transparent 53.2%),#f5f8fb!important}
+.graph-design-bfs .graph-design-motif i{border:1px dashed rgba(65,111,157,.16);border-radius:50%;inset:50% auto auto 50%;transform:translate(-50%,-50%)}
+.graph-design-bfs .graph-design-motif i:nth-child(1){width:100px;height:100px}.graph-design-bfs .graph-design-motif i:nth-child(2){width:205px;height:205px}.graph-design-bfs .graph-design-motif i:nth-child(3){width:310px;height:310px}
+.graph-design-bfs .edge-layer line{stroke:#557da5}
+.graph-design-bfs .graph-node{border-color:#527ca8;background:#f9fcff;box-shadow:0 0 0 5px rgba(82,124,168,.07),0 6px 14px rgba(35,66,98,.11)}
+.graph-design-bfs .graph-node.origin-node{width:60px!important;height:60px!important;background:#345d86;color:#fff;box-shadow:0 0 0 8px rgba(52,93,134,.1),0 8px 18px rgba(35,66,98,.18)}
+.graph-design-bfs .graph-node.origin-node small{color:#d2e3f2}
+
+.graph-design-prim{background-image:linear-gradient(rgba(53,126,101,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(53,126,101,.055) 1px,transparent 1px),linear-gradient(145deg,#f7fbf9,#eff7f3)!important;background-size:24px 24px,24px 24px,auto!important}
+.graph-design-prim .graph-design-motif i{width:8px;height:8px;border:1px solid rgba(49,122,97,.24);transform:rotate(45deg)}
+.graph-design-prim .graph-design-motif i:nth-child(1){left:12%;top:76%}.graph-design-prim .graph-design-motif i:nth-child(2){left:48%;top:17%}.graph-design-prim .graph-design-motif i:nth-child(3){right:12%;top:48%}
+.graph-design-prim .edge-layer line{stroke:#4d8370}
+.graph-design-prim .graph-node{border:0;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%);background:#f8fffc;box-shadow:none}
+.graph-design-prim .graph-node:before{content:"";position:absolute;inset:3px;z-index:-1;clip-path:inherit;background:#4b846f}
+.graph-design-prim .graph-node:after{content:"";position:absolute;inset:5px;z-index:-1;clip-path:inherit;background:#f8fffc}
+.graph-design-prim .graph-node.origin-node{background:#316d59;color:#fff}
+.graph-design-prim .graph-node.origin-node:after{background:#316d59}
+.graph-design-prim .graph-node.origin-node small{color:#d2eee4}
+.graph-design-prim .graph-weight{fill:#2d725b}
+
+.graph-design-kruskal{background:radial-gradient(ellipse at 21% 49%,rgba(112,91,133,.09) 0 19%,transparent 20%),radial-gradient(ellipse at 58% 54%,rgba(112,91,133,.08) 0 20%,transparent 21%),radial-gradient(ellipse at 88% 48%,rgba(112,91,133,.08) 0 17%,transparent 18%),#f9f7fa!important}
+.graph-design-kruskal .graph-design-motif i{width:32%;height:72%;top:14%;border:1px dashed rgba(105,82,127,.18);border-radius:48%}
+.graph-design-kruskal .graph-design-motif i:nth-child(1){left:3%}.graph-design-kruskal .graph-design-motif i:nth-child(2){left:35%}.graph-design-kruskal .graph-design-motif i:nth-child(3){right:2%}
+.graph-design-kruskal .edge-layer line{stroke:#78678a}
+.graph-design-kruskal .graph-node{border:0;clip-path:polygon(25% 5%,75% 5%,100% 50%,75% 95%,25% 95%,0 50%);background:#6b587c;color:#fff;box-shadow:none}
+.graph-design-kruskal .graph-node small{color:#ded5e5!important}
+.graph-design-kruskal .graph-node.active{background:var(--orange)}
+.graph-design-kruskal .graph-weight{fill:#634d77}
+
+.graph-canvas[class*="graph-design-"] .edge-layer line.visited-edge{stroke:var(--orange);stroke-width:2.5}
+.graph-canvas[class*="graph-design-"] .graph-weight{font-size:9px;font-weight:800;stroke:#f7f8f7;stroke-width:5px;paint-order:stroke}
+
+/* Hanoi recursion, code and movement share the same execution state */
+.hanoi-scene{position:relative;z-index:1;width:min(650px,96%);height:310px;display:grid;grid-template-rows:58px 1fr;align-items:end}
+.hanoi-call-state{align-self:start;justify-self:center;min-width:330px;padding:8px 12px;display:grid;grid-template-columns:auto auto;align-items:center;gap:2px 12px;border:1px solid #cfd7dc;border-radius:9px;background:rgba(255,255,255,.88);box-shadow:0 6px 16px rgba(41,55,67,.08);transition:border-color .2s,background .2s}
+.hanoi-call-state span{color:var(--orange);font-size:7px;font-weight:800;letter-spacing:.11em;text-transform:uppercase}
+.hanoi-call-state strong{font-family:'DM Mono',monospace;font-size:9px;font-weight:650}
+.hanoi-call-state small{grid-column:1/-1;color:var(--muted);font-size:7px}
+.hanoi-call-state.phase-base{border-color:#a6b1bc;background:#f1f4f6}.hanoi-call-state.phase-move{border-color:#dc8a6f;background:#fff7f3}
+.hanoi-scene .hanoi{width:100%;height:230px;padding:0 34px;justify-content:space-around;gap:20px}
+.hanoi-scene .tower{width:145px}
+.hanoi-scene .tower:before{transition:background .2s,box-shadow .2s}
+.hanoi-scene .tower.receiving:before{background:var(--orange);box-shadow:0 0 10px rgba(200,95,67,.35)}
+.hanoi-scene .tower i{transition:background .2s,transform .25s,box-shadow .25s}
+.hanoi-scene .tower i.active.tracing{background:#637c94;box-shadow:0 0 0 4px rgba(99,124,148,.12)}
+.hanoi-scene .tower i.active.moving{background:var(--orange);transform:translateY(-9px);box-shadow:0 7px 14px rgba(200,95,67,.24);animation:hanoiMovePulse .43s ease-in-out}
+@keyframes hanoiMovePulse{0%{transform:translateY(-2px) scale(.96)}55%{transform:translateY(-13px) scale(1.03)}100%{transform:translateY(-9px)}}
+
+@media(max-width:780px){
+  .graph-canvas[class*="graph-design-"]{width:97%;height:280px}
+  .graph-design-title small{display:none}
+  .graph-canvas[class*="graph-design-"] .graph-node{width:46px;height:46px}
+  .hanoi-scene{height:285px;transform:scale(.92)}
+  .hanoi-call-state{min-width:280px}
+  .hanoi-scene .hanoi{transform:none;padding-inline:5px;gap:6px}
+  .hanoi-scene .tower{width:100px}
+}
+@media(max-width:430px){
+  .graph-canvas[class*="graph-design-"] .graph-node{width:42px;height:42px}
+  .graph-canvas[class*="graph-design-"] .graph-node>small{font-size:5.5px}
+  .graph-design-title{top:6px;right:7px}
+  .hanoi-scene{width:108%;transform:scale(.82)}
+}
+
 .description-loading{
   min-height:210px;
   margin-top:22px;
@@ -1381,5 +1492,5 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important}
   .data-cell,.tree-node,.graph-node,.hash-slot,.maze-grid>div,.chess-board>div{transition-duration:.01ms!important}
-  .path-map-searcher,.path-map-kicker i,.city-road-frontier path,.city-road-route path,.city-road-explored path,.child-bnode.splitting,.promoted-key,.description-loading i{animation:none!important}
+  .path-map-searcher,.path-map-kicker i,.city-road-frontier path,.city-road-route path,.city-road-explored path,.hanoi-scene .tower i.active.moving,.child-bnode.splitting,.promoted-key,.description-loading i{animation:none!important}
 }

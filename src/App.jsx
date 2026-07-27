@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { algorithms, categories, categoryLabels } from './data/algorithms.js';
 import { getBeginnerJava } from './data/beginnerJava.js';
+import { getGraphDesign, graphEdgesFor, graphPositionsFor } from './data/graphDesigns.js';
 import OperationsPanel from './components/OperationsPanel.jsx';
 import VariablesPanel from './components/VariablesPanel.jsx';
 import { adaptFramesToCode, copyVisualValues, createCodeSynchronizedFrames } from './logic/codeAnimation.js';
@@ -23,6 +24,15 @@ const SUDOKU_START = [
 const NORMAL_FRAME_DELAY = 800;
 
 const randomNumber = (minimum, maximum) => Math.floor(Math.random() * (maximum - minimum + 1)) + minimum;
+const usesNodeGraph = algorithm => algorithm.category === 'Grafos' && !['dijkstra', 'a-star'].includes(algorithm.id);
+const positionsForAlgorithm = (algorithm, jitter = false) => (
+  usesNodeGraph(algorithm) ? graphPositionsFor(algorithm.id, jitter) : DEFAULT_GRAPH_POSITIONS.map(position => [...position])
+);
+const edgesForAlgorithm = (algorithm, randomizeWeights = false) => (
+  usesNodeGraph(algorithm)
+    ? graphEdgesFor(algorithm.id, randomizeWeights && algorithm.type === 'weighted')
+    : DEFAULT_GRAPH_EDGES.map(edge => [...edge])
+);
 
 function shortenEdge(from, to, startPadding = 22, endPadding = 22, width = 620, height = 300) {
   const deltaX = (to[0] - from[0]) * width / 100;
@@ -546,8 +556,9 @@ function PathMapVisual({ algorithm }) {
 }
 
 function GraphVisual({ algorithm, step }) {
-  const nodes = (algorithm.positions ?? DEFAULT_GRAPH_POSITIONS).slice(0,algorithm.values.length);
-  const edges = (algorithm.edges ?? DEFAULT_GRAPH_EDGES).filter(([from,to])=>from<algorithm.values.length&&to<algorithm.values.length);
+  const design = getGraphDesign(algorithm.id);
+  const nodes = (algorithm.positions ?? design.positions).slice(0,algorithm.values.length);
+  const edges = (algorithm.edges ?? design.edges).filter(([from,to])=>from<algorithm.values.length&&to<algorithm.values.length);
   const directed = algorithm.type === 'digraph';
   const arrowMarker = `graph-arrow-${algorithm.id}`;
   const graphState = algorithm.animationFrame?.graphState;
@@ -557,7 +568,9 @@ function GraphVisual({ algorithm, step }) {
   );
   const labelsFor = indexes => indexes?.length ? indexes.map(index=>algorithm.values[index]).join(', ') : '∅';
   if (!algorithm.values.length) return <div className="empty-visual"><strong>∅</strong><span>Grafo vacío</span></div>;
-  return <div className={`graph-canvas ${graphState ? 'pathfinding-canvas' : ''}`} role="img" aria-label={`Grafo de ${algorithm.name}`}>
+  return <div className={`graph-canvas graph-design-${algorithm.id} ${graphState ? 'pathfinding-canvas' : ''}`} role="img" aria-label={`Grafo de ${algorithm.name}: ${design.caption}`}>
+  <div className="graph-design-title"><span>{design.label}</span><small>{design.caption}</small></div>
+  <div className="graph-design-motif" aria-hidden="true"><i/><i/><i/></div>
   <svg className="edge-layer" aria-hidden="true">
     <defs>
       {['default','visited','relaxed','path'].map(tone => <marker key={tone} id={`${arrowMarker}-${tone}`} viewBox="0 0 10 10" markerWidth="8" markerHeight="8" refX="9" refY="5" orient="auto" markerUnits="strokeWidth"><path className={`arrow-${tone}`} d="M0,0 L10,5 L0,10 z" /></marker>)}
@@ -569,14 +582,14 @@ function GraphVisual({ algorithm, step }) {
           : graphState?.visitedEdges?.some(candidate=>edgeMatches(edge,candidate)) || (!graphState && i <= step % edges.length) ? 'visited-edge' : '';
       const points = shortenEdge(nodes[a], nodes[b], 23, directed ? 31 : 23);
       const markerTone = className === 'visited-edge' ? 'visited' : className === 'relaxed-edge' ? 'relaxed' : className === 'path-edge' ? 'path' : 'default';
-      return <g key={i}><line className={className} x1={`${points.x1}%`} y1={`${points.y1}%`} x2={`${points.x2}%`} y2={`${points.y2}%`} markerEnd={directed ? `url(#${arrowMarker}-${markerTone})` : undefined}/>{algorithm.type === 'weighted' && <text x={`${(nodes[a][0]+nodes[b][0])/2}%`} y={`${(nodes[a][1]+nodes[b][1])/2}%`}>{w}</text>}</g>;
+      return <g key={i}><line className={`${className} edge-${i}`.trim()} x1={`${points.x1}%`} y1={`${points.y1}%`} x2={`${points.x2}%`} y2={`${points.y2}%`} markerEnd={directed ? `url(#${arrowMarker}-${markerTone})` : undefined}/>{algorithm.type === 'weighted' && <text className="graph-weight" x={`${(nodes[a][0]+nodes[b][0])/2}%`} y={`${(nodes[a][1]+nodes[b][1])/2}%`}>{w}</text>}</g>;
     })}
   </svg>{nodes.slice(0,algorithm.values.length).map(([x,y],i) => {
     const isCurrent = graphState ? i === graphState.current : i === step % algorithm.values.length;
     const isPath = graphState?.path?.includes(i);
     const stateClass = isPath ? 'path-node' : graphState?.closed?.includes(i) ? 'closed-node' : graphState?.open?.includes(i) ? 'open-node' : '';
     const metric = graphState ? (graphState.mode === 'astar' ? `f=${graphState.scores[i]}` : `d=${graphState.distances[i]}`) : null;
-    return <div className={`graph-node ${isCurrent ? 'active' : ''} ${stateClass}`} style={{left:`${x}%`,top:`${y}%`}} key={i}><span>{algorithm.values[i]}</span>{metric && <small>{metric}</small>}</div>;
+    return <div className={`graph-node node-${i} ${i === 0 ? 'origin-node' : ''} ${isCurrent ? 'active' : ''} ${stateClass}`} style={{left:`${x}%`,top:`${y}%`}} key={i}><span>{algorithm.values[i]}</span><small>{metric ?? design.nodeMeta?.[i] ?? `v${i}`}</small></div>;
   })}
   {graphState && <div className="pathfinding-status">
     <span><i className="open-dot"/>Abiertos: <b>{labelsFor(graphState.open)}</b></span>
@@ -661,9 +674,29 @@ function SpecialVisual({ algorithm, step }) {
   if (algorithm.type === 'sudoku') return <div className="sudoku-grid">{algorithm.values.slice(0,81).map((number,index)=><div className={`${SUDOKU_START[index] ? 'given' : 'calculated'} ${index===step%81?'active':''}`} key={index}>{number || ''}</div>)}</div>;
   if (algorithm.type === 'hanoi') {
     const disks = algorithm.values.map(item => typeof item === 'object' ? item : { size:Number(item), rod:0 });
-    return <div className="hanoi">{[0,1,2].map(rod => <div className="tower" key={rod} data-name={String.fromCharCode(65+rod)}>
-      {disks.filter(disk=>disk.rod===rod).sort((a,b)=>b.size-a.size).map(disk=><i key={disk.size} style={{width:`${35+disk.size*9}px`}} className={disk.size===step?'active':''}/>) }
-    </div>)}</div>;
+    const state = algorithm.animationFrame?.hanoiState;
+    const phaseLabels = {
+      call: 'Entrando al método',
+      base: 'Caso base · regresar',
+      'first-call': 'Primera llamada recursiva',
+      move: 'Mover el disco',
+      'second-call': 'Segunda llamada recursiva',
+    };
+    return <div className="hanoi-scene">
+      <div className={`hanoi-call-state phase-${state?.phase ?? 'idle'}`}>
+        <span>{state ? phaseLabels[state.phase] : 'Torres preparadas'}</span>
+        <strong>{state ? `hanoi(${state.activeDisk}, ${String.fromCharCode(65 + state.from)}, ${String.fromCharCode(65 + state.to)}, ${String.fromCharCode(65 + state.help)})` : 'Presiona Resolver para comenzar'}</strong>
+        {state && <small>Profundidad {state.depth} · Movimiento {state.moveCount}/{state.totalMoves}</small>}
+      </div>
+      <div className="hanoi">{[0,1,2].map(rod => <div className={`tower ${state?.to === rod && state.phase === 'move' ? 'receiving' : ''}`} key={rod} data-name={String.fromCharCode(65+rod)}>
+        {disks.filter(disk=>disk.rod===rod).sort((a,b)=>b.size-a.size).map(disk=><i
+          key={disk.size}
+          style={{width:`${35+disk.size*9}px`}}
+          className={disk.size===step ? state?.phase === 'move' ? 'active moving' : 'active tracing' : ''}
+          aria-label={`Disco ${disk.size} en torre ${String.fromCharCode(65 + rod)}`}
+        />)}
+      </div>)}</div>
+    </div>;
   }
   if (algorithm.id === 'trie') return <TrieTreeVisual algorithm={algorithm} step={step}/>;
   if (algorithm.id === 'suffix-tree') { const text=algorithm.values.join(''); return <div className="suffix-visual"><span className="tree-kind-label">TODOS LOS SUFIJOS DE “{text}”</span><div className="suffix-root">ROOT</div><div className="suffix-branches">{Array.from({length:Math.min(5,text.length)},(_,index)=><div className={index===step%Math.min(5,text.length)?'active':''} key={index}><i/>{text.slice(index)}</div>)}</div></div>; }
@@ -942,8 +975,8 @@ function App() {
     const nextAlgorithm = algorithms.find(item => item.id === id) ?? algorithms[0];
     setSelectedId(nextAlgorithm.id);
     setDemoValues([...nextAlgorithm.values]);
-    setDemoEdges(DEFAULT_GRAPH_EDGES.map(edge=>[...edge]));
-    setDemoPositions(DEFAULT_GRAPH_POSITIONS.map(position=>[...position]));
+    setDemoEdges(edgesForAlgorithm(nextAlgorithm));
+    setDemoPositions(positionsForAlgorithm(nextAlgorithm));
     setDemoMap(DEFAULT_PATH_MAP);
     setActiveOperation(getOperationDefinition(nextAlgorithm).actions[0].id);
     setOperationFrames([]);
@@ -965,8 +998,8 @@ function App() {
   };
   const resetDemo = () => {
     setDemoValues([...baseAlgorithm.values]);
-    setDemoEdges(DEFAULT_GRAPH_EDGES.map(edge => [...edge]));
-    setDemoPositions(DEFAULT_GRAPH_POSITIONS.map(position => [...position]));
+    setDemoEdges(edgesForAlgorithm(baseAlgorithm));
+    setDemoPositions(positionsForAlgorithm(baseAlgorithm));
     setDemoMap(DEFAULT_PATH_MAP);
     setOperationFrames([]);
     setActiveCodeLine(null);
@@ -978,10 +1011,8 @@ function App() {
   const createNewExample = () => {
     const nextValues = createRandomValues(baseAlgorithm);
     setDemoValues(nextValues);
-    setDemoEdges(baseAlgorithm.category === 'Grafos'
-      ? DEFAULT_GRAPH_EDGES.map(([from, to]) => [from, to, randomNumber(1, 9)])
-      : DEFAULT_GRAPH_EDGES.map(edge => [...edge]));
-    setDemoPositions(DEFAULT_GRAPH_POSITIONS.map(position => [...position]));
+    setDemoEdges(edgesForAlgorithm(baseAlgorithm, baseAlgorithm.category === 'Grafos'));
+    setDemoPositions(positionsForAlgorithm(baseAlgorithm, usesNodeGraph(baseAlgorithm)));
     setDemoMap(['dijkstra','a-star'].includes(baseAlgorithm.id)
       ? createRandomPathMap(demoMap)
       : DEFAULT_PATH_MAP);
@@ -1004,11 +1035,21 @@ function App() {
     if (actionId === 'reset' && ['dijkstra','a-star'].includes(baseAlgorithm.id)) {
       setDemoPositions(DEFAULT_GRAPH_POSITIONS.map(position=>[...position]));
       setDemoMap(DEFAULT_PATH_MAP);
+    } else if (actionId === 'reset' && usesNodeGraph(baseAlgorithm)) {
+      setDemoPositions(positionsForAlgorithm(baseAlgorithm));
     }
     const codeForAnimation = codeMode === 'java' ? getBeginnerJava(baseAlgorithm, actionId) : baseAlgorithm.code;
     const previousValues = copyVisualValues(demoValues);
     const previousEdges = demoEdges.map(edge => [...edge]);
-    const result = executeOperation({ algorithm: { ...baseAlgorithm, positions: demoPositions, map: actionId === 'reset' ? DEFAULT_PATH_MAP : demoMap }, actionId, fields, values: demoValues, edges: demoEdges, initialValues: baseAlgorithm.values });
+    const result = executeOperation({
+      algorithm: { ...baseAlgorithm, positions: demoPositions, map: actionId === 'reset' ? DEFAULT_PATH_MAP : demoMap },
+      actionId,
+      fields,
+      values: demoValues,
+      edges: demoEdges,
+      initialValues: baseAlgorithm.values,
+      initialEdges: edgesForAlgorithm(baseAlgorithm),
+    });
     const frames = result.frames?.length
       ? adaptFramesToCode(result.frames, codeForAnimation, codeMode === 'java')
       : createCodeSynchronizedFrames({
