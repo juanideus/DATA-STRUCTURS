@@ -1,6 +1,6 @@
 import { lazy, memo, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, ArrowRight, BookOpen, Boxes, Bug, ChevronDown, CircleHelp, ExternalLink, Gauge,
+  ArrowLeft, ArrowRight, BookOpen, Boxes, Bug, ChevronDown, CircleHelp, ClipboardCopy, ExternalLink, Gauge,
   MapPin, Menu, PanelLeftClose, PanelLeftOpen, Pause, Play, RotateCcw, Search, Shuffle, Sparkles, X,
 } from 'lucide-react';
 import { algorithms, categories, categoryLabels } from './data/algorithms.js';
@@ -11,7 +11,6 @@ import VariablesPanel from './components/VariablesPanel.jsx';
 import { adaptFramesToCode, copyVisualValues, createCodeSynchronizedFrames } from './logic/codeAnimation.js';
 import { DEFAULT_GRAPH_EDGES, DEFAULT_GRAPH_POSITIONS, executeOperation, getOperationDefinition, operationGroup } from './logic/operations.js';
 import { createRandomPathMap, DEFAULT_PATH_MAP } from './logic/pathfindingMap.js';
-import ucnLogo from './assets/LogoUCN.png';
 
 const EducationalDescription = lazy(() => import('./components/EducationalDescription.jsx'));
 
@@ -22,6 +21,46 @@ const SUDOKU_START = [
 ];
 
 const NORMAL_FRAME_DELAY = 800;
+const STORAGE_KEYS = {
+  introSeen: 'dsa-intro-seen',
+  selectedAlgorithm: 'dsa-selected-algorithm',
+  speed: 'dsa-playback-speed',
+  codeMode: 'dsa-code-mode',
+};
+
+const readPreference = (key, fallback) => {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    return window.localStorage.getItem(key) ?? fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const writePreference = (key, value) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // La aplicación continúa sin persistencia si el navegador bloquea el almacenamiento.
+  }
+};
+
+const algorithmIdFromHash = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const candidate = decodeURIComponent(window.location.hash.replace(/^#\/?/, '').trim());
+    return algorithms.some(item => item.id === candidate) ? candidate : null;
+  } catch {
+    return null;
+  }
+};
+
+const initialAlgorithmId = () => {
+  const routed = algorithmIdFromHash();
+  const stored = readPreference(STORAGE_KEYS.selectedAlgorithm, 'array');
+  return routed ?? (algorithms.some(item => item.id === stored) ? stored : 'array');
+};
 
 const randomNumber = (minimum, maximum) => Math.floor(Math.random() * (maximum - minimum + 1)) + minimum;
 const usesNodeGraph = algorithm => algorithm.category === 'Grafos' && !['dijkstra', 'a-star'].includes(algorithm.id);
@@ -744,10 +783,7 @@ function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setM
     <div className="sidebar-foot">
       <span><Sparkles size={14}/> {algorithms.length} temas incluidos</span>
       <div className="author-credit"><small>Autor</small><strong>Juan Zúñiga Maluenda</strong></div>
-      <div className="ucn-credit">
-        <img src={ucnLogo} alt="Logo de la Universidad Católica del Norte"/>
-        <div><strong>Universidad Católica del Norte</strong><small>Antofagasta · Chile</small></div>
-      </div>
+      <p className="project-disclaimer">Proyecto académico independiente. No corresponde a un sitio oficial de la Universidad Católica del Norte.</p>
     </div>
   </aside>;
 }
@@ -804,14 +840,14 @@ function OpeningIntro({ onDone }) {
   </section>;
 }
 
-function Welcome({ onStart }) {
+function Welcome({ onStart, startName }) {
   return <div className="welcome-page">
     <section className="welcome-hero">
       <div className="welcome-copy">
         <div className="eyebrow"><span>Bienvenido a DSA Lab</span><i>Aprende practicando</i></div>
         <h1>Algoritmos que puedes ver, tocar y entender.</h1>
         <p>Esta página es un laboratorio educativo creado para visualizar estructuras de datos y algoritmos de una manera más sencilla. Los alumnos pueden modificar ejemplos, reproducir cada ejecución paso a paso y usar el código Java como punto de apoyo para comprender, practicar y desarrollar sus propios algoritmos.</p>
-        <button className="welcome-start" onClick={onStart}><Play size={17}/> Comenzar con Array <ArrowRight size={16}/></button>
+        <button className="welcome-start" onClick={onStart}><Play size={17}/> Continuar con {startName} <ArrowRight size={16}/></button>
         <p className="welcome-motto"><Sparkles size={15}/><strong>El límite es tu imaginación.</strong> Tú puedes.</p>
       </div>
       <div className="welcome-demo" aria-hidden="true">
@@ -851,6 +887,7 @@ function Welcome({ onStart }) {
 function BugReporter({ section }) {
   const [open, setOpen] = useState(false);
   const [report, setReport] = useState({ title:'', type:'Algo no funciona', description:'', steps:'' });
+  const [copyStatus, setCopyStatus] = useState('');
 
   useEffect(() => {
     if (!open) return undefined;
@@ -860,13 +897,30 @@ function BugReporter({ section }) {
   }, [open]);
 
   const update = (field, value) => setReport(current=>({...current,[field]:value}));
+  const reportBody = () => `# [Bug] ${report.title.trim()}\n\n## Sección afectada\n${section}\n\n## Tipo de problema\n${report.type}\n\n## Descripción\n${report.description.trim()}\n\n## Pasos para reproducirlo\n${report.steps.trim() || 'No especificados.'}\n\n---\nReporte generado desde DSA Lab.`;
+  const resetReport = () => {
+    setOpen(false);
+    setCopyStatus('');
+    setReport({ title:'', type:'Algo no funciona', description:'', steps:'' });
+  };
+  const copyReport = async () => {
+    if (!report.title.trim() || !report.description.trim()) {
+      setCopyStatus('Completa el resumen y la descripción antes de copiar.');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(reportBody());
+      setCopyStatus('Reporte copiado. Puedes enviarlo por correo, chat o el medio que prefieras.');
+    } catch {
+      setCopyStatus('El navegador no permitió copiar. Selecciona el texto e inténtalo nuevamente.');
+    }
+  };
   const submit = event => {
     event.preventDefault();
-    const body = `## Sección afectada\n${section}\n\n## Tipo de problema\n${report.type}\n\n## Descripción\n${report.description.trim()}\n\n## Pasos para reproducirlo\n${report.steps.trim() || 'No especificados.'}\n\n---\nReporte generado desde DSA Lab.`;
+    const body = reportBody().replace(/^# \[Bug\].*\n\n/, '');
     const issueUrl = `https://github.com/juanideus/DATA-STRUCTURS/issues/new?title=${encodeURIComponent(`[Bug] ${report.title.trim()}`)}&body=${encodeURIComponent(body)}`;
     window.open(issueUrl, '_blank', 'noopener,noreferrer');
-    setOpen(false);
-    setReport({ title:'', type:'Algo no funciona', description:'', steps:'' });
+    resetReport();
   };
 
   return <>
@@ -881,7 +935,8 @@ function BugReporter({ section }) {
           <label><span>¿Qué tipo de problema es?</span><select value={report.type} onChange={event=>update('type',event.target.value)}><option>Algo no funciona</option><option>Se ve incorrecto</option><option>Problema en el código Java</option><option>Contenido difícil de entender</option><option>Otro problema</option></select></label>
           <label><span>Cuéntanos qué ocurrió</span><textarea required rows="4" value={report.description} onChange={event=>update('description',event.target.value)} placeholder="¿Qué hiciste, qué apareció y qué esperabas que ocurriera?"/></label>
           <label><span>¿Cómo podemos repetirlo?</span><textarea rows="3" value={report.steps} onChange={event=>update('steps',event.target.value)} placeholder={'1. Entré a la estructura...\n2. Presioné el botón...\n3. Entonces ocurrió...'}/></label>
-          <div className="bug-form-actions"><p><ExternalLink size={13}/> Podrás revisar el reporte antes de publicarlo en GitHub.</p><button type="button" onClick={()=>setOpen(false)}>Ahora no</button><button type="submit">Revisar reporte <ExternalLink size={15}/></button></div>
+          {copyStatus && <p className="bug-copy-status" role="status">{copyStatus}</p>}
+          <div className="bug-form-actions"><p><ExternalLink size={13}/> Usa GitHub o copia el reporte para compartirlo sin una cuenta.</p><button type="button" onClick={()=>setOpen(false)}>Ahora no</button><button className="copy-report" type="button" onClick={copyReport}><ClipboardCopy size={15}/> Copiar reporte</button><button type="submit">Revisar en GitHub <ExternalLink size={15}/></button></div>
         </form>
       </section>
     </div>}
@@ -889,25 +944,30 @@ function BugReporter({ section }) {
 }
 
 function App() {
-  const [showOpeningIntro, setShowOpeningIntro] = useState(true);
-  const [selectedId, setSelectedId] = useState('array');
-  const [showWelcome, setShowWelcome] = useState(true);
+  const [startingId] = useState(initialAlgorithmId);
+  const startingAlgorithm = algorithms.find(item => item.id === startingId) ?? algorithms[0];
+  const [showOpeningIntro, setShowOpeningIntro] = useState(() => readPreference(STORAGE_KEYS.introSeen, 'false') !== 'true');
+  const [selectedId, setSelectedId] = useState(startingAlgorithm.id);
+  const [showWelcome, setShowWelcome] = useState(() => algorithmIdFromHash() === null);
   const [query, setQuery] = useState('');
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed] = useState(1);
+  const [speed, setSpeed] = useState(() => {
+    const stored = Number(readPreference(STORAGE_KEYS.speed, '1'));
+    return [0.5, 1, 2].includes(stored) ? stored : 1;
+  });
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => typeof window !== 'undefined' && window.localStorage.getItem('dsa-sidebar-collapsed') === 'true');
-  const [codeMode, setCodeMode] = useState('java');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => readPreference('dsa-sidebar-collapsed', 'false') === 'true');
+  const [codeMode, setCodeMode] = useState(() => readPreference(STORAGE_KEYS.codeMode, 'java') === 'pseudo' ? 'pseudo' : 'java');
   const [copied, setCopied] = useState(false);
   const codePanelRef = useRef(null);
   const baseAlgorithm = algorithms.find(a=>a.id===selectedId) || algorithms[0];
-  const [activeOperation, setActiveOperation] = useState('add-start');
+  const [activeOperation, setActiveOperation] = useState(() => getOperationDefinition(startingAlgorithm).actions[0].id);
   const [operationFrames, setOperationFrames] = useState([]);
   const [activeCodeLine, setActiveCodeLine] = useState(null);
-  const [demoValues, setDemoValues] = useState([...algorithms[0].values]);
-  const [demoEdges, setDemoEdges] = useState(DEFAULT_GRAPH_EDGES.map(edge=>[...edge]));
-  const [demoPositions, setDemoPositions] = useState(DEFAULT_GRAPH_POSITIONS.map(position=>[...position]));
+  const [demoValues, setDemoValues] = useState(() => [...startingAlgorithm.values]);
+  const [demoEdges, setDemoEdges] = useState(() => edgesForAlgorithm(startingAlgorithm));
+  const [demoPositions, setDemoPositions] = useState(() => positionsForAlgorithm(startingAlgorithm));
   const [demoMap, setDemoMap] = useState(DEFAULT_PATH_MAP);
   const [operationMessage, setOperationMessage] = useState('Usa los controles para modificar la estructura y observar el resultado.');
   const [operationStatus, setOperationStatus] = useState('idle');
@@ -932,8 +992,20 @@ function App() {
   );
 
   useEffect(() => {
-    window.localStorage.setItem('dsa-sidebar-collapsed', String(sidebarCollapsed));
+    writePreference('dsa-sidebar-collapsed', String(sidebarCollapsed));
   }, [sidebarCollapsed]);
+  useEffect(() => {
+    writePreference(STORAGE_KEYS.selectedAlgorithm, selectedId);
+  }, [selectedId]);
+  useEffect(() => {
+    writePreference(STORAGE_KEYS.speed, String(speed));
+  }, [speed]);
+  useEffect(() => {
+    writePreference(STORAGE_KEYS.codeMode, codeMode);
+  }, [codeMode]);
+  useEffect(() => {
+    document.title = showWelcome ? 'DSA Lab — Algoritmos visuales' : `${baseAlgorithm.name} — DSA Lab`;
+  }, [baseAlgorithm.name, showWelcome]);
 
   const applyFrame = (frame, frameIndex) => {
     if (!frame) return;
@@ -992,13 +1064,37 @@ function App() {
   };
   const selectRelative = (delta) => {
     const index = algorithms.findIndex(item=>item.id===algorithm.id);
-    loadAlgorithm(algorithms[(index+delta+algorithms.length)%algorithms.length].id);
-    setShowWelcome(false);
+    openAlgorithm(algorithms[(index+delta+algorithms.length)%algorithms.length].id);
   };
-  const openAlgorithm = id => {
+  const updateRoute = id => {
+    const nextUrl = id
+      ? `${window.location.pathname}${window.location.search}#/${encodeURIComponent(id)}`
+      : `${window.location.pathname}${window.location.search}`;
+    window.history.pushState({ dsaLab: id ?? 'welcome' }, '', nextUrl);
+  };
+  const openAlgorithm = (id, updateHistory = true) => {
     loadAlgorithm(id);
     setShowWelcome(false);
+    if (updateHistory && algorithmIdFromHash() !== id) updateRoute(id);
   };
+  const openWelcome = (updateHistory = true) => {
+    setShowWelcome(true);
+    setPlaying(false);
+    if (updateHistory && window.location.hash) updateRoute(null);
+  };
+  useEffect(() => {
+    const syncRoute = () => {
+      const routedId = algorithmIdFromHash();
+      if (routedId) openAlgorithm(routedId, false);
+      else openWelcome(false);
+    };
+    window.addEventListener('popstate', syncRoute);
+    window.addEventListener('hashchange', syncRoute);
+    return () => {
+      window.removeEventListener('popstate', syncRoute);
+      window.removeEventListener('hashchange', syncRoute);
+    };
+  }, []);
   const resetDemo = () => {
     setDemoValues([...baseAlgorithm.values]);
     setDemoEdges(edgesForAlgorithm(baseAlgorithm));
@@ -1092,15 +1188,19 @@ function App() {
     if (step >= totalSteps - 1) goToStep(0);
     setPlaying(true);
   };
+  const finishOpeningIntro = () => {
+    writePreference(STORAGE_KEYS.introSeen, 'true');
+    setShowOpeningIntro(false);
+  };
 
   return <div className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-    {showOpeningIntro && <OpeningIntro onDone={()=>setShowOpeningIntro(false)}/>}
-    <Sidebar selected={showWelcome ? null : selectedId} onSelect={openAlgorithm} onHome={()=>{setShowWelcome(true);setPlaying(false)}} query={query} setQuery={setQuery} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} collapsed={sidebarCollapsed} onToggle={()=>setSidebarCollapsed(value=>!value)}/>
+    {showOpeningIntro && <OpeningIntro onDone={finishOpeningIntro}/>}
+    <Sidebar selected={showWelcome ? null : selectedId} onSelect={openAlgorithm} onHome={openWelcome} query={query} setQuery={setQuery} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} collapsed={sidebarCollapsed} onToggle={()=>setSidebarCollapsed(value=>!value)}/>
     {sidebarCollapsed && <button className="sidebar-reveal-button" onClick={()=>setSidebarCollapsed(false)} aria-label="Mostrar menú lateral" title="Mostrar menú lateral"><PanelLeftOpen size={20}/><span>Mostrar menú</span></button>}
     <main className="workspace">
       <button className="menu-button mobile-menu-button" onClick={()=>setMobileOpen(true)} aria-label="Abrir menú"><Menu/></button>
 
-      {showWelcome ? <Welcome onStart={()=>openAlgorithm('array')}/> : <>
+      {showWelcome ? <Welcome onStart={()=>openAlgorithm(selectedId)} startName={baseAlgorithm.name}/> : <>
 
       <section className="hero">
         <div><div className="eyebrow"><span>{algorithm.category}</span><i>Práctica interactiva</i></div><h1>{algorithm.name}</h1><p>{algorithm.description}</p></div>

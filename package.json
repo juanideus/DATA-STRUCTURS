@@ -16,14 +16,23 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "audit": "node scripts/audit-functions.mjs"
+    "audit": "node scripts/audit-functions.mjs",
+    "test:e2e": "playwright test",
+    "check": "npm run audit && npm run build && npm run test:e2e"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "lucide-react": "latest"
+    "lucide-react": "1.24.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@playwright/test": "1.62.0",
+    "@vitejs/plugin-react": "6.0.3",
+    "vite": "8.1.4"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0",
+    "npm": ">=10"
+  },
+  "packageManager": "npm@11.8.0"
 }

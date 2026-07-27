@@ -294,12 +294,15 @@ npm run preview
 | `npm run build` | Genera la versión optimizada dentro de `dist/` |
 | `npm run preview` | Sirve localmente la compilación de producción |
 | `npm run audit` | Ejecuta la auditoría funcional y educativa del catálogo |
+| `npm run test:e2e` | Ejecuta pruebas reales de navegador en escritorio y móvil |
+| `npm run check` | Ejecuta auditoría, build y pruebas E2E |
 
 Flujo recomendado antes de subir cambios:
 
 ```bash
 npm run audit
 npm run build
+npm run test:e2e
 ```
 
 ## Estructura del proyecto
@@ -309,6 +312,14 @@ DSA/
 ├── index.html                         # Documento HTML utilizado por Vite
 ├── package.json                       # Dependencias y scripts
 ├── package-lock.json                  # Versiones reproducibles
+├── playwright.config.js               # Pruebas E2E en escritorio y móvil
+├── vite.config.js                     # Configuración de React y compilación
+├── vercel.json                        # Despliegue y cabeceras en Vercel
+├── netlify.toml                       # Despliegue y cabeceras en Netlify
+├── tests/e2e/                         # Flujos críticos en navegador
+├── .github/
+│   ├── workflows/ci.yml               # Validación automática
+│   └── dependabot.yml                 # Actualizaciones controladas
 ├── scripts/
 │   └── audit-functions.mjs            # Auditoría automática del laboratorio
 ├── src/
@@ -317,8 +328,8 @@ DSA/
 │   ├── styles.css                     # Estilos, animaciones y responsive design
 │   ├── assets/
 │   │   ├── favicon-dsa.svg            # Favicon de DSA Lab
-│   │   └── LogoUCN.png                # Recurso visual UCN
 │   ├── components/
+│   │   ├── AppErrorBoundary.jsx       # Recuperación ante errores inesperados
 │   │   ├── EducationalDescription.jsx # Guía educativa de cada tema
 │   │   ├── OperationsPanel.jsx        # Campos y botones de operaciones
 │   │   └── VariablesPanel.jsx         # Variables de la ejecución en tiempo real
@@ -327,6 +338,7 @@ DSA/
 │   │   ├── beginnerJava.js            # Código Java por operación
 │   │   ├── educationalDescriptions.js # Contenido educativo detallado
 │   │   ├── graphDesigns.js             # Topologías visuales de los grafos
+│   │   ├── linkedListJava.js           # Listas enlazadas completas en Java
 │   │   └── guideJavaExamples.js        # Ejemplos Java de las guías
 │   ├── logic/
 │   │   ├── codeAnimation.js            # Sincronización entre código y animaciones
@@ -372,7 +384,16 @@ comprueba automáticamente, entre otros puntos:
 - Que Torres de Hanoi complete todos sus movimientos.
 - Que B+ Tree acepte al menos 15 inserciones consecutivas y muestre una promoción al padre.
 
-La auditoría actual cubre **52 temas, 229 acciones, 2290 pruebas funcionales y 56 funciones distintas**.
+La auditoría actual cubre **52 temas, 241 acciones, 2410 pruebas funcionales y 56 funciones distintas**.
+
+Además, Playwright verifica los recorridos críticos en Chromium de escritorio y móvil:
+
+- Enlaces compartibles como `/#/avl` y `/#/sudoku`.
+- Persistencia del tema, velocidad y formato de código.
+- Operaciones y restablecimiento de estructuras.
+- Introducción mostrada sólo durante la primera visita.
+- Copia de reportes sin necesidad de una cuenta de GitHub.
+- Ausencia de desbordamiento horizontal en móvil.
 
 ## Despliegue
 
@@ -383,7 +404,9 @@ La auditoría actual cubre **52 temas, 229 acciones, 2290 pruebas funcionales y 
 | Comando de instalación | `npm ci` |
 | Comando de compilación | `npm run build` |
 | Directorio de salida | `dist` |
-| Versión recomendada de Node | 22 LTS o una versión compatible con los requisitos anteriores |
+| Versión recomendada de Node | `22.12.0`, registrada también en `.nvmrc` |
+
+Las dependencias están fijadas a versiones exactas. Dependabot revisa actualizaciones semanalmente mediante pull requests y GitHub Actions ejecuta auditoría, build, revisión de vulnerabilidades y pruebas E2E antes de integrar cambios.
 
 ### Vercel
 
@@ -393,12 +416,16 @@ La auditoría actual cubre **52 temas, 229 acciones, 2290 pruebas funcionales y 
 4. Usa `dist` como directorio de salida.
 5. Publica el proyecto.
 
+`vercel.json` ya contiene el directorio de salida y las cabeceras de seguridad recomendadas.
+
 ### Netlify
 
 1. Conecta el repositorio.
 2. Define `npm run build` como *Build command*.
 3. Define `dist` como *Publish directory*.
 4. Ejecuta el despliegue.
+
+`netlify.toml` ya contiene esta configuración y las cabeceras de seguridad.
 
 ### GitHub Pages
 
@@ -426,9 +453,35 @@ Al continuar, se abre un borrador de Issue en:
 
 El usuario puede revisar el contenido antes de publicarlo. Para crear el Issue es necesario iniciar sesión en GitHub.
 
+Si el alumno no tiene una cuenta, el mismo formulario permite usar **Copiar reporte** y compartir el contenido mediante correo, chat u otro canal.
+
 También puedes abrir directamente la sección general de problemas:
 
 [Ver problemas existentes](https://github.com/juanideus/DATA-STRUCTURS/issues)
+
+## Navegación y preferencias
+
+Cada tema dispone de un enlace compartible basado en hash, compatible con alojamiento estático:
+
+```text
+https://tu-dominio.cl/#/array
+https://tu-dominio.cl/#/avl
+https://tu-dominio.cl/#/sudoku
+```
+
+El navegador conserva localmente:
+
+- Último tema visitado.
+- Velocidad de reproducción.
+- Formato Java o pseudocódigo.
+- Estado del menú lateral.
+- Confirmación de que la introducción ya fue mostrada.
+
+La aplicación no almacena información personal ni envía estas preferencias a un servidor.
+
+## Aviso institucional
+
+DSA Lab es un proyecto académico independiente y no corresponde a un sitio oficial de la Universidad Católica del Norte.
 
 ## Accesibilidad y diseño adaptable
 
