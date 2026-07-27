@@ -320,15 +320,18 @@ DSA/
 │   │   └── LogoUCN.png                # Recurso visual UCN
 │   ├── components/
 │   │   ├── EducationalDescription.jsx # Guía educativa de cada tema
-│   │   └── OperationsPanel.jsx        # Campos y botones de operaciones
+│   │   ├── OperationsPanel.jsx        # Campos y botones de operaciones
+│   │   └── VariablesPanel.jsx         # Variables de la ejecución en tiempo real
 │   ├── data/
 │   │   ├── algorithms.js              # Catálogo de 52 temas
 │   │   ├── beginnerJava.js            # Código Java por operación
 │   │   ├── educationalDescriptions.js # Contenido educativo detallado
-│   │   └── guideJavaExamples.js       # Ejemplos Java de las guías
+│   │   ├── graphDesigns.js             # Topologías visuales de los grafos
+│   │   └── guideJavaExamples.js        # Ejemplos Java de las guías
 │   ├── logic/
-│   │   └── operations.js              # Implementación de las acciones interactivas
-│   └── estructuras/                   # Implementaciones auxiliares y de referencia
+│   │   ├── codeAnimation.js            # Sincronización entre código y animaciones
+│   │   ├── operations.js               # Implementación de las acciones interactivas
+│   │   └── pathfindingMap.js           # Mapas para Dijkstra y A*
 ├── .gitignore                         # Archivos excluidos del repositorio
 ├── LICENSE                            # Licencia MIT
 └── README.md                          # Documentación del proyecto

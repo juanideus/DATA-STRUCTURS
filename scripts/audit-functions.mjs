@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { algorithms } from '../src/data/algorithms.js';
 import { completeJavaSnippet, getBeginnerJava } from '../src/data/beginnerJava.js';
 import { educationalDescriptions } from '../src/data/educationalDescriptions.js';
+import { GRAPH_DESIGNS, graphEdgesFor, graphPositionsFor } from '../src/data/graphDesigns.js';
 import { guideJavaExamples } from '../src/data/guideJavaExamples.js';
 import {
   DEFAULT_GRAPH_EDGES,
@@ -316,8 +317,22 @@ for (const algorithmId of ['dijkstra', 'a-star']) {
 
 const hanoi = algorithms.find(item => item.id === 'hanoi');
 const hanoiResult = run(hanoi, 'hanoi-solve');
-assert.equal(hanoiResult.frames?.length, 32, 'Hanoi: 5 discos deben producir 31 movimientos más el estado inicial.');
+const hanoiMoves = hanoiResult.frames.filter(frame => frame.hanoiState?.phase === 'move');
+assert.equal(hanoiMoves.length, 31, 'Hanoi: 5 discos deben producir exactamente 31 movimientos.');
+assert.equal(hanoiResult.frames.length, 188, 'Hanoi: la traza debe incluir llamadas, casos base y movimientos recursivos.');
+assert.deepEqual([...new Set(hanoiResult.frames.map(frame => frame.codeLine))].sort(), [0, 1, 2, 3, 4], 'Hanoi: el código debe recorrer todas las líneas del método recursivo.');
+assert.ok(hanoiResult.frames.every(frame => frame.variables?.some(variable => variable.name === 'profundidad')), 'Hanoi: cada paso debe mostrar la profundidad recursiva.');
+assert.equal(hanoiMoves.at(-1)?.hanoiState?.moveCount, 31, 'Hanoi: el contador visual debe terminar en 31 movimientos.');
 assert.ok(hanoiResult.values.every(disk => disk.rod === 2), 'Hanoi: todos los discos deben terminar en la torre C.');
+
+const visualGraphIds = ['grafo', 'grafo-dirigido', 'dfs', 'bfs', 'prim', 'kruskal'];
+assert.equal(new Set(visualGraphIds.map(id => JSON.stringify(graphPositionsFor(id)))).size, visualGraphIds.length, 'Grafos: cada tema debe tener una distribución visual distinta.');
+assert.equal(new Set(visualGraphIds.map(id => JSON.stringify(graphEdgesFor(id)))).size, visualGraphIds.length, 'Grafos: cada tema debe tener una topología distinta.');
+for (const graphId of visualGraphIds) {
+  assert.ok(GRAPH_DESIGNS[graphId], `Grafos: falta el diseño de ${graphId}.`);
+  assert.ok(graphPositionsFor(graphId).length >= 8, `Grafos: ${graphId} debe admitir hasta 8 vértices visibles.`);
+  assert.ok(graphEdgesFor(graphId).every(([from, to]) => from !== to), `Grafos: ${graphId} contiene una arista hacia el mismo vértice.`);
+}
 
 assert.match(getBeginnerJava(sudoku, 'solve'), /boolean isValid/, 'Sudoku: falta mostrar isValid en Java.');
 assert.match(getBeginnerJava(maze, 'solve'), /boolean isFree/, 'Laberinto: falta mostrar isFree en Java.');

@@ -391,28 +391,90 @@ const solveHanoiWithTrace = diskValues => {
     .filter(Number.isFinite)
     .sort((a, b) => b - a);
   const positions = disks.map(size => ({ size, rod: 0 }));
-  const frames = [{
-    values: positions.map(disk => ({ ...disk })),
-    position: 0,
-    codeLine: 0,
-    message: `Comienza Hanoi con ${disks.length} discos en la torre A.`,
-  }];
+  const frames = [];
   const names = ['A', 'B', 'C'];
-  const move = (amount, from, to, help) => {
-    if (amount === 0) return;
-    move(amount - 1, from, help, to);
-    const disk = positions.find(item => item.size === amount);
-    disk.rod = to;
+  let moveCount = 0;
+
+  const addFrame = ({ amount, from, to, help, depth, codeLine, phase, message, delayMs = 150 }) => {
     frames.push({
       values: positions.map(item => ({ ...item })),
       position: amount,
-      codeLine: 3,
-      message: `Mover disco ${amount} desde ${names[from]} hasta ${names[to]}.`,
+      codeLine,
+      delayMs,
+      message,
+      hanoiState: {
+        phase,
+        activeDisk: amount,
+        from,
+        to,
+        help,
+        depth,
+        moveCount,
+        totalMoves: 2 ** disks.length - 1,
+      },
+      variables: [
+        { name: 'disks', value: amount, role: 'size' },
+        { name: 'from', value: names[from], role: 'position' },
+        { name: 'to', value: names[to], role: 'position' },
+        { name: 'help', value: names[help], role: 'position' },
+        { name: 'profundidad', value: depth, role: 'index' },
+        { name: 'movimiento', value: `${moveCount}/${2 ** disks.length - 1}`, role: 'value' },
+      ],
     });
-    move(amount - 1, help, to, from);
   };
+
+  const move = (amount, from, to, help, depth = 0) => {
+    addFrame({
+      amount, from, to, help, depth,
+      codeLine: 0,
+      phase: 'call',
+      message: `Llamada hanoi(${amount}, ${names[from]}, ${names[to]}, ${names[help]}).`,
+    });
+
+    if (amount === 0) {
+      addFrame({
+        amount, from, to, help, depth,
+        codeLine: 1,
+        phase: 'base',
+        message: 'Caso base: no quedan discos en esta llamada y regresamos.',
+        delayMs: 120,
+      });
+      return;
+    }
+
+    addFrame({
+      amount, from, to, help, depth,
+      codeLine: 2,
+      phase: 'first-call',
+      message: `Primero movemos ${amount - 1} ${amount - 1 === 1 ? 'disco' : 'discos'} desde ${names[from]} hacia ${names[help]}.`,
+      delayMs: 135,
+    });
+    move(amount - 1, from, help, to, depth + 1);
+
+    const disk = positions.find(item => item.size === amount);
+    disk.rod = to;
+    moveCount += 1;
+    addFrame({
+      amount, from, to, help, depth,
+      codeLine: 3,
+      phase: 'move',
+      message: `Mover disco ${amount} desde ${names[from]} hasta ${names[to]}.`,
+      delayMs: 430,
+    });
+
+    addFrame({
+      amount, from: help, to, help: from, depth,
+      codeLine: 4,
+      phase: 'second-call',
+      message: `Ahora movemos ${amount - 1} ${amount - 1 === 1 ? 'disco' : 'discos'} desde ${names[help]} hacia ${names[to]}.`,
+      delayMs: 135,
+    });
+    move(amount - 1, help, to, from, depth + 1);
+  };
+
   move(disks.length, 0, 2, 1);
-  return { values: positions, frames };
+  if (frames.length) frames.at(-1).completed = true;
+  return { values: positions, frames, moves: moveCount };
 };
 
 const validIndex = (raw, length, allowEnd = false) => {
@@ -544,7 +606,7 @@ const solveMazeWithTrace = initialMaze => {
   return { solved: explore(0, 0), values: maze, frames: trace };
 };
 
-export function executeOperation({ algorithm, actionId, fields, values, edges, initialValues }) {
+export function executeOperation({ algorithm, actionId, fields, values, edges, initialValues, initialEdges = DEFAULT_GRAPH_EDGES }) {
   const group = operationGroup(algorithm);
   const next = [...values];
   const forceText = ['merkle', 'spatial', 'hash', 'cache'].includes(group);
@@ -553,7 +615,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
   const fail = message => ({ ok: false, values, edges, message, step: 0 });
   const done = (updated, message, step = Math.max(0, updated.length - 1), updatedEdges = edges) => ({ ok: true, values: updated, edges: updatedEdges, message, step });
 
-  if (actionId === 'reset') return done([...initialValues], 'Estructura restablecida a su estado inicial.', 0, DEFAULT_GRAPH_EDGES.map(edge => [...edge]));
+  if (actionId === 'reset') return done([...initialValues], 'Estructura restablecida a su estado inicial.', 0, initialEdges.map(edge => [...edge]));
   if (actionId === 'clear') return done([], 'Estructura vaciada.', 0);
   if (actionId === 'clear-bits') return done(values.map(() => 0), 'Todos los bits fueron limpiados.', 0);
   if (['add-start','add-end','add-index','push','enqueue','sorted-add','tree-add','heap-add'].includes(actionId) && value === null) return fail('Ingresa un valor válido antes de ejecutar la operación.');
@@ -867,7 +929,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       if (!next.length) return fail('Primero crea al menos un disco.');
       const hanoi = solveHanoiWithTrace(next);
       return {
-        ...done(hanoi.values, `Solución completa: ${hanoi.frames.length - 1} movimientos.`, 0),
+        ...done(hanoi.values, `Solución completa: ${hanoi.moves} movimientos.`, 0),
         frames: hanoi.frames,
       };
     }
