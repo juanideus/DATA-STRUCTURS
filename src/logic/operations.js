@@ -29,7 +29,16 @@ const definitions = {
   },
   list: {
     fields: [field('value', 'Valor', 'number'), field('index', 'Índice', 'number')],
-    actions: [action('add-start', 'Insertar inicio'), action('add-end', 'Insertar final'), action('add-index', 'Insertar en índice'), action('remove-value', 'Eliminar valor', 'danger'), action('find', 'Buscar')],
+    actions: [
+      action('add-start', 'Insertar inicio'),
+      action('add-end', 'Insertar final'),
+      action('add-index', 'Insertar en índice'),
+      action('remove-start', 'Eliminar inicio', 'danger'),
+      action('remove-end', 'Eliminar final', 'danger'),
+      action('remove-index', 'Eliminar índice', 'danger'),
+      action('remove-value', 'Eliminar valor', 'danger'),
+      action('find', 'Buscar'),
+    ],
   },
   skip: {
     fields: [field('value', 'Valor', 'number')],

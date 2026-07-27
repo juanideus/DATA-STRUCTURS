@@ -35,6 +35,9 @@ function missingJavaMethods(source) {
   const cleanSource = source
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/\/\/.*$/gm, '');
+  const classNames = new Set(
+    [...cleanSource.matchAll(/\bclass\s+([A-Za-z_]\w*)/g)].map(match => match[1]),
+  );
   const definitions = new Set(
     [...cleanSource.matchAll(/(?:^|\n)\s*(?:(?:public|private|protected|static|final|synchronized)\s+)*(?:[\w<>\[\],?]+\s+)+([A-Za-z_]\w*)\s*\([^;{}]*\)\s*\{/g)]
       .map(match => match[1]),
@@ -45,7 +48,7 @@ function missingJavaMethods(source) {
     const name = match[1];
     const prefix = cleanSource.slice(Math.max(0, match.index - 6), match.index);
     const previousCharacter = cleanSource[match.index - 1];
-    if (languageWords.has(name) || previousCharacter === '.' || /\bnew\s+$/.test(prefix)) continue;
+    if (languageWords.has(name) || classNames.has(name) || previousCharacter === '.' || /\bnew\s+$/.test(prefix)) continue;
     calls.add(name);
   }
   return [...calls].filter(name => !definitions.has(name)).sort();
@@ -230,6 +233,39 @@ for (const algorithm of algorithms) {
 }
 
 assert.deepEqual(incompleteJavaSnippets, [], `Hay métodos Java utilizados pero no mostrados:\n${JSON.stringify(incompleteJavaSnippets, null, 2)}`);
+
+const linkedListIds = ['lista-simple', 'lista-doble', 'lista-circular-simple', 'lista-circular-doble'];
+const linkedListActions = ['add-start', 'add-end', 'add-index', 'remove-start', 'remove-end', 'remove-index', 'remove-value', 'find'];
+for (const listId of linkedListIds) {
+  const list = algorithms.find(item => item.id === listId);
+  const actions = getOperationDefinition(list).actions.map(item => item.id);
+  assert.deepEqual(actions, linkedListActions, `${listId}: faltan operaciones completas de inserción o eliminación.`);
+
+  for (const actionId of linkedListActions) {
+    const java = getBeginnerJava(list, actionId);
+    assert.match(java, /class \w+LinkedList/, `${listId}/${actionId}: falta la clase completa de la lista.`);
+    assert.match(java, /class Node/, `${listId}/${actionId}: falta mostrar la clase Node.`);
+    assert.match(java, /Node head = null;/, `${listId}/${actionId}: falta mostrar head.`);
+    assert.match(java, /Node tail = null;/, `${listId}/${actionId}: falta mostrar tail.`);
+    assert.match(java, /int size = 0;/, `${listId}/${actionId}: falta mostrar size.`);
+    assert.match(java, /Start of the selected operation/, `${listId}/${actionId}: falta delimitar la operación animada.`);
+    assert.ok(!java.includes('values['), `${listId}/${actionId}: no debe reutilizar código de Array.`);
+    if (listId.includes('doble')) {
+      assert.match(java, /Node prev;/, `${listId}/${actionId}: falta el enlace prev.`);
+    }
+  }
+}
+assert.match(getBeginnerJava(algorithms.find(item => item.id === 'lista-circular-simple'), 'add-start'), /tail\.next = head;/, 'Lista circular simple: no se cierra el ciclo.');
+assert.match(getBeginnerJava(algorithms.find(item => item.id === 'lista-circular-doble'), 'add-end'), /head\.prev = newNode;/, 'Lista circular doble: no se conserva el enlace hacia atrás.');
+
+const circularRemovalCode = getBeginnerJava(algorithms.find(item => item.id === 'lista-circular-simple'), 'remove-value');
+const circularRemovalTrace = buildCodeExecutionTrace(circularRemovalCode, 4);
+const circularOperationLine = circularRemovalCode.split('\n').findIndex(line => line.includes('boolean removeValue'));
+const circularDoLine = circularRemovalCode.split('\n').findIndex(line => line.trim() === 'do {');
+const circularWhileLine = circularRemovalCode.split('\n').findIndex(line => line.includes('while (current != head)'));
+assert.equal(circularRemovalTrace[0].index, circularOperationLine, 'Lista circular: la animación debe comenzar en el método seleccionado.');
+assert.equal(circularRemovalTrace.filter(frame => frame.index === circularDoLine).length, 4, 'Lista circular: do debe repetirse una vez por nodo visitado.');
+assert.ok(circularRemovalTrace.some(frame => frame.index === circularWhileLine && frame.loopExit), 'Lista circular: falta animar la salida de do-while.');
 
 const loopExample = algorithms.find(item => item.id === 'array');
 const loopCode = getBeginnerJava(loopExample, 'add-start');

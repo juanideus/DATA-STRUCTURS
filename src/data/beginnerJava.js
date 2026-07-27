@@ -1,4 +1,5 @@
 import { operationGroup } from '../logic/operations.js';
+import { linkedListJava } from './linkedListJava.js';
 
 const basic = {
   'add-start': `void addAtStart(int value) {
@@ -401,6 +402,7 @@ const basic = {
 };
 
 const special = {
+  ...linkedListJava,
   'dijkstra:shortest-path': `int[] dijkstra(int[] map, int rows, int columns,
                        int start, int goal) {
     int total = rows * columns;
@@ -1041,12 +1043,13 @@ function definedMethods(source) {
 
 function calledMethods(source) {
   const languageWords = new Set(['if', 'for', 'while', 'switch', 'catch', 'return', 'new', 'throw', 'super', 'this']);
+  const classNames = new Set([...source.matchAll(/\bclass\s+([A-Za-z_]\w*)/g)].map(match => match[1]));
   const calls = new Set();
   const cleanSource = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
   for (const match of cleanSource.matchAll(/\b([A-Za-z_]\w*)\s*\(/g)) {
     const name = match[1];
     const prefix = cleanSource.slice(Math.max(0, match.index - 6), match.index);
-    if (languageWords.has(name) || cleanSource[match.index - 1] === '.' || /\bnew\s+$/.test(prefix)) continue;
+    if (languageWords.has(name) || classNames.has(name) || cleanSource[match.index - 1] === '.' || /\bnew\s+$/.test(prefix)) continue;
     calls.add(name);
   }
   return calls;

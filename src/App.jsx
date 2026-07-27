@@ -9,7 +9,7 @@ import { getGraphDesign, graphEdgesFor, graphPositionsFor } from './data/graphDe
 import OperationsPanel from './components/OperationsPanel.jsx';
 import VariablesPanel from './components/VariablesPanel.jsx';
 import { adaptFramesToCode, copyVisualValues, createCodeSynchronizedFrames } from './logic/codeAnimation.js';
-import { DEFAULT_GRAPH_EDGES, DEFAULT_GRAPH_POSITIONS, executeOperation, getOperationDefinition } from './logic/operations.js';
+import { DEFAULT_GRAPH_EDGES, DEFAULT_GRAPH_POSITIONS, executeOperation, getOperationDefinition, operationGroup } from './logic/operations.js';
 import { createRandomPathMap, DEFAULT_PATH_MAP } from './logic/pathfindingMap.js';
 import ucnLogo from './assets/LogoUCN.png';
 
@@ -919,6 +919,9 @@ function App() {
   const selectedIndex = algorithms.findIndex(item => item.id === baseAlgorithm.id);
   const operationDefinition = getOperationDefinition(baseAlgorithm);
   const activeOperationLabel = operationDefinition.actions.find(item=>item.id===activeOperation)?.label ?? 'Operación';
+  const javaOverview = operationGroup(baseAlgorithm) === 'list'
+    ? `El código muestra la clase Node, head, tail, size y los enlaces next${baseAlgorithm.id.includes('doble') ? ' y prev' : ''}. La línea iluminada corresponde al cambio que se observa en la lista.`
+    : 'El código usa variables, arreglos, ciclos, condiciones y métodos pequeños. Cada línea iluminada corresponde al cambio mostrado en la estructura.';
   const displayedCode = codeMode === 'java' ? getBeginnerJava(baseAlgorithm, activeOperation) : baseAlgorithm.code;
   const codeLines = displayedCode.split('\n');
   const totalSteps = operationFrames.length || Math.max(algorithm.values.length, codeLines.length);
@@ -1130,7 +1133,7 @@ function App() {
             return <code className={`${isActive?'active':''} ${isHelperLabel?'helper-method-label':''}`.trim()} key={i}><i>{String(i+1).padStart(2,'0')}</i>{line || ' '}</code>;
           })}</pre>
           <VariablesPanel frame={currentAnimationFrame} algorithm={algorithm} step={step} playing={playing}/>
-          <div className="note"><CircleHelp size={17}/><p><strong>{codeMode === 'java' ? `Java básico · ${activeOperationLabel}` : '¿Qué ocurre aquí?'}</strong><span>{codeMode === 'java' ? currentAnimationFrame?.iteration != null ? `El ciclo está en la iteración ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} de ${currentAnimationFrame.totalIterations}. La línea iluminada y el elemento activo avanzan juntos.` : 'El código usa variables, arreglos, ciclos, condiciones y métodos pequeños. Cada línea iluminada corresponde al cambio mostrado en la estructura.' : step === 0 ? 'Se prepara el estado inicial y la estructura auxiliar.' : step >= totalSteps-1 ? 'El algoritmo completa la operación y devuelve el resultado.' : `Se procesa el elemento activo del paso ${step+1} y se actualiza el estado.`}</span></p></div>
+          <div className="note"><CircleHelp size={17}/><p><strong>{codeMode === 'java' ? `Java básico · ${activeOperationLabel}` : '¿Qué ocurre aquí?'}</strong><span>{codeMode === 'java' ? currentAnimationFrame?.iteration != null ? `El ciclo está en la iteración ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} de ${currentAnimationFrame.totalIterations}. La línea iluminada y el elemento activo avanzan juntos.` : javaOverview : step === 0 ? 'Se prepara el estado inicial y la estructura auxiliar.' : step >= totalSteps-1 ? 'El algoritmo completa la operación y devuelve el resultado.' : `Se procesa el elemento activo del paso ${step+1} y se actualiza el estado.`}</span></p></div>
         </article>}
       </section>
 

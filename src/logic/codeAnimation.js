@@ -9,6 +9,7 @@ export function executableCodeLines(code) {
 }
 
 const isLoop = text => /\b(?:for|while)\s*\(/.test(text);
+const isDoLoop = text => /^\s*do\s*\{/.test(text);
 const openingBraces = text => (text.match(/{/g) ?? []).length;
 const closingBraces = text => (text.match(/}/g) ?? []).length;
 
@@ -33,6 +34,21 @@ function expandBlock(lines, start, end, baseIterations, depth = 0, outerIteratio
     const line = lines[index];
     const text = line.text.trim();
     if (!text || text === '}' || text === '};') { index++; continue; }
+
+    if (isDoLoop(text)) {
+      const closingIndex = blockEnd(lines, index, end);
+      const iterations = depth === 0 ? baseIterations : Math.min(baseIterations, 4);
+      for (let iteration = 0; iteration < iterations; iteration++) {
+        trace.push({ index, text, iteration, totalIterations: iterations, loopDepth: depth, loopCondition: true, outerIteration });
+        if (closingIndex > index) {
+          trace.push(...expandBlock(lines, index + 1, closingIndex - 1, baseIterations, depth + 1, iteration));
+        }
+        trace.push({ ...lines[closingIndex], iteration, totalIterations: iterations, loopDepth: depth, loopCondition: true, outerIteration });
+      }
+      trace.push({ ...lines[closingIndex], iteration: iterations, totalIterations: iterations, loopDepth: depth, loopExit: true, outerIteration });
+      index = closingIndex + 1;
+      continue;
+    }
 
     if (isLoop(text)) {
       const closingIndex = blockEnd(lines, index, end);
@@ -76,7 +92,9 @@ export function estimateLoopIterations({ actionId, beforeValues, afterValues, fi
 
 export function buildCodeExecutionTrace(code, iterationCount) {
   const lines = code.split('\n').map((text, index) => ({ index, text }));
-  const expanded = expandBlock(lines, 0, lines.length - 1, Math.max(1, iterationCount));
+  const operationMarker = lines.findIndex(line => line.text.trim() === '// Start of the selected operation');
+  const firstExecutionLine = operationMarker >= 0 ? operationMarker + 1 : 0;
+  const expanded = expandBlock(lines, firstExecutionLine, lines.length - 1, Math.max(1, iterationCount));
   const maximumFrames = 180;
   if (expanded.length <= maximumFrames) return expanded;
 
