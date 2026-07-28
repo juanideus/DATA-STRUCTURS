@@ -477,6 +477,22 @@ assert.ok(
 );
 
 const avl = algorithms.find(item => item.id === 'avl');
+const avlInsertOne = run(avl, 'tree-add', { value: '1', second: '', index: '' }, [...avl.values]);
+assert.deepEqual(
+  avlInsertOne.values,
+  [30, 20, 40, 10, 25, 35, 50, 1],
+  'AVL/insertar-1: debe conservar la raíz 30 porque ningún factor supera 1.',
+);
+assert.doesNotMatch(avlInsertOne.message, /rotación (?:LL|RR|LR|RL)/i, 'AVL/insertar-1: no debe informar una rotación inexistente.');
+assertAvlBalance(avlInsertOne.values, 'AVL/insertar-1');
+const avlLlRotation = run(avl, 'tree-add', { value: '0', second: '', index: '' }, avlInsertOne.values);
+assert.deepEqual(
+  avlLlRotation.values,
+  [30, 20, 40, 1, 25, 35, 50, 0, 10],
+  'AVL/insertar-0: debe aplicar la rotación LL únicamente en el subárbol de 10.',
+);
+assert.match(avlLlRotation.message, /rotación LL/i, 'AVL/insertar-0: debe explicar la rotación LL aplicada.');
+assertAvlBalance(avlLlRotation.values, 'AVL/rotación-LL');
 let avlValues = [...avl.values];
 for (const value of [5, 15, 45, 60, 55]) {
   avlValues = run(avl, 'tree-add', { value: String(value), second: '', index: '' }, avlValues).values;

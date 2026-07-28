@@ -304,6 +304,36 @@ test('muestra Java específico para árboles especializados', async ({ page }) =
   });
 });
 
+test('AVL inserta 1 sin reconstruir ni rotar incorrectamente el árbol', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chromium', 'La lógica y los factores son idénticos en móvil.');
+  await page.goto('/avl');
+  await page.getByLabel('Valor').fill('1');
+  await page.getByRole('button', { name: 'Insertar nodo', exact: true }).click();
+  const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+  if (await pause.isVisible()) await pause.click();
+
+  for (let step = 0; step < 75; step++) {
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+
+  const nodes = await page.locator('.tree-avl .tree-node').evaluateAll(items => items.map(item => ({
+    index: Number(item.dataset.treeIndex),
+    value: Number(item.querySelector('.tree-value')?.textContent),
+    balance: item.querySelector('.tree-node-badge')?.textContent,
+  })));
+  expect(nodes).toEqual([
+    { index: 0, value: 30, balance: 'BF 1' },
+    { index: 1, value: 20, balance: 'BF 1' },
+    { index: 2, value: 40, balance: 'BF 0' },
+    { index: 3, value: 10, balance: 'BF 1' },
+    { index: 4, value: 25, balance: 'BF 0' },
+    { index: 5, value: 35, balance: 'BF 0' },
+    { index: 6, value: 50, balance: 'BF 0' },
+    { index: 7, value: 1, balance: 'BF 0' },
+  ]);
+  await expect(page.locator('.operation-message')).toContainText('no fue necesaria una rotación');
+});
+
 test('B+ acepta inserciones seguidas y mantiene nodos de máximo tres claves', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name.startsWith('mobile'), 'La jerarquía completa se valida una vez en escritorio.');
   await page.goto('/bplus-tree');

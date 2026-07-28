@@ -187,7 +187,8 @@ export function getOperationDefinition(algorithm) {
 const numericValue = (raw, current, forceText = false) => {
   if (raw === '') return null;
   if (forceText) return raw.trim() || null;
-  const numbers = current.length === 0 || current.every(value => typeof value === 'number');
+  const presentValues = current.filter(value => value !== undefined && value !== null);
+  const numbers = presentValues.length === 0 || presentValues.every(value => typeof value === 'number');
   if (!numbers) return raw.trim();
   const parsed = Number(raw);
   return Number.isFinite(parsed) ? parsed : null;
@@ -254,6 +255,143 @@ const buildBalancedBinaryTree = values => {
   };
   place(0, sorted.length - 1, 0);
   return trimTreeSlots(tree);
+};
+
+const avlHeight = node => node?.height ?? 0;
+
+const updateAvlHeight = node => {
+  if (node) node.height = 1 + Math.max(avlHeight(node.left), avlHeight(node.right));
+  return node;
+};
+
+const treeSlotsToAvl = (values, index = 0) => {
+  if (index >= values.length || values[index] === undefined || values[index] === null) return null;
+  const node = {
+    value: values[index],
+    left: treeSlotsToAvl(values, index * 2 + 1),
+    right: treeSlotsToAvl(values, index * 2 + 2),
+    height: 1,
+  };
+  return updateAvlHeight(node);
+};
+
+const rotateAvlRight = oldRoot => {
+  const newRoot = oldRoot.left;
+  const transferred = newRoot.right;
+  newRoot.right = oldRoot;
+  oldRoot.left = transferred;
+  updateAvlHeight(oldRoot);
+  return updateAvlHeight(newRoot);
+};
+
+const rotateAvlLeft = oldRoot => {
+  const newRoot = oldRoot.right;
+  const transferred = newRoot.left;
+  newRoot.left = oldRoot;
+  oldRoot.right = transferred;
+  updateAvlHeight(oldRoot);
+  return updateAvlHeight(newRoot);
+};
+
+const insertAvlNode = (node, value, rotations) => {
+  if (!node) return { value, left: null, right: null, height: 1 };
+  if (Number(value) < Number(node.value)) node.left = insertAvlNode(node.left, value, rotations);
+  else if (Number(value) > Number(node.value)) node.right = insertAvlNode(node.right, value, rotations);
+  else return node;
+
+  updateAvlHeight(node);
+  const balance = avlHeight(node.left) - avlHeight(node.right);
+  if (balance > 1 && Number(value) < Number(node.left.value)) {
+    rotations.push({ type: 'LL', pivot: node.value });
+    return rotateAvlRight(node);
+  }
+  if (balance < -1 && Number(value) > Number(node.right.value)) {
+    rotations.push({ type: 'RR', pivot: node.value });
+    return rotateAvlLeft(node);
+  }
+  if (balance > 1 && Number(value) > Number(node.left.value)) {
+    rotations.push({ type: 'LR', pivot: node.value });
+    node.left = rotateAvlLeft(node.left);
+    return rotateAvlRight(node);
+  }
+  if (balance < -1 && Number(value) < Number(node.right.value)) {
+    rotations.push({ type: 'RL', pivot: node.value });
+    node.right = rotateAvlRight(node.right);
+    return rotateAvlLeft(node);
+  }
+  return node;
+};
+
+const minimumAvlNode = node => {
+  let current = node;
+  while (current?.left) current = current.left;
+  return current;
+};
+
+const removeAvlNode = (node, value, rotations) => {
+  if (!node) return null;
+  if (Number(value) < Number(node.value)) node.left = removeAvlNode(node.left, value, rotations);
+  else if (Number(value) > Number(node.value)) node.right = removeAvlNode(node.right, value, rotations);
+  else if (!node.left || !node.right) {
+    return node.left ?? node.right;
+  } else {
+    const successor = minimumAvlNode(node.right);
+    node.value = successor.value;
+    node.right = removeAvlNode(node.right, successor.value, rotations);
+  }
+
+  updateAvlHeight(node);
+  const balance = avlHeight(node.left) - avlHeight(node.right);
+  const leftBalance = node.left ? avlHeight(node.left.left) - avlHeight(node.left.right) : 0;
+  const rightBalance = node.right ? avlHeight(node.right.left) - avlHeight(node.right.right) : 0;
+  if (balance > 1 && leftBalance >= 0) {
+    rotations.push({ type: 'LL', pivot: node.value });
+    return rotateAvlRight(node);
+  }
+  if (balance > 1) {
+    rotations.push({ type: 'LR', pivot: node.value });
+    node.left = rotateAvlLeft(node.left);
+    return rotateAvlRight(node);
+  }
+  if (balance < -1 && rightBalance <= 0) {
+    rotations.push({ type: 'RR', pivot: node.value });
+    return rotateAvlLeft(node);
+  }
+  if (balance < -1) {
+    rotations.push({ type: 'RL', pivot: node.value });
+    node.right = rotateAvlRight(node.right);
+    return rotateAvlLeft(node);
+  }
+  return node;
+};
+
+const avlToTreeSlots = root => {
+  const values = [];
+  let hiddenNode = false;
+  const place = (node, index) => {
+    if (!node) return;
+    if (index >= 15) {
+      hiddenNode = true;
+      return;
+    }
+    values[index] = node.value;
+    place(node.left, index * 2 + 1);
+    place(node.right, index * 2 + 2);
+  };
+  place(root, 0);
+  return { values: trimTreeSlots(values), hiddenNode };
+};
+
+const insertIntoAvl = (values, value) => {
+  const rotations = [];
+  const root = insertAvlNode(treeSlotsToAvl(values), value, rotations);
+  return { ...avlToTreeSlots(root), rotations };
+};
+
+const removeFromAvl = (values, value) => {
+  const rotations = [];
+  const root = removeAvlNode(treeSlotsToAvl(values), value, rotations);
+  return { ...avlToTreeSlots(root), rotations };
 };
 
 const buildSplayedBinaryTree = (values, rootValue) => {
@@ -1366,6 +1504,13 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
           ));
       if (found < 0) return fail(`${value} no existe en la estructura.`);
       if (orderedBinaryTreeIds.has(algorithm.id)) {
+        if (algorithm.id === 'avl') {
+          const removal = removeFromAvl(next, value);
+          const rotationDetail = removal.rotations.length
+            ? ` y aplicó rotación ${removal.rotations.map(rotation => rotation.type).join(' + ')}`
+            : ' y actualizó sus alturas sin necesitar una rotación';
+          return done(removal.values, `${value} fue eliminado; el AVL conservó su balance${rotationDetail}.`, Math.max(0, found));
+        }
         const remaining = compactTreeValues(next).filter(item => String(item) !== String(value));
         const rebuilt = balancedBinaryTreeIds.has(algorithm.id)
           ? buildBalancedBinaryTree(remaining)
@@ -1459,6 +1604,15 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       if (compactTreeValues(next).length >= maximum) return fail(`La demostración admite hasta ${maximum} nodos visibles.`);
       if (orderedBinaryTreeIds.has(algorithm.id)) {
         if (compactTreeValues(next).some(item => Number(item) === Number(value))) return fail(`${value} ya existe en el árbol.`);
+        if (algorithm.id === 'avl') {
+          const insertion = insertIntoAvl(next, value);
+          if (insertion.hiddenNode) return fail('La inserción produciría un nivel que no cabe completo en el visualizador.');
+          const insertedAt = insertion.values.findIndex(item => Number(item) === Number(value));
+          const rotationDetail = insertion.rotations.length
+            ? ` Se aplicó rotación ${insertion.rotations.map(rotation => rotation.type).join(' + ')}.`
+            : ' Se actualizaron las alturas y no fue necesaria una rotación.';
+          return done(insertion.values, `Nodo ${value} insertado siguiendo el BST.${rotationDetail}`, insertedAt);
+        }
         const insertedValues = [...compactTreeValues(next), value];
         const rebuilt = balancedBinaryTreeIds.has(algorithm.id)
           ? buildBalancedBinaryTree(insertedValues)
