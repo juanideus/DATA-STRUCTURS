@@ -133,6 +133,16 @@ export const educationalDescriptions = {
     'Cada pregunta de un juego de adivinanzas conduce a una rama izquierda o derecha.',
     'Binario significa hasta dos hijos; no significa automáticamente que sea un Binary Search Tree.'
   ),
+  'arbol-enhebrado': guide(
+    'Un Árbol Binario Enhebrado es un árbol de búsqueda que aprovecha las referencias de hijo que normalmente quedarían en null. Esas referencias se convierten en hilos hacia el nodo anterior o siguiente del recorrido inorden.',
+    'Cada nodo guarda left, right y dos indicadores booleanos: leftThread y rightThread. Cuando el indicador es false, la referencia conduce a un hijo real; cuando es true, conduce al predecesor o sucesor inorden. El nodo menor puede tener un hilo izquierdo a null y el mayor un hilo derecho a null. Gracias a esta información, el recorrido comienza en el nodo más izquierdo y avanza por hijos derechos o por hilos, sin utilizar una pila y sin hacer llamadas recursivas.',
+    'Insertar una clave y conectar sus hilos al predecesor y sucesor|Buscar respetando la diferencia entre hijos e hilos|Eliminar y reparar los enlaces vecinos|Recorrer inorden sin pila ni recursión',
+    'Reutiliza referencias que estaban vacías|El recorrido inorden necesita espacio adicional O(1)|Permite encontrar sucesor y predecesor con facilidad|Hace visible la relación entre nodos consecutivos',
+    'Cada referencia necesita un indicador adicional|Insertar y eliminar es más delicado que en un BST común|Un hilo nunca debe recorrerse como si fuera un hijo|Otros recorridos pueden necesitar reglas distintas',
+    'Iteradores ordenados|Sistemas con memoria limitada|Recorridos frecuentes de índices|Enseñanza de punteros y referencias',
+    'Piensa en un libro: los hijos reales abren capítulos nuevos y los hilos son marcadores que llevan directamente a la página anterior o siguiente.',
+    'Antes de seguir left o right, revisa su indicador. leftThread o rightThread en true significa hilo; en false significa hijo real.'
+  ),
   bst: guide(
     'Un Binary Search Tree o BST es un árbol binario ordenado: los valores menores quedan a la izquierda y los mayores a la derecha.',
     'Cada comparación descarta un subárbol completo. El recorrido inorden produce los valores ordenados. El rendimiento depende de la altura, por lo que un árbol desbalanceado puede comportarse como una lista.',

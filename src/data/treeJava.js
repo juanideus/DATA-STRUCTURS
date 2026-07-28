@@ -37,23 +37,32 @@ const breadthFirstFind = animated(`Node find(Node root, int target) {
     return null;
 }`);
 
-const completeBinaryInsert = animated(`void insertLevelOrder(Node root, int value) {
-    Queue<Node> pending = new ArrayDeque<>();
-    pending.add(root);
+const completeBinaryInsert = animated(`Node insert(Node root, int value) {
+    if (root == null) return new Node(value);
+    insertAtFirstAvailableLevel(root, value, 1);
+    return root;
+}
 
-    while (!pending.isEmpty()) {
-        Node current = pending.remove();
-        if (current.left == null) {
-            current.left = new Node(value);
-            return;
+void insertAtFirstAvailableLevel(Node root, int value, int level) {
+    if (insertAtLevel(root, value, level)) return;
+    insertAtFirstAvailableLevel(root, value, level + 1);
+}
+
+boolean insertAtLevel(Node node, int value, int level) {
+    if (node == null) return false;
+    if (level == 1) {
+        if (node.left == null) {
+            node.left = new Node(value);
+            return true;
         }
-        pending.add(current.left);
-        if (current.right == null) {
-            current.right = new Node(value);
-            return;
+        if (node.right == null) {
+            node.right = new Node(value);
+            return true;
         }
-        pending.add(current.right);
+        return false;
     }
+    if (insertAtLevel(node.left, value, level - 1)) return true;
+    return insertAtLevel(node.right, value, level - 1);
 }`);
 
 const completeBinaryRemove = animated(`Node remove(Node root, int target) {
@@ -1278,6 +1287,183 @@ int precedence(char operator) {
   postorder: binaryTraversals.postorder,
 };
 
+const threadedNodeCode = `static class Node {
+    int value;
+    Node left;
+    Node right;
+    boolean leftThread = true;
+    boolean rightThread = true;
+
+    Node(int value) {
+        this.value = value;
+    }
+}`;
+
+const threadedHelpers = `Node leftMost(Node node) {
+    if (node == null) return null;
+    while (!node.leftThread) {
+        node = node.left;
+    }
+    return node;
+}
+
+Node inorderPredecessor(Node node) {
+    if (node.leftThread) return node.left;
+    Node current = node.left;
+    while (!current.rightThread) {
+        current = current.right;
+    }
+    return current;
+}
+
+Node inorderSuccessor(Node node) {
+    if (node.rightThread) return node.right;
+    Node current = node.right;
+    while (!current.leftThread) {
+        current = current.left;
+    }
+    return current;
+}`;
+
+const threadedProgram = (selectedOperation, helpers = '') => `class ThreadedBinaryTree {
+    Node root;
+
+    // Start of the selected operation
+${selectedOperation.split('\n').map(line => `    ${line}`).join('\n')}
+    // End of the selected operation
+
+    ${threadedNodeCode.split('\n').join('\n    ')}
+${helpers ? `\n    ${helpers.split('\n').join('\n    ')}` : ''}
+}`;
+
+const threadedInsert = threadedProgram(`Node insert(Node root, int value) {
+    Node parent = null;
+    Node current = root;
+
+    while (current != null) {
+        if (value == current.value) return root;
+        parent = current;
+        if (value < current.value) {
+            if (!current.leftThread) current = current.left;
+            else break;
+        } else {
+            if (!current.rightThread) current = current.right;
+            else break;
+        }
+    }
+
+    Node newNode = new Node(value);
+    if (parent == null) return newNode;
+
+    if (value < parent.value) {
+        newNode.left = parent.left;
+        newNode.right = parent;
+        parent.leftThread = false;
+        parent.left = newNode;
+    } else {
+        newNode.left = parent;
+        newNode.right = parent.right;
+        parent.rightThread = false;
+        parent.right = newNode;
+    }
+    return root;
+}`);
+
+const threadedFind = threadedProgram(`Node search(Node root, int target) {
+    Node current = root;
+    while (current != null) {
+        if (target == current.value) return current;
+        if (target < current.value) {
+            if (current.leftThread) return null;
+            current = current.left;
+        } else {
+            if (current.rightThread) return null;
+            current = current.right;
+        }
+    }
+    return null;
+}`);
+
+const threadedInorder = threadedProgram(`void inorder(Node root) {
+    Node current = leftMost(root);
+    while (current != null) {
+        System.out.println(current.value);
+        if (current.rightThread) {
+            current = current.right;
+        } else {
+            current = leftMost(current.right);
+        }
+    }
+}`, `Node leftMost(Node node) {
+    if (node == null) return null;
+    while (!node.leftThread) {
+        node = node.left;
+    }
+    return node;
+}`);
+
+const threadedRemove = threadedProgram(`Node remove(Node root, int target) {
+    Node parent = null;
+    Node current = root;
+
+    while (current != null && current.value != target) {
+        parent = current;
+        if (target < current.value) {
+            if (current.leftThread) return root;
+            current = current.left;
+        } else {
+            if (current.rightThread) return root;
+            current = current.right;
+        }
+    }
+    if (current == null) return root;
+
+    if (!current.leftThread && !current.rightThread) {
+        Node successorParent = current;
+        Node successor = current.right;
+        while (!successor.leftThread) {
+            successorParent = successor;
+            successor = successor.left;
+        }
+        current.value = successor.value;
+        parent = successorParent;
+        current = successor;
+    }
+
+    Node child;
+    if (!current.leftThread) child = current.left;
+    else if (!current.rightThread) child = current.right;
+    else child = null;
+
+    Node predecessor = inorderPredecessor(current);
+    Node successor = inorderSuccessor(current);
+
+    if (parent == null) {
+        root = child;
+    } else if (current == parent.left) {
+        if (child == null) {
+            parent.leftThread = true;
+            parent.left = predecessor;
+        } else {
+            parent.left = child;
+        }
+    } else {
+        if (child == null) {
+            parent.rightThread = true;
+            parent.right = successor;
+        } else {
+            parent.right = child;
+        }
+    }
+
+    if (child != null && !current.leftThread && predecessor != null) {
+        predecessor.right = successor;
+    } else if (child != null && !current.rightThread && successor != null) {
+        successor.left = predecessor;
+    }
+    return root;
+}`, threadedHelpers);
+
 const sources = {
   'arbol-general': generalTree,
   'arbol-nario': naryTree,
@@ -1286,6 +1472,12 @@ const sources = {
     'remove-value': completeBinaryRemove,
     find: breadthFirstFind,
     ...binaryTraversals,
+  },
+  'arbol-enhebrado': {
+    'tree-add': threadedInsert,
+    'remove-value': threadedRemove,
+    find: threadedFind,
+    inorder: threadedInorder,
   },
   bst: {
     'tree-add': bstInsert,

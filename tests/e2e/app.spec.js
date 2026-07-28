@@ -42,7 +42,7 @@ test('abre un tema mediante un enlace compartible', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Sudoku Solver 9×9', level: 1 })).toBeVisible();
 });
 
-test('los 53 temas cargan su visualizador, controles y código sin errores', async ({ page }) => {
+test('los 54 temas cargan su visualizador, controles y código sin errores', async ({ page }) => {
   test.setTimeout(180_000);
   const pageErrors = [];
   const failedResponses = [];
@@ -258,6 +258,61 @@ test('sincroniza el recorrido BST con la línea Java y las variables', async ({ 
 
   expect([...visitedNodes]).toEqual(expect.arrayContaining(['8', '3', '1']));
   expect(activeLines.size).toBeGreaterThan(3);
+});
+
+test('árbol binario inserta recursivamente sin utilizar Queue', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chromium', 'La recursión y el resultado son idénticos en móvil.');
+  await page.goto('/arbol-binario');
+  await expect(page.locator('.code-panel pre')).toContainText('insertAtFirstAvailableLevel');
+  await expect(page.locator('.code-panel pre')).not.toContainText('Queue');
+
+  await page.getByLabel('Valor').fill('99');
+  await page.getByRole('button', { name: 'Insertar nodo', exact: true }).click();
+  const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+  if (await pause.isVisible()) await pause.click();
+
+  const visitedNodes = new Set();
+  for (let step = 0; step < 55; step++) {
+    const activeNode = page.locator('.tree-node.active .tree-value');
+    if (await activeNode.count()) visitedNodes.add((await activeNode.textContent())?.trim());
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+
+  expect([...visitedNodes]).toEqual(expect.arrayContaining(['8', '3', '1', '99']));
+  const valuesByIndex = await page.locator('.tree-arbol-binario .tree-node').evaluateAll(nodes => (
+    nodes.map(node => [Number(node.dataset.treeIndex), Number(node.querySelector('.tree-value')?.textContent)])
+  ));
+  expect(valuesByIndex).toEqual([[0, 8], [1, 3], [2, 12], [3, 1], [4, 5], [5, 10], [6, 15], [7, 99]]);
+  await expect(page.locator('.variable-item').filter({ hasText: 'nodo' }).locator('strong')).toHaveText('99');
+  await expect(page.locator('.operation-message')).toContainText('insertado recursivamente');
+});
+
+test('árbol enhebrado distingue hijos, sigue hilos e inserta correctamente', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chromium', 'La estructura se valida completa en escritorio y comparte la misma lógica en móvil.');
+  test.setTimeout(45_000);
+  await page.goto('/arbol-enhebrado');
+
+  await expect(page.getByRole('heading', { name: 'Árbol binario enhebrado', level: 1 })).toBeVisible();
+  await expect(page.locator('.threaded-child-layer line')).toHaveCount(6);
+  await expect(page.locator('.thread-edge')).toHaveCount(8);
+  await expect(page.locator('.thread-edge[data-thread-from="3"][data-thread-to="1"][data-thread-side="right"]')).toHaveCount(1);
+  await expect(page.locator('.thread-edge[data-thread-from="4"][data-thread-to="0"][data-thread-side="right"]')).toHaveCount(1);
+  await expect(page.locator('.code-panel pre')).toContainText('leftThread');
+  await expect(page.locator('.code-panel pre')).toContainText('rightThread');
+  await page.getByLabel('Velocidad').selectOption('2');
+
+  await page.getByLabel('Valor').fill('12');
+  await page.getByRole('button', { name: 'Insertar nodo', exact: true }).click();
+  await expect(page.locator('.operation-message')).toContainText('enhebrado correctamente', { timeout: 15_000 });
+  await expect(page.locator('.threaded-node[data-tree-index="9"] .tree-value')).toHaveText('12');
+  await expect(page.locator('.thread-edge[data-thread-from="9"][data-thread-to="1"][data-thread-side="left"]')).toHaveCount(1);
+  await expect(page.locator('.thread-edge[data-thread-from="9"][data-thread-to="4"][data-thread-side="right"]')).toHaveCount(1);
+
+  await page.getByRole('button', { name: 'Inorden sin pila', exact: true }).click();
+  await expect(page.locator('.thread-edge.active')).toBeVisible({ timeout: 12_000 });
+  await expect(page.locator('.operation-message')).toContainText('5 → 10 → 12 → 15 → 20 → 25 → 30 → 35', { timeout: 20_000 });
+  await expect(page.locator('.code-panel pre')).not.toContainText('Stack');
+  await expect(page.locator('.code-panel pre')).not.toContainText('Queue');
 });
 
 test('muestra Java específico para árboles especializados', async ({ page }) => {

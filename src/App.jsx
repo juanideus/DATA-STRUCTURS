@@ -9,7 +9,7 @@ import { getGraphDesign, graphEdgesFor, graphPositionsFor } from './data/graphDe
 import OperationsPanel from './components/OperationsPanel.jsx';
 import VariablesPanel from './components/VariablesPanel.jsx';
 import { adaptFramesToCode, copyVisualValues, createCodeSynchronizedFrames, createTreeSynchronizedFrames } from './logic/codeAnimation.js';
-import { DEFAULT_GRAPH_EDGES, DEFAULT_GRAPH_POSITIONS, executeOperation, getOperationDefinition, operationGroup, SPARSE_MATRIX_COLUMNS, SPARSE_MATRIX_ROWS } from './logic/operations.js';
+import { DEFAULT_GRAPH_EDGES, DEFAULT_GRAPH_POSITIONS, executeOperation, getOperationDefinition, getThreadedTreeLinks, operationGroup, SPARSE_MATRIX_COLUMNS, SPARSE_MATRIX_ROWS } from './logic/operations.js';
 import { createRandomPathMap, DEFAULT_PATH_MAP } from './logic/pathfindingMap.js';
 
 const EducationalDescription = lazy(() => import('./components/EducationalDescription.jsx'));
@@ -214,7 +214,7 @@ function createRandomValues(algorithm) {
   if (algorithm.id === 'bloom-filter') return Array.from({ length: amount }, () => randomNumber(0, 1));
 
   const values = randomUniqueNumbers(amount);
-  if (['bst','avl','rojo-negro','splay-tree','kd-tree'].includes(algorithm.id)) return balancedLevelOrder(values.sort((a, b) => a - b));
+  if (['arbol-enhebrado','bst','avl','rojo-negro','splay-tree','kd-tree'].includes(algorithm.id)) return balancedLevelOrder(values.sort((a, b) => a - b));
   if (algorithm.type === 'heap') return values.sort((a, b) => b - a);
   if (['skip-list','btree','bplus-tree','bstar-tree'].includes(algorithm.id)) return values.sort((a, b) => a - b);
   return values;
@@ -543,6 +543,92 @@ function BinaryTreeDiagram({ algorithm, step, displayValues = algorithm.values.s
   </div>;
 }
 
+function ThreadedTreeDiagram({ algorithm, step }) {
+  const values = algorithm.values.slice(0, 15);
+  const { inorder, links } = getThreadedTreeLinks(values);
+  const frame = algorithm.animationFrame;
+  const activeThread = frame?.activeThread;
+  const threadEdges = [];
+
+  links.forEach(meta => {
+    if (meta.leftThread) {
+      threadEdges.push({ from: meta.index, to: meta.predecessor, side: 'left' });
+    }
+    if (meta.rightThread) {
+      threadEdges.push({ from: meta.index, to: meta.successor, side: 'right' });
+    }
+  });
+
+  const threadTarget = edge => {
+    if (edge.to !== null) return BINARY_POSITIONS[edge.to];
+    return edge.side === 'left' ? [3, 85] : [97, 85];
+  };
+  const threadPath = edge => {
+    const [fromX, fromY] = BINARY_POSITIONS[edge.from];
+    const [toX, toY] = threadTarget(edge);
+    const direction = edge.side === 'left' ? -1 : 1;
+    const controlX = (fromX + toX) / 2 + direction * 7;
+    const controlY = Math.min(90, Math.max(fromY, toY) + (edge.to === null ? 3 : 12));
+    return `M ${fromX} ${fromY + 5} Q ${controlX} ${controlY} ${toX} ${toY + (edge.to === null ? 0 : 5)}`;
+  };
+  const isActiveThread = edge => (
+    activeThread
+    && edge.from === activeThread.from
+    && edge.to === activeThread.to
+    && edge.side === activeThread.side
+  );
+
+  return <div className="tree-canvas threaded-tree-canvas tree-arbol-enhebrado" role="img" aria-label="Árbol binario enhebrado: líneas sólidas para hijos y líneas discontinuas para hilos inorden">
+    <span className="tree-kind-label">BST DOBLEMENTE ENHEBRADO</span>
+    <svg className="edge-layer threaded-child-layer" aria-hidden="true">
+      {BINARY_EDGES.filter(([from,to]) => to < values.length && values[from] !== undefined && values[to] !== undefined).map(([from,to]) =>
+        <TreeEdge key={`${from}-${to}`} from={BINARY_POSITIONS[from]} to={BINARY_POSITIONS[to]} label={to === from * 2 + 1 ? 'L' : 'R'}/>
+      )}
+    </svg>
+    <svg className="thread-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <marker id="thread-arrow" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto">
+          <path d="M0,0 L5,2.5 L0,5 Z"/>
+        </marker>
+        <marker id="thread-arrow-active" markerWidth="6" markerHeight="6" refX="5.4" refY="3" orient="auto">
+          <path d="M0,0 L6,3 L0,6 Z"/>
+        </marker>
+      </defs>
+      {threadEdges.map(edge => <path
+        key={`${edge.from}-${edge.side}`}
+        className={`thread-edge ${edge.side}-thread ${isActiveThread(edge) ? 'active' : ''}`}
+        data-thread-from={edge.from}
+        data-thread-to={edge.to ?? 'null'}
+        data-thread-side={edge.side}
+        d={threadPath(edge)}
+        markerEnd={isActiveThread(edge) ? 'url(#thread-arrow-active)' : 'url(#thread-arrow)'}
+      />)}
+    </svg>
+    <span className="thread-null-anchor left-null">NULL</span>
+    <span className="thread-null-anchor right-null">NULL</span>
+    {BINARY_POSITIONS.map(([x,y], index) => {
+      if (values[index] === undefined) return null;
+      const meta = links.get(index);
+      const badge = `${meta.leftThread ? 'LT' : 'L hijo'} · ${meta.rightThread ? 'RT' : 'R hijo'}`;
+      return <div
+        key={index}
+        data-tree-index={index}
+        data-inorder-position={meta.order}
+        className={`tree-node threaded-node ${index >= 7 ? 'deep-node' : ''} ${index === step ? 'active' : ''}`}
+        style={{left:`${x}%`,top:`${y}%`}}
+      >
+        <span className="tree-value">{values[index]}</span>
+        <small className="tree-node-badge">{badge}</small>
+      </div>;
+    })}
+    <div className="threaded-tree-legend">
+      <span><i className="real-child-sample"/> hijo real</span>
+      <span><i className="thread-sample"/> hilo inorden</span>
+      <span>Orden: {inorder.map(index => values[index]).join(' → ')}</span>
+    </div>
+  </div>;
+}
+
 function NaryTreeDiagram({ algorithm, step }) {
   const values = algorithm.values.slice(0,10);
   const positions = [[50,8],[18,40],[50,40],[82,40],[7,80],[18,80],[29,80],[43,80],[57,80],[82,80]];
@@ -657,6 +743,7 @@ function TreeVisual({ algorithm, step }) {
   const values = algorithm.values.slice(0,15);
   if (!values.length) return <div className="empty-visual"><strong>∅</strong><span>Árbol vacío</span></div>;
   if (['arbol-general','arbol-nario'].includes(algorithm.id)) return <NaryTreeDiagram algorithm={algorithm} step={step}/>;
+  if (algorithm.id === 'arbol-enhebrado') return <ThreadedTreeDiagram algorithm={algorithm} step={step}/>;
   if (algorithm.type==='btree') return <MultiwayTreeDiagram algorithm={algorithm} step={step}/>;
   if (algorithm.id==='segment-tree') return <SegmentTreeDiagram algorithm={algorithm} step={step}/>;
   if (algorithm.id==='merkle-tree') return <MerkleTreeDiagram algorithm={algorithm} step={step}/>;
@@ -1014,7 +1101,7 @@ function Visualizer({ algorithm, step }) {
   if (!algorithm.values.length) return <div className="empty-visual"><strong>∅</strong><span>Estructura vacía</span></div>;
   if (['dijkstra','a-star'].includes(algorithm.id)) return <PathMapVisual algorithm={algorithm}/>;
   if (algorithm.id==='fenwick-tree') return <FenwickVisual algorithm={algorithm} step={step}/>;
-  if (['tree','heap','btree'].includes(algorithm.type)) return <TreeVisual algorithm={algorithm} step={step}/>;
+  if (['tree','threaded-tree','heap','btree'].includes(algorithm.type)) return <TreeVisual algorithm={algorithm} step={step}/>;
   if (['graph','digraph','weighted'].includes(algorithm.type)) return <GraphVisual algorithm={algorithm} step={step}/>;
   if (['array','stack','queue','linked','circular','sort','skip','union','cache'].includes(algorithm.type)) return <LinearVisual algorithm={algorithm} step={step}/>;
   return <SpecialVisual algorithm={algorithm} step={step}/>;
@@ -1248,6 +1335,8 @@ function App() {
     ? `El código muestra la clase Node, head, tail, size y los enlaces next${baseAlgorithm.id.includes('doble') ? ' y prev' : ''}. La línea iluminada corresponde al cambio que se observa en la lista.`
     : baseAlgorithm.id === 'matriz-dispersa'
       ? 'El código muestra AROW, ACOL y un único Node con left y up. AROW recorre de derecha a izquierda y ACOL de abajo hacia arriba hasta volver a sus cabeceras.'
+      : baseAlgorithm.id === 'arbol-enhebrado'
+        ? 'Las líneas sólidas son hijos reales. Las flechas discontinuas son hilos: LT lleva al predecesor y RT al sucesor inorden. El código comprueba los indicadores antes de seguir cada referencia.'
       : 'El código usa variables, arreglos, ciclos, condiciones y métodos pequeños. Cada línea iluminada corresponde al cambio mostrado en la estructura.';
   const displayedCode = codeMode === 'java' ? getBeginnerJava(baseAlgorithm, activeOperation) : baseAlgorithm.code;
   const codeLines = displayedCode.split('\n');

@@ -99,6 +99,18 @@ function normalized(text) {
   return String(text).replace(/\s+/g, ' ').trim();
 }
 
+function threadedInorderValues(values) {
+  const result = [];
+  const visit = index => {
+    if (index >= values.length || values[index] === undefined || values[index] === null) return;
+    visit(index * 2 + 1);
+    result.push(Number(values[index]));
+    visit(index * 2 + 2);
+  };
+  visit(0);
+  return result;
+}
+
 function validateResult({ algorithm, actionId, fields, beforeValues, beforeEdges, result, label }) {
   assert.equal(typeof result.ok, 'boolean', `${label}: falta result.ok.`);
   assert.ok(Array.isArray(result.values), `${label}: result.values no es un arreglo.`);
@@ -133,6 +145,18 @@ function validateResult({ algorithm, actionId, fields, beforeValues, beforeEdges
       && from < result.values.length && to < result.values.length
       && from !== to && Number.isFinite(Number(weight))
     )), `${label}: el grafo contiene una arista inválida.`);
+  }
+
+  if (algorithm.id === 'arbol-enhebrado' && result.ok) {
+    const compact = result.values.filter(value => value !== undefined && value !== null).map(Number);
+    const inorder = threadedInorderValues(result.values);
+    assert.deepEqual(inorder, [...inorder].sort((first, second) => first - second), `${label}: el orden BST se rompió.`);
+    assert.equal(new Set(compact).size, compact.length, `${label}: aparecieron claves duplicadas.`);
+    result.values.forEach((value, index) => {
+      if (index === 0 || value === undefined || value === null) return;
+      const parent = Math.floor((index - 1) / 2);
+      assert.notEqual(result.values[parent], undefined, `${label}: el nodo ${value} quedó desconectado de su padre.`);
+    });
   }
 
   const java = getBeginnerJava(algorithm, actionId);

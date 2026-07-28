@@ -483,11 +483,14 @@ export function adaptFramesToCode(frames, code, keepOriginalLines) {
   return frames.map((frame, index) => {
     if (keepOriginalLines) {
       if (frame.codeNeedle) {
-        const matchedLine = sourceLines.findIndex((line, sourceIndex) => (
+        let matchedLine = sourceLines.findIndex((line, sourceIndex) => (
           sourceIndex >= selectedStart
           && sourceIndex <= selectedEnd
           && line.includes(frame.codeNeedle)
         ));
+        if (matchedLine < 0) {
+          matchedLine = sourceLines.findIndex(line => line.includes(frame.codeNeedle));
+        }
         if (matchedLine >= 0) return { ...frame, codeLine: matchedLine };
       }
       if (frame.treePhase) {

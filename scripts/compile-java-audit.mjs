@@ -8,6 +8,7 @@ import { getOperationDefinition } from '../src/logic/operations.js';
 const workspace = path.resolve('.tmp-java-audit');
 const failures = [];
 let compilationCount = 0;
+const BATCH_SIZE = 40;
 
 function nodeDefinition(contextId) {
   if (contextId === 'arbol-general') {
@@ -180,36 +181,52 @@ await rm(workspace, { recursive: true, force: true });
 await mkdir(workspace, { recursive: true });
 
 try {
+  const output = path.join(workspace, 'classes');
+  const entries = [];
+  await mkdir(output, { recursive: true });
+
   for (const algorithm of algorithms) {
     for (const action of getOperationDefinition(algorithm).actions) {
       compilationCount++;
       const label = `${algorithm.id}/${action.id}`;
       const displayedSource = getBeginnerJava(algorithm, action.id);
       const { className, source } = compilableSource(displayedSource, algorithm.id);
-
-      const folder = path.join(workspace, String(compilationCount).padStart(3, '0'));
-      const output = path.join(folder, 'classes');
-      await mkdir(output, { recursive: true });
+      const auditId = String(compilationCount).padStart(3, '0');
+      const folder = path.join(workspace, 'sources', auditId);
+      await mkdir(folder, { recursive: true });
       const sourcePath = path.join(folder, `${className}.java`);
-      await writeFile(sourcePath, source, 'utf8');
+      const packagedSource = `package audit.p${auditId};\n\n${source}`;
+      await writeFile(sourcePath, packagedSource, 'utf8');
+      entries.push({ auditId, label, sourcePath });
+    }
+  }
 
-      const compilation = spawnSync(
-        'javac',
-        ['-encoding', 'UTF-8', '-d', output, sourcePath],
-        { encoding: 'utf8', timeout: 15_000, windowsHide: true },
-      );
-      if (compilation.error) {
-        failures.push(`${label}: ${compilation.error.message}`);
-        continue;
-      }
-      if (compilation.status !== 0) {
-        const diagnostic = `${compilation.stderr || compilation.stdout}`
-          .split(/\r?\n/)
-          .filter(Boolean)
-          .slice(0, 8)
-          .join(' | ');
-        failures.push(`${label}: ${diagnostic}`);
-      }
+  for (let start = 0; start < entries.length; start += BATCH_SIZE) {
+    const batch = entries.slice(start, start + BATCH_SIZE);
+    const argumentFile = path.join(workspace, `sources-${String(start / BATCH_SIZE + 1).padStart(2, '0')}.txt`);
+    const argumentsText = batch
+      .map(entry => `"${entry.sourcePath.replaceAll('\\', '/')}"`)
+      .join('\n');
+    await writeFile(argumentFile, argumentsText, 'utf8');
+    const firstNumber = start + 1;
+    const lastNumber = start + batch.length;
+    const compilation = spawnSync(
+      'javac',
+      ['-encoding', 'UTF-8', '-d', output, `@${argumentFile}`],
+      { encoding: 'utf8', timeout: 120_000, windowsHide: true },
+    );
+    if (compilation.error) {
+      failures.push(`Códigos ${firstNumber}-${lastNumber}: ${compilation.error.message}`);
+      continue;
+    }
+    if (compilation.status !== 0) {
+      const diagnostic = `${compilation.stderr || compilation.stdout}`
+        .split(/\r?\n/)
+        .filter(Boolean)
+        .slice(0, 30)
+        .join(' | ');
+      const mentioned = batch.filter(entry => diagnostic.includes(entry.auditId)).map(entry => entry.label);
+      failures.push(`${mentioned.length ? mentioned.join(', ') : `Códigos ${firstNumber}-${lastNumber}`}: ${diagnostic}`);
     }
   }
 } finally {

@@ -485,6 +485,24 @@ body{background:
 .nary-tree-canvas .tree-node{border-radius:9px}
 .nary-tree-canvas .tree-node:first-of-type{background:var(--green);color:#fff}
 
+.threaded-tree-canvas{width:min(700px,94%);height:300px}
+.threaded-tree-canvas .threaded-child-layer{z-index:1}
+.threaded-tree-canvas .thread-layer{position:absolute;inset:0;width:100%;height:100%;overflow:visible;z-index:2;pointer-events:none}
+.thread-edge{fill:none;stroke:#657b96;stroke-width:.68;stroke-dasharray:2.2 1.7;stroke-linecap:round;opacity:.68;vector-effect:non-scaling-stroke;transition:stroke .2s,stroke-width .2s,opacity .2s}
+.thread-edge.active{stroke:var(--orange);stroke-width:1.45;stroke-dasharray:3 1.5;opacity:1;filter:drop-shadow(0 1px 2px rgba(217,96,67,.35))}
+.thread-layer marker path{fill:#657b96}
+.thread-layer marker#thread-arrow-active path{fill:var(--orange)}
+.threaded-node{z-index:4;border-color:#526e8b;background:#fffdf9}
+.threaded-node .tree-node-badge{color:#506881;border-color:#b9c5d1;background:#f5f8fb;text-transform:none}
+.threaded-node.active .tree-node-badge{color:#a8432d;border-color:#efb39f;background:#fff3ed}
+.thread-null-anchor{position:absolute;top:85%;z-index:4;transform:translate(-50%,-50%);padding:3px 5px;border:1px dashed #8696a8;border-radius:4px;background:#f7f9fb;color:#65758a;font-family:'DM Mono',monospace;font-size:6.5px;font-weight:700;letter-spacing:.04em}
+.thread-null-anchor.left-null{left:3%}
+.thread-null-anchor.right-null{left:97%}
+.threaded-tree-legend{position:absolute;left:50%;bottom:0;z-index:5;transform:translateX(-50%);display:flex;align-items:center;gap:14px;max-width:96%;white-space:nowrap;padding:6px 9px;border:1px solid #cbd3dc;border-radius:6px;background:rgba(255,255,255,.92);color:#586678;font-family:'DM Mono',monospace;font-size:7px;box-shadow:0 4px 12px rgba(31,43,56,.07)}
+.threaded-tree-legend span{display:flex;align-items:center;gap:5px}
+.threaded-tree-legend i{display:inline-block;width:22px;height:0;border-top:2px solid #71827c}
+.threaded-tree-legend .thread-sample{border-top:2px dashed #657b96}
+
 .btree-visual .tree-kind-label{top:-8px}
 .bnode{display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center}
 .bnode small{font-family:'DM Mono',monospace;font-size:6px;letter-spacing:.08em;color:#89918c}
@@ -1314,6 +1332,9 @@ body{background:var(--paper)}
 @media(max-width:780px){
   .sparse-matrix-visual{width:100%;height:290px}
   .sparse-matrix-visual svg{overflow:visible}
+  .threaded-tree-canvas{width:98%;height:270px}
+  .threaded-tree-legend{bottom:0;gap:8px;font-size:6px}
+  .threaded-tree-legend span:last-child{display:none}
 }
 .tree-edge-label{
   font-size:8.5px;

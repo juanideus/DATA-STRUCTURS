@@ -10,8 +10,7 @@
   [![JavaScript](https://img.shields.io/badge/JavaScript-ES_Modules-F7DF1E?logo=javascript&logoColor=111)](https://developer.mozilla.org/docs/Web/JavaScript)
   [![License: MIT](https://img.shields.io/badge/License-MIT-2f6f5e.svg)](./LICENSE)
 
-  Desarrollado por **Juan Zúñiga Maluenda**  
-  Universidad Católica del Norte · Antofagasta, Chile
+  Desarrollado por **Juan Zúñiga Maluenda**
 </div>
 
 ---
@@ -34,7 +33,7 @@
 - [Accesibilidad y diseño adaptable](#accesibilidad-y-diseño-adaptable)
 - [Contribuciones](#contribuciones)
 - [Hoja de ruta](#hoja-de-ruta)
-- [Autor y contexto académico](#autor-y-contexto-académico)
+- [Autor](#autor)
 - [Licencia](#licencia)
 
 ## Acerca del proyecto
@@ -117,12 +116,12 @@ Cada tema incluye una guía con:
 - Navegación por categorías y entre temas anterior/siguiente.
 - Diseño adaptable para escritorio, tablet y móvil.
 - Favicon y marca visual de DSA Lab.
-- Crédito de autor y referencia a la Universidad Católica del Norte.
+- Crédito de autor visible en el menú lateral.
 - Formulario integrado para preparar reportes de errores en GitHub.
 
 ## Catálogo de contenidos
 
-La versión actual contiene **53 temas**, agrupados en siete categorías.
+La versión actual contiene **54 temas**, agrupados en siete categorías.
 
 ### 1. Estructuras lineales — 9 temas
 
@@ -136,67 +135,68 @@ La versión actual contiene **53 temas**, agrupados en siete categorías.
 8. Lista circular doble
 9. Skip List
 
-### 2. Árboles — 21 temas
+### 2. Árboles — 22 temas
 
 10. Árbol general
 11. Árbol N-ario
 12. Árbol binario
-13. Binary Search Tree
-14. Árbol AVL
-15. Árbol Rojo-Negro
-16. Splay Tree
-17. Heap binario
-18. Fibonacci Heap
-19. Prefix Tree
-20. Suffix Tree
-21. Segment Tree
-22. Fenwick Tree
-23. B-Tree
-24. B+ Tree
-25. B* Tree
-26. Merkle Tree
-27. KD-Tree
-28. QuadTree
-29. Octree
-30. Árbol de expresión
+13. Árbol binario enhebrado
+14. Binary Search Tree
+15. Árbol AVL
+16. Árbol Rojo-Negro
+17. Splay Tree
+18. Heap binario
+19. Fibonacci Heap
+20. Prefix Tree
+21. Suffix Tree
+22. Segment Tree
+23. Fenwick Tree
+24. B-Tree
+25. B+ Tree
+26. B* Tree
+27. Merkle Tree
+28. KD-Tree
+29. QuadTree
+30. Octree
+31. Árbol de expresión
 
 ### 3. Hashing — 3 temas
 
-31. Hash Table
-32. Open Addressing
-33. Separate Chaining
+32. Hash Table
+33. Open Addressing
+34. Separate Chaining
 
 ### 4. Grafos — 8 temas
 
-34. Grafo
-35. Grafo dirigido
-36. DFS
-37. BFS
-38. Dijkstra
-39. A* (A-Star)
-40. Prim
-41. Kruskal
+35. Grafo
+36. Grafo dirigido
+37. DFS
+38. BFS
+39. Dijkstra
+40. A* (A-Star)
+41. Prim
+42. Kruskal
 
 ### 5. Recursión — 5 temas
 
-42. Fibonacci
-43. Factorial
-44. Torres de Hanoi
-45. Merge Sort
-46. Quick Sort
+43. Fibonacci
+44. Factorial
+45. Torres de Hanoi
+46. Merge Sort
+47. Quick Sort
 
 ### 6. Backtracking — 3 temas
 
-47. N-Reinas
-48. Laberinto
-49. Sudoku Solver 9×9
+48. N-Reinas
+49. Laberinto
+50. Sudoku Solver 9×9
 
 ### 7. Otros — 4 temas
 
-50. Matriz poco poblada
-51. Union-Find
-52. LRU Cache
-53. Bloom Filter
+51. Matriz poco poblada
+52. Union-Find
+53. LRU Cache
+54. Bloom Filter
 
 ## Cómo funciona la experiencia
 
@@ -296,7 +296,7 @@ npm run preview
 | `npm run build` | Genera la versión optimizada dentro de `dist/` |
 | `npm run preview` | Sirve localmente la compilación de producción |
 | `npm run audit` | Ejecuta la auditoría funcional y educativa del catálogo |
-| `npm run audit:java` | Compila con `javac` los 247 códigos Java visibles |
+| `npm run audit:java` | Compila con `javac` los 251 códigos Java visibles |
 | `npm run audit:stress` | Prueba entradas extremas y secuencias largas de operaciones |
 | `npm run test:e2e` | Ejecuta pruebas reales de navegador en escritorio y móvil |
 | `npm run check` | Ejecuta las auditorías funcional, Java y de estrés, además de las pruebas E2E |
@@ -339,7 +339,7 @@ DSA/
 │   │   ├── OperationsPanel.jsx        # Campos y botones de operaciones
 │   │   └── VariablesPanel.jsx         # Variables de la ejecución en tiempo real
 │   ├── data/
-│   │   ├── algorithms.js              # Catálogo de 53 temas
+│   │   ├── algorithms.js              # Catálogo de 54 temas
 │   │   ├── beginnerJava.js            # Código Java por operación
 │   │   ├── educationalDescriptions.js # Contenido educativo detallado
 │   │   ├── graphDesigns.js             # Topologías visuales de los grafos
@@ -378,7 +378,7 @@ npm run audit
 
 comprueba automáticamente, entre otros puntos:
 
-- Que existan los 53 temas esperados.
+- Que existan los 54 temas esperados.
 - Que cada tema tenga descripción educativa suficiente.
 - Que cada tema incluya un ejemplo Java.
 - Que todas las acciones devuelvan valores, aristas y mensajes válidos.
@@ -393,21 +393,23 @@ comprueba automáticamente, entre otros puntos:
 - Que Torres de Hanoi complete todos sus movimientos.
 - Que B+ Tree acepte al menos 15 inserciones consecutivas y muestre una promoción al padre.
 - Que BST siga la ruta correcta y que AVL mantenga factores de balance válidos.
+- Que el árbol enhebrado conserve el orden BST, repare hilos al eliminar y recorra inorden sin pila ni recursión.
 - Que Splay lleve el nodo accedido a la raíz.
 - Que Merkle combine hashes por parejas y el árbol de expresión respete precedencia.
 - Que la matriz poco poblada inserte un único nodo en AROW y ACOL, recorra ambas listas en orden invertido y cierre sus enlaces circulares.
 
-La auditoría actual cubre **53 temas, 247 acciones, 2470 pruebas funcionales y 62 funciones distintas**. La capa de estrés añade **12 937 comprobaciones** —9757 entradas extremas y 3180 operaciones encadenadas—, para un total de **15 407 pruebas de lógica**. Además, los **247 códigos Java visibles** se compilan realmente con `javac`.
+La auditoría actual cubre **54 temas, 251 acciones, 2510 pruebas funcionales y 62 funciones distintas**. La capa de estrés añade **13 121 comprobaciones** —9881 entradas extremas y 3240 operaciones encadenadas—, para un total de **15 631 pruebas de lógica**. Además, los **251 códigos Java visibles** se compilan realmente con `javac`.
 
 Además, Playwright verifica los recorridos críticos en Chromium de escritorio y móvil:
 
 - Enlaces compartibles como `/avl` y `/sudoku`.
-- Carga directa de los 53 temas, sus visualizadores, controles y paneles de código.
+- Carga directa de los 54 temas, sus visualizadores, controles y paneles de código.
 - Rechazo seguro de índices negativos, coordenadas fuera de rango, valores enormes y texto potencialmente peligroso.
 - Avance sincronizado de animación, línea Java, explicación y variables en arreglos, grafos, Hanoi y N-Reinas.
 - Persistencia del tema, velocidad y formato de código.
 - Operaciones y restablecimiento de estructuras.
 - Recorrido BST sincronizado entre nodo, línea Java y variables.
+- Árbol enhebrado con hijos sólidos, hilos discontinuos, inserción y recorrido inorden sincronizado.
 - Inserciones consecutivas en B+ con nodos de máximo tres claves, sin cruces ni solapamientos.
 - Código especializado visible para AVL, Suffix Tree y B+ Tree.
 - Introducción mostrada sólo durante la primera visita.
@@ -563,11 +565,9 @@ Posibles mejoras futuras:
 - Ampliar los árboles multicamino a más niveles visuales.
 - Incorporar nuevos algoritmos de ordenamiento, caminos mínimos y programación dinámica.
 
-## Autor y contexto académico
+## Autor
 
-**Autor:** Juan Zúñiga Maluenda  
-**Contexto académico:** Universidad Católica del Norte  
-**Ubicación:** Antofagasta, Chile
+**Juan Zúñiga Maluenda**
 
 DSA Lab es una iniciativa educativa enfocada en facilitar la comprensión de estructuras de datos y algoritmos. Los nombres, marcas y recursos visuales de terceros pertenecen a sus respectivos titulares.
 

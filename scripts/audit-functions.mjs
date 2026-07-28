@@ -8,6 +8,7 @@ import {
   DEFAULT_GRAPH_EDGES,
   executeOperation,
   getOperationDefinition,
+  getThreadedTreeLinks,
   operationGroup,
 } from '../src/logic/operations.js';
 import {
@@ -135,7 +136,7 @@ function validQueens(queens) {
   )));
 }
 
-assert.equal(algorithms.length, 53, 'El catálogo debe contener 53 temas.');
+assert.equal(algorithms.length, 54, 'El catálogo debe contener 54 temas.');
 assert.equal(new Set(algorithms.map(algorithm => algorithm.id)).size, algorithms.length, 'El catálogo contiene identificadores duplicados.');
 assert.equal(new Set(algorithms.map(algorithm => algorithm.name)).size, algorithms.length, 'El catálogo contiene nombres duplicados.');
 assert.equal(Object.keys(educationalDescriptions).length, algorithms.length, 'La cantidad de descripciones no coincide con el catálogo.');
@@ -434,6 +435,73 @@ assert.match(rootResult.message, /es 0/i, 'Union-Find: find no sigue la cadena h
 const fibonacciHeap = algorithms.find(item => item.id === 'fibonacci-heap');
 const heapInsert = run(fibonacciHeap, 'heap-add', { value: '1', second: '', index: '' });
 assert.equal(heapInsert.values[0], 1, 'Fibonacci Heap: la raíz debe representar el mínimo.');
+
+const binaryTree = algorithms.find(item => item.id === 'arbol-binario');
+const binaryTreeInsertCode = getBeginnerJava(binaryTree, 'tree-add');
+assert.doesNotMatch(binaryTreeInsertCode, /Queue|ArrayDeque/, 'Árbol binario/insertar: no debe utilizar una cola.');
+assert.match(binaryTreeInsertCode, /insertAtFirstAvailableLevel\(root, value, level \+ 1\)/, 'Árbol binario/insertar: debe avanzar recursivamente al siguiente nivel.');
+assert.match(binaryTreeInsertCode, /insertAtLevel\(node\.left, value, level - 1\)/, 'Árbol binario/insertar: debe recorrer recursivamente el hijo izquierdo.');
+const binaryTreeInsert = run(binaryTree, 'tree-add', { value: '99', second: '', index: '' });
+assert.deepEqual(
+  binaryTreeInsert.values,
+  [8, 3, 12, 1, 5, 10, 15, 99],
+  'Árbol binario/insertar: la recursión debe ocupar el primer espacio libre por nivel.',
+);
+const binaryTreeInsertFrames = adaptFramesToCode(binaryTreeInsert.frames, binaryTreeInsertCode, true);
+assert.ok(
+  [0, 1, 3, 7].every(position => binaryTreeInsertFrames.some(frame => frame.position === position)),
+  'Árbol binario/insertar: la animación debe mostrar las llamadas recursivas hasta el nuevo nodo.',
+);
+
+const threadedTree = algorithms.find(item => item.id === 'arbol-enhebrado');
+const initialThreads = getThreadedTreeLinks(threadedTree.values);
+assert.deepEqual(
+  initialThreads.inorder.map(index => threadedTree.values[index]),
+  [5, 10, 15, 20, 25, 30, 35],
+  'Árbol enhebrado: el orden inorden inicial es incorrecto.',
+);
+assert.equal(initialThreads.links.get(3).successor, 1, 'Árbol enhebrado: 5 debe enhebrarse hacia el sucesor 10.');
+assert.equal(initialThreads.links.get(4).predecessor, 1, 'Árbol enhebrado: 15 debe enhebrarse hacia el predecesor 10.');
+assert.equal(initialThreads.links.get(4).successor, 0, 'Árbol enhebrado: 15 debe enhebrarse hacia el sucesor 20.');
+const threadedInsertResult = run(threadedTree, 'tree-add', { value: '12', second: '', index: '' });
+assert.equal(threadedInsertResult.values[9], 12, 'Árbol enhebrado: 12 debe insertarse como hijo izquierdo de 15.');
+assert.ok(threadedInsertResult.frames.some(frame => frame.activeThread), 'Árbol enhebrado: la inserción debe mostrar los hilos creados.');
+const threadedAfterInsert = getThreadedTreeLinks(threadedInsertResult.values);
+assert.deepEqual(
+  threadedAfterInsert.inorder.map(index => threadedInsertResult.values[index]),
+  [5, 10, 12, 15, 20, 25, 30, 35],
+  'Árbol enhebrado: insertar debe conservar el orden BST.',
+);
+const threadedInorder = run(threadedTree, 'inorder');
+assert.match(threadedInorder.message, /5 → 10 → 15 → 20 → 25 → 30 → 35/, 'Árbol enhebrado: el recorrido no sigue los hilos en orden.');
+assert.ok(
+  threadedInorder.frames.some(frame => frame.threadPhase === 'follow' && frame.activeThread),
+  'Árbol enhebrado: la animación inorden debe seguir al menos un hilo.',
+);
+const threadedRemove = run(threadedTree, 'remove-value', { value: '10', second: '', index: '' });
+const threadedAfterRemove = getThreadedTreeLinks(threadedRemove.values);
+assert.deepEqual(
+  threadedAfterRemove.inorder.map(index => threadedRemove.values[index]),
+  [5, 15, 20, 25, 30, 35],
+  'Árbol enhebrado: eliminar un nodo con dos hijos debe conservar el orden.',
+);
+const threadedRemoveLeaf = run(threadedTree, 'remove-value', { value: '5', second: '', index: '' });
+assertOrderedBinaryTree(threadedRemoveLeaf.values, 'Árbol enhebrado/eliminar-hoja');
+assert.deepEqual(threadedRemoveLeaf.values.filter(value => value !== undefined).sort((a, b) => a - b), [10, 15, 20, 25, 30, 35], 'Árbol enhebrado: eliminar una hoja retiró un valor incorrecto.');
+const threadedRemoveOneChild = run(threadedTree, 'remove-value', { value: '15', second: '', index: '' }, threadedInsertResult.values);
+assertOrderedBinaryTree(threadedRemoveOneChild.values, 'Árbol enhebrado/eliminar-un-hijo');
+assert.equal(threadedRemoveOneChild.values[4], 12, 'Árbol enhebrado: el único hijo de 15 debe ocupar su enlace real.');
+const threadedRemoveRoot = run(threadedTree, 'remove-value', { value: '20', second: '', index: '' });
+assertOrderedBinaryTree(threadedRemoveRoot.values, 'Árbol enhebrado/eliminar-raíz');
+assert.equal(threadedRemoveRoot.values[0], 25, 'Árbol enhebrado: la raíz con dos hijos debe recibir su sucesor inorden.');
+const threadedInsertEmpty = run(threadedTree, 'tree-add', { value: '40', second: '', index: '' }, []);
+assert.deepEqual(threadedInsertEmpty.values, [40], 'Árbol enhebrado: insertar en un árbol vacío debe crear la raíz.');
+for (const actionId of ['tree-add', 'remove-value', 'find', 'inorder']) {
+  const code = getBeginnerJava(threadedTree, actionId);
+  assert.match(code, /leftThread/, `Árbol enhebrado/${actionId}: falta distinguir el hilo izquierdo.`);
+  assert.match(code, /rightThread/, `Árbol enhebrado/${actionId}: falta distinguir el hilo derecho.`);
+}
+assert.doesNotMatch(getBeginnerJava(threadedTree, 'inorder'), /Stack|Queue|inorder\s*\(\s*current/, 'Árbol enhebrado/inorden: no debe usar pila, cola ni recursión.');
 
 const bplus = algorithms.find(item => item.id === 'bplus-tree');
 let bplusValues = [...bplus.values];

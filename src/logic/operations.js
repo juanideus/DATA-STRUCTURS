@@ -48,6 +48,10 @@ const definitions = {
     fields: [field('value', 'Valor', 'number')],
     actions: [action('tree-add', 'Insertar nodo'), action('remove-value', 'Eliminar nodo', 'danger'), action('find', 'Buscar'), action('preorder', 'Preorden'), action('inorder', 'Inorden'), action('postorder', 'Postorden')],
   },
+  threadedTree: {
+    fields: [field('value', 'Valor', 'number')],
+    actions: [action('tree-add', 'Insertar nodo'), action('remove-value', 'Eliminar nodo', 'danger'), action('find', 'Buscar'), action('inorder', 'Inorden sin pila')],
+  },
   spatial: {
     fields: [field('value', 'Punto / valor')],
     actions: [action('tree-add', 'Insertar punto'), action('remove-value', 'Eliminar', 'danger'), action('find', 'Buscar'), action('preorder', 'Recorrer')],
@@ -143,6 +147,7 @@ const definitions = {
 
 export function operationGroup(algorithm) {
   if (algorithm.id === 'matriz-dispersa') return 'sparseMatrix';
+  if (algorithm.id === 'arbol-enhebrado') return 'threadedTree';
   if (algorithm.id === 'array') return 'array';
   if (algorithm.id === 'pila') return 'stack';
   if (algorithm.id === 'cola') return 'queue';
@@ -218,6 +223,83 @@ const binaryTraversal = (values, order) => {
   };
   visit(0);
   return result;
+};
+
+const binaryRecursiveInsertionFrames = (before, after, value, insertedAt) => {
+  const frames = [];
+  const variables = (level, index, currentValues, extras = []) => [
+    { name: 'valor', value, role: 'input' },
+    { name: 'nivel', value: level, role: 'index' },
+    { name: 'nodo', value: currentValues[index] ?? 'null', role: 'value' },
+    ...extras,
+  ];
+  const addFrame = (codeNeedle, message, position = 0, level = 0, values = before, extras = {}) => {
+    frames.push({
+      values: [...values],
+      position: Math.max(0, position),
+      codeNeedle,
+      message,
+      variables: variables(level, position, values, extras.variables ?? []),
+      completed: extras.completed ?? false,
+    });
+  };
+
+  addFrame('Node insert(Node root, int value)', `Comienza insert(root, ${value}).`);
+  addFrame('if (root == null) return new Node(value);', 'Comprueba si el árbol está vacío.');
+  if (!before.length) {
+    addFrame('if (root == null) return new Node(value);', `${value} se convierte en la raíz.`, 0, 0, after, { completed: true });
+    return frames;
+  }
+  addFrame('insertAtFirstAvailableLevel(root, value, 1);', 'La búsqueda recursiva comienza en el nivel 1.');
+
+  const targetDepth = Math.floor(Math.log2(insertedAt + 1));
+  const targetParent = Math.floor((insertedAt - 1) / 2);
+  const visitLevel = (index, remainingLevel, requestedLevel) => {
+    if (index >= before.length || before[index] === undefined) {
+      addFrame('if (node == null) return false;', 'La llamada llegó a una referencia null.', Math.max(0, Math.floor((index - 1) / 2)), requestedLevel);
+      return false;
+    }
+
+    addFrame('boolean insertAtLevel(Node node, int value, int level)', `Llamada recursiva sobre el nodo ${before[index]} con level = ${remainingLevel}.`, index, requestedLevel, before, {
+      variables: [{ name: 'level restante', value: remainingLevel, role: 'index' }],
+    });
+    addFrame('if (node == null) return false;', `El nodo ${before[index]} existe; la recursión continúa.`, index, requestedLevel);
+
+    if (remainingLevel === 1) {
+      addFrame('if (level == 1)', `El nodo ${before[index]} pertenece al nivel que se está revisando.`, index, requestedLevel);
+      const leftIndex = index * 2 + 1;
+      addFrame('if (node.left == null)', `Comprueba el hijo izquierdo de ${before[index]}.`, index, requestedLevel);
+      if (leftIndex === insertedAt && index === targetParent) {
+        addFrame('node.left = new Node(value);', `${value} ocupa el primer espacio libre: hijo izquierdo de ${before[index]}.`, insertedAt, requestedLevel, after);
+        return true;
+      }
+
+      const rightIndex = index * 2 + 2;
+      addFrame('if (node.right == null)', `Comprueba el hijo derecho de ${before[index]}.`, index, requestedLevel);
+      if (rightIndex === insertedAt && index === targetParent) {
+        addFrame('node.right = new Node(value);', `${value} ocupa el primer espacio libre: hijo derecho de ${before[index]}.`, insertedAt, requestedLevel, after);
+        return true;
+      }
+      addFrame('return false;', `El nodo ${before[index]} no tiene espacios libres en este nivel.`, index, requestedLevel);
+      return false;
+    }
+
+    addFrame('if (insertAtLevel(node.left, value, level - 1)) return true;', `Desciende recursivamente por la izquierda de ${before[index]}.`, index, requestedLevel);
+    if (visitLevel(index * 2 + 1, remainingLevel - 1, requestedLevel)) return true;
+    addFrame('return insertAtLevel(node.right, value, level - 1);', `La izquierda está completa; desciende por la derecha de ${before[index]}.`, index, requestedLevel);
+    return visitLevel(index * 2 + 2, remainingLevel - 1, requestedLevel);
+  };
+
+  for (let level = 1; level <= targetDepth; level++) {
+    addFrame('void insertAtFirstAvailableLevel(Node root, int value, int level)', `Busca recursivamente un espacio en el nivel ${level}.`, 0, level);
+    addFrame('if (insertAtLevel(root, value, level)) return;', `Ejecuta insertAtLevel para el nivel ${level}.`, 0, level);
+    if (visitLevel(0, level, level)) {
+      addFrame('return root;', `Nodo ${value} insertado recursivamente; el árbol conserva su forma completa.`, insertedAt, level, after, { completed: true });
+      return frames;
+    }
+    addFrame('insertAtFirstAvailableLevel(root, value, level + 1);', `El nivel ${level} está lleno; llama recursivamente al nivel ${level + 1}.`, 0, level);
+  }
+  return frames;
 };
 
 const orderedBinaryTreeIds = new Set(['bst', 'avl', 'rojo-negro', 'splay-tree', 'kd-tree']);
@@ -420,6 +502,272 @@ const binarySearchPosition = (values, target) => {
   }
   return -1;
 };
+
+const occupiedThreadedPosition = (values, index) => (
+  index >= 0 && index < values.length && values[index] !== undefined && values[index] !== null
+);
+
+export function getThreadedTreeLinks(values) {
+  const inorder = [];
+  const visit = index => {
+    if (!occupiedThreadedPosition(values, index)) return;
+    visit(index * 2 + 1);
+    inorder.push(index);
+    visit(index * 2 + 2);
+  };
+  visit(0);
+
+  const links = new Map();
+  inorder.forEach((index, order) => {
+    const leftChild = index * 2 + 1;
+    const rightChild = index * 2 + 2;
+    links.set(index, {
+      index,
+      value: values[index],
+      order,
+      leftThread: !occupiedThreadedPosition(values, leftChild),
+      rightThread: !occupiedThreadedPosition(values, rightChild),
+      predecessor: order > 0 ? inorder[order - 1] : null,
+      successor: order < inorder.length - 1 ? inorder[order + 1] : null,
+    });
+  });
+  return { inorder, links };
+}
+
+const treeSlotsToPlainNode = (values, index = 0) => {
+  if (!occupiedThreadedPosition(values, index)) return null;
+  return {
+    value: values[index],
+    left: treeSlotsToPlainNode(values, index * 2 + 1),
+    right: treeSlotsToPlainNode(values, index * 2 + 2),
+  };
+};
+
+const plainNodeToTreeSlots = root => {
+  const values = [];
+  let hiddenNode = false;
+  const place = (node, index) => {
+    if (!node) return;
+    if (index >= 15) {
+      hiddenNode = true;
+      return;
+    }
+    values[index] = node.value;
+    place(node.left, index * 2 + 1);
+    place(node.right, index * 2 + 2);
+  };
+  place(root, 0);
+  return { values: trimTreeSlots(values), hiddenNode };
+};
+
+const removePlainBstNode = (node, target) => {
+  if (!node) return null;
+  if (Number(target) < Number(node.value)) {
+    node.left = removePlainBstNode(node.left, target);
+  } else if (Number(target) > Number(node.value)) {
+    node.right = removePlainBstNode(node.right, target);
+  } else if (!node.left) {
+    return node.right;
+  } else if (!node.right) {
+    return node.left;
+  } else {
+    let successor = node.right;
+    while (successor.left) successor = successor.left;
+    node.value = successor.value;
+    node.right = removePlainBstNode(node.right, successor.value);
+  }
+  return node;
+};
+
+const threadedVariables = (values, position, extras = []) => {
+  const meta = getThreadedTreeLinks(values).links.get(position);
+  return [
+    { name: 'actual', value: values[position] ?? 'null', role: 'value' },
+    { name: 'leftThread', value: meta?.leftThread ?? '—', role: meta?.leftThread ? 'true' : 'false' },
+    { name: 'rightThread', value: meta?.rightThread ?? '—', role: meta?.rightThread ? 'true' : 'false' },
+    ...extras,
+  ];
+};
+
+const threadedFrame = (values, position, codeNeedle, message, extras = {}) => ({
+  values: [...values],
+  position: Math.max(0, position),
+  codeNeedle,
+  message,
+  variables: threadedVariables(values, position, extras.variables ?? []),
+  threadPhase: extras.threadPhase,
+  activeThread: extras.activeThread,
+  completed: extras.completed ?? false,
+  delayMs: extras.delayMs ?? 760,
+});
+
+const threadedSearchPath = (values, target, includeMissing = false) => {
+  const positions = [];
+  let index = 0;
+  while (index < 15 && occupiedThreadedPosition(values, index)) {
+    positions.push(index);
+    if (Number(values[index]) === Number(target)) break;
+    index = Number(target) < Number(values[index]) ? index * 2 + 1 : index * 2 + 2;
+  }
+  if (includeMissing && index < 15 && !occupiedThreadedPosition(values, index)) positions.push(index);
+  return positions;
+};
+
+function executeThreadedTreeOperation({ actionId, fields, values, initialValues, edges }) {
+  const before = [...values];
+  const value = numericValue(fields.value ?? '', before);
+  const fail = message => ({ ok: false, values: before, edges, message, step: 0 });
+  const done = (updated, message, position, frames) => ({
+    ok: true,
+    values: updated,
+    edges,
+    message,
+    step: Math.max(0, position),
+    frames,
+  });
+
+  if (actionId === 'reset') {
+    return done([...initialValues], 'Estructura restablecida a su estado inicial.', 0, [
+      threadedFrame(initialValues, 0, 'root = buildInitialTree();', 'El árbol enhebrado volvió a su ejemplo inicial.', { completed: true }),
+    ]);
+  }
+
+  if (actionId === 'tree-add') {
+    if (value === null) return fail('Ingresa un valor válido antes de insertar.');
+    if (binarySearchPosition(before, value) >= 0) return fail(`${value} ya existe en el árbol.`);
+    if (compactTreeValues(before).length >= 15) return fail('La demostración admite hasta 15 nodos visibles.');
+
+    const path = threadedSearchPath(before, value);
+    const parent = path.at(-1);
+    const insertedAt = parent === undefined
+      ? 0
+      : Number(value) < Number(before[parent]) ? parent * 2 + 1 : parent * 2 + 2;
+    if (insertedAt >= 15) return fail('La inserción produciría un nivel que no cabe completo en el visualizador.');
+
+    const after = [...before];
+    after[insertedAt] = value;
+    const trimmedAfter = trimTreeSlots(after);
+    const frames = [];
+    if (!before.length) {
+      frames.push(threadedFrame(before, 0, 'if (parent == null) return newNode;', 'El árbol está vacío; el nuevo nodo será la raíz.'));
+    } else {
+      path.forEach((position, visitIndex) => {
+        frames.push(threadedFrame(before, position, 'while (current != null)', `Se visita ${before[position]} y se compara con ${value}.`, {
+          variables: [{ name: 'value', value, role: 'input' }, { name: 'comparación', value: `${visitIndex + 1} de ${path.length}`, role: 'index' }],
+        }));
+        const goesLeft = Number(value) < Number(before[position]);
+        frames.push(threadedFrame(before, position, goesLeft ? 'if (value < current.value)' : '} else {', `${value} es ${goesLeft ? 'menor' : 'mayor'} que ${before[position]}; se revisa la referencia ${goesLeft ? 'izquierda' : 'derecha'}.`, {
+          variables: [{ name: 'value', value, role: 'input' }],
+        }));
+      });
+    }
+
+    const afterMeta = getThreadedTreeLinks(trimmedAfter).links.get(insertedAt);
+    const predecessorThread = afterMeta?.predecessor === null ? null : { from: insertedAt, to: afterMeta.predecessor, side: 'left' };
+    const successorThread = afterMeta?.successor === null ? null : { from: insertedAt, to: afterMeta.successor, side: 'right' };
+    frames.push(threadedFrame(trimmedAfter, insertedAt, 'Node newNode = new Node(value);', `Se crea el nodo ${value}; sus dos referencias comienzan como hilos.`, {
+      variables: [{ name: 'value', value, role: 'input' }],
+    }));
+    if (parent !== undefined && Number(value) < Number(before[parent])) {
+      frames.push(threadedFrame(trimmedAfter, insertedAt, 'newNode.left = parent.left;', `El hilo izquierdo de ${value} apunta a ${afterMeta?.predecessor === null ? 'null' : trimmedAfter[afterMeta.predecessor]}, su predecesor.`, { threadPhase: 'link', activeThread: predecessorThread }));
+      frames.push(threadedFrame(trimmedAfter, insertedAt, 'newNode.right = parent;', `El hilo derecho de ${value} apunta a ${before[parent]}, su sucesor.`, { threadPhase: 'link', activeThread: successorThread }));
+      frames.push(threadedFrame(trimmedAfter, parent, 'parent.leftThread = false;', `${before[parent]} deja de usar un hilo izquierdo: ahora tiene un hijo real.`, { threadPhase: 'child' }));
+    } else if (parent !== undefined) {
+      frames.push(threadedFrame(trimmedAfter, insertedAt, 'newNode.left = parent;', `El hilo izquierdo de ${value} apunta a ${before[parent]}, su predecesor.`, { threadPhase: 'link', activeThread: predecessorThread }));
+      frames.push(threadedFrame(trimmedAfter, insertedAt, 'newNode.right = parent.right;', `El hilo derecho de ${value} apunta a ${afterMeta?.successor === null ? 'null' : trimmedAfter[afterMeta.successor]}, su sucesor.`, { threadPhase: 'link', activeThread: successorThread }));
+      frames.push(threadedFrame(trimmedAfter, parent, 'parent.rightThread = false;', `${before[parent]} deja de usar un hilo derecho: ahora tiene un hijo real.`, { threadPhase: 'child' }));
+    }
+    frames.push(threadedFrame(trimmedAfter, insertedAt, 'return root;', `Nodo ${value} insertado y enhebrado correctamente.`, { completed: true }));
+    return done(trimmedAfter, `Nodo ${value} insertado y enhebrado correctamente.`, insertedAt, frames);
+  }
+
+  if (actionId === 'find') {
+    if (value === null) return fail('Ingresa el valor que quieres buscar.');
+    const path = threadedSearchPath(before, value);
+    const found = binarySearchPosition(before, value);
+    const frames = path.flatMap(position => {
+      const current = before[position];
+      const comparison = Number(value) === Number(current)
+        ? `${value} coincide con el nodo actual.`
+        : `${value} es ${Number(value) < Number(current) ? 'menor' : 'mayor'} que ${current}.`;
+      return [
+        threadedFrame(before, position, 'while (current != null)', `La búsqueda está en ${current}.`, { variables: [{ name: 'target', value, role: 'input' }] }),
+        threadedFrame(before, position, 'if (target == current.value) return current;', comparison, { variables: [{ name: 'target', value, role: 'input' }] }),
+      ];
+    });
+    if (found < 0) {
+      const last = path.at(-1) ?? 0;
+      const goesLeft = Number(value) < Number(before[last]);
+      frames.push(threadedFrame(before, last, goesLeft ? 'if (current.leftThread) return null;' : 'if (current.rightThread) return null;', `La referencia ${goesLeft ? 'izquierda' : 'derecha'} es un hilo, por lo que ${value} no está en el árbol.`, { completed: true }));
+      return { ...fail(`${value} no fue encontrado.`), frames };
+    }
+    frames.push(threadedFrame(before, found, 'return current;', `${value} fue encontrado sin atravesar ningún hilo como si fuera un hijo.`, { completed: true }));
+    return done(before, `${value} fue encontrado.`, found, frames);
+  }
+
+  if (actionId === 'inorder') {
+    if (!before.length) return fail('El árbol está vacío.');
+    const { inorder, links } = getThreadedTreeLinks(before);
+    const frames = [];
+    let leftMost = 0;
+    frames.push(threadedFrame(before, leftMost, 'Node current = leftMost(root);', 'El recorrido comienza buscando el nodo más a la izquierda.'));
+    while (occupiedThreadedPosition(before, leftMost * 2 + 1)) {
+      frames.push(threadedFrame(before, leftMost, 'while (!node.leftThread)', `${before[leftMost]} tiene un hijo izquierdo real; se desciende hacia él.`));
+      leftMost = leftMost * 2 + 1;
+    }
+    frames.push(threadedFrame(before, leftMost, 'return node;', `${before[leftMost]} es el primer nodo del orden inorden.`));
+
+    inorder.forEach((position, orderIndex) => {
+      const meta = links.get(position);
+      frames.push(threadedFrame(before, position, 'System.out.println(current.value);', `Se visita ${before[position]} (${orderIndex + 1} de ${inorder.length}).`, {
+        variables: [{ name: 'salida', value: inorder.slice(0, orderIndex + 1).map(index => before[index]).join(' → '), role: 'value' }],
+      }));
+      if (meta.rightThread) {
+        frames.push(threadedFrame(before, position, 'if (current.rightThread)', `${before[position]} no tiene hijo derecho: se sigue su hilo hacia ${meta.successor === null ? 'null' : before[meta.successor]}.`, {
+          threadPhase: 'follow',
+          activeThread: meta.successor === null ? null : { from: position, to: meta.successor, side: 'right' },
+        }));
+      } else {
+        const rightChild = position * 2 + 2;
+        frames.push(threadedFrame(before, rightChild, 'current = leftMost(current.right);', `${before[position]} tiene hijo derecho real; se busca el menor nodo de ese subárbol.`));
+      }
+    });
+    frames.push(threadedFrame(before, inorder.at(-1), 'while (current != null)', `Recorrido terminado: ${inorder.map(index => before[index]).join(' → ')}.`, { completed: true }));
+    return done(before, `inorder: ${inorder.map(index => before[index]).join(' → ')}.`, inorder.at(-1), frames);
+  }
+
+  if (actionId === 'remove-value') {
+    if (value === null) return fail('Ingresa el valor que quieres eliminar.');
+    const found = binarySearchPosition(before, value);
+    if (found < 0) return fail(`${value} no existe en el árbol.`);
+    const path = threadedSearchPath(before, value);
+    const root = treeSlotsToPlainNode(before);
+    const removal = plainNodeToTreeSlots(removePlainBstNode(root, value));
+    if (removal.hiddenNode) return fail('La eliminación produciría una forma que no cabe en el visualizador.');
+    const after = removal.values;
+    const hasLeft = occupiedThreadedPosition(before, found * 2 + 1);
+    const hasRight = occupiedThreadedPosition(before, found * 2 + 2);
+    const frames = path.map(position => threadedFrame(before, position, 'while (current != null && current.value != target)', `Se busca ${value}; ahora se revisa el nodo ${before[position]}.`, {
+      variables: [{ name: 'target', value, role: 'input' }],
+    }));
+    frames.push(threadedFrame(before, found, 'if (!current.leftThread && !current.rightThread)', hasLeft && hasRight
+      ? `${value} tiene dos hijos reales; se copiará su sucesor inorden antes de retirar el nodo sucesor.`
+      : `${value} tiene ${hasLeft || hasRight ? 'un hijo real' : 'sólo hilos'}; puede desconectarse directamente.`));
+
+    if (hasLeft && hasRight) {
+      const successorIndex = getThreadedTreeLinks(before).links.get(found).successor;
+      const intermediate = [...before];
+      intermediate[found] = before[successorIndex];
+      frames.push(threadedFrame(intermediate, found, 'current.value = successor.value;', `El sucesor ${before[successorIndex]} reemplaza temporalmente el valor ${value}.`));
+    }
+    frames.push(threadedFrame(after, Math.min(found, Math.max(0, after.length - 1)), 'Node predecessor = inorderPredecessor(current);', 'Se localiza el predecesor que debe conservar su hilo.'));
+    frames.push(threadedFrame(after, Math.min(found, Math.max(0, after.length - 1)), 'Node successor = inorderSuccessor(current);', 'Se localiza el sucesor que debe conservar su hilo.'));
+    frames.push(threadedFrame(after, Math.min(found, Math.max(0, after.length - 1)), 'return root;', `${value} fue eliminado; los hijos reales y los hilos fueron reconectados.`, { completed: true }));
+    return done(after, `${value} fue eliminado y el enhebrado quedó consistente.`, Math.min(found, Math.max(0, after.length - 1)), frames);
+  }
+
+  return fail('La operación del árbol enhebrado todavía no está disponible.');
+}
 
 const expressionPrecedence = operator => ({ '+': 1, '-': 1, '*': 2, '/': 2 }[operator] ?? 0);
 
@@ -1448,6 +1796,7 @@ function executeSparseMatrixOperation({ actionId, fields, values, edges }) {
 export function executeOperation({ algorithm, actionId, fields, values, edges, initialValues, initialEdges = DEFAULT_GRAPH_EDGES }) {
   const group = operationGroup(algorithm);
   if (group === 'sparseMatrix') return executeSparseMatrixOperation({ actionId, fields, values, edges });
+  if (group === 'threadedTree') return executeThreadedTreeOperation({ actionId, fields, values, initialValues, edges });
   const next = [...values];
   const forceText = ['merkle', 'hash', 'cache'].includes(group) || (group === 'spatial' && algorithm.id !== 'kd-tree');
   const value = numericValue(fields.value ?? '', values, forceText);
@@ -1627,6 +1976,16 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
             ? ' y fue llevado a la raíz'
             : '';
         return done(rebuilt, `Nodo ${value} insertado${detail}.`, insertedAt);
+      }
+      if (algorithm.id === 'arbol-binario') {
+        const before = [...next];
+        next.push(value);
+        const insertedAt = next.length - 1;
+        const message = `Nodo ${value} insertado recursivamente en el primer espacio libre.`;
+        return {
+          ...done(next, message, insertedAt),
+          frames: binaryRecursiveInsertionFrames(before, next, value, insertedAt),
+        };
       }
       next.push(value); return done(next, `Nodo ${value} insertado en el siguiente espacio disponible.`);
     }
