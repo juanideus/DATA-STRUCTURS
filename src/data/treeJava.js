@@ -534,12 +534,56 @@ const generalTree = {
 };
 
 const naryTree = {
-  ...generalTree,
   'tree-add': animated(`boolean addChild(Node parent, int value) {
     if (parent.childCount == N) return false;
     parent.children[parent.childCount] = new Node(value);
     parent.childCount++;
     return true;
+}`),
+  find: animated(`Node find(Node node, int target) {
+    if (node == null || node.value == target) return node;
+    for (int i = 0; i < node.childCount; i++) {
+        Node found = find(node.children[i], target);
+        if (found != null) return found;
+    }
+    return null;
+}`),
+  'remove-value': animated(`boolean remove(Node parent, int target) {
+    for (int i = 0; i < parent.childCount; i++) {
+        Node child = parent.children[i];
+        if (child.value == target) {
+            for (int j = i; j < parent.childCount - 1; j++) {
+                parent.children[j] = parent.children[j + 1];
+            }
+            parent.childCount--;
+            parent.children[parent.childCount] = null;
+            return true;
+        }
+        if (remove(child, target)) return true;
+    }
+    return false;
+}`),
+  preorder: animated(`void preorder(Node node) {
+    if (node == null) return;
+    System.out.println(node.value);
+    for (int i = 0; i < node.childCount; i++) {
+        preorder(node.children[i]);
+    }
+}`),
+  inorder: animated(`void inorder(Node node) {
+    if (node == null) return;
+    if (node.childCount > 0) inorder(node.children[0]);
+    System.out.println(node.value);
+    for (int i = 1; i < node.childCount; i++) {
+        inorder(node.children[i]);
+    }
+}`),
+  postorder: animated(`void postorder(Node node) {
+    if (node == null) return;
+    for (int i = 0; i < node.childCount; i++) {
+        postorder(node.children[i]);
+    }
+    System.out.println(node.value);
 }`),
 };
 

@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test';
+import { algorithms } from '../../src/data/algorithms.js';
+import { getOperationDefinition } from '../../src/logic/operations.js';
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -40,6 +42,106 @@ test('abre un tema mediante un enlace compartible', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Sudoku Solver 9×9', level: 1 })).toBeVisible();
 });
 
+test('los 53 temas cargan su visualizador, controles y código sin errores', async ({ page }) => {
+  test.setTimeout(180_000);
+  const pageErrors = [];
+  const failedResponses = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  page.on('response', response => {
+    if (response.status() >= 400) failedResponses.push(`${response.status()} ${response.url()}`);
+  });
+
+  for (const algorithm of algorithms) {
+    await page.goto(`/${algorithm.id}`);
+    await expect(page.getByRole('heading', { name: algorithm.name, level: 1 })).toBeVisible();
+    await expect(page.locator(`[data-visualizer="${algorithm.id}"]`)).toBeVisible();
+    await expect(page.locator('.operation-actions button')).toHaveCount(getOperationDefinition(algorithm).actions.length);
+
+    if (['dijkstra', 'a-star'].includes(algorithm.id)) {
+      await expect(page.locator('.code-panel')).toHaveCount(0);
+    } else {
+      await expect(page.locator('.code-panel code')).not.toHaveCount(0);
+      await expect(page.locator('.variables-panel')).toBeVisible();
+    }
+
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow, `${algorithm.id} produce desbordamiento horizontal`).toBeLessThanOrEqual(1);
+  }
+
+  expect(pageErrors).toEqual([]);
+  expect(failedResponses).toEqual([]);
+});
+
+test('rechaza datos extremos sin alterar ni romper las estructuras', async ({ page }) => {
+  await page.goto('/array');
+  const initialArrayCells = await page.locator('.linear-visual .data-cell').count();
+  await page.getByLabel('Valor').fill('99');
+  await page.getByLabel('Índice').fill('-1');
+  await page.getByRole('button', { name: 'Agregar en índice' }).click();
+  await expect(page.locator('.operation-message')).toHaveClass(/error/);
+  await expect(page.locator('.linear-visual .data-cell')).toHaveCount(initialArrayCells);
+
+  await page.goto('/matriz-dispersa');
+  await page.getByLabel('Fila').fill('99');
+  await page.getByRole('button', { name: 'Recorrer fila' }).click();
+  await expect(page.locator('.operation-message')).toHaveClass(/error/);
+  await expect(page.locator('.sparse-node')).toHaveCount(10);
+
+  await page.goto('/expression-tree');
+  const initialScriptCount = await page.locator('script').count();
+  await page.getByLabel('Expresión').fill('<script>alert(1)</script>');
+  await page.getByRole('button', { name: 'Construir' }).click();
+  await expect(page.locator('.operation-message')).toHaveClass(/error/);
+  await expect(page.locator('script')).toHaveCount(initialScriptCount);
+
+  await page.goto('/factorial');
+  await page.getByLabel('Número n').fill('21');
+  await page.getByRole('button', { name: 'Calcular' }).click();
+  await expect(page.locator('.operation-message')).toHaveClass(/error/);
+
+  await page.goto('/grafo');
+  await page.getByLabel('Origen / vértice').fill('A');
+  await page.getByLabel('Destino').fill('A');
+  await page.getByRole('button', { name: 'Agregar arista' }).click();
+  await expect(page.locator('.operation-message')).toHaveClass(/error/);
+});
+
+test('la línea Java, las variables y la animación avanzan juntas en distintas categorías', async ({ page }) => {
+  test.setTimeout(120_000);
+  const cases = [
+    { id: 'array', fields: { Valor: '99' }, action: 'Agregar inicio' },
+    { id: 'bfs', fields: { 'Origen / vértice': 'A' }, action: 'Recorrer BFS' },
+    { id: 'hanoi', fields: {}, action: 'Resolver' },
+    { id: 'n-reinas', fields: { Tamaño: '8' }, action: 'Resolver' },
+  ];
+
+  for (const sample of cases) {
+    await page.goto(`/${sample.id}`);
+    for (const [label, value] of Object.entries(sample.fields)) {
+      await page.getByLabel(label).fill(value);
+    }
+    await page.getByRole('button', { name: sample.action, exact: true }).click();
+    const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+    if (await pause.isVisible()) await pause.click();
+
+    const activeLines = new Set();
+    const messages = new Set();
+    let sawVariables = false;
+    for (let step = 0; step < 18; step++) {
+      const activeCode = page.locator('.code-panel code.active');
+      if (await activeCode.count()) activeLines.add((await activeCode.textContent())?.trim());
+      const message = await page.locator('.operation-message p').textContent();
+      if (message) messages.add(message.trim());
+      sawVariables ||= await page.locator('.variable-item').count() > 0;
+      await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    }
+
+    expect(activeLines.size, `${sample.id}: el código no avanzó`).toBeGreaterThan(2);
+    expect(messages.size, `${sample.id}: la explicación no avanzó`).toBeGreaterThan(1);
+    expect(sawVariables, `${sample.id}: no mostró variables`).toBe(true);
+  }
+});
+
 test('ocultar el menú también libera el espacio del encabezado del tema', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === 'mobile-chromium', 'El menú lateral móvil usa su propio panel superpuesto.');
   await page.goto('/matriz-dispersa');
@@ -50,6 +152,7 @@ test('ocultar el menú también libera el espacio del encabezado del tema', asyn
   await expect(page.locator('.app-shell')).toHaveClass(/sidebar-collapsed/);
   await expect(page.getByRole('heading', { name: 'Matriz poco poblada', level: 1 })).toHaveCount(0);
 
+  await expect.poll(async () => (await visualPanel.boundingBox())?.width ?? 0).toBeGreaterThan(initialBox.width);
   const expandedBox = await visualPanel.boundingBox();
   expect(expandedBox.width).toBeGreaterThan(initialBox.width);
   expect(expandedBox.y).toBeLessThan(initialBox.y);

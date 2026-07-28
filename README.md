@@ -296,15 +296,15 @@ npm run preview
 | `npm run build` | Genera la versión optimizada dentro de `dist/` |
 | `npm run preview` | Sirve localmente la compilación de producción |
 | `npm run audit` | Ejecuta la auditoría funcional y educativa del catálogo |
+| `npm run audit:java` | Compila con `javac` los 247 códigos Java visibles |
+| `npm run audit:stress` | Prueba entradas extremas y secuencias largas de operaciones |
 | `npm run test:e2e` | Ejecuta pruebas reales de navegador en escritorio y móvil |
-| `npm run check` | Ejecuta auditoría, build y pruebas E2E |
+| `npm run check` | Ejecuta las auditorías funcional, Java y de estrés, además de las pruebas E2E |
 
 Flujo recomendado antes de subir cambios:
 
 ```bash
-npm run audit
-npm run build
-npm run test:e2e
+npm run check
 ```
 
 ## Estructura del proyecto
@@ -324,6 +324,8 @@ DSA/
 │   └── dependabot.yml                 # Actualizaciones controladas
 ├── scripts/
 │   ├── audit-functions.mjs            # Auditoría automática del laboratorio
+│   ├── compile-java-audit.mjs          # Compilación real de cada código Java mostrado
+│   ├── stress-audit.mjs                # Entradas límite y operaciones encadenadas
 │   └── run-e2e.mjs                    # Build, servidor temporal y pruebas de navegador
 ├── src/
 │   ├── App.jsx                        # Aplicación, navegación y visualizadores
@@ -363,6 +365,8 @@ DSA/
 - `src/components/OperationsPanel.jsx` construye los controles según el tipo de estructura.
 - `src/components/EducationalDescription.jsx` presenta la documentación extendida.
 - `scripts/audit-functions.mjs` verifica que el catálogo y las operaciones mantengan contratos válidos.
+- `scripts/compile-java-audit.mjs` envuelve y compila cada fragmento educativo con `javac`.
+- `scripts/stress-audit.mjs` somete todas las acciones a datos vacíos, negativos, decimales, enormes, texto, Unicode y secuencias de uso prolongadas.
 
 ## Auditoría y calidad
 
@@ -393,11 +397,14 @@ comprueba automáticamente, entre otros puntos:
 - Que Merkle combine hashes por parejas y el árbol de expresión respete precedencia.
 - Que la matriz poco poblada inserte un único nodo en AROW y ACOL, recorra ambas listas en orden invertido y cierre sus enlaces circulares.
 
-La auditoría actual cubre **53 temas, 247 acciones, 2470 pruebas funcionales y 62 funciones distintas**.
+La auditoría actual cubre **53 temas, 247 acciones, 2470 pruebas funcionales y 62 funciones distintas**. La capa de estrés añade **12 937 comprobaciones** —9757 entradas extremas y 3180 operaciones encadenadas—, para un total de **15 407 pruebas de lógica**. Además, los **247 códigos Java visibles** se compilan realmente con `javac`.
 
 Además, Playwright verifica los recorridos críticos en Chromium de escritorio y móvil:
 
 - Enlaces compartibles como `/avl` y `/sudoku`.
+- Carga directa de los 53 temas, sus visualizadores, controles y paneles de código.
+- Rechazo seguro de índices negativos, coordenadas fuera de rango, valores enormes y texto potencialmente peligroso.
+- Avance sincronizado de animación, línea Java, explicación y variables en arreglos, grafos, Hanoi y N-Reinas.
 - Persistencia del tema, velocidad y formato de código.
 - Operaciones y restablecimiento de estructuras.
 - Recorrido BST sincronizado entre nodo, línea Java y variables.
