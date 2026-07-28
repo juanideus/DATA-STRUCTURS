@@ -200,7 +200,15 @@ for (const algorithm of algorithms) {
       const usesCustomFrames = Boolean(result.frames?.length);
       if (usesCustomFrames) {
         const javaLineCount = java.split('\n').length;
-        assert.ok(result.frames.every(frame => Number.isInteger(frame.codeLine) && frame.codeLine >= 0 && frame.codeLine < javaLineCount), `${label}: un fotograma apunta fuera del código Java.`);
+        assert.ok(result.frames.every(frame => {
+          const hasValidLine = Number.isInteger(frame.codeLine)
+            && frame.codeLine >= 0
+            && frame.codeLine < javaLineCount;
+          const hasValidNeedle = typeof frame.codeNeedle === 'string'
+            && frame.codeNeedle.length > 0
+            && java.includes(frame.codeNeedle);
+          return hasValidLine || hasValidNeedle;
+        }), `${label}: un fotograma apunta fuera del código Java.`);
       }
       const frameFactory = algorithm.category === 'Árboles'
         ? createTreeSynchronizedFrames

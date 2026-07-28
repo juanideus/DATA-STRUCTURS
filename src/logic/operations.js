@@ -652,51 +652,210 @@ const fibonacci = number => {
   return result;
 };
 
-const canPlaceSudoku = (board, position, number) => {
-  const row = Math.floor(position / 9);
-  const column = position % 9;
+const SUDOKU_TRACE_LIMITS = {
+  call: 4,
+  'row-check': 4,
+  'column-check': 3,
+  'column-transition': 3,
+  'given-check': 4,
+  'given-recursion': 3,
+  'number-loop': 6,
+  'valid-call': 6,
+  choose: 5,
+  recursion: 5,
+  undo: 4,
+  'dead-end': 3,
+  'valid-entry': 5,
+  'index-loop': 6,
+  'row-comparison': 3,
+  'row-conflict': 3,
+  'column-comparison': 3,
+  'column-conflict': 3,
+  'box-row': 2,
+  'box-column': 2,
+  'box-row-loop': 3,
+  'box-column-loop': 3,
+  'box-comparison': 3,
+  'box-conflict': 3,
+  'valid-return': 4,
+};
+
+const sudokuVariables = (row, column, number = null, extras = []) => [
+  { name: 'fila', value: row, role: 'index' },
+  { name: 'columna', value: column, role: 'index' },
+  ...(number === null ? [] : [{ name: 'número', value: number, role: 'input' }]),
+  ...extras,
+];
+
+const createSudokuTracer = () => {
+  const tracer = {
+    frames: [],
+    skipped: 0,
+    occurrences: new Map(),
+    record(board, {
+      row,
+      column,
+      number = null,
+      traceKey,
+      codeNeedle,
+      message,
+      extras = [],
+      force = false,
+      completed = false,
+      iteration = null,
+      totalIterations = null,
+    }) {
+      const count = tracer.occurrences.get(traceKey) ?? 0;
+      const limit = SUDOKU_TRACE_LIMITS[traceKey] ?? 2;
+      if (!force && count >= limit) {
+        tracer.skipped++;
+        return;
+      }
+      tracer.occurrences.set(traceKey, count + 1);
+      const safeRow = Math.max(0, Math.min(8, row));
+      const safeColumn = Math.max(0, Math.min(8, column));
+      tracer.frames.push({
+        values: [...board],
+        position: safeRow * 9 + safeColumn,
+        codeNeedle,
+        message,
+        variables: sudokuVariables(row, column, number, extras),
+        completed,
+        iteration,
+        totalIterations,
+      });
+    },
+  };
+  return tracer;
+};
+
+const canPlaceSudoku = (board, row, column, number, tracer = null) => {
+  const record = (traceKey, codeNeedle, message, extras = [], options = {}) => tracer?.record(board, {
+    row, column, number, traceKey, codeNeedle, message, extras, ...options,
+  });
+
+  record('valid-entry', 'boolean isValid(int row, int column, int number)', `Entra a isValid(${row}, ${column}, ${number}).`);
   for (let index = 0; index < 9; index++) {
-    if (board[row * 9 + index] === number) return false;
-    if (board[index * 9 + column] === number) return false;
-  }
-  const boxRow = Math.floor(row / 3) * 3;
-  const boxColumn = Math.floor(column / 3) * 3;
-  for (let r = boxRow; r < boxRow + 3; r++) {
-    for (let c = boxColumn; c < boxColumn + 3; c++) {
-      if (board[r * 9 + c] === number) return false;
+    const loopData = [{ name: 'index', value: index, role: 'index' }];
+    record('index-loop', 'for (int index = 0; index < 9; index++)', `El ciclo revisa el índice ${index} de la fila y la columna.`, loopData, {
+      iteration: index,
+      totalIterations: 9,
+    });
+    record('row-comparison', 'if (board[row][index] == number)', `Compara ${number} con la fila ${row + 1}, columna ${index + 1}.`, loopData);
+    if (board[row * 9 + index] === number) {
+      record('row-conflict', 'if (board[row][index] == number) return false;', `${number} ya existe en la fila ${row + 1}: isValid devuelve false.`, [
+        ...loopData,
+        { name: 'resultado', value: false, role: 'false' },
+      ]);
+      return false;
+    }
+    record('column-comparison', 'if (board[index][column] == number)', `Compara ${number} con la columna ${column + 1}, fila ${index + 1}.`, loopData);
+    if (board[index * 9 + column] === number) {
+      record('column-conflict', 'if (board[index][column] == number) return false;', `${number} ya existe en la columna ${column + 1}: isValid devuelve false.`, [
+        ...loopData,
+        { name: 'resultado', value: false, role: 'false' },
+      ]);
+      return false;
     }
   }
+
+  const firstRow = Math.floor(row / 3) * 3;
+  const firstColumn = Math.floor(column / 3) * 3;
+  record('box-row', 'int firstRow = (row / 3) * 3;', `El subcuadro comienza en la fila ${firstRow}.`, [
+    { name: 'firstRow', value: firstRow, role: 'index' },
+  ]);
+  record('box-column', 'int firstColumn = (column / 3) * 3;', `El subcuadro comienza en la columna ${firstColumn}.`, [
+    { name: 'firstColumn', value: firstColumn, role: 'index' },
+  ]);
+  for (let r = firstRow; r < firstRow + 3; r++) {
+    record('box-row-loop', 'for (int r = firstRow; r < firstRow + 3; r++)', `Revisa la fila ${r + 1} del subcuadro 3×3.`, [
+      { name: 'r', value: r, role: 'index' },
+    ], { iteration: r - firstRow, totalIterations: 3 });
+    for (let c = firstColumn; c < firstColumn + 3; c++) {
+      const boxData = [
+        { name: 'r', value: r, role: 'index' },
+        { name: 'c', value: c, role: 'index' },
+      ];
+      record('box-column-loop', 'for (int c = firstColumn; c < firstColumn + 3; c++)', `Revisa la celda (${r + 1}, ${c + 1}) del subcuadro.`, boxData, {
+        iteration: c - firstColumn,
+        totalIterations: 3,
+      });
+      record('box-comparison', 'if (board[r][c] == number)', `Compara la celda del subcuadro con ${number}.`, boxData);
+      if (board[r * 9 + c] === number) {
+        record('box-conflict', 'if (board[r][c] == number) return false;', `${number} ya existe en el subcuadro: isValid devuelve false.`, [
+          ...boxData,
+          { name: 'resultado', value: false, role: 'false' },
+        ]);
+        return false;
+      }
+    }
+  }
+  record('valid-return', 'return true;', `La fila, la columna y el subcuadro aceptan ${number}: isValid devuelve true.`, [
+    { name: 'resultado', value: true, role: 'true' },
+  ]);
   return true;
 };
 
-const solveSudoku = (board, position = 0, trace = null) => {
-  if (position === 81) return true;
-  if (board[position] !== 0) return solveSudoku(board, position + 1, trace);
-  for (let number = 1; number <= 9; number++) {
-    if (!canPlaceSudoku(board, position, number)) continue;
-    board[position] = number;
-    trace?.push({ values: [...board], position, codeLine: 9, message: `Se prueba ${number} en fila ${Math.floor(position / 9) + 1}, columna ${position % 9 + 1}.` });
-    if (solveSudoku(board, position + 1, trace)) return true;
-    board[position] = 0;
-    trace?.push({ values: [...board], position, codeLine: 11, message: `${number} bloqueó la solución. Se borra la celda y se retrocede.` });
+const solveSudoku = (board, row = 0, column = 0, tracer = null) => {
+  const record = (traceKey, codeNeedle, message, extras = [], options = {}) => tracer?.record(board, {
+    row, column, traceKey, codeNeedle, message, extras, ...options,
+  });
+
+  record('call', 'boolean solveSudoku(int row, int column)', `Entra a solveSudoku(${row}, ${column}).`);
+  record('row-check', 'if (row == 9) return true;', `Comprueba el caso base: row vale ${row}.`);
+  if (row === 9) {
+    record('row-check', 'if (row == 9) return true;', 'row es 9: el tablero está completo y la recursión devuelve true.', [
+      { name: 'resultado', value: true, role: 'true' },
+    ], { force: true, completed: true });
+    return true;
   }
+
+  record('column-check', 'if (column == 9) return solveSudoku(row + 1, 0);', `Comprueba si terminó la fila ${row + 1}: column vale ${column}.`);
+  if (column === 9) {
+    record('column-transition', 'if (column == 9) return solveSudoku(row + 1, 0);', `Terminó la fila ${row + 1}; continúa en solveSudoku(${row + 1}, 0).`);
+    return solveSudoku(board, row + 1, 0, tracer);
+  }
+
+  const position = row * 9 + column;
+  record('given-check', 'if (board[row][column] != 0)', `Comprueba si (${row + 1}, ${column + 1}) contiene una pista.`);
+  if (board[position] !== 0) {
+    record('given-recursion', 'return solveSudoku(row, column + 1);', `La celda contiene ${board[position]}; avanza sin modificarla.`, [
+      { name: 'pista', value: board[position], role: 'value' },
+    ]);
+    return solveSudoku(board, row, column + 1, tracer);
+  }
+
+  for (let number = 1; number <= 9; number++) {
+    record('number-loop', 'for (int number = 1; number <= 9; number++)', `El ciclo prueba el número ${number}.`, [], {
+      number,
+      iteration: number - 1,
+      totalIterations: 9,
+    });
+    record('valid-call', 'if (isValid(row, column, number))', `Llama a isValid(${row}, ${column}, ${number}).`, [], { number });
+    if (canPlaceSudoku(board, row, column, number, tracer)) {
+      board[position] = number;
+      record('choose', 'board[row][column] = number;', `Coloca ${number} en (${row + 1}, ${column + 1}).`, [], { number });
+      record('recursion', 'if (solveSudoku(row, column + 1)) return true;', `Llama recursivamente a la columna ${column + 2}.`, [], { number });
+      if (solveSudoku(board, row, column + 1, tracer)) return true;
+      board[position] = 0;
+      record('undo', 'board[row][column] = 0;', `${number} bloqueó una rama: borra la celda y retrocede.`, [], { number });
+    }
+  }
+  record('dead-end', 'return false;', `Ningún número funciona en (${row + 1}, ${column + 1}); devuelve false.`, [
+    { name: 'resultado', value: false, role: 'false' },
+  ]);
   return false;
 };
 
-const compactSudokuTrace = (trace, solvedBoard, initialBoard) => {
-  const maximumFrames = 52;
-  const initialFrame = { values: [...initialBoard], position: 0, codeLine: 0, message: 'Comienza la llamada recursiva solveSudoku(0, 0).' };
-  if (trace.length <= maximumFrames) return [initialFrame, ...trace, { values: [...solvedBoard], position: 80, codeLine: 1, message: 'Caso base alcanzado: las 81 celdas están completas.' }];
-  const first = trace.slice(0, 20);
-  const last = trace.slice(-(maximumFrames - 22));
-  const skipped = trace.length - first.length - last.length;
-  const bridge = {
-    values: [...first[first.length - 1].values],
-    position: first[first.length - 1].position,
-    codeLine: 7,
-    message: `Se omiten ${skipped} intentos repetidos para mantener la animación breve.`,
-  };
-  return [initialFrame, ...first, bridge, ...last, { values: [...solvedBoard], position: 80, codeLine: 1, message: 'Caso base alcanzado: Sudoku 9×9 resuelto.' }];
+const completeSudokuTrace = (tracer, solvedBoard) => {
+  const finalFrame = tracer.frames.at(-1);
+  if (finalFrame) {
+    finalFrame.values = [...solvedBoard];
+    finalFrame.position = 80;
+    finalFrame.completed = true;
+    finalFrame.message = 'Sudoku 9×9 resuelto. Las iteraciones idénticas se agruparon, pero se recorrieron todas las líneas ejecutables y los bucles representativos.';
+  }
+  return tracer.frames;
 };
 
 const solveQueensWithTrace = size => {
@@ -1521,14 +1680,13 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     }
     case 'solve': {
       if (algorithm.id === 'sudoku') {
-        const initialBoard = [...next];
         const board = [...next];
-        const trace = [];
-        const solved = solveSudoku(board, 0, trace);
+        const tracer = createSudokuTracer();
+        const solved = solveSudoku(board, 0, 0, tracer);
         if (!solved) return fail('El tablero no tiene una solución válida.');
         return {
           ...done(board, 'Sudoku 9×9 resuelto con recursividad y backtracking.', 0),
-          frames: compactSudokuTrace(trace, board, initialBoard),
+          frames: completeSudokuTrace(tracer, board),
         };
       }
       if (algorithm.id === 'n-reinas') {
@@ -1552,14 +1710,13 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     }
     case 'step-solution': {
       if (algorithm.id === 'sudoku') {
-        const initialBoard = [...next];
         const board = [...next];
-        const trace = [];
-        const solved = solveSudoku(board, 0, trace);
+        const tracer = createSudokuTracer();
+        const solved = solveSudoku(board, 0, 0, tracer);
         if (!solved) return fail('El tablero no tiene una solución válida desde este estado.');
         return {
           ...done(board, 'Ejecución paso a paso del Sudoku preparada.', 0),
-          frames: compactSudokuTrace(trace, board, initialBoard),
+          frames: completeSudokuTrace(tracer, board),
         };
       }
       if (algorithm.id === 'n-reinas') {

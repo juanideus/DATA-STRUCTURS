@@ -142,6 +142,56 @@ test('la línea Java, las variables y la animación avanzan juntas en distintas 
   }
 });
 
+test('Sudoku recorre todas las líneas ejecutables del Java mostrado', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chromium', 'La cobertura del código es idéntica en ambos tamaños.');
+  test.setTimeout(90_000);
+  await page.goto('/sudoku');
+  await page.getByRole('button', { name: 'Resolver 9×9', exact: true }).click();
+  const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+  if (await pause.isVisible()) await pause.click();
+
+  const visitedLines = new Set();
+  for (let step = 0; step < 110; step++) {
+    const activeLine = (await page.locator('.code-panel code.active').textContent())?.replace(/^\d+\s*/, '').trim();
+    if (activeLine) visitedLines.add(activeLine);
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+
+  const requiredFragments = [
+    'boolean solveSudoku(int row, int column)',
+    'if (row == 9) return true',
+    'if (column == 9) return solveSudoku',
+    'if (board[row][column] != 0)',
+    'return solveSudoku(row, column + 1)',
+    'for (int number = 1; number <= 9; number++)',
+    'if (isValid(row, column, number))',
+    'board[row][column] = number',
+    'if (solveSudoku(row, column + 1)) return true',
+    'board[row][column] = 0',
+    'return false',
+    'boolean isValid(int row, int column, int number)',
+    'for (int index = 0; index < 9; index++)',
+    'if (board[row][index] == number) return false',
+    'if (board[index][column] == number) return false',
+    'int firstRow = (row / 3) * 3',
+    'int firstColumn = (column / 3) * 3',
+    'for (int r = firstRow; r < firstRow + 3; r++)',
+    'for (int c = firstColumn; c < firstColumn + 3; c++)',
+    'if (board[r][c] == number) return false',
+    'return true',
+  ];
+
+  for (const fragment of requiredFragments) {
+    expect(
+      [...visitedLines].some(line => line.includes(fragment)),
+      `Sudoku no iluminó la línea: ${fragment}`,
+    ).toBe(true);
+  }
+  await expect(page.locator('.sudoku-grid > div')).toHaveCount(81);
+  const completedCells = await page.locator('.sudoku-grid > div').evaluateAll(cells => cells.filter(cell => cell.textContent.trim()).length);
+  expect(completedCells).toBe(81);
+});
+
 test('ocultar el menú también libera el espacio del encabezado del tema', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === 'mobile-chromium', 'El menú lateral móvil usa su propio panel superpuesto.');
   await page.goto('/matriz-dispersa');

@@ -1087,6 +1087,8 @@ export function getBeginnerJava(algorithm, actionId) {
     source = treeSource;
   } else if (algorithm.id === 'factorial' && actionId === 'calculate') {
     source = special['math:calculate:factorial'];
+  } else if (algorithm.id === 'sudoku' && actionId === 'step-solution') {
+    source = special['sudoku:solve'];
   } else {
     source = special[`${algorithm.id}:${actionId}`] ?? special[`${group}:${actionId}`] ?? basic[actionId] ?? `void operation() {
     // Follow the visual steps.
