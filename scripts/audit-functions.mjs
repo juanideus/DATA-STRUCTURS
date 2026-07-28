@@ -416,6 +416,28 @@ const maze = algorithms.find(item => item.id === 'laberinto');
 const mazeResult = run(maze, 'solve');
 assert.equal(mazeResult.values[35], 2, 'Laberinto: la ruta no llega a la salida.');
 assert.ok(mazeResult.frames?.some(frame => frame.values.includes(3)), 'Laberinto: no muestra el retroceso.');
+const mazeCode = getBeginnerJava(maze, 'solve');
+const synchronizedMazeFrames = adaptFramesToCode(mazeResult.frames, mazeCode, true);
+const mazeCodeLines = mazeCode.split('\n');
+const mazePathLine = mazeCodeLines.findIndex(line => line.includes('path[row][column] = true'));
+const mazeExitLine = mazeCodeLines.findIndex(line => line.includes('if (isExit(row, column))'));
+const mazeDirectionLines = [
+  'solveMaze(row, column + 1)',
+  'solveMaze(row + 1, column)',
+  'solveMaze(row, column - 1)',
+  'solveMaze(row - 1, column)',
+].map(needle => mazeCodeLines.findIndex(line => line.includes(needle)));
+assert.ok(synchronizedMazeFrames.some(frame => frame.codeLine === mazePathLine), 'Laberinto: el código no ilumina la elección de una celda.');
+assert.ok(synchronizedMazeFrames.some(frame => frame.codeLine === mazeExitLine), 'Laberinto: el código no evalúa isExit.');
+assert.ok(mazeDirectionLines.every(line => synchronizedMazeFrames.some(frame => frame.codeLine === line)), 'Laberinto: faltan llamadas recursivas en la animación del código.');
+assert.ok(new Set(synchronizedMazeFrames.map(frame => frame.codeLine)).size >= 8, 'Laberinto: la animación queda detenida en una sola línea.');
+for (let index = 1; index < synchronizedMazeFrames.length; index++) {
+  const previousPathCells = synchronizedMazeFrames[index - 1].values.filter(value => value === 2).length;
+  const currentPathCells = synchronizedMazeFrames[index].values.filter(value => value === 2).length;
+  if (currentPathCells > previousPathCells) {
+    assert.equal(synchronizedMazeFrames[index].codeLine, mazePathLine, 'Laberinto: una celda cambia antes de iluminar path[row][column] = true.');
+  }
+}
 
 const hash = algorithms.find(item => item.id === 'hash-table');
 const storedHash = run(hash, 'hash-put', { value: 'curso', second: 'java', index: '' });

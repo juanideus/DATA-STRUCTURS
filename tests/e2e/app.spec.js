@@ -147,6 +147,29 @@ test('la línea Java, las variables y la animación avanzan juntas en distintas 
   }
 });
 
+test('Laberinto mueve el código entre isFree, isExit, recursión y backtracking', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chromium', 'La traza es idéntica en ambos tamaños.');
+  await page.goto('/laberinto');
+  await page.getByRole('button', { name: 'Resolver recursivamente', exact: true }).click();
+  const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+  if (await pause.isVisible()) await pause.click();
+
+  const visitedLines = new Set();
+  for (let step = 0; step < 100; step++) {
+    const activeLine = (await page.locator('.code-panel code.active').textContent())?.replace(/^\d+\s*/, '').trim();
+    if (activeLine) visitedLines.add(activeLine);
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+
+  expect([...visitedLines].some(line => line.startsWith('if (!isFree'))).toBe(true);
+  expect([...visitedLines].some(line => line.startsWith('path[row][column] = true'))).toBe(true);
+  expect([...visitedLines].some(line => line.startsWith('if (isExit'))).toBe(true);
+  expect([...visitedLines].some(line => line.includes('solveMaze(row + 1, column)'))).toBe(true);
+  expect([...visitedLines].some(line => line.startsWith('path[row][column] = false'))).toBe(true);
+  await expect(page.locator('.maze-grid > div').nth(35)).toHaveClass(/path/);
+  await expect(page.locator('.operation-message')).toContainText('laberinto quedó resuelto');
+});
+
 test('Sudoku recorre todas las líneas ejecutables del Java mostrado', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === 'mobile-chromium', 'La cobertura del código es idéntica en ambos tamaños.');
   test.setTimeout(90_000);

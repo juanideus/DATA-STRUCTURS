@@ -1394,32 +1394,115 @@ const solveQueensWithTrace = size => {
 
 const solveMazeWithTrace = initialMaze => {
   const maze = [...initialMaze];
-  const trace = [{ values: [...maze], position: 0, codeLine: 0, message: 'Comienza resolverLaberinto(0, 0).' }];
-  const directions = [[0,1],[1,0],[0,-1],[-1,0]]; // right, down, left, up
+  const trace = [];
+  const directions = [
+    { rowChange: 0, columnChange: 1, name: 'derecha', codeNeedle: 'if (solveMaze(row, column + 1)) return true;' },
+    { rowChange: 1, columnChange: 0, name: 'abajo', codeNeedle: 'if (solveMaze(row + 1, column)) return true;' },
+    { rowChange: 0, columnChange: -1, name: 'izquierda', codeNeedle: 'if (solveMaze(row, column - 1)) return true;' },
+    { rowChange: -1, columnChange: 0, name: 'arriba', codeNeedle: 'if (solveMaze(row - 1, column)) return true;' },
+  ];
+  const validPosition = (row, column) => row >= 0 && row < 6 && column >= 0 && column < 6;
+  const addFrame = (row, column, codeNeedle, message, extras = {}) => {
+    const fallbackPosition = Number.isInteger(extras.fromPosition) ? extras.fromPosition : 0;
+    const position = validPosition(row, column) ? row * 6 + column : fallbackPosition;
+    trace.push({
+      values: [...maze],
+      position,
+      codeNeedle,
+      message,
+      delayMs: extras.delayMs ?? 260,
+      completed: extras.completed ?? false,
+      variables: [
+        { name: 'row', value: row, role: 'index' },
+        { name: 'column', value: column, role: 'index' },
+        { name: 'profundidad', value: extras.depth ?? 0, role: 'size' },
+        ...(extras.result === undefined ? [] : [{ name: 'resultado', value: extras.result, role: extras.result ? 'true' : 'false' }]),
+      ],
+    });
+  };
 
-  const explore = (row, column) => {
-    if (row < 0 || row >= 6 || column < 0 || column >= 6) return false;
-    const position = row * 6 + column;
-    if (maze[position] !== 0) return false;
+  const explore = (row, column, depth = 0, fromPosition = 0) => {
+    const inside = validPosition(row, column);
+    const position = inside ? row * 6 + column : fromPosition;
+    const free = inside && maze[position] === 0;
+    addFrame(
+      row,
+      column,
+      'if (!isFree(row, column)) return false;',
+      free
+        ? `isFree(${row}, ${column}) devuelve true: la celda está disponible.`
+        : `isFree(${row}, ${column}) devuelve false: la llamada regresa sin avanzar.`,
+      { depth, fromPosition, result: free, delayMs: free ? 280 : 170 },
+    );
+    if (!free) return false;
 
     maze[position] = 2;
-    trace.push({ values: [...maze], position, codeLine: 4, message: `Se marca la celda (${row + 1}, ${column + 1}) como parte del camino.` });
-    if (position === 35) {
-      trace.push({ values: [...maze], position, codeLine: 1, message: 'Caso base: se alcanzó la salida.' });
-      return true;
-    }
+    addFrame(row, column, 'path[row][column] = true;', `Se elige la celda (${row}, ${column}) como parte del camino.`, { depth });
 
-    for (let direction = 0; direction < directions.length; direction++) {
-      const [rowChange, columnChange] = directions[direction];
-      if (explore(row + rowChange, column + columnChange)) return true;
+    const exit = row === 5 && column === 5;
+    addFrame(
+      row,
+      column,
+      'if (isExit(row, column)) return true;',
+      exit
+        ? `isExit(${row}, ${column}) devuelve true: se alcanzó la salida.`
+        : `isExit(${row}, ${column}) devuelve false: hay que seguir explorando.`,
+      { depth, result: exit },
+    );
+    addFrame(
+      row,
+      column,
+      'return row == 5 && column == 5;',
+      exit ? 'La condición de isExit es verdadera.' : 'La condición de isExit es falsa.',
+      { depth, result: exit, delayMs: 210 },
+    );
+    if (exit) return true;
+
+    for (const direction of directions) {
+      const nextRow = row + direction.rowChange;
+      const nextColumn = column + direction.columnChange;
+      addFrame(
+        row,
+        column,
+        direction.codeNeedle,
+        `Llama recursivamente hacia ${direction.name}: solveMaze(${nextRow}, ${nextColumn}).`,
+        { depth, result: undefined, delayMs: 230 },
+      );
+      if (explore(nextRow, nextColumn, depth + 1, position)) {
+        addFrame(
+          row,
+          column,
+          direction.codeNeedle,
+          `La llamada hacia ${direction.name} devolvió true; esta llamada también retorna true.`,
+          { depth, result: true, delayMs: 190 },
+        );
+        return true;
+      }
     }
 
     maze[position] = 3;
-    trace.push({ values: [...maze], position, codeLine: 10, message: `Callejón sin salida en (${row + 1}, ${column + 1}): se deshace el paso y se vuelve atrás.` });
+    addFrame(
+      row,
+      column,
+      'path[row][column] = false;',
+      `Callejón sin salida en (${row}, ${column}): se desmarca la celda y se vuelve atrás.`,
+      { depth, result: false },
+    );
+    addFrame(row, column, 'return false;', 'Ninguna dirección funcionó; la llamada devuelve false.', { depth, result: false, delayMs: 190 });
     return false;
   };
 
-  return { solved: explore(0, 0), values: maze, frames: trace };
+  addFrame(0, 0, 'boolean solveMaze(int row, int column)', 'Comienza solveMaze(0, 0).', { depth: 0, delayMs: 220 });
+  const solved = explore(0, 0);
+  if (solved) {
+    addFrame(5, 5, 'if (solveMaze(row, column + 1)) return true;', 'La respuesta true regresa hasta la llamada inicial: el laberinto quedó resuelto.', {
+      depth: 0,
+      result: true,
+      completed: true,
+      delayMs: 300,
+    });
+  }
+  return { solved, values: maze, frames: trace };
 };
 
 export const SPARSE_MATRIX_ROWS = 5;
