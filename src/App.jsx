@@ -8,8 +8,8 @@ import { getBeginnerJava } from './data/beginnerJava.js';
 import { getGraphDesign, graphEdgesFor, graphPositionsFor } from './data/graphDesigns.js';
 import OperationsPanel from './components/OperationsPanel.jsx';
 import VariablesPanel from './components/VariablesPanel.jsx';
-import { adaptFramesToCode, copyVisualValues, createCodeSynchronizedFrames } from './logic/codeAnimation.js';
-import { DEFAULT_GRAPH_EDGES, DEFAULT_GRAPH_POSITIONS, executeOperation, getOperationDefinition, operationGroup } from './logic/operations.js';
+import { adaptFramesToCode, copyVisualValues, createCodeSynchronizedFrames, createTreeSynchronizedFrames } from './logic/codeAnimation.js';
+import { DEFAULT_GRAPH_EDGES, DEFAULT_GRAPH_POSITIONS, executeOperation, getOperationDefinition, operationGroup, SPARSE_MATRIX_COLUMNS, SPARSE_MATRIX_ROWS } from './logic/operations.js';
 import { createRandomPathMap, DEFAULT_PATH_MAP } from './logic/pathfindingMap.js';
 
 const EducationalDescription = lazy(() => import('./components/EducationalDescription.jsx'));
@@ -46,9 +46,13 @@ const writePreference = (key, value) => {
   }
 };
 
-const algorithmIdFromHash = () => {
+const algorithmIdFromLocation = () => {
   if (typeof window === 'undefined') return null;
   try {
+    const pathCandidate = decodeURIComponent(window.location.pathname.replace(/^\/+|\/+$/g, '').trim());
+    if (algorithms.some(item => item.id === pathCandidate)) return pathCandidate;
+
+    // Compatibilidad temporal con enlaces antiguos como /#/avl.
     const candidate = decodeURIComponent(window.location.hash.replace(/^#\/?/, '').trim());
     return algorithms.some(item => item.id === candidate) ? candidate : null;
   } catch {
@@ -57,7 +61,7 @@ const algorithmIdFromHash = () => {
 };
 
 const initialAlgorithmId = () => {
-  const routed = algorithmIdFromHash();
+  const routed = algorithmIdFromLocation();
   const stored = readPreference(STORAGE_KEYS.selectedAlgorithm, 'array');
   return routed ?? (algorithms.some(item => item.id === stored) ? stored : 'array');
 };
@@ -140,6 +144,17 @@ function balancedLevelOrder(sortedValues) {
 function createRandomValues(algorithm) {
   const amount = algorithm.values.length;
 
+  if (algorithm.id === 'matriz-dispersa') {
+    const coordinates = [];
+    const target = randomNumber(8, 12);
+    while (coordinates.length < target) {
+      const row = randomNumber(0, SPARSE_MATRIX_ROWS - 1);
+      const column = randomNumber(0, SPARSE_MATRIX_COLUMNS - 1);
+      if (coordinates.some(cell => cell.row === row && cell.column === column)) continue;
+      coordinates.push({ value: randomNumber(1, 20), row, column });
+    }
+    return coordinates.sort((first, second) => first.row - second.row || first.column - second.column);
+  }
   if (algorithm.id === 'sudoku') {
     const digits = randomUniqueNumbers(9, 1, 9);
     return SUDOKU_START.map(value => value === 0 ? 0 : digits[value - 1]);
@@ -248,6 +263,215 @@ function CircularListVisual({ algorithm, step }) {
   </div>;
 }
 
+function SparseMatrixVisual({ algorithm }) {
+  const frameState = algorithm.animationFrame?.sparseState ?? {};
+  const cellKey = cell => `${cell.row}:${cell.column}`;
+  const baseCells = algorithm.values
+    .map(cell => ({ value: Number(cell.value), row: Number(cell.row), column: Number(cell.column) }))
+    .filter(cell => Number.isInteger(cell.row) && Number.isInteger(cell.column));
+  const pendingNode = frameState.pendingNode;
+  const cells = pendingNode && !baseCells.some(cell => cellKey(cell) === cellKey(pendingNode))
+    ? [...baseCells, pendingNode]
+    : baseCells;
+  const rowStartX = 26;
+  const rowHeaderWidth = 72;
+  const firstColumnX = 174;
+  const columnGap = 88;
+  const firstRowY = 82;
+  const rowGap = 46;
+  const columnX = column => firstColumnX + column * columnGap;
+  const rowY = row => firstRowY + row * rowGap;
+  const activeRow = frameState.activeRow;
+  const activeColumn = frameState.activeColumn;
+  const activeKey = frameState.activeCellKey;
+  const visitedRowKeys = new Set(frameState.visitedRowKeys ?? []);
+  const visitedColumnKeys = new Set(frameState.visitedColumnKeys ?? []);
+  const rowCells = row => {
+    if (frameState.clearedRows) return [];
+    return cells
+      .filter(cell => (
+        cell.row === row
+        && cellKey(cell) !== frameState.detachedRowKey
+        && !(frameState.phase === 'create' && pendingNode && cellKey(cell) === cellKey(pendingNode))
+      ))
+      .sort((first, second) => second.column - first.column);
+  };
+  const columnCells = column => {
+    if (frameState.clearedColumns) return [];
+    return cells
+      .filter(cell => (
+        cell.column === column
+        && cellKey(cell) !== frameState.pendingColumnKey
+        && !(frameState.phase === 'create' && pendingNode && cellKey(cell) === cellKey(pendingNode))
+      ))
+      .sort((first, second) => second.row - first.row);
+  };
+
+  const rowPath = row => {
+    const nodes = rowCells(row);
+    const y = rowY(row);
+    if (!nodes.length) {
+      return <path
+        key={`row-empty-${row}`}
+        className={`sparse-return row-return ${activeRow === row ? 'active-link' : ''}`}
+        d={`M ${rowStartX + rowHeaderWidth} ${y} C ${rowStartX + 105} ${y + 16}, ${rowStartX + 18} ${y + 25}, ${rowStartX + 12} ${y + 8}`}
+        markerEnd="url(#sparse-row-arrow)"
+      />;
+    }
+    const segments = [];
+    const firstX = columnX(nodes[0].column);
+    segments.push(<path
+      key={`row-launch-${row}`}
+      className={`sparse-return row-return ${activeRow === row ? 'active-link' : ''}`}
+      d={`M ${rowStartX + rowHeaderWidth / 2} ${y - 15} V ${y - 23} H ${firstX} V ${y - 18}`}
+      markerEnd="url(#sparse-row-arrow)"
+    />);
+    nodes.slice(0, -1).forEach((cell, index) => {
+      const next = nodes[index + 1];
+      segments.push(<line
+        key={`row-${row}-${cellKey(cell)}`}
+        className={`sparse-link row-link ${activeRow === row || visitedRowKeys.has(cellKey(cell)) ? 'active-link' : ''}`}
+        x1={columnX(cell.column) - 29}
+        y1={y}
+        x2={columnX(next.column) + 29}
+        y2={y}
+        markerEnd="url(#sparse-row-arrow)"
+      />);
+    });
+    const lastX = columnX(nodes.at(-1).column);
+    segments.push(<line
+      key={`row-close-${row}`}
+      className={`sparse-link row-link ${activeRow === row ? 'active-link' : ''}`}
+      x1={lastX - 29}
+      y1={y}
+      x2={rowStartX + rowHeaderWidth}
+      y2={y}
+      markerEnd="url(#sparse-row-arrow)"
+    />);
+    return segments;
+  };
+
+  const columnPath = column => {
+    const nodes = columnCells(column);
+    const x = columnX(column);
+    if (!nodes.length) {
+      return <path
+        key={`column-empty-${column}`}
+        className={`sparse-return column-return ${activeColumn === column ? 'active-link' : ''}`}
+        d={`M ${x + 17} 49 C ${x + 43} 58, ${x + 38} 22, ${x + 22} 25`}
+        markerEnd="url(#sparse-column-arrow)"
+      />;
+    }
+    const segments = [];
+    const firstY = rowY(nodes[0].row);
+    segments.push(<path
+      key={`column-launch-${column}`}
+      className={`sparse-return column-return ${activeColumn === column ? 'active-link' : ''}`}
+      d={`M ${x + 18} 50 H ${x + 35} V ${firstY + 27} H ${x} V ${firstY + 18}`}
+      markerEnd="url(#sparse-column-arrow)"
+    />);
+    nodes.slice(0, -1).forEach((cell, index) => {
+      const next = nodes[index + 1];
+      segments.push(<line
+        key={`column-${column}-${cellKey(cell)}`}
+        className={`sparse-link column-link ${activeColumn === column || visitedColumnKeys.has(cellKey(cell)) ? 'active-link' : ''}`}
+        x1={x}
+        y1={rowY(cell.row) - 18}
+        x2={x}
+        y2={rowY(next.row) + 18}
+        markerEnd="url(#sparse-column-arrow)"
+      />);
+    });
+    const lastY = rowY(nodes.at(-1).row);
+    segments.push(<line
+      key={`column-close-${column}`}
+      className={`sparse-link column-link ${activeColumn === column ? 'active-link' : ''}`}
+      x1={x}
+      y1={lastY - 18}
+      x2={x}
+      y2="50"
+      markerEnd="url(#sparse-column-arrow)"
+    />);
+    return segments;
+  };
+
+  return <div className="sparse-matrix-visual" role="img" aria-label="Matriz poco poblada con cabeceras AROW y ACOL">
+    <svg viewBox="0 0 735 330" aria-hidden="true">
+      <defs>
+        <marker id="sparse-row-arrow" viewBox="0 0 8 8" markerWidth="7" markerHeight="7" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z"/></marker>
+        <marker id="sparse-column-arrow" viewBox="0 0 8 8" markerWidth="7" markerHeight="7" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z"/></marker>
+      </defs>
+
+      <text className="sparse-axis-title row-title" x="24" y="23">CABECERAS DE FILA</text>
+      <text className="sparse-axis-title column-title" x="172" y="12">CABECERAS DE COLUMNA</text>
+
+      {Array.from({ length: SPARSE_MATRIX_COLUMNS }, (_, column) => <g
+        className={`sparse-header column-header ${activeColumn === column ? 'active' : ''}`}
+        key={`column-header-${column}`}
+        transform={`translate(${columnX(column) - 25} 20)`}
+        data-column-header={column}
+      >
+        <rect width="50" height="30" rx="6"/>
+        <text x="25" y="13" textAnchor="middle">ACOL[{column}]</text>
+        <text className="pointer-label" x="25" y="24" textAnchor="middle">up ↻</text>
+      </g>)}
+
+      {Array.from({ length: SPARSE_MATRIX_ROWS }, (_, row) => <g
+        className={`sparse-header row-header ${activeRow === row ? 'active' : ''}`}
+        key={`row-header-${row}`}
+        transform={`translate(${rowStartX} ${rowY(row) - 15})`}
+        data-row-header={row}
+      >
+        <rect width={rowHeaderWidth} height="30" rx="6"/>
+        <text x={rowHeaderWidth / 2} y="13" textAnchor="middle">AROW[{row}]</text>
+        <text className="pointer-label" x={rowHeaderWidth / 2} y="24" textAnchor="middle">left ↻</text>
+      </g>)}
+
+      <g className="sparse-column-links">{Array.from({ length: SPARSE_MATRIX_COLUMNS }, (_, column) => columnPath(column))}</g>
+      <g className="sparse-row-links">{Array.from({ length: SPARSE_MATRIX_ROWS }, (_, row) => rowPath(row))}</g>
+
+      {cells.map(cell => {
+        const key = cellKey(cell);
+        const isPending = pendingNode && key === cellKey(pendingNode) && !baseCells.some(item => cellKey(item) === key);
+        const classes = [
+          'sparse-node',
+          key === activeKey ? 'active' : '',
+          isPending ? 'pending' : '',
+          visitedRowKeys.has(key) ? 'visited-row' : '',
+          visitedColumnKeys.has(key) ? 'visited-column' : '',
+          frameState.detachedRowKey === key ? 'detached-row' : '',
+        ].filter(Boolean).join(' ');
+        return <g
+          className={classes}
+          key={key}
+          transform={`translate(${columnX(cell.column) - 28} ${rowY(cell.row) - 16})`}
+          data-cell-key={key}
+          data-row={cell.row}
+          data-column={cell.column}
+          data-value={cell.value}
+        >
+          <rect width="56" height="32" rx="6"/>
+          <line x1="27" y1="0" x2="27" y2="32"/>
+          <line x1="41" y1="0" x2="41" y2="32"/>
+          <text className="node-value" x="13.5" y="20" textAnchor="middle">{cell.value}</text>
+          <text x="34" y="20" textAnchor="middle">{cell.row}</text>
+          <text x="48.5" y="20" textAnchor="middle">{cell.column}</text>
+        </g>;
+      })}
+
+      <g className="sparse-node-legend" transform="translate(24 312)">
+        <text x="0" y="0">NODO:</text>
+        <text x="47" y="0">valor</text>
+        <text x="91" y="0">fila</text>
+        <text x="120" y="0">columna</text>
+        <text className="right-legend" x="195" y="0">left ← AROW</text>
+        <text className="down-legend" x="315" y="0">up ↑ ACOL</text>
+        <text x="455" y="0">↻ regreso circular a la cabecera</text>
+      </g>
+    </svg>
+  </div>;
+}
+
 function LinearVisual({ algorithm, step }) {
   const { values, type } = algorithm;
   if (!values.length) return <div className="empty-visual"><strong>∅</strong><span>Estructura vacía</span></div>;
@@ -295,17 +519,27 @@ function treeHeight(values, index) {
 function BinaryTreeDiagram({ algorithm, step, displayValues = algorithm.values.slice(0,15), badges = null, kindLabel = null }) {
   const values = displayValues;
   const orderedTree = ['bst','avl','rojo-negro','splay-tree'].includes(algorithm.id);
+  const redBlackMaximumDepth = algorithm.id === 'rojo-negro'
+    ? Math.max(0, ...values.map((value,index) => value === undefined ? 0 : Math.floor(Math.log2(index + 1))))
+    : 0;
   return <div className={`tree-canvas tree-${algorithm.id}`}>
     {kindLabel && <span className="tree-kind-label">{kindLabel}</span>}
     <svg className="edge-layer" aria-hidden="true">
-      {BINARY_EDGES.filter(([,to])=>to<values.length).map(([from,to]) =>
+      {BINARY_EDGES.filter(([from,to])=>to<values.length && values[from] !== undefined && values[to] !== undefined).map(([from,to]) =>
         <TreeEdge key={`${from}-${to}`} from={BINARY_POSITIONS[from]} to={BINARY_POSITIONS[to]} label={orderedTree ? to===from*2+1?'L':'R' : null}/>
       )}
     </svg>
-    {BINARY_POSITIONS.map(([x,y],index) => values[index] !== undefined && <div key={index} className={`tree-node ${index>=7?'deep-node':''} ${index===step%values.length?'active':''} ${algorithm.id==='rojo-negro'?(index===0||index>=3?'black-node':'red-node'):''} ${algorithm.id==='expression-tree'&&index<3?'operator-node':''}`} style={{left:`${x}%`,top:`${y}%`}}>
+    {BINARY_POSITIONS.map(([x,y],index) => {
+      if (values[index] === undefined) return null;
+      const redBlackDepth = Math.floor(Math.log2(index + 1));
+      const redBlackClass = algorithm.id === 'rojo-negro'
+        ? index !== 0 && redBlackDepth === redBlackMaximumDepth ? 'red-node' : 'black-node'
+        : '';
+      return <div key={index} data-tree-index={index} data-node-color={redBlackClass || undefined} className={`tree-node ${index>=7?'deep-node':''} ${index===step%values.length?'active':''} ${redBlackClass} ${algorithm.id==='expression-tree'&&['+','-','−','*','×','/'].includes(String(values[index]))?'operator-node':''}`} style={{left:`${x}%`,top:`${y}%`}}>
       <span className="tree-value">{values[index]}</span>
       {badges?.[index] && <small className="tree-node-badge">{badges[index]}</small>}
-    </div>)}
+      </div>;
+    })}
   </div>;
 }
 
@@ -322,39 +556,70 @@ function NaryTreeDiagram({ algorithm, step }) {
 
 function MultiwayTreeDiagram({ algorithm, step }) {
   const values = algorithm.values.slice(0,24);
-  const groupCount = Math.ceil(values.length / 3);
-  const groupBaseSize = Math.floor(values.length / groupCount);
-  const largerGroups = values.length % groupCount;
-  let groupCursor = 0;
-  const groups = Array.from({ length: groupCount }, (_, index) => {
-    const groupSize = groupBaseSize + (index < largerGroups ? 1 : 0);
-    const group = values.slice(groupCursor, groupCursor + groupSize);
-    groupCursor += groupSize;
-    return group;
+  const leaves = [];
+  for (let start = 0; start < values.length; start += 3) {
+    leaves.push({
+      id: `leaf-${leaves.length}`,
+      keys: values.slice(start, start + 3),
+      start,
+      leaf: true,
+      children: [],
+    });
+  }
+  leaves.forEach((leaf, index) => {
+    leaf.x = ((index + .5) / leaves.length) * 100;
   });
-  let startCursor = 0;
-  const groupStarts = groups.map(group => {
-    const start = startCursor;
-    startCursor += group.length;
-    return start;
+
+  const levelsFromBottom = [leaves];
+  let children = leaves;
+  let levelNumber = 1;
+  while (children.length > 1) {
+    const parents = [];
+    for (let start = 0; start < children.length; start += 4) {
+      const childGroup = children.slice(start, start + 4);
+      const parent = {
+        id: `level-${levelNumber}-${parents.length}`,
+        keys: childGroup.slice(1).map(child => child.keys[0]),
+        leaf: false,
+        children: childGroup,
+        start: childGroup[0].start,
+        x: childGroup.reduce((sum, child) => sum + child.x, 0) / childGroup.length,
+      };
+      childGroup.forEach(child => { child.parent = parent; });
+      parents.push(parent);
+    }
+    levelsFromBottom.push(parents);
+    children = parents;
+    levelNumber++;
+  }
+  const levels = [...levelsFromBottom].reverse();
+  levels.forEach((level, levelIndex) => {
+    const y = levels.length === 1 ? 50 : 16 + (levelIndex / (levels.length - 1)) * 62;
+    level.forEach(node => { node.y = y; });
   });
-  const childX = groups.map((_, index) => ((index + .5) / groups.length) * 100);
-  const rootKeys = groups.slice(1).map(group => group[0]);
+  const allNodes = levels.flat();
+  const root = levels[0][0];
   const frame = algorithm.animationFrame;
   const promotedKey = frame?.promotedKey;
-  const promotionPending = ['insert','split','promote'].includes(frame?.treePhase) && promotedKey !== null && promotedKey !== undefined;
-  const visibleRootKeys = promotionPending ? rootKeys.filter(key => String(key) !== String(promotedKey)) : rootKeys;
-  const promotedLeaf = Math.max(0, groups.findIndex(group => String(group[0]) === String(promotedKey)));
   const activePosition = step % values.length;
-  const activeGroup = Math.max(0, groupStarts.findIndex((start,index) => activePosition >= start && activePosition < start + groups[index].length));
-  const nodeWidth = Math.min(17, 84 / groups.length);
-  return <div className={`btree-visual ${algorithm.id} ${groups.length > 5 ? 'many-leaves' : ''}`}>
+  const activeLeaf = leaves.find(leaf => activePosition >= leaf.start && activePosition < leaf.start + leaf.keys.length) ?? leaves[0];
+  const promotedLeaf = leaves.find(leaf => leaf.keys.some(key => String(key) === String(promotedKey))) ?? activeLeaf;
+  const activeMultiwayNode = ['search','promote','settled'].includes(frame?.treePhase) ? root : activeLeaf;
+  const nodeWidth = Math.max(7, Math.min(17, 84 / Math.max(1, leaves.length)));
+  return <div className={`btree-visual ${algorithm.id} ${leaves.length > 5 ? 'many-leaves' : ''}`}>
     <span className="tree-kind-label">{algorithm.id==='bplus-tree'?'DATOS SOLO EN HOJAS':algorithm.id==='bstar-tree'?'OCUPACIÓN MÍNIMA 2/3':'NODOS MULTICLAVE'}</span>
-    <svg className="btree-edges" aria-hidden="true">{childX.map((x,index)=><TreeEdge key={index} from={[50,22]} to={[x,70]} startPadding={42} endPadding={27} width={720}/>)}</svg>
-    <div className={`bnode root-bnode ${frame?.treePhase==='settled'?'promoting':''}`}><small>ROOT · SEPARADORES</small>{visibleRootKeys.join(' | ') || '·'}</div>
-    {groups.map((group,index)=><div className={`bnode child-bnode ${index===activeGroup?'active':''} ${frame?.treePhase==='split'&&index===promotedLeaf?'splitting':''}`} style={{left:`${childX[index]}%`,width:`${nodeWidth}%`}} key={index}><small>{algorithm.id==='bplus-tree'?'HOJA':'NODO'}</small>{group.join(' | ')||'·'}</div>)}
-    {algorithm.id==='bplus-tree' && groups.length > 1 && <svg className="bplus-leaf-chain"><defs><marker id="bplus-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z"/></marker></defs>{childX.slice(0,-1).map((x,index)=><line key={index} x1={`${x + nodeWidth / 2}%`} y1="50%" x2={`${childX[index+1] - nodeWidth / 2}%`} y2="50%" markerEnd="url(#bplus-arrow)"/>)}</svg>}
-    {frame?.treePhase==='promote' && promotedKey !== null && promotedKey !== undefined && <span className="promoted-key" style={{left:`${childX[promotedLeaf]}%`}}><small>SUBE</small>{promotedKey}</span>}
+    <svg className="btree-edges" aria-hidden="true">
+      {allNodes.flatMap(parent => parent.children.map(child =>
+        <TreeEdge key={`${parent.id}-${child.id}`} from={[parent.x,parent.y]} to={[child.x,child.y]} startPadding={34} endPadding={24} width={860}/>
+      ))}
+    </svg>
+    {allNodes.map(node => <div
+      className={`bnode multiway-node ${node===root?'root-bnode':''} ${node.leaf?'child-bnode leaf-bnode':'internal-bnode'} ${node===activeMultiwayNode?'active':''} ${frame?.treePhase==='split'&&node===promotedLeaf?'splitting':''} ${node===root&&frame?.treePhase==='settled'?'promoting':''}`}
+      style={{left:`${node.x}%`,top:`${node.y}%`,width:`${nodeWidth}%`}}
+      key={node.id}
+    ><small>{node===root?'ROOT':node.leaf?(algorithm.id==='bplus-tree'?'HOJA':'NODO HOJA'):'ÍNDICE'}</small>{node.keys.join(' | ')||'·'}</div>)}
+    {algorithm.id==='bplus-tree' && leaves.length > 1 && <svg className="bplus-leaf-chain" style={{top:`${leaves[0].y}%`}}><defs><marker id="bplus-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z"/></marker></defs>{leaves.slice(0,-1).map((leaf,index)=><line key={leaf.id} x1={`${leaf.x + nodeWidth / 2}%`} y1="50%" x2={`${leaves[index+1].x - nodeWidth / 2}%`} y2="50%" markerEnd="url(#bplus-arrow)"/>)}</svg>}
+    {frame?.treePhase==='promote' && promotedKey !== null && promotedKey !== undefined && <span className="promoted-key" style={{left:`${promotedLeaf.x}%`,top:`${promotedLeaf.y}%`}}><small>SUBE</small>{promotedKey}</span>}
     <div className="leaf-link">{algorithm.id==='bplus-tree'?'MÁX. 3 CLAVES POR HOJA · HOJAS ENLAZADAS →':algorithm.id==='bstar-tree'?'MÁX. 3 CLAVES · REDISTRIBUYE ANTES DE DIVIDIR':'MÁX. 3 CLAVES POR NODO · LOS SEPARADORES SUBEN'}</div>
   </div>;
 }
@@ -403,7 +668,7 @@ function TreeVisual({ algorithm, step }) {
     if (algorithm.id==='heap') return index===0?'MAX':`i=${index}`;
     if (algorithm.id==='kd-tree') return index===0||index===3||index===4||index===5||index===6?'eje X':'eje Y';
     if (algorithm.id==='splay-tree') return index===0?'ÚLTIMO ACCESO':'BST';
-    if (algorithm.id==='expression-tree') return index<3?'OPERADOR':'OPERANDO';
+    if (algorithm.id==='expression-tree') return ['+','-','−','*','×','/'].includes(String(values[index]))?'OPERADOR':'OPERANDO';
     return null;
   });
   const labels = { avl:'ALTURA BALANCEADA', bst:'IZQUIERDA < RAÍZ < DERECHA', 'rojo-negro':'REGLAS DE COLOR', 'splay-tree':'ACCESO MOVIDO A LA RAÍZ', heap:'MAX-HEAP COMPLETO', 'kd-tree':'PARTICIÓN POR EJES', 'expression-tree':'OPERADORES Y OPERANDOS' };
@@ -745,6 +1010,7 @@ function SpecialVisual({ algorithm, step }) {
 }
 
 function Visualizer({ algorithm, step }) {
+  if (algorithm.type === 'sparse-matrix') return <SparseMatrixVisual algorithm={algorithm}/>;
   if (!algorithm.values.length) return <div className="empty-visual"><strong>∅</strong><span>Estructura vacía</span></div>;
   if (['dijkstra','a-star'].includes(algorithm.id)) return <PathMapVisual algorithm={algorithm}/>;
   if (algorithm.id==='fenwick-tree') return <FenwickVisual algorithm={algorithm} step={step}/>;
@@ -947,7 +1213,7 @@ function App() {
   const startingAlgorithm = algorithms.find(item => item.id === startingId) ?? algorithms[0];
   const [showOpeningIntro, setShowOpeningIntro] = useState(() => readPreference(STORAGE_KEYS.introSeen, 'false') !== 'true');
   const [selectedId, setSelectedId] = useState(startingAlgorithm.id);
-  const [showWelcome, setShowWelcome] = useState(() => algorithmIdFromHash() === null);
+  const [showWelcome, setShowWelcome] = useState(() => algorithmIdFromLocation() === null);
   const [query, setQuery] = useState('');
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -980,7 +1246,9 @@ function App() {
   const activeOperationLabel = operationDefinition.actions.find(item=>item.id===activeOperation)?.label ?? 'Operación';
   const javaOverview = operationGroup(baseAlgorithm) === 'list'
     ? `El código muestra la clase Node, head, tail, size y los enlaces next${baseAlgorithm.id.includes('doble') ? ' y prev' : ''}. La línea iluminada corresponde al cambio que se observa en la lista.`
-    : 'El código usa variables, arreglos, ciclos, condiciones y métodos pequeños. Cada línea iluminada corresponde al cambio mostrado en la estructura.';
+    : baseAlgorithm.id === 'matriz-dispersa'
+      ? 'El código muestra AROW, ACOL y un único Node con left y up. AROW recorre de derecha a izquierda y ACOL de abajo hacia arriba hasta volver a sus cabeceras.'
+      : 'El código usa variables, arreglos, ciclos, condiciones y métodos pequeños. Cada línea iluminada corresponde al cambio mostrado en la estructura.';
   const displayedCode = codeMode === 'java' ? getBeginnerJava(baseAlgorithm, activeOperation) : baseAlgorithm.code;
   const codeLines = displayedCode.split('\n');
   const totalSteps = operationFrames.length || Math.max(algorithm.values.length, codeLines.length);
@@ -1067,31 +1335,36 @@ function App() {
   };
   const updateRoute = id => {
     const nextUrl = id
-      ? `${window.location.pathname}${window.location.search}#/${encodeURIComponent(id)}`
-      : `${window.location.pathname}${window.location.search}`;
+      ? `/${encodeURIComponent(id)}${window.location.search}`
+      : `/${window.location.search}`;
     window.history.pushState({ dsaLab: id ?? 'welcome' }, '', nextUrl);
   };
   const openAlgorithm = (id, updateHistory = true) => {
     loadAlgorithm(id);
     setShowWelcome(false);
-    if (updateHistory && algorithmIdFromHash() !== id) updateRoute(id);
+    if (updateHistory && algorithmIdFromLocation() !== id) updateRoute(id);
   };
   const openWelcome = (updateHistory = true) => {
     setShowWelcome(true);
     setPlaying(false);
-    if (updateHistory && window.location.hash) updateRoute(null);
+    if (updateHistory && (algorithmIdFromLocation() !== null || window.location.hash)) updateRoute(null);
   };
   useEffect(() => {
     const syncRoute = () => {
-      const routedId = algorithmIdFromHash();
+      const routedId = algorithmIdFromLocation();
       if (routedId) openAlgorithm(routedId, false);
       else openWelcome(false);
     };
+    const initialRoute = algorithmIdFromLocation();
+    if (window.location.hash) {
+      const cleanUrl = initialRoute
+        ? `/${encodeURIComponent(initialRoute)}${window.location.search}`
+        : `/${window.location.search}`;
+      window.history.replaceState({ dsaLab: initialRoute ?? 'welcome' }, '', cleanUrl);
+    }
     window.addEventListener('popstate', syncRoute);
-    window.addEventListener('hashchange', syncRoute);
     return () => {
       window.removeEventListener('popstate', syncRoute);
-      window.removeEventListener('hashchange', syncRoute);
     };
   }, []);
   const resetDemo = () => {
@@ -1137,20 +1410,22 @@ function App() {
       setDemoPositions(positionsForAlgorithm(baseAlgorithm));
     }
     const codeForAnimation = codeMode === 'java' ? getBeginnerJava(baseAlgorithm, actionId) : baseAlgorithm.code;
-    const previousValues = copyVisualValues(demoValues);
-    const previousEdges = demoEdges.map(edge => [...edge]);
+    const pendingFinalFrame = operationStatus === 'success' ? operationFrames.at(-1) : null;
+    const previousValues = copyVisualValues(pendingFinalFrame?.values ?? demoValues);
+    const previousEdges = (pendingFinalFrame?.edges ?? demoEdges).map(edge => [...edge]);
     const result = executeOperation({
       algorithm: { ...baseAlgorithm, positions: demoPositions, map: actionId === 'reset' ? DEFAULT_PATH_MAP : demoMap },
       actionId,
       fields,
-      values: demoValues,
-      edges: demoEdges,
+      values: previousValues,
+      edges: previousEdges,
       initialValues: baseAlgorithm.values,
       initialEdges: edgesForAlgorithm(baseAlgorithm),
     });
     const frames = result.frames?.length
       ? adaptFramesToCode(result.frames, codeForAnimation, codeMode === 'java')
-      : createCodeSynchronizedFrames({
+      : (baseAlgorithm.category === 'Árboles' ? createTreeSynchronizedFrames : createCodeSynchronizedFrames)({
+          algorithm: baseAlgorithm,
           code: codeForAnimation,
           actionId,
           beforeValues: previousValues,
@@ -1201,10 +1476,10 @@ function App() {
 
       {showWelcome ? <Welcome onStart={()=>openAlgorithm(selectedId)} startName={baseAlgorithm.name}/> : <>
 
-      <section className="hero">
+      {!sidebarCollapsed && <section className="hero">
         <div><div className="eyebrow"><span>{algorithm.category}</span><i>Práctica interactiva</i></div><h1>{algorithm.name}</h1><p>{algorithm.description}</p></div>
         <div className="complexity-card"><small>Complejidad</small><strong>{algorithm.complexity}</strong><div><Gauge size={16}/><span>Análisis asintótico</span></div></div>
-      </section>
+      </section>}
 
       <section className={`lab-grid ${hideCodePanel ? 'visual-only' : ''}`}>
         <article className="panel visual-panel">

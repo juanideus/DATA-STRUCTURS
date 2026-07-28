@@ -91,7 +91,7 @@ body{background:
 /* Collapsible navigation and live execution state */
 .sidebar,.workspace{transition:transform .28s ease,margin-left .28s ease}
 .app-shell.sidebar-collapsed .sidebar{transform:translateX(-100%)}
-.app-shell.sidebar-collapsed .workspace{margin-left:0}
+.app-shell.sidebar-collapsed .workspace{margin-left:0;padding-top:14px}
 .sidebar-collapse-button{width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.14);border-radius:7px;background:rgba(255,255,255,.045);color:#dce4e1;cursor:pointer;transition:background .18s,border-color .18s}
 .sidebar-collapse-button:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.28)}
 .sidebar-collapse-button:focus-visible,.sidebar-reveal-button:focus-visible{outline:3px solid rgba(200,95,67,.3);outline-offset:2px}
@@ -1279,6 +1279,41 @@ body{background:var(--paper)}
   stroke-width:1.55;
   stroke-linecap:round;
   vector-effect:non-scaling-stroke;
+}
+
+/* Matriz poco poblada: un mismo nodo participa en AROW y ACOL. */
+.sparse-matrix-visual{position:relative;z-index:2;width:min(760px,98%);height:330px;overflow:hidden}
+.sparse-matrix-visual svg{display:block;width:100%;height:100%;overflow:visible}
+.sparse-axis-title{font-family:'DM Mono',monospace;font-size:8px;font-weight:700;letter-spacing:.08em;fill:#7b8491}
+.sparse-header rect{fill:#f9fafb;stroke:#64748b;stroke-width:1.2}
+.sparse-header text{font-family:'DM Mono',monospace;font-size:8px;font-weight:700;fill:#334155}
+.sparse-header .pointer-label{font-size:6.4px;font-weight:500;fill:#8a94a3}
+.sparse-header.active rect{fill:#fff1eb;stroke:var(--orange);stroke-width:2}
+.sparse-header.column-header.active rect{fill:#edf3fb;stroke:#49698f}
+.sparse-link,.sparse-return{fill:none;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.sparse-link{stroke-width:1.15;opacity:.62}
+.sparse-return{stroke-width:1;stroke-dasharray:3 3;opacity:.42}
+.row-link,.row-return{stroke:#cf704f}
+.column-link,.column-return{stroke:#49698f}
+.sparse-link.active-link,.sparse-return.active-link{stroke-width:2;opacity:1;filter:drop-shadow(0 1px 2px rgba(30,41,59,.18))}
+.sparse-row-links marker path{fill:#cf704f}
+.sparse-column-links marker path{fill:#49698f}
+.sparse-node rect{fill:#fbfaf7;stroke:#7f8b96;stroke-width:1.1;transition:fill .18s,stroke .18s,filter .18s}
+.sparse-node line{stroke:#c8cdd4;stroke-width:.8}
+.sparse-node text{font-family:'DM Mono',monospace;font-size:7px;fill:#596273}
+.sparse-node .node-value{font-size:10px;font-weight:700;fill:#1f2937}
+.sparse-node.active rect{fill:#fff0e9;stroke:var(--orange);stroke-width:2;filter:drop-shadow(0 4px 6px rgba(217,96,67,.22))}
+.sparse-node.visited-row:not(.active) rect{stroke:#cf704f}
+.sparse-node.visited-column:not(.active) rect{stroke:#49698f}
+.sparse-node.pending rect{fill:#fff9f5;stroke:var(--orange);stroke-width:1.7;stroke-dasharray:4 2}
+.sparse-node.detached-row rect{fill:#f7f1ef;stroke:#b24a3c;stroke-dasharray:3 2}
+.sparse-node-legend text{font-family:'DM Mono',monospace;font-size:7px;fill:#7b8491}
+.sparse-node-legend .right-legend{fill:#b85f43}
+.sparse-node-legend .down-legend{fill:#405f84}
+
+@media(max-width:780px){
+  .sparse-matrix-visual{width:100%;height:290px}
+  .sparse-matrix-visual svg{overflow:visible}
 }
 .tree-edge-label{
   font-size:8.5px;

@@ -508,6 +508,16 @@ export const educationalDescriptions = {
     'La caja de una celda comienza en fila - fila % 3 y columna - columna % 3.'
   ),
 
+  'matriz-dispersa': guide(
+    'Una Matriz Poco Poblada o Matriz Dispersa contiene principalmente ceros. En vez de reservar una celda para cada posición, guarda únicamente los valores distintos de cero como nodos enlazados.',
+    'La estructura mantiene un arreglo AROW con una cabecera circular por fila y un arreglo ACOL con una cabecera circular por columna. La cabecera de fila apunta al nodo de mayor columna y left avanza de derecha a izquierda; la cabecera de columna apunta al nodo de mayor fila y up avanza de abajo hacia arriba. El último nodo siempre vuelve a su cabecera. El mismo nodo pertenece a ambas listas y nunca se duplica.',
+    'Insertar o actualizar una coordenada manteniendo el orden descendente|Buscar una posición recorriendo su fila de derecha a izquierda|Eliminar el mismo nodo de AROW y ACOL|Recorrer una fila con left o una columna con up hasta volver a la cabecera',
+    'Ahorra memoria cuando existen muchos ceros|Permite recorrer directamente los valores de una fila|Permite recorrer directamente los valores de una columna|Expone claramente cómo un nodo puede participar en dos listas',
+    'No conviene cuando casi todas las posiciones contienen datos|Cada nodo necesita dos referencias adicionales|Una eliminación incompleta puede descoordinar AROW y ACOL|No se busca null: los recorridos deben detenerse al volver a la cabecera circular',
+    'Matrices de adyacencia con pocas conexiones|Sistemas de recomendación|Cálculo científico y álgebra lineal|Representación de documentos y datos de gran dimensión',
+    'Imagina una ciudad con muchas cuadras vacías: el plano sólo registra los edificios existentes, pero cada edificio aparece tanto en la lista de su calle como en la de su avenida.',
+    'Al eliminar, primero conserva el nodo objetivo y actualiza sus dos cadenas. Si sólo cambias left o sólo up, una de las vistas seguirá apuntando a un nodo que ya no debería existir.'
+  ),
   'union-find': guide(
     'Union-Find o Disjoint Set Union mantiene varios conjuntos separados y responde rápidamente si dos elementos pertenecen al mismo grupo.',
     'Cada elemento apunta a un padre y cada conjunto tiene una raíz representante. Path compression acorta caminos durante find y union by rank enlaza el árbol más pequeño bajo el mayor.',

@@ -14,6 +14,7 @@ import {
   adaptFramesToCode,
   buildCodeExecutionTrace,
   createCodeSynchronizedFrames,
+  createTreeSynchronizedFrames,
   estimateLoopIterations,
 } from '../src/logic/codeAnimation.js';
 import { DEFAULT_PATH_MAP } from '../src/logic/pathfindingMap.js';
@@ -85,6 +86,14 @@ function fieldsFor(algorithm, actionId, trial = 0) {
   if (actionId === 'edge-remove') Object.assign(samples, { value: 'A', second: 'B' });
   if (['bfs-run', 'dfs-run'].includes(actionId)) samples.value = String(first);
   if (actionId === 'shortest-path') Object.assign(samples, { value: String(algorithm.values[0]), second: String(algorithm.values.at(-1)), index: '' });
+  if (algorithm.id === 'matriz-dispersa') {
+    const cell = algorithm.values[trial % algorithm.values.length];
+    Object.assign(samples, {
+      value: String(actionId === 'matrix-insert' ? 30 + trial : cell.value),
+      second: String(actionId === 'matrix-row' ? trial % 5 : cell.row),
+      index: String(actionId === 'matrix-column' ? trial % 6 : cell.column),
+    });
+  }
   return samples;
 }
 
@@ -126,7 +135,7 @@ function validQueens(queens) {
   )));
 }
 
-assert.equal(algorithms.length, 52, 'El catálogo debe contener 52 temas.');
+assert.equal(algorithms.length, 53, 'El catálogo debe contener 53 temas.');
 assert.equal(new Set(algorithms.map(algorithm => algorithm.id)).size, algorithms.length, 'El catálogo contiene identificadores duplicados.');
 assert.equal(new Set(algorithms.map(algorithm => algorithm.name)).size, algorithms.length, 'El catálogo contiene nombres duplicados.');
 assert.equal(Object.keys(educationalDescriptions).length, algorithms.length, 'La cantidad de descripciones no coincide con el catálogo.');
@@ -193,9 +202,13 @@ for (const algorithm of algorithms) {
         const javaLineCount = java.split('\n').length;
         assert.ok(result.frames.every(frame => Number.isInteger(frame.codeLine) && frame.codeLine >= 0 && frame.codeLine < javaLineCount), `${label}: un fotograma apunta fuera del código Java.`);
       }
+      const frameFactory = algorithm.category === 'Árboles'
+        ? createTreeSynchronizedFrames
+        : createCodeSynchronizedFrames;
       const frames = usesCustomFrames
         ? adaptFramesToCode(result.frames, java, true)
-        : createCodeSynchronizedFrames({
+        : frameFactory({
+            algorithm,
             code: java,
             actionId: action.id,
             beforeValues: initialValues,
@@ -205,6 +218,7 @@ for (const algorithm of algorithms) {
             finalStep: result.step,
             finalMessage: result.message,
             succeeded: result.ok,
+            inputValues: fieldsFor(algorithm, action.id, trial),
           });
       assert.ok(frames.length > 0, `${label}: no genera fotogramas.`);
       assert.ok(frames.every(frame => Array.isArray(frame.values)), `${label}: un fotograma no contiene values.`);
@@ -216,7 +230,16 @@ for (const algorithm of algorithms) {
         assert.deepEqual(frames.at(-1).edges, result.edges, `${label}: las aristas finales no coinciden.`);
         if (!result.ok) assert.equal(frames.length, 1, `${label}: un error no debe reproducir una animación falsa.`);
 
-        const firstLoopLine = java.split('\n').findIndex(line => /\b(?:for|while)\s*\(/.test(line));
+        const javaLines = java.split('\n');
+        const startMarker = javaLines.findIndex(line => line.trim() === '// Start of the selected operation');
+        const endMarker = javaLines.findIndex((line, index) => (
+          index > startMarker && line.trim() === '// End of the selected operation'
+        ));
+        const firstLoopLine = javaLines.findIndex((line, index) => (
+          /\b(?:for|while)\s*\(/.test(line)
+          && (startMarker < 0 || index > startMarker)
+          && (endMarker < 0 || index < endMarker)
+        ));
         const iterations = estimateLoopIterations({
           actionId: action.id,
           beforeValues: initialValues,
@@ -233,6 +256,70 @@ for (const algorithm of algorithms) {
 }
 
 assert.deepEqual(incompleteJavaSnippets, [], `Hay métodos Java utilizados pero no mostrados:\n${JSON.stringify(incompleteJavaSnippets, null, 2)}`);
+
+const sparseMatrix = algorithms.find(item => item.id === 'matriz-dispersa');
+assert.ok(sparseMatrix, 'Falta la matriz poco poblada.');
+const sparseInsertJava = getBeginnerJava(sparseMatrix, 'matrix-insert');
+assert.match(sparseInsertJava, /Node left;/, 'La matriz debe enseñar el nexo horizontal invertido left.');
+assert.match(sparseInsertJava, /Node up;/, 'La matriz debe enseñar el nexo vertical invertido up.');
+assert.match(sparseInsertJava, /AROW\[row\]\.left = AROW\[row\]/, 'AROW debe quedar circular.');
+assert.match(sparseInsertJava, /ACOL\[column\]\.up = ACOL\[column\]/, 'ACOL debe quedar circular.');
+assert.match(sparseInsertJava, /currentRow\.column > column/, 'AROW debe recorrerse de derecha a izquierda.');
+assert.match(sparseInsertJava, /currentColumn\.row > row/, 'ACOL debe recorrerse de abajo hacia arriba.');
+
+const sparseInserted = run(
+  sparseMatrix,
+  'matrix-insert',
+  { value: '99', second: '4', index: '4' },
+);
+assert.equal(sparseInserted.ok, true, 'La inserción dispersa debe completarse.');
+assert.ok(sparseInserted.values.some(cell => cell.value === 99 && cell.row === 4 && cell.column === 4), 'La nueva celda no fue creada.');
+assert.ok(sparseInserted.frames.some(frame => frame.sparseState?.phase === 'link-row'), 'Falta animar el enlace en AROW.');
+assert.ok(sparseInserted.frames.some(frame => frame.sparseState?.phase === 'link-column'), 'Falta animar el enlace en ACOL.');
+
+const sparseUpdated = run(
+  sparseMatrix,
+  'matrix-insert',
+  { value: '77', second: '0', index: '1' },
+);
+assert.equal(sparseUpdated.values.length, sparseMatrix.values.length, 'Actualizar una coordenada no debe duplicar el nodo.');
+assert.equal(sparseUpdated.values.find(cell => cell.row === 0 && cell.column === 1)?.value, 77, 'No se actualizó el valor existente.');
+
+const sparseRemoved = run(
+  sparseMatrix,
+  'matrix-remove',
+  { value: '', second: '1', index: '4' },
+);
+assert.ok(!sparseRemoved.values.some(cell => cell.row === 1 && cell.column === 4), 'Eliminar debe retirar la celda de ambas listas.');
+assert.ok(sparseRemoved.frames.some(frame => frame.sparseState?.phase === 'detach-row'), 'Falta animar la desconexión de AROW.');
+assert.ok(sparseRemoved.frames.some(frame => frame.sparseState?.phase === 'detach-column'), 'Falta animar la desconexión de ACOL.');
+
+const sparseRow = run(sparseMatrix, 'matrix-row', { value: '', second: '1', index: '' });
+assert.deepEqual(
+  sparseRow.frames.filter(frame => frame.sparseState?.phase === 'row-scan').map(frame => frame.sparseState.activeCellKey),
+  ['1:5', '1:4', '1:3', '1:0'],
+  'AROW debe recorrer la fila de derecha a izquierda.',
+);
+const sparseColumn = run(sparseMatrix, 'matrix-column', { value: '', second: '', index: '4' });
+assert.deepEqual(
+  sparseColumn.frames.filter(frame => frame.sparseState?.phase === 'column-scan').map(frame => frame.sparseState.activeCellKey),
+  ['1:4', '0:4'],
+  'ACOL debe recorrer la columna de abajo hacia arriba.',
+);
+
+let fifteenSparseCells = [];
+for (let index = 0; index < 15; index++) {
+  const result = run(
+    sparseMatrix,
+    'matrix-insert',
+    { value: String(index + 1), second: String(Math.floor(index / 6)), index: String(index % 6) },
+    fifteenSparseCells,
+  );
+  assert.equal(result.ok, true, `La inserción dispersa ${index + 1} debe estar permitida.`);
+  fifteenSparseCells = result.values;
+}
+assert.equal(fifteenSparseCells.length, 15, 'La matriz debe admitir al menos 15 inserciones distintas.');
+assert.equal(new Set(fifteenSparseCells.map(cell => `${cell.row}:${cell.column}`)).size, 15, 'No debe haber coordenadas duplicadas.');
 
 const linkedListIds = ['lista-simple', 'lista-doble', 'lista-circular-simple', 'lista-circular-doble'];
 const linkedListActions = ['add-start', 'add-end', 'add-index', 'remove-start', 'remove-end', 'remove-index', 'remove-value', 'find'];
@@ -253,6 +340,35 @@ for (const listId of linkedListIds) {
     if (listId.includes('doble')) {
       assert.match(java, /Node prev;/, `${listId}/${actionId}: falta el enlace prev.`);
     }
+  }
+}
+
+function occupiedTree(values, index) {
+  return index >= 0 && index < values.length && values[index] !== undefined && values[index] !== null;
+}
+
+function assertOrderedBinaryTree(values, label, index = 0, minimum = -Infinity, maximum = Infinity) {
+  if (!occupiedTree(values, index)) return;
+  const value = Number(values[index]);
+  assert.ok(value > minimum && value < maximum, `${label}: ${value} rompe el orden BST.`);
+  assertOrderedBinaryTree(values, label, index * 2 + 1, minimum, value);
+  assertOrderedBinaryTree(values, label, index * 2 + 2, value, maximum);
+}
+
+function binaryTreeHeight(values, index = 0) {
+  if (!occupiedTree(values, index)) return 0;
+  return 1 + Math.max(
+    binaryTreeHeight(values, index * 2 + 1),
+    binaryTreeHeight(values, index * 2 + 2),
+  );
+}
+
+function assertAvlBalance(values, label) {
+  for (let index = 0; index < values.length; index++) {
+    if (!occupiedTree(values, index)) continue;
+    const balance = binaryTreeHeight(values, index * 2 + 1)
+      - binaryTreeHeight(values, index * 2 + 2);
+    assert.ok(Math.abs(balance) <= 1, `${label}: el nodo ${values[index]} tiene factor ${balance}.`);
   }
 }
 assert.match(getBeginnerJava(algorithms.find(item => item.id === 'lista-circular-simple'), 'add-start'), /tail\.next = head;/, 'Lista circular simple: no se cierra el ciclo.');
@@ -321,6 +437,82 @@ for (let value = 100; value < 115; value++) {
 }
 assert.equal(bplusValues.length, bplus.values.length + 15, 'B+ Tree: debe aceptar al menos 15 inserciones consecutivas.');
 assert.ok(sawBplusPromotion, 'B+ Tree: la animacion debe mostrar una clave subiendo al nodo padre.');
+
+const bst = algorithms.find(item => item.id === 'bst');
+const bstInsertResult = run(bst, 'tree-add', { value: '17', second: '', index: '' });
+assertOrderedBinaryTree(bstInsertResult.values, 'BST/insertar');
+assert.equal(bstInsertResult.values[14], 17, 'BST: la inserción debe seguir comparaciones hasta el hijo derecho disponible.');
+const bstSearchResult = run(bst, 'find', { value: '1', second: '', index: '' });
+const bstSearchCode = getBeginnerJava(bst, 'find');
+const bstSearchFrames = createTreeSynchronizedFrames({
+  algorithm: bst,
+  code: bstSearchCode,
+  actionId: 'find',
+  beforeValues: bst.values,
+  afterValues: bstSearchResult.values,
+  beforeEdges: edges(),
+  afterEdges: edges(),
+  finalStep: bstSearchResult.step,
+  finalMessage: bstSearchResult.message,
+  succeeded: bstSearchResult.ok,
+  inputValues: { value: '1', second: '', index: '' },
+});
+assert.deepEqual(
+  [...new Set(bstSearchFrames.filter(frame => !frame.completed).map(frame => frame.position))],
+  [0, 1, 3],
+  'BST: buscar 1 debe iluminar raíz, hijo izquierdo y nodo encontrado.',
+);
+const bstSearchMethodLine = bstSearchCode.split('\n').findIndex(line => line.includes('Node search'));
+assert.ok(
+  bstSearchFrames.filter(frame => frame.codeLine === bstSearchMethodLine).length >= 3,
+  'BST: cada llamada recursiva debe volver a iluminar el inicio del método.',
+);
+
+const avl = algorithms.find(item => item.id === 'avl');
+let avlValues = [...avl.values];
+for (const value of [5, 15, 45, 60, 55]) {
+  avlValues = run(avl, 'tree-add', { value: String(value), second: '', index: '' }, avlValues).values;
+  assertOrderedBinaryTree(avlValues, `AVL/insertar-${value}`);
+  assertAvlBalance(avlValues, `AVL/insertar-${value}`);
+}
+assert.match(getBeginnerJava(avl, 'tree-add'), /balanceOf/, 'AVL: el código debe calcular el factor de balance.');
+assert.match(getBeginnerJava(avl, 'tree-add'), /rotateRight/, 'AVL: el código debe mostrar las rotaciones.');
+
+const redBlack = algorithms.find(item => item.id === 'rojo-negro');
+assert.match(getBeginnerJava(redBlack, 'tree-add'), /fixAfterInsert/, 'Rojo-Negro: falta corregir colores y rotaciones.');
+assert.match(getBeginnerJava(redBlack, 'remove-value'), /fixAfterDelete/, 'Rojo-Negro: falta corregir el doble negro al eliminar.');
+
+const splay = algorithms.find(item => item.id === 'splay-tree');
+const splayFindResult = run(splay, 'find', { value: '7', second: '', index: '' });
+assert.equal(splayFindResult.values[0], 7, 'Splay Tree: el nodo encontrado debe terminar en la raíz.');
+assert.match(getBeginnerJava(splay, 'find'), /Node splay/, 'Splay Tree: el código debe mostrar el método splay utilizado.');
+
+const segmentTree = algorithms.find(item => item.id === 'segment-tree');
+assert.match(getBeginnerJava(segmentTree, 'range-update'), /tree\[node\]/, 'Segment Tree: actualizar debe modificar los nodos del árbol.');
+const fenwickTree = algorithms.find(item => item.id === 'fenwick-tree');
+assert.match(getBeginnerJava(fenwickTree, 'prefix-sum'), /index\s*&\s*-index/, 'Fenwick Tree: falta mostrar el salto por el bit menos significativo.');
+const suffixTree = algorithms.find(item => item.id === 'suffix-tree');
+assert.match(getBeginnerJava(suffixTree, 'set-word'), /insertSuffix/, 'Suffix Tree: construir debe insertar todos los sufijos.');
+assert.match(getBeginnerJava(bplus, 'sorted-add'), /Leaf splitLeaf/, 'B+ Tree: falta mostrar la división de una hoja.');
+const bstar = algorithms.find(item => item.id === 'bstar-tree');
+assert.match(getBeginnerJava(bstar, 'sorted-add'), /redistribute/, 'B* Tree: debe intentar redistribuir antes de dividir.');
+const expressionTree = algorithms.find(item => item.id === 'expression-tree');
+const builtExpression = run(expressionTree, 'set-expression', { value: '8+3*2', second: '', index: '' });
+assert.deepEqual(
+  builtExpression.values,
+  ['+', '8', '*', undefined, undefined, '3', '2'],
+  'Árbol de expresión: la precedencia debe dejar la multiplicación debajo de la suma.',
+);
+const evaluatedExpression = run(expressionTree, 'evaluate', { value: '', second: '', index: '' }, builtExpression.values);
+assert.match(evaluatedExpression.message, /14/, 'Árbol de expresión: 8 + 3 × 2 debe producir 14.');
+assert.match(getBeginnerJava(expressionTree, 'set-expression'), /applyTop/, 'Árbol de expresión: falta mostrar cómo se conectan operadores y operandos.');
+assert.match(getBeginnerJava(merkle, 'merkle-root'), /combineHash/, 'Merkle Tree: la raíz debe combinar hashes por parejas.');
+for (const treeAlgorithm of algorithms.filter(item => item.category === 'Árboles')) {
+  for (const action of getOperationDefinition(treeAlgorithm).actions) {
+    const java = getBeginnerJava(treeAlgorithm, action.id);
+    assert.doesNotMatch(java, /\/\/\s*TODO\b|Follow the visual steps|Reconnect node|Borrow from a sibling|Insert separator in|Move the median to/i, `${treeAlgorithm.id}/${action.id}: contiene código incompleto.`);
+  }
+}
 
 const graph = algorithms.find(item => item.id === 'grafo');
 const bfsResult = run(graph, 'bfs-run', { value: 'A', second: '', index: '' });

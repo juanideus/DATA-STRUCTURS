@@ -75,6 +75,18 @@ export const algorithms = [
     0,0,0,0,8,0,0,7,9,
   ]),
 
+  item('matriz-dispersa','Matriz poco poblada','Otros','sparse-matrix','Insertar / eliminar O(F + C) · Buscar O(F)','Representa únicamente las celdas distintas de cero mediante listas circulares invertidas: AROW recorre de derecha a izquierda y ACOL de abajo hacia arriba.',`insertar(valor, fila, columna):\n  verificar que la posición no exista\n  crear un nodo con valor, fila y columna\n  enlazarlo en AROW[fila] mediante left\n  enlazarlo en ACOL[columna] mediante up\n  ambos recorridos vuelven a su cabecera`,[
+    {value:8,row:0,column:1},
+    {value:3,row:0,column:4},
+    {value:2,row:1,column:0},
+    {value:7,row:1,column:3},
+    {value:8,row:1,column:4},
+    {value:4,row:1,column:5},
+    {value:10,row:2,column:0},
+    {value:12,row:3,column:2},
+    {value:3,row:4,column:3},
+    {value:5,row:4,column:5},
+  ]),
   item('union-find','Union-Find','Otros','union','Casi O(1) amortizado','Mantiene componentes disjuntos con compresión de caminos y unión por rango.',`find(x):\n  si padre[x] ≠ x: padre[x] ← find(padre[x])\n  retornar padre[x]\nunion(a,b): enlazar raíces`,[0,0,2,2,4,4,6,6]),
   item('lru-cache','LRU Cache','Otros','cache','Get / Put O(1)','Descarta el elemento menos usado recientemente combinando hash y lista doble.',`get(clave):\n  si existe: mover al frente\nput(clave, valor):\n  insertar al frente\n  si excede capacidad: quitar cola`,['A','D','B','F','C']),
   item('bloom-filter','Bloom Filter','Otros','bloom','Insertar / consultar O(k)','Filtro probabilístico compacto: puede dar falsos positivos, nunca falsos negativos.',`insertar(x):\n  para cada hash hᵢ\n    bits[hᵢ(x)] ← 1\ncontiene(x): comprobar todos esos bits`,[1,0,1,1,0,1,0,0,1,1,0,1]),

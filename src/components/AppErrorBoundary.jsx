@@ -16,7 +16,7 @@ export default class AppErrorBoundary extends React.Component {
   }
 
   goHome = () => {
-    window.location.hash = '';
+    window.history.replaceState({ dsaLab: 'welcome' }, '', '/');
     window.location.reload();
   };
 

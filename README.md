@@ -70,6 +70,7 @@ DSA Lab fue creado para:
 - Reproductor con pasos anterior/siguiente, pausa y reproducción automática.
 - Velocidades de reproducción `0.5×`, `1×` y `2×`.
 - Mensajes que explican qué está ocurriendo durante la operación.
+- Matriz poco poblada con cabeceras AROW y ACOL, nodos compartidos y recorridos circulares invertidos.
 
 ### Código sincronizado
 
@@ -121,7 +122,7 @@ Cada tema incluye una guía con:
 
 ## Catálogo de contenidos
 
-La versión actual contiene **52 temas**, agrupados en siete categorías.
+La versión actual contiene **53 temas**, agrupados en siete categorías.
 
 ### 1. Estructuras lineales — 9 temas
 
@@ -190,11 +191,12 @@ La versión actual contiene **52 temas**, agrupados en siete categorías.
 48. Laberinto
 49. Sudoku Solver 9×9
 
-### 7. Otros — 3 temas
+### 7. Otros — 4 temas
 
-50. Union-Find
-51. LRU Cache
-52. Bloom Filter
+50. Matriz poco poblada
+51. Union-Find
+52. LRU Cache
+53. Bloom Filter
 
 ## Cómo funciona la experiencia
 
@@ -321,25 +323,28 @@ DSA/
 │   ├── workflows/ci.yml               # Validación automática
 │   └── dependabot.yml                 # Actualizaciones controladas
 ├── scripts/
-│   └── audit-functions.mjs            # Auditoría automática del laboratorio
+│   ├── audit-functions.mjs            # Auditoría automática del laboratorio
+│   └── run-e2e.mjs                    # Build, servidor temporal y pruebas de navegador
 ├── src/
 │   ├── App.jsx                        # Aplicación, navegación y visualizadores
 │   ├── main.jsx                       # Punto de entrada de React
 │   ├── styles.css                     # Estilos, animaciones y responsive design
 │   ├── assets/
-│   │   ├── favicon-dsa.svg            # Favicon de DSA Lab
+│   │   └── favicon-dsa.svg            # Favicon de DSA Lab
 │   ├── components/
 │   │   ├── AppErrorBoundary.jsx       # Recuperación ante errores inesperados
 │   │   ├── EducationalDescription.jsx # Guía educativa de cada tema
 │   │   ├── OperationsPanel.jsx        # Campos y botones de operaciones
 │   │   └── VariablesPanel.jsx         # Variables de la ejecución en tiempo real
 │   ├── data/
-│   │   ├── algorithms.js              # Catálogo de 52 temas
+│   │   ├── algorithms.js              # Catálogo de 53 temas
 │   │   ├── beginnerJava.js            # Código Java por operación
 │   │   ├── educationalDescriptions.js # Contenido educativo detallado
 │   │   ├── graphDesigns.js             # Topologías visuales de los grafos
 │   │   ├── linkedListJava.js           # Listas enlazadas completas en Java
-│   │   └── guideJavaExamples.js        # Ejemplos Java de las guías
+│   │   ├── guideJavaExamples.js        # Ejemplos Java de las guías
+│   │   ├── treeJava.js                 # Operaciones completas de árboles en Java
+│   │   └── sparseMatrixJava.js         # Matriz circular AROW/ACOL completa en Java
 │   ├── logic/
 │   │   ├── codeAnimation.js            # Sincronización entre código y animaciones
 │   │   ├── operations.js               # Implementación de las acciones interactivas
@@ -369,7 +374,7 @@ npm run audit
 
 comprueba automáticamente, entre otros puntos:
 
-- Que existan los 52 temas esperados.
+- Que existan los 53 temas esperados.
 - Que cada tema tenga descripción educativa suficiente.
 - Que cada tema incluya un ejemplo Java.
 - Que todas las acciones devuelvan valores, aristas y mensajes válidos.
@@ -383,14 +388,21 @@ comprueba automáticamente, entre otros puntos:
 - Que Dijkstra y A* encuentren la ruta mínima A-F con costo 12.
 - Que Torres de Hanoi complete todos sus movimientos.
 - Que B+ Tree acepte al menos 15 inserciones consecutivas y muestre una promoción al padre.
+- Que BST siga la ruta correcta y que AVL mantenga factores de balance válidos.
+- Que Splay lleve el nodo accedido a la raíz.
+- Que Merkle combine hashes por parejas y el árbol de expresión respete precedencia.
+- Que la matriz poco poblada inserte un único nodo en AROW y ACOL, recorra ambas listas en orden invertido y cierre sus enlaces circulares.
 
-La auditoría actual cubre **52 temas, 241 acciones, 2410 pruebas funcionales y 56 funciones distintas**.
+La auditoría actual cubre **53 temas, 247 acciones, 2470 pruebas funcionales y 62 funciones distintas**.
 
 Además, Playwright verifica los recorridos críticos en Chromium de escritorio y móvil:
 
-- Enlaces compartibles como `/#/avl` y `/#/sudoku`.
+- Enlaces compartibles como `/avl` y `/sudoku`.
 - Persistencia del tema, velocidad y formato de código.
 - Operaciones y restablecimiento de estructuras.
+- Recorrido BST sincronizado entre nodo, línea Java y variables.
+- Inserciones consecutivas en B+ con nodos de máximo tres claves, sin cruces ni solapamientos.
+- Código especializado visible para AVL, Suffix Tree y B+ Tree.
 - Introducción mostrada sólo durante la primera visita.
 - Copia de reportes sin necesidad de una cuenta de GitHub.
 - Ausencia de desbordamiento horizontal en móvil.
@@ -464,9 +476,9 @@ También puedes abrir directamente la sección general de problemas:
 Cada tema dispone de un enlace compartible basado en hash, compatible con alojamiento estático:
 
 ```text
-https://tu-dominio.cl/#/array
-https://tu-dominio.cl/#/avl
-https://tu-dominio.cl/#/sudoku
+https://tu-dominio.cl/array
+https://tu-dominio.cl/avl
+https://tu-dominio.cl/sudoku
 ```
 
 El navegador conserva localmente:

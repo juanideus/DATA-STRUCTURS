@@ -17,8 +17,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "audit": "node scripts/audit-functions.mjs",
-    "test:e2e": "playwright test",
-    "check": "npm run audit && npm run build && npm run test:e2e"
+    "test:e2e": "node scripts/run-e2e.mjs",
+    "check": "npm run audit && npm run test:e2e"
   },
   "dependencies": {
     "lucide-react": "1.24.0",

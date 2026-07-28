@@ -1,5 +1,7 @@
 import { operationGroup } from '../logic/operations.js';
 import { linkedListJava } from './linkedListJava.js';
+import { getSparseMatrixJava } from './sparseMatrixJava.js';
+import { getTreeJava } from './treeJava.js';
 
 const basic = {
   'add-start': `void addAtStart(int value) {
@@ -1075,7 +1077,15 @@ export function completeJavaSnippet(source, contextId = '') {
 export function getBeginnerJava(algorithm, actionId) {
   const group = operationGroup(algorithm);
   let source;
-  if (algorithm.id === 'factorial' && actionId === 'calculate') {
+  const sparseMatrixSource = algorithm.id === 'matriz-dispersa'
+    ? getSparseMatrixJava(actionId)
+    : null;
+  const treeSource = sparseMatrixSource ? null : getTreeJava(algorithm.id, actionId);
+  if (sparseMatrixSource) {
+    source = sparseMatrixSource;
+  } else if (treeSource) {
+    source = treeSource;
+  } else if (algorithm.id === 'factorial' && actionId === 'calculate') {
     source = special['math:calculate:factorial'];
   } else {
     source = special[`${algorithm.id}:${actionId}`] ?? special[`${group}:${actionId}`] ?? basic[actionId] ?? `void operation() {

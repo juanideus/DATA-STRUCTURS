@@ -93,8 +93,12 @@ export function estimateLoopIterations({ actionId, beforeValues, afterValues, fi
 export function buildCodeExecutionTrace(code, iterationCount) {
   const lines = code.split('\n').map((text, index) => ({ index, text }));
   const operationMarker = lines.findIndex(line => line.text.trim() === '// Start of the selected operation');
+  const operationEndMarker = lines.findIndex((line, index) => (
+    index > operationMarker && line.text.trim() === '// End of the selected operation'
+  ));
   const firstExecutionLine = operationMarker >= 0 ? operationMarker + 1 : 0;
-  const expanded = expandBlock(lines, firstExecutionLine, lines.length - 1, Math.max(1, iterationCount));
+  const lastExecutionLine = operationEndMarker >= 0 ? operationEndMarker - 1 : lines.length - 1;
+  const expanded = expandBlock(lines, firstExecutionLine, lastExecutionLine, Math.max(1, iterationCount));
   const maximumFrames = 180;
   if (expanded.length <= maximumFrames) return expanded;
 
@@ -254,11 +258,253 @@ export function createCodeSynchronizedFrames({ code, actionId, beforeValues, aft
   return frames;
 }
 
+const orderedBinaryTreeIds = new Set(['bst', 'avl', 'rojo-negro', 'splay-tree', 'kd-tree']);
+const binaryTreeIds = new Set([
+  'arbol-binario', 'bst', 'avl', 'rojo-negro', 'splay-tree', 'heap',
+  'segment-tree', 'merkle-tree', 'kd-tree', 'expression-tree',
+]);
+
+const occupiedTreePosition = (values, index) => (
+  index >= 0 && index < values.length && values[index] !== undefined && values[index] !== null
+);
+
+function binarySearchVisitPositions(values, target, includeInsertionPosition = false) {
+  const positions = [];
+  let index = 0;
+  while (index < 15) {
+    positions.push(index);
+    if (!occupiedTreePosition(values, index)) break;
+    const current = Number(values[index]);
+    const requested = Number(target);
+    if (!Number.isFinite(current) || !Number.isFinite(requested) || current === requested) break;
+    index = requested < current ? index * 2 + 1 : index * 2 + 2;
+  }
+  if (!includeInsertionPosition && !occupiedTreePosition(values, positions.at(-1))) positions.pop();
+  return positions;
+}
+
+function binaryTraversalPositions(values, order) {
+  const positions = [];
+  const visit = index => {
+    if (!occupiedTreePosition(values, index)) return;
+    if (order === 'preorder') positions.push(index);
+    visit(index * 2 + 1);
+    if (order === 'inorder') positions.push(index);
+    visit(index * 2 + 2);
+    if (order === 'postorder') positions.push(index);
+  };
+  visit(0);
+  return positions;
+}
+
+function heapVisitPositions(actionId, beforeValues, afterValues, finalStep) {
+  if (actionId === 'heap-add') {
+    let index = Math.max(0, afterValues.length - 1);
+    const positions = [index];
+    while (index > 0) {
+      index = Math.floor((index - 1) / 2);
+      positions.push(index);
+    }
+    return positions;
+  }
+  if (actionId === 'heap-extract') {
+    const positions = [0];
+    let index = 0;
+    while (index * 2 + 1 < afterValues.length) {
+      const left = index * 2 + 1;
+      const right = left + 1;
+      index = right < afterValues.length && Number(afterValues[right]) > Number(afterValues[left]) ? right : left;
+      positions.push(index);
+    }
+    return positions;
+  }
+  return [Math.max(0, Number(finalStep) || 0)];
+}
+
+function treeVisitPositions({ algorithm, actionId, beforeValues, afterValues, finalStep, inputValues }) {
+  const target = inputValues.value;
+  if (algorithm.type === 'heap') return heapVisitPositions(actionId, beforeValues, afterValues, finalStep);
+
+  if (orderedBinaryTreeIds.has(algorithm.id) && ['tree-add', 'find', 'remove-value'].includes(actionId)) {
+    return binarySearchVisitPositions(beforeValues, target, actionId === 'tree-add');
+  }
+
+  if (binaryTreeIds.has(algorithm.id) && ['preorder', 'inorder', 'postorder'].includes(actionId)) {
+    return binaryTraversalPositions(beforeValues, actionId);
+  }
+
+  if (['preorder', 'inorder', 'postorder', 'range-view', 'merkle-root'].includes(actionId)) {
+    return beforeValues.map((value, index) => value === undefined ? null : index).filter(index => index !== null);
+  }
+
+  if (['prefix-sum', 'range-min'].includes(actionId)) {
+    const limit = Math.max(0, Number(inputValues.index) || 0);
+    return Array.from({ length: Math.min(beforeValues.length, limit + 1) }, (_, index) => index);
+  }
+
+  if (actionId === 'range-update') return [Math.max(0, Number(inputValues.index) || 0)];
+  if (['find', 'remove-value', 'word-find', 'remove-word'].includes(actionId)) {
+    const found = beforeValues.findIndex(value => String(value) === String(target));
+    const end = found >= 0 ? found : beforeValues.length - 1;
+    return Array.from({ length: Math.max(1, end + 1) }, (_, index) => index);
+  }
+  if (['tree-add', 'sorted-add', 'set-word', 'set-expression', 'add-end'].includes(actionId)) {
+    return [Math.max(0, Number(finalStep) || Math.max(0, afterValues.length - 1))];
+  }
+  return [Math.max(0, Number(finalStep) || 0)];
+}
+
+function structuralMutationLine(code, algorithm, actionId) {
+  const lines = code.split('\n');
+  const patterns = actionId === 'tree-add'
+    ? algorithm.id === 'avl'
+      ? [/return node;/, /return rotate/, /new Node/]
+      : algorithm.id === 'rojo-negro'
+        ? [/fixAfterInsert/, /root =/, /new Node/]
+        : algorithm.id === 'splay-tree'
+          ? [/root = splay/, /return new Node/, /new Node/]
+          : [/return new Node/, /new Node/, /children\.add/, /children\[/, /points\[/, /node\.value\s*=/]
+    : actionId === 'heap-add'
+      ? [/swap\(/, /heap\[index\]\s*=\s*value/, /values\[size\]\s*=\s*value/]
+      : actionId === 'heap-extract'
+        ? [/size--/, /swap\(/, /heap\[0\]\s*=/]
+        : ['remove-value', 'remove-word', 'remove-end'].includes(actionId)
+          ? [/size--/, /isWord\s*=\s*false/, /return node\.(?:left|right)/, /keyCount--/]
+          : actionId === 'range-update'
+            ? [/\+=\s*delta/, /tree\[node\]\s*=/, /values\[index\]\s*=/]
+            : actionId === 'sorted-add'
+              ? [/insertIntoParent/, /split/, /keys\[index\]\s*=\s*value/, /keyCount\+\+/]
+              : actionId === 'set-word'
+                ? [/isWord\s*=\s*true/, /text\s*=/]
+                : actionId === 'set-expression'
+                  ? [/return root/, /new Node/]
+                  : actionId === 'add-end'
+                    ? [/blocks\[size\]\s*=/, /size\+\+/]
+                    : [];
+
+  for (const pattern of patterns) {
+    const index = lines.findIndex(line => pattern.test(line));
+    if (index >= 0) return index;
+  }
+  return null;
+}
+
+export function createTreeSynchronizedFrames(args) {
+  const baseFrames = createCodeSynchronizedFrames(args);
+  if (!args.succeeded || !baseFrames.length) return baseFrames;
+
+  const visits = treeVisitPositions(args).filter(position => Number.isInteger(position) && position >= 0);
+  if (!visits.length) return baseFrames;
+
+  const repeatsRecursiveMethod = orderedBinaryTreeIds.has(args.algorithm.id)
+    && ['tree-add', 'find', 'remove-value', 'preorder', 'inorder', 'postorder'].includes(args.actionId)
+    && visits.length > 1;
+  const bodyFrames = baseFrames.filter(frame => !frame.completed);
+  const timeline = repeatsRecursiveMethod
+    ? [
+        ...visits.flatMap((position, visitIndex) => bodyFrames.map(frame => ({
+          ...frame,
+          treeVisitPosition: position,
+          treeVisitIndex: visitIndex,
+          treeVisitTotal: visits.length,
+        }))),
+        { ...baseFrames.at(-1), completed: true },
+      ]
+    : baseFrames;
+
+  const changesStructure = JSON.stringify(args.beforeValues) !== JSON.stringify(args.afterValues);
+  const mutationLine = structuralMutationLine(args.code, args.algorithm, args.actionId);
+  let mutationFrame = -1;
+  if (changesStructure && mutationLine !== null) {
+    for (let index = timeline.length - 1; index >= 0; index--) {
+      if (timeline[index].codeLine === mutationLine) {
+        mutationFrame = index;
+        break;
+      }
+    }
+  }
+  if (changesStructure && mutationFrame < 0) mutationFrame = Math.max(0, timeline.length - 2);
+
+  return timeline.map((frame, index) => {
+    const progress = timeline.length <= 1 ? 1 : index / (timeline.length - 1);
+    const visitIndex = Math.min(visits.length - 1, Math.floor(progress * visits.length));
+    let position = frame.completed
+      ? Math.max(0, Number(args.finalStep) || 0)
+      : frame.treeVisitPosition ?? visits[visitIndex];
+    const values = changesStructure && index < mutationFrame
+      ? copyVisualValues(args.beforeValues)
+      : changesStructure
+        ? copyVisualValues(args.afterValues)
+        : copyVisualValues(frame.values);
+    if (values[position] === undefined && index < mutationFrame) {
+      const previousVisiblePosition = visits.slice(0, visitIndex + 1).reverse()
+        .find(candidate => args.beforeValues[candidate] !== undefined);
+      if (previousVisiblePosition !== undefined) position = previousVisiblePosition;
+    }
+    const visibleValue = values[position] ?? args.beforeValues[position];
+    const variables = [
+      ...(frame.variables ?? []).filter(variable => variable.name !== 'posición activa'),
+      { name: 'nodo activo', value: readableVariableValue(visibleValue), role: 'value' },
+      { name: 'índice del nodo', value: readableVariableValue(position), role: 'position' },
+    ];
+    if (frame.treeVisitIndex !== undefined) {
+      variables.push({
+        name: 'llamada recursiva',
+        value: `${frame.treeVisitIndex + 1} de ${frame.treeVisitTotal}`,
+        role: 'index',
+      });
+    }
+    const message = frame.completed
+      ? args.finalMessage
+      : visibleValue !== undefined
+        ? `Nodo ${visibleValue}: ${frame.message}`
+        : frame.message;
+    return { ...frame, values, position, variables, message };
+  });
+}
+
 export function adaptFramesToCode(frames, code, keepOriginalLines) {
   const lines = executableCodeLines(code);
   const lastCodeLine = Math.max(0, code.split('\n').length - 1);
+  const sourceLines = code.split('\n');
+  const operationMarker = sourceLines.findIndex(line => line.trim() === '// Start of the selected operation');
+  const operationEndMarker = sourceLines.findIndex((line, index) => (
+    index > operationMarker && line.trim() === '// End of the selected operation'
+  ));
+  const selectedStart = operationMarker >= 0 ? operationMarker + 1 : 0;
+  const selectedEnd = operationEndMarker >= 0 ? operationEndMarker - 1 : sourceLines.length - 1;
+  const phasePatterns = {
+    search: [/findLeaf\(/, /Node leaf\s*=/],
+    insert: [/insertInOrder\(/, /insertNonFull\(/],
+    split: [/splitLeaf\(/, /splitChild\(/, /splitTwoNodesIntoThree\(/],
+    promote: [/insertIntoParent\(/, /int separator\s*=/, /parent\.keys\[childIndex\]\s*=/, /insertSeparator\(/, /redistribute\(/],
+    settled: [/^}\s*$/],
+  };
   return frames.map((frame, index) => {
-    if (keepOriginalLines) return { ...frame, codeLine: Math.min(lastCodeLine, Math.max(0, frame.codeLine ?? 0)) };
+    if (keepOriginalLines) {
+      if (frame.codeNeedle) {
+        const matchedLine = sourceLines.findIndex((line, sourceIndex) => (
+          sourceIndex >= selectedStart
+          && sourceIndex <= selectedEnd
+          && line.includes(frame.codeNeedle)
+        ));
+        if (matchedLine >= 0) return { ...frame, codeLine: matchedLine };
+      }
+      if (frame.treePhase) {
+        const patterns = phasePatterns[frame.treePhase] ?? [];
+        let matchedLine = -1;
+        for (const pattern of patterns) {
+          matchedLine = sourceLines.findIndex(line => pattern.test(line.trim()));
+          if (matchedLine >= 0) break;
+        }
+        if (frame.treePhase === 'settled') {
+          const endMarker = sourceLines.findIndex(line => line.trim() === '// End of the selected operation');
+          if (endMarker > 0) matchedLine = endMarker - 1;
+        }
+        if (matchedLine >= 0) return { ...frame, codeLine: matchedLine };
+      }
+      return { ...frame, codeLine: Math.min(lastCodeLine, Math.max(0, frame.codeLine ?? 0)) };
+    }
     const progress = frames.length <= 1 ? 1 : index / (frames.length - 1);
     const line = lines[Math.min(lines.length - 1, Math.round(progress * Math.max(0, lines.length - 1)))];
     return { ...frame, codeLine: line?.index ?? 0 };

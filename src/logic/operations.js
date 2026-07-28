@@ -124,9 +124,25 @@ const definitions = {
     fields: [field('value', 'Elemento')],
     actions: [action('bloom-add', 'Agregar'), action('bloom-check', 'Comprobar'), action('clear-bits', 'Limpiar bits', 'danger')],
   },
+  sparseMatrix: {
+    fields: [
+      field('second', 'Fila', 'number'),
+      field('index', 'Columna', 'number'),
+      field('value', 'Valor', 'number'),
+    ],
+    actions: [
+      action('matrix-insert', 'Insertar / actualizar'),
+      action('matrix-get', 'Buscar posición'),
+      action('matrix-remove', 'Eliminar posición', 'danger'),
+      action('matrix-row', 'Recorrer fila'),
+      action('matrix-column', 'Recorrer columna'),
+      action('matrix-clear', 'Vaciar matriz', 'danger'),
+    ],
+  },
 };
 
 export function operationGroup(algorithm) {
+  if (algorithm.id === 'matriz-dispersa') return 'sparseMatrix';
   if (algorithm.id === 'array') return 'array';
   if (algorithm.id === 'pila') return 'stack';
   if (algorithm.id === 'cola') return 'queue';
@@ -202,6 +218,140 @@ const binaryTraversal = (values, order) => {
   visit(0);
   return result;
 };
+
+const orderedBinaryTreeIds = new Set(['bst', 'avl', 'rojo-negro', 'splay-tree', 'kd-tree']);
+const balancedBinaryTreeIds = new Set(['avl', 'rojo-negro']);
+const compactTreeValues = values => values.filter(value => value !== undefined && value !== null);
+
+const trimTreeSlots = values => {
+  const result = [...values];
+  while (result.length && result.at(-1) === undefined) result.pop();
+  return result;
+};
+
+const buildBinarySearchTree = values => {
+  const tree = [];
+  for (const value of values) {
+    let index = 0;
+    while (index < 15 && tree[index] !== undefined) {
+      if (Number(value) === Number(tree[index])) break;
+      index = Number(value) < Number(tree[index]) ? index * 2 + 1 : index * 2 + 2;
+    }
+    if (index < 15) tree[index] = value;
+  }
+  return trimTreeSlots(tree);
+};
+
+const buildBalancedBinaryTree = values => {
+  const sorted = [...values].sort((first, second) => Number(first) - Number(second));
+  const tree = [];
+  const place = (start, end, index) => {
+    if (start > end || index >= 15) return;
+    const middle = Math.floor((start + end) / 2);
+    tree[index] = sorted[middle];
+    place(start, middle - 1, index * 2 + 1);
+    place(middle + 1, end, index * 2 + 2);
+  };
+  place(0, sorted.length - 1, 0);
+  return trimTreeSlots(tree);
+};
+
+const buildSplayedBinaryTree = (values, rootValue) => {
+  const numericRoot = Number(rootValue);
+  const remaining = [...values].filter(value => Number(value) !== numericRoot);
+  const lower = remaining.filter(value => Number(value) < numericRoot);
+  const higher = remaining.filter(value => Number(value) > numericRoot);
+  const tree = [rootValue];
+  const place = (items, index) => {
+    if (!items.length || index >= 15) return;
+    const middle = Math.floor((items.length - 1) / 2);
+    tree[index] = items[middle];
+    place(items.slice(0, middle), index * 2 + 1);
+    place(items.slice(middle + 1), index * 2 + 2);
+  };
+  place(lower.sort((a, b) => Number(a) - Number(b)), 1);
+  place(higher.sort((a, b) => Number(a) - Number(b)), 2);
+  return trimTreeSlots(tree);
+};
+
+const binarySearchPosition = (values, target) => {
+  let index = 0;
+  while (index < values.length && values[index] !== undefined) {
+    if (Number(values[index]) === Number(target)) return index;
+    index = Number(target) < Number(values[index]) ? index * 2 + 1 : index * 2 + 2;
+  }
+  return -1;
+};
+
+const expressionPrecedence = operator => ({ '+': 1, '-': 1, '*': 2, '/': 2 }[operator] ?? 0);
+
+const expressionTreeFromInfix = source => {
+  const tokens = source.replaceAll('×', '*').replaceAll('−', '-').match(/\d+|[()+\-*/]/g) ?? [];
+  const output = [];
+  const operators = [];
+  for (const token of tokens) {
+    if (/^\d+$/.test(token)) {
+      output.push(token);
+    } else if (token === '(') {
+      operators.push(token);
+    } else if (token === ')') {
+      while (operators.length && operators.at(-1) !== '(') output.push(operators.pop());
+      if (operators.pop() !== '(') return null;
+    } else {
+      while (operators.length && operators.at(-1) !== '('
+          && expressionPrecedence(operators.at(-1)) >= expressionPrecedence(token)) {
+        output.push(operators.pop());
+      }
+      operators.push(token);
+    }
+  }
+  while (operators.length) {
+    const operator = operators.pop();
+    if (operator === '(') return null;
+    output.push(operator);
+  }
+
+  const stack = [];
+  for (const token of output) {
+    if (/^\d+$/.test(token)) {
+      stack.push({ value: token, left: null, right: null });
+    } else {
+      const right = stack.pop();
+      const left = stack.pop();
+      if (!left || !right) return null;
+      stack.push({ value: token, left, right });
+    }
+  }
+  if (stack.length !== 1) return null;
+
+  const values = [];
+  const place = (node, index) => {
+    if (!node || index >= 15) return;
+    values[index] = node.value;
+    place(node.left, index * 2 + 1);
+    place(node.right, index * 2 + 2);
+  };
+  place(stack[0], 0);
+  return trimTreeSlots(values);
+};
+
+const evaluateExpressionTree = (values, index = 0) => {
+  if (!occupiedTreeValue(values, index)) return null;
+  const token = String(values[index]);
+  if (/^\d+$/.test(token)) return Number(token);
+  const left = evaluateExpressionTree(values, index * 2 + 1);
+  const right = evaluateExpressionTree(values, index * 2 + 2);
+  if (left === null || right === null) return null;
+  if (token === '+') return left + right;
+  if (token === '-') return left - right;
+  if (token === '*' || token === '×') return left * right;
+  if (token === '/') return right === 0 ? null : left / right;
+  return null;
+};
+
+function occupiedTreeValue(values, index) {
+  return index >= 0 && index < values.length && values[index] !== undefined && values[index] !== null;
+}
 
 const graphTraversal = (values, edges, start, depthFirst, directed) => {
   const adjacency = Array.from({ length: values.length }, () => []);
@@ -615,10 +765,394 @@ const solveMazeWithTrace = initialMaze => {
   return { solved: explore(0, 0), values: maze, frames: trace };
 };
 
+export const SPARSE_MATRIX_ROWS = 5;
+export const SPARSE_MATRIX_COLUMNS = 6;
+
+const sparseCellKey = cell => `${cell.row}:${cell.column}`;
+const sparseCellLabel = cell => cell ? `(${cell.row}, ${cell.column}) = ${cell.value}` : 'cabecera';
+const sortSparseCells = cells => [...cells]
+  .map(cell => ({ value: Number(cell.value), row: Number(cell.row), column: Number(cell.column) }))
+  .sort((first, second) => first.row - second.row || first.column - second.column);
+
+function sparseVariables({ row, column, value, previousRow, currentRow, previousColumn, currentColumn, count }) {
+  const variables = [
+    { name: 'fila', value: row, role: 'input' },
+    { name: 'columna', value: column, role: 'input' },
+  ];
+  if (value !== undefined) variables.push({ name: 'valor', value, role: 'input' });
+  if (previousRow !== undefined) variables.push({ name: 'anteriorFila', value: previousRow, role: 'position' });
+  if (currentRow !== undefined) variables.push({ name: 'actualFila', value: currentRow, role: 'value' });
+  if (previousColumn !== undefined) variables.push({ name: 'anteriorCol', value: previousColumn, role: 'position' });
+  if (currentColumn !== undefined) variables.push({ name: 'actualCol', value: currentColumn, role: 'value' });
+  variables.push({ name: 'noCeros', value: count, role: 'size' });
+  return variables;
+}
+
+function executeSparseMatrixOperation({ actionId, fields, values, edges }) {
+  const before = sortSparseCells(values);
+  const row = Number(fields.second);
+  const column = Number(fields.index);
+  const value = Number(fields.value);
+  const validRow = Number.isInteger(row) && row >= 0 && row < SPARSE_MATRIX_ROWS;
+  const validColumn = Number.isInteger(column) && column >= 0 && column < SPARSE_MATRIX_COLUMNS;
+  const key = `${row}:${column}`;
+  const positionOf = (cells, requestedKey = key) => Math.max(0, cells.findIndex(cell => sparseCellKey(cell) === requestedKey));
+  const makeFrame = ({
+    cells = before,
+    message,
+    codeNeedle,
+    phase,
+    activeCell = null,
+    extraState = {},
+    variables = sparseVariables({ row, column, value, count: cells.length }),
+    completed = false,
+    failed = false,
+  }) => ({
+    values: sortSparseCells(cells),
+    edges,
+    position: activeCell ? positionOf(cells, sparseCellKey(activeCell)) : 0,
+    codeLine: 0,
+    codeNeedle,
+    message,
+    delayMs: completed ? 650 : 560,
+    completed,
+    failed,
+    variables,
+    sparseState: {
+      phase,
+      activeRow: validRow ? row : null,
+      activeColumn: validColumn ? column : null,
+      activeCellKey: activeCell ? sparseCellKey(activeCell) : null,
+      ...extraState,
+    },
+  });
+  const fail = (message, codeNeedle = null, frames = []) => ({
+    ok: false,
+    values: before,
+    edges,
+    message,
+    step: 0,
+    frames: [...frames, makeFrame({
+      message,
+      codeNeedle,
+      phase: 'error',
+      failed: true,
+      variables: sparseVariables({
+        row: Number.isFinite(row) ? row : '—',
+        column: Number.isFinite(column) ? column : '—',
+        value: Number.isFinite(value) ? value : undefined,
+        count: before.length,
+      }),
+    })],
+  });
+  const finishNeedle = (activeCell, resultCount) => actionId === 'matrix-insert'
+    ? resultCount > before.length
+      ? 'nonZeroCount++;'
+      : activeCell
+        ? 'currentRow.value = value;'
+        : 'return;'
+    : actionId === 'matrix-remove'
+      ? 'return true;'
+      : actionId === 'matrix-clear'
+        ? 'nonZeroCount = 0;'
+        : actionId === 'matrix-get'
+          ? activeCell ? 'return current.value;' : 'return 0;'
+          : actionId === 'matrix-row'
+            ? 'current = current.left;'
+            : 'current = current.up;';
+  const done = (cells, message, frames, activeCell = null) => {
+    const updated = sortSparseCells(cells);
+    return {
+      ok: true,
+      values: updated,
+      edges,
+      message,
+      step: activeCell ? positionOf(updated, sparseCellKey(activeCell)) : 0,
+      frames: [...frames, makeFrame({
+        cells: updated,
+        message,
+        codeNeedle: finishNeedle(activeCell, updated.length),
+        phase: 'completed',
+        activeCell,
+        completed: true,
+        variables: sparseVariables({
+          row: validRow ? row : '—',
+          column: validColumn ? column : '—',
+          value: Number.isFinite(value) ? value : undefined,
+          currentRow: activeCell ? sparseCellLabel(activeCell) : undefined,
+          currentColumn: activeCell ? sparseCellLabel(activeCell) : undefined,
+          count: updated.length,
+        }),
+      })],
+    };
+  };
+
+  if (actionId === 'matrix-clear') {
+    if (!before.length) return done([], 'La matriz ya estaba vacía.', [], null);
+    const frames = [
+      makeFrame({
+        message: 'Cada cabecera AROW vuelve a apuntarse a sí misma.',
+        codeNeedle: 'AROW[row].left = AROW[row];',
+        phase: 'clear-rows',
+        extraState: { clearedRows: true },
+        variables: [{ name: 'fila', value: `0…${SPARSE_MATRIX_ROWS - 1}`, role: 'index' }, { name: 'noCeros', value: before.length, role: 'size' }],
+      }),
+      makeFrame({
+        message: 'Cada cabecera ACOL vuelve a apuntarse a sí misma.',
+        codeNeedle: 'ACOL[column].up = ACOL[column];',
+        phase: 'clear-columns',
+        extraState: { clearedRows: true, clearedColumns: true },
+        variables: [{ name: 'columna', value: `0…${SPARSE_MATRIX_COLUMNS - 1}`, role: 'index' }, { name: 'noCeros', value: before.length, role: 'size' }],
+      }),
+    ];
+    return done([], 'La matriz quedó vacía y todas sus cabeceras siguen siendo circulares.', frames, null);
+  }
+
+  if (actionId === 'matrix-row') {
+    if (!validRow) return fail(`La fila debe estar entre 0 y ${SPARSE_MATRIX_ROWS - 1}.`, 'if (row < 0 || row >= rowCount)');
+    const rowCells = before.filter(cell => cell.row === row).sort((a, b) => b.column - a.column);
+    const frames = [makeFrame({
+      message: `El recorrido comienza en la cabecera AROW[${row}].`,
+      codeNeedle: 'Node current = rowHeader.left;',
+      phase: 'row-header',
+      variables: sparseVariables({ row, column: '—', count: before.length }),
+    })];
+    rowCells.forEach((cell, index) => frames.push(makeFrame({
+      message: `left visita ${sparseCellLabel(cell)} de derecha a izquierda; nodo ${index + 1} de ${rowCells.length}.`,
+      codeNeedle: 'current = current.left;',
+      phase: 'row-scan',
+      activeCell: cell,
+      extraState: { visitedRowKeys: rowCells.slice(0, index + 1).map(sparseCellKey) },
+      variables: sparseVariables({ row, column: cell.column, currentRow: sparseCellLabel(cell), count: before.length }),
+    })));
+    return done(
+      before,
+      rowCells.length
+        ? `AROW[${row}]: ${rowCells.map(cell => cell.value).join(' ← ')} y vuelve a su cabecera.`
+        : `AROW[${row}] no contiene datos y se apunta a sí misma.`,
+      frames,
+      rowCells.at(-1) ?? null,
+    );
+  }
+
+  if (actionId === 'matrix-column') {
+    if (!validColumn) return fail(`La columna debe estar entre 0 y ${SPARSE_MATRIX_COLUMNS - 1}.`, 'if (column < 0 || column >= columnCount)');
+    const columnCells = before.filter(cell => cell.column === column).sort((a, b) => b.row - a.row);
+    const frames = [makeFrame({
+      message: `El recorrido comienza en la cabecera ACOL[${column}].`,
+      codeNeedle: 'Node current = columnHeader.up;',
+      phase: 'column-header',
+      variables: sparseVariables({ row: '—', column, count: before.length }),
+    })];
+    columnCells.forEach((cell, index) => frames.push(makeFrame({
+      message: `up visita ${sparseCellLabel(cell)} de abajo hacia arriba; nodo ${index + 1} de ${columnCells.length}.`,
+      codeNeedle: 'current = current.up;',
+      phase: 'column-scan',
+      activeCell: cell,
+      extraState: { visitedColumnKeys: columnCells.slice(0, index + 1).map(sparseCellKey) },
+      variables: sparseVariables({ row: cell.row, column, currentColumn: sparseCellLabel(cell), count: before.length }),
+    })));
+    return done(
+      before,
+      columnCells.length
+        ? `ACOL[${column}]: ${columnCells.map(cell => cell.value).join(' ↑ ')} y vuelve a su cabecera.`
+        : `ACOL[${column}] no contiene datos y se apunta a sí misma.`,
+      frames,
+      columnCells.at(-1) ?? null,
+    );
+  }
+
+  if (!validRow || !validColumn) {
+    return fail(`Usa una fila entre 0 y ${SPARSE_MATRIX_ROWS - 1} y una columna entre 0 y ${SPARSE_MATRIX_COLUMNS - 1}.`, 'validatePosition(row, column);');
+  }
+
+  const rowCells = before.filter(cell => cell.row === row).sort((a, b) => b.column - a.column);
+  const rowVisits = rowCells.filter(cell => cell.column > column);
+  const existing = before.find(cell => sparseCellKey(cell) === key) ?? null;
+  const baseFrames = [makeFrame({
+    message: `La posición (${row}, ${column}) está dentro de la matriz ${SPARSE_MATRIX_ROWS} × ${SPARSE_MATRIX_COLUMNS}.`,
+    codeNeedle: 'validatePosition(row, column);',
+    phase: 'validate',
+    variables: sparseVariables({ row, column, value: Number.isFinite(value) ? value : undefined, count: before.length }),
+  })];
+  rowVisits.forEach((cell, index) => baseFrames.push(makeFrame({
+    message: `Se avanza por AROW[${row}] hasta ${sparseCellLabel(cell)}.`,
+    codeNeedle: actionId === 'matrix-remove'
+      ? 'target = target.left;'
+      : actionId === 'matrix-get'
+        ? 'current = current.left;'
+        : 'currentRow = currentRow.left;',
+    phase: 'search-row',
+    activeCell: cell,
+    extraState: { visitedRowKeys: rowVisits.slice(0, index + 1).map(sparseCellKey) },
+    variables: sparseVariables({
+      row,
+      column,
+      value: Number.isFinite(value) ? value : undefined,
+      previousRow: index === 0 ? `AROW[${row}]` : sparseCellLabel(rowVisits[index - 1]),
+      currentRow: sparseCellLabel(cell),
+      count: before.length,
+    }),
+  })));
+
+  if (actionId === 'matrix-get') {
+    if (!existing) {
+      const frames = [...baseFrames, makeFrame({
+        message: `No existe un nodo en (${row}, ${column}); su valor implícito es 0.`,
+        codeNeedle: 'return 0;',
+        phase: 'not-found',
+        variables: sparseVariables({ row, column, count: before.length }),
+      })];
+      return done(before, `La posición (${row}, ${column}) contiene 0 porque no necesita un nodo.`, frames, null);
+    }
+    return done(before, `La posición (${row}, ${column}) contiene ${existing.value}.`, baseFrames, existing);
+  }
+
+  if (actionId === 'matrix-remove') {
+    if (!existing) return fail(`No existe un nodo en (${row}, ${column}).`, 'return false;', baseFrames);
+    const previousRowCell = rowCells.filter(cell => cell.column > column).at(-1) ?? null;
+    const columnCells = before.filter(cell => cell.column === column).sort((a, b) => b.row - a.row);
+    const columnVisits = columnCells.filter(cell => cell.row > row);
+    const after = before.filter(cell => sparseCellKey(cell) !== key);
+    const frames = [...baseFrames, makeFrame({
+      message: `Se desconecta ${sparseCellLabel(existing)} de AROW[${row}].`,
+      codeNeedle: 'previousRow.left = target.left;',
+      phase: 'detach-row',
+      activeCell: existing,
+      extraState: { detachedRowKey: key },
+      variables: sparseVariables({
+        row,
+        column,
+        previousRow: previousRowCell ? sparseCellLabel(previousRowCell) : `AROW[${row}]`,
+        currentRow: sparseCellLabel(existing),
+        count: before.length,
+      }),
+    })];
+    columnVisits.forEach((cell, index) => frames.push(makeFrame({
+      message: 'Se localiza el mismo nodo en ACOL avanzando hacia arriba.',
+      codeNeedle: 'currentColumn = currentColumn.up;',
+      phase: 'search-column',
+      activeCell: cell,
+      extraState: { detachedRowKey: key, visitedColumnKeys: columnVisits.slice(0, index + 1).map(sparseCellKey) },
+      variables: sparseVariables({
+        row,
+        column,
+        previousColumn: index === 0 ? `ACOL[${column}]` : sparseCellLabel(columnVisits[index - 1]),
+        currentColumn: sparseCellLabel(cell),
+        count: before.length,
+      }),
+    })));
+    frames.push(makeFrame({
+      cells: after,
+      message: `Se desconecta el nodo de ACOL[${column}]; ya no queda en ninguna lista.`,
+      codeNeedle: 'previousColumn.up = target.up;',
+      phase: 'detach-column',
+      extraState: { removedCellKey: key },
+      variables: sparseVariables({ row, column, count: after.length }),
+    }));
+    return done(after, `${existing.value} fue eliminado de (${row}, ${column}) en AROW y ACOL.`, frames, null);
+  }
+
+  if (actionId === 'matrix-insert') {
+    if (!Number.isInteger(value)) return fail('El valor debe ser un número entero.', 'public void insert(int value, int row, int column)');
+    if (value === 0) {
+      if (!existing) return done(before, `La posición (${row}, ${column}) ya representa cero.`, baseFrames, null);
+      const after = before.filter(cell => sparseCellKey(cell) !== key);
+      const frames = [...baseFrames, makeFrame({
+        cells: after,
+        message: `Como el valor es 0, remove desconecta ${sparseCellLabel(existing)} de AROW y ACOL.`,
+        codeNeedle: 'remove(row, column);',
+        phase: 'detach-both',
+        extraState: { removedCellKey: key },
+        variables: sparseVariables({ row, column, value, count: after.length }),
+      })];
+      return done(after, `La posición (${row}, ${column}) volvió a ser cero y dejó de necesitar un nodo.`, frames, null);
+    }
+    if (existing) {
+      const after = before.map(cell => sparseCellKey(cell) === key ? { ...cell, value } : cell);
+      const updated = after.find(cell => sparseCellKey(cell) === key);
+      const frames = [...baseFrames, makeFrame({
+        cells: after,
+        message: `La posición ya existe: se actualiza ${existing.value} por ${value} sin crear otro nodo.`,
+        codeNeedle: 'currentRow.value = value;',
+        phase: 'update',
+        activeCell: updated,
+        variables: sparseVariables({ row, column, value, currentRow: sparseCellLabel(updated), count: before.length }),
+      })];
+      return done(after, `La posición (${row}, ${column}) fue actualizada a ${value}; no se duplicó el nodo.`, frames, updated);
+    }
+
+    const previousRowCell = rowCells.filter(cell => cell.column > column).at(-1) ?? null;
+    const nextRowCell = rowCells.find(cell => cell.column < column) ?? null;
+    const columnCells = before.filter(cell => cell.column === column).sort((a, b) => b.row - a.row);
+    const columnVisits = columnCells.filter(cell => cell.row > row);
+    const previousColumnCell = columnVisits.at(-1) ?? null;
+    const nextColumnCell = columnCells.find(cell => cell.row < row) ?? null;
+    const newCell = { value, row, column };
+    const after = sortSparseCells([...before, newCell]);
+    const frames = [...baseFrames];
+    columnVisits.forEach((cell, index) => frames.push(makeFrame({
+      message: `Se avanza por ACOL[${column}] hasta ${sparseCellLabel(cell)}.`,
+      codeNeedle: 'currentColumn = currentColumn.up;',
+      phase: 'search-column',
+      activeCell: cell,
+      extraState: { visitedColumnKeys: columnVisits.slice(0, index + 1).map(sparseCellKey) },
+      variables: sparseVariables({
+        row,
+        column,
+        value,
+        previousColumn: index === 0 ? `ACOL[${column}]` : sparseCellLabel(columnVisits[index - 1]),
+        currentColumn: sparseCellLabel(cell),
+        count: before.length,
+      }),
+    })));
+    frames.push(
+      makeFrame({
+        message: `Se crea un único nodo ${sparseCellLabel(newCell)}.`,
+        codeNeedle: 'Node newNode = new Node(value, row, column);',
+        phase: 'create',
+        extraState: { pendingNode: newCell },
+        variables: sparseVariables({
+          row,
+          column,
+          value,
+          previousRow: previousRowCell ? sparseCellLabel(previousRowCell) : `AROW[${row}]`,
+          currentRow: nextRowCell ? sparseCellLabel(nextRowCell) : `AROW[${row}]`,
+          previousColumn: previousColumnCell ? sparseCellLabel(previousColumnCell) : `ACOL[${column}]`,
+          currentColumn: nextColumnCell ? sparseCellLabel(nextColumnCell) : `ACOL[${column}]`,
+          count: before.length,
+        }),
+      }),
+      makeFrame({
+        cells: after,
+        message: `left incluye el nuevo nodo en AROW[${row}] y conserva el recorrido de derecha a izquierda.`,
+        codeNeedle: 'previousRow.left = newNode;',
+        phase: 'link-row',
+        activeCell: newCell,
+        extraState: { linkedRowKey: key, pendingColumnKey: key },
+        variables: sparseVariables({ row, column, value, currentRow: sparseCellLabel(newCell), count: after.length }),
+      }),
+      makeFrame({
+        cells: after,
+        message: `up incluye el mismo nodo en ACOL[${column}] y conserva el recorrido de abajo hacia arriba.`,
+        codeNeedle: 'previousColumn.up = newNode;',
+        phase: 'link-column',
+        activeCell: newCell,
+        extraState: { linkedRowKey: key, linkedColumnKey: key },
+        variables: sparseVariables({ row, column, value, currentColumn: sparseCellLabel(newCell), count: after.length }),
+      }),
+    );
+    return done(after, `${value} fue insertado en (${row}, ${column}) usando un nodo compartido por AROW y ACOL.`, frames, newCell);
+  }
+
+  return fail('La operación de matriz todavía no está disponible.');
+}
+
 export function executeOperation({ algorithm, actionId, fields, values, edges, initialValues, initialEdges = DEFAULT_GRAPH_EDGES }) {
   const group = operationGroup(algorithm);
+  if (group === 'sparseMatrix') return executeSparseMatrixOperation({ actionId, fields, values, edges });
   const next = [...values];
-  const forceText = ['merkle', 'spatial', 'hash', 'cache'].includes(group);
+  const forceText = ['merkle', 'hash', 'cache'].includes(group) || (group === 'spatial' && algorithm.id !== 'kd-tree');
   const value = numericValue(fields.value ?? '', values, forceText);
   const index = validIndex(fields.index ?? '', values.length, actionId === 'add-index');
   const fail = message => ({ ok: false, values, edges, message, step: 0 });
@@ -666,10 +1200,24 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     }
     case 'remove-value': {
       if (value === null) return fail('Ingresa el valor que quieres eliminar.');
-      const found = next.findIndex(item => (
-        ['hash', 'cache'].includes(group) ? entryKey(item) === String(value) : String(item) === String(value)
-      ));
+      const found = orderedBinaryTreeIds.has(algorithm.id)
+        ? binarySearchPosition(next, value)
+        : next.findIndex(item => (
+            ['hash', 'cache'].includes(group) ? entryKey(item) === String(value) : String(item) === String(value)
+          ));
       if (found < 0) return fail(`${value} no existe en la estructura.`);
+      if (orderedBinaryTreeIds.has(algorithm.id)) {
+        const remaining = compactTreeValues(next).filter(item => String(item) !== String(value));
+        const rebuilt = balancedBinaryTreeIds.has(algorithm.id)
+          ? buildBalancedBinaryTree(remaining)
+          : buildBinarySearchTree(remaining);
+        return done(rebuilt, `${value} fue eliminado y se conservaron las reglas del árbol.`, Math.max(0, found));
+      }
+      if (['arbol-general', 'arbol-nario', 'arbol-binario'].includes(algorithm.id)) {
+        const last = next.pop();
+        if (found < next.length) next[found] = last;
+        return done(next, `${value} fue eliminado; el nodo más profundo ocupó su lugar.`, Math.max(0, found));
+      }
       next.splice(found, 1); return done(next, `${value} fue eliminado.`, Math.max(0, found - 1));
     }
     case 'push': next.push(value); return done(next, `Push: ${value} ahora está en el tope.`);
@@ -749,7 +1297,24 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     }
     case 'tree-add': {
       const maximum = ['arbol-general','arbol-nario'].includes(algorithm.id) ? 10 : group === 'spatial' ? 12 : 15;
-      if (next.length >= maximum) return fail(`La demostración admite hasta ${maximum} nodos visibles.`);
+      if (compactTreeValues(next).length >= maximum) return fail(`La demostración admite hasta ${maximum} nodos visibles.`);
+      if (orderedBinaryTreeIds.has(algorithm.id)) {
+        if (compactTreeValues(next).some(item => Number(item) === Number(value))) return fail(`${value} ya existe en el árbol.`);
+        const insertedValues = [...compactTreeValues(next), value];
+        const rebuilt = balancedBinaryTreeIds.has(algorithm.id)
+          ? buildBalancedBinaryTree(insertedValues)
+          : algorithm.id === 'splay-tree'
+            ? buildSplayedBinaryTree(insertedValues, value)
+            : buildBinarySearchTree(insertedValues);
+        const insertedAt = rebuilt.findIndex(item => Number(item) === Number(value));
+        if (insertedAt < 0) return fail('No queda un espacio visible para insertar ese nodo sin ocultar parte del árbol.');
+        const detail = balancedBinaryTreeIds.has(algorithm.id)
+          ? ' y se reequilibró'
+          : algorithm.id === 'splay-tree'
+            ? ' y fue llevado a la raíz'
+            : '';
+        return done(rebuilt, `Nodo ${value} insertado${detail}.`, insertedAt);
+      }
       next.push(value); return done(next, `Nodo ${value} insertado en el siguiente espacio disponible.`);
     }
     case 'heap-add': {
@@ -761,10 +1326,17 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     }
     case 'find': {
       if (value === null) return fail('Ingresa el valor que quieres buscar.');
-      const found = next.findIndex(item => (
-        ['hash', 'cache'].includes(group) ? entryKey(item) === String(value) : String(item) === String(value)
-      ));
-      return found < 0 ? fail(`${value} no fue encontrado.`) : done(next, `${value} fue encontrado en la posición ${found}.`, found);
+      const found = orderedBinaryTreeIds.has(algorithm.id)
+        ? binarySearchPosition(next, value)
+        : next.findIndex(item => (
+            ['hash', 'cache'].includes(group) ? entryKey(item) === String(value) : String(item) === String(value)
+          ));
+      if (found < 0) return fail(`${value} no fue encontrado.`);
+      if (algorithm.id === 'splay-tree') {
+        const splayed = buildSplayedBinaryTree(compactTreeValues(next), value);
+        return done(splayed, `${value} fue encontrado y movido a la raíz mediante splay.`, 0);
+      }
+      return done(next, `${value} fue encontrado en la posición ${found}.`, found);
     }
     case 'preorder':
     case 'inorder':
@@ -834,13 +1406,18 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     case 'set-expression': {
       const expression = String(fields.value ?? '').trim();
       if (!expression) return fail('Escribe una expresión, por ejemplo: 8+3*2.');
-      return done(expression.replace(/\s/g,'').split('').slice(0,7), `Árbol creado desde ${expression}.`, 0);
+      if (!/^[0-9+*/().\s×−-]+$/.test(expression)) return fail('Usa solamente números, paréntesis y operadores aritméticos.');
+      const treeValues = expressionTreeFromInfix(expression);
+      if (!treeValues) return fail('La expresión no es válida o está incompleta.');
+      return done(treeValues, `Árbol creado desde ${expression}; cada operador quedó sobre sus operandos.`, 0);
     }
     case 'evaluate': {
-      const expression = (String(fields.value ?? '').trim() || next.join('')).replaceAll('×', '*').replaceAll('−', '-');
-      if (!/^[0-9+*/().\s-]+$/.test(expression)) return fail('Usa solamente números, paréntesis y operadores aritméticos.');
-      try { return done(next, `Resultado de ${expression}: ${Function(`"use strict"; return (${expression})`)()}.`, 0); }
-      catch { return fail('La expresión no es válida.'); }
+      const expression = String(fields.value ?? '').trim();
+      const treeValues = expression ? expressionTreeFromInfix(expression) : next;
+      if (!treeValues) return fail('La expresión no es válida.');
+      const result = evaluateExpressionTree(treeValues);
+      if (!Number.isFinite(result)) return fail('La expresión no se puede evaluar.');
+      return done(treeValues, `Resultado del árbol de expresión: ${result}.`, 0);
     }
     case 'hash-put':
     case 'cache-put': {

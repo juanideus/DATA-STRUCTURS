@@ -30,9 +30,33 @@ test('muestra la introducción sólo durante la primera visita', async ({ page }
 });
 
 test('abre un tema mediante un enlace compartible', async ({ page }) => {
-  await page.goto('/#/avl');
+  await page.goto('/avl');
   await expect(page.getByRole('heading', { name: 'Árbol AVL', level: 1 })).toBeVisible();
   await expect(page.locator('[data-algorithm-id="avl"]')).toHaveClass(/selected/);
+  await expect(page).toHaveURL(/\/avl$/);
+
+  await page.goto('/#/sudoku');
+  await expect(page).toHaveURL(/\/sudoku$/);
+  await expect(page.getByRole('heading', { name: 'Sudoku Solver 9×9', level: 1 })).toBeVisible();
+});
+
+test('ocultar el menú también libera el espacio del encabezado del tema', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chromium', 'El menú lateral móvil usa su propio panel superpuesto.');
+  await page.goto('/matriz-dispersa');
+  const visualPanel = page.locator('.visual-panel');
+  const initialBox = await visualPanel.boundingBox();
+
+  await page.getByRole('button', { name: 'Ocultar menú lateral' }).click();
+  await expect(page.locator('.app-shell')).toHaveClass(/sidebar-collapsed/);
+  await expect(page.getByRole('heading', { name: 'Matriz poco poblada', level: 1 })).toHaveCount(0);
+
+  const expandedBox = await visualPanel.boundingBox();
+  expect(expandedBox.width).toBeGreaterThan(initialBox.width);
+  expect(expandedBox.y).toBeLessThan(initialBox.y);
+  expect(expandedBox.y).toBeGreaterThanOrEqual(12);
+
+  await page.getByRole('button', { name: 'Mostrar menú lateral' }).click();
+  await expect(page.getByRole('heading', { name: 'Matriz poco poblada', level: 1 })).toBeVisible();
 });
 
 test('conserva tema, velocidad y lenguaje entre recargas', async ({ page }) => {
@@ -58,6 +82,152 @@ test('ejecuta y restablece una operación de lista enlazada', async ({ page }) =
   await expect(page.locator('.operation-message')).toContainText('restablecida');
 });
 
+test('sincroniza el recorrido BST con la línea Java y las variables', async ({ page }) => {
+  await page.goto('/bst');
+  await page.getByLabel('Valor').fill('1');
+  await page.getByRole('button', { name: 'Buscar' }).click();
+  const pause = page.getByRole('button', { name: 'Pausar' });
+  if (await pause.isVisible()) await pause.click();
+
+  const visitedNodes = new Set();
+  const activeLines = new Set();
+  for (let step = 0; step < 24; step++) {
+    const activeNode = page.locator('.tree-node.active .tree-value');
+    if (await activeNode.count()) {
+      const nodeValue = (await activeNode.textContent())?.trim();
+      const liveNode = page.locator('.variable-item').filter({ hasText: 'nodo activo' }).locator('strong');
+      await expect(liveNode).toHaveText(nodeValue);
+      visitedNodes.add(nodeValue);
+    }
+    activeLines.add((await page.locator('.code-panel code.active').textContent())?.trim());
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+
+  expect([...visitedNodes]).toEqual(expect.arrayContaining(['8', '3', '1']));
+  expect(activeLines.size).toBeGreaterThan(3);
+});
+
+test('muestra Java específico para árboles especializados', async ({ page }) => {
+  await page.goto('/avl');
+  await expect(page.locator('.code-panel pre')).toContainText('balanceOf');
+  await expect(page.locator('.code-panel pre')).toContainText('rotateRight');
+
+  await page.goto('/suffix-tree');
+  await expect(page.locator('.code-panel pre')).toContainText('insertSuffix');
+
+  await page.goto('/bplus-tree');
+  await expect(page.locator('.code-panel pre')).toContainText('splitLeaf');
+  await expect(page.locator('.code-panel pre')).toContainText('insertIntoParent');
+
+  await page.goto('/rojo-negro');
+  const colorRules = await page.evaluate(() => {
+    const colors = new Map(
+      [...document.querySelectorAll('.tree-node[data-tree-index]')].map(node => [
+        Number(node.dataset.treeIndex),
+        node.dataset.nodeColor,
+      ]),
+    );
+    const blackHeight = index => {
+      if (!colors.has(index)) return 1;
+      const left = blackHeight(index * 2 + 1);
+      const right = blackHeight(index * 2 + 2);
+      if (left < 0 || right < 0 || left !== right) return -1;
+      return left + (colors.get(index) === 'black-node' ? 1 : 0);
+    };
+    const redHasRedChild = [...colors].some(([index, color]) => (
+      color === 'red-node'
+      && (colors.get(index * 2 + 1) === 'red-node' || colors.get(index * 2 + 2) === 'red-node')
+    ));
+    return {
+      rootIsBlack: colors.get(0) === 'black-node',
+      equalBlackHeight: blackHeight(0) > 0,
+      redHasRedChild,
+    };
+  });
+  expect(colorRules).toEqual({
+    rootIsBlack: true,
+    equalBlackHeight: true,
+    redHasRedChild: false,
+  });
+});
+
+test('B+ acepta inserciones seguidas y mantiene nodos de máximo tres claves', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name.startsWith('mobile'), 'La jerarquía completa se valida una vez en escritorio.');
+  await page.goto('/bplus-tree');
+  await page.getByLabel('Velocidad').selectOption('2');
+  const valueInput = page.getByLabel('Clave');
+  const insertButton = page.getByRole('button', { name: 'Insertar clave' });
+
+  for (let value = 100; value < 115; value++) {
+    await valueInput.fill(String(value));
+    await insertButton.click();
+  }
+
+  const pause = page.getByRole('button', { name: 'Pausar' });
+  if (await pause.isVisible()) await pause.click();
+  for (let step = 0; step < 6; step++) {
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+
+  const leaves = page.locator('.leaf-bnode');
+  await expect(leaves).toHaveCount(8);
+  await expect(page.locator('.btree-visual')).toContainText('114');
+  expect(await page.locator('.internal-bnode').count()).toBeGreaterThanOrEqual(3);
+  for (const text of await leaves.allTextContents()) {
+    const keys = text.replace(/HOJA|NODO/g, '').split('|').filter(key => key.trim());
+    expect(keys.length).toBeLessThanOrEqual(3);
+  }
+  const layout = await page.evaluate(() => {
+    const canvas = document.querySelector('.btree-visual').getBoundingClientRect();
+    const nodes = [...document.querySelectorAll('.multiway-node')].map(node => node.getBoundingClientRect());
+    const outside = nodes.some(node => (
+      node.left < canvas.left - 1 || node.right > canvas.right + 1
+      || node.top < canvas.top - 1 || node.bottom > canvas.bottom + 1
+    ));
+    const overlap = nodes.some((node, index) => nodes.slice(index + 1).some(other => (
+      node.left < other.right && node.right > other.left
+      && node.top < other.bottom && node.bottom > other.top
+    )));
+    return { outside, overlap };
+  });
+  expect(layout).toEqual({ outside: false, overlap: false });
+});
+
+test('la matriz poco poblada es circular y se recorre en el sentido enseñado', async ({ page }) => {
+  await page.goto('/matriz-dispersa');
+  await expect(page.getByRole('heading', { name: 'Matriz poco poblada', level: 1 })).toBeVisible();
+  await expect(page.locator('.sparse-header.row-header')).toHaveCount(5);
+  await expect(page.locator('.sparse-header.column-header')).toHaveCount(6);
+  await expect(page.locator('.sparse-node')).toHaveCount(10);
+  await expect(page.locator('.sparse-row-links .row-return')).toHaveCount(5);
+  await expect(page.locator('.sparse-column-links .column-return')).toHaveCount(6);
+
+  const directions = await page.evaluate(() => ({
+    rowLinksPointLeft: [...document.querySelectorAll('.sparse-row-links line')]
+      .every(line => Number(line.getAttribute('x1')) > Number(line.getAttribute('x2'))),
+    columnLinksPointUp: [...document.querySelectorAll('.sparse-column-links line')]
+      .every(line => Number(line.getAttribute('y1')) > Number(line.getAttribute('y2'))),
+  }));
+  expect(directions).toEqual({ rowLinksPointLeft: true, columnLinksPointUp: true });
+
+  await expect(page.locator('.code-panel pre')).toContainText('Node left;');
+  await expect(page.locator('.code-panel pre')).toContainText('Node up;');
+  await expect(page.locator('.code-panel pre')).toContainText('AROW[row].left = AROW[row]');
+  await expect(page.locator('.code-panel pre')).toContainText('ACOL[column].up = ACOL[column]');
+
+  await page.getByLabel('Fila').fill('4');
+  await page.getByLabel('Columna').fill('4');
+  await page.getByLabel('Valor').fill('99');
+  await page.getByRole('button', { name: 'Insertar / actualizar' }).click();
+  await expect(page.locator('.operation-message')).toContainText('nodo compartido', { timeout: 20000 });
+  await expect(page.locator('[data-cell-key="4:4"]')).toHaveCount(1);
+  await expect(page.locator('.code-panel code.active')).toContainText('nonZeroCount++');
+
+  await page.getByLabel('Fila').fill('1');
+  await page.getByRole('button', { name: 'Recorrer fila' }).click();
+  await expect(page.locator('.operation-message')).toContainText('4 ← 8 ← 7 ← 2', { timeout: 15000 });
+});
+
 test('permite copiar un reporte sin usar GitHub', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.getByRole('button', { name: 'Informar un problema' }).click();
@@ -72,7 +242,7 @@ test('permite copiar un reporte sin usar GitHub', async ({ page, context }) => {
 
 test('no produce desbordamiento horizontal en móvil', async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith('mobile'), 'Comprobación específica para móvil.');
-  await page.goto('/#/sudoku');
+  await page.goto('/sudoku');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
 });
