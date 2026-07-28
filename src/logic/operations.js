@@ -250,6 +250,17 @@ const binaryRecursiveInsertionFrames = (before, after, value, insertedAt) => {
     addFrame('if (root == null) return new Node(value);', `${value} se convierte en la raíz.`, 0, 0, after, { completed: true });
     return frames;
   }
+  addFrame('if (contains(root, value)) return root;', `Comprueba recursivamente que ${value} no esté repetido.`);
+  addFrame('boolean contains(Node node, int value)', 'Entra al método recursivo contains.');
+  addFrame('if (node == null) return false;', 'Cada referencia null indica que esa rama terminó sin encontrar el valor.');
+  const scanForDuplicate = index => {
+    if (index >= before.length || before[index] === undefined) return;
+    addFrame('if (node.value == value) return true;', `Compara ${value} con el nodo ${before[index]}.`, index);
+    scanForDuplicate(index * 2 + 1);
+    scanForDuplicate(index * 2 + 2);
+  };
+  scanForDuplicate(0);
+  addFrame('return contains(node.left, value) || contains(node.right, value);', `${value} no existe; la inserción puede continuar.`);
   addFrame('insertAtFirstAvailableLevel(root, value, 1);', 'La búsqueda recursiva comienza en el nivel 1.');
 
   const targetDepth = Math.floor(Math.log2(insertedAt + 1));
@@ -1979,6 +1990,9 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
         return done(rebuilt, `Nodo ${value} insertado${detail}.`, insertedAt);
       }
       if (algorithm.id === 'arbol-binario') {
+        if (compactTreeValues(next).some(item => Number(item) === Number(value))) {
+          return fail(`${value} ya existe en el árbol. Ingresa un valor diferente.`);
+        }
         const before = [...next];
         next.push(value);
         const insertedAt = next.length - 1;

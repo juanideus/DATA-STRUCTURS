@@ -39,8 +39,15 @@ const breadthFirstFind = animated(`Node find(Node root, int target) {
 
 const completeBinaryInsert = animated(`Node insert(Node root, int value) {
     if (root == null) return new Node(value);
+    if (contains(root, value)) return root;
     insertAtFirstAvailableLevel(root, value, 1);
     return root;
+}
+
+boolean contains(Node node, int value) {
+    if (node == null) return false;
+    if (node.value == value) return true;
+    return contains(node.left, value) || contains(node.right, value);
 }
 
 void insertAtFirstAvailableLevel(Node root, int value, int level) {

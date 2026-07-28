@@ -442,8 +442,18 @@ assert.equal(heapInsert.values[0], 1, 'Fibonacci Heap: la raíz debe representar
 const binaryTree = algorithms.find(item => item.id === 'arbol-binario');
 const binaryTreeInsertCode = getBeginnerJava(binaryTree, 'tree-add');
 assert.doesNotMatch(binaryTreeInsertCode, /Queue|ArrayDeque/, 'Árbol binario/insertar: no debe utilizar una cola.');
+assert.match(binaryTreeInsertCode, /boolean contains\(Node node, int value\)/, 'Árbol binario/insertar: debe validar valores repetidos recursivamente.');
 assert.match(binaryTreeInsertCode, /insertAtFirstAvailableLevel\(root, value, level \+ 1\)/, 'Árbol binario/insertar: debe avanzar recursivamente al siguiente nivel.');
 assert.match(binaryTreeInsertCode, /insertAtLevel\(node\.left, value, level - 1\)/, 'Árbol binario/insertar: debe recorrer recursivamente el hijo izquierdo.');
+const repeatedBinaryTreeInsert = run(binaryTree, 'tree-add', { value: '1', second: '', index: '' });
+assert.equal(repeatedBinaryTreeInsert.ok, false, 'Árbol binario/insertar: no debe aceptar un valor repetido.');
+assert.deepEqual(repeatedBinaryTreeInsert.values, binaryTree.values, 'Árbol binario/insertar: un duplicado no debe alterar el árbol.');
+const insertAfterRepeatedValue = run(binaryTree, 'tree-add', { value: '2', second: '', index: '' }, repeatedBinaryTreeInsert.values);
+assert.deepEqual(
+  insertAfterRepeatedValue.values,
+  [8, 3, 12, 1, 5, 10, 15, 2],
+  'Árbol binario/insertar: después de rechazar 1, el 2 debe ocupar el primer espacio libre.',
+);
 const binaryTreeInsert = run(binaryTree, 'tree-add', { value: '99', second: '', index: '' });
 assert.deepEqual(
   binaryTreeInsert.values,

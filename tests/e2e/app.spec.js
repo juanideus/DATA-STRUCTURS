@@ -277,7 +277,7 @@ test('árbol binario inserta recursivamente sin utilizar Queue', async ({ page }
   if (await pause.isVisible()) await pause.click();
 
   const visitedNodes = new Set();
-  for (let step = 0; step < 55; step++) {
+  for (let step = 0; step < 75; step++) {
     const activeNode = page.locator('.tree-node.active .tree-value');
     if (await activeNode.count()) visitedNodes.add((await activeNode.textContent())?.trim());
     await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
@@ -289,6 +289,29 @@ test('árbol binario inserta recursivamente sin utilizar Queue', async ({ page }
   ));
   expect(valuesByIndex).toEqual([[0, 8], [1, 3], [2, 12], [3, 1], [4, 5], [5, 10], [6, 15], [7, 99]]);
   await expect(page.locator('.variable-item').filter({ hasText: 'nodo' }).locator('strong')).toHaveText('99');
+  await expect(page.locator('.operation-message')).toContainText('insertado recursivamente');
+});
+
+test('árbol binario rechaza el 1 repetido y luego inserta correctamente el 2', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chromium', 'La validación utiliza la misma lógica en móvil.');
+  await page.goto('/arbol-binario');
+  const nodes = page.locator('.tree-arbol-binario .tree-node');
+
+  await page.getByLabel('Valor').fill('1');
+  await page.getByRole('button', { name: 'Insertar nodo', exact: true }).click();
+  await expect(page.locator('.operation-message')).toContainText('ya existe');
+  await expect(nodes).toHaveCount(7);
+
+  await page.getByLabel('Valor').fill('2');
+  await page.getByRole('button', { name: 'Insertar nodo', exact: true }).click();
+  const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+  if (await pause.isVisible()) await pause.click();
+  for (let step = 0; step < 75; step++) {
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+
+  await expect(nodes).toHaveCount(8);
+  await expect(page.locator('.tree-arbol-binario .tree-node[data-tree-index="7"] .tree-value')).toHaveText('2');
   await expect(page.locator('.operation-message')).toContainText('insertado recursivamente');
 });
 
