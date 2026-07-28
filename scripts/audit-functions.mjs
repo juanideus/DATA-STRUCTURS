@@ -393,6 +393,9 @@ assert.equal(circularRemovalTrace.filter(frame => frame.index === circularDoLine
 assert.ok(circularRemovalTrace.some(frame => frame.index === circularWhileLine && frame.loopExit), 'Lista circular: falta animar la salida de do-while.');
 
 const loopExample = algorithms.find(item => item.id === 'array');
+const arrayWithoutIndex = run(loopExample, 'add-index', { value: '99', second: '', index: '' });
+assert.equal(arrayWithoutIndex.ok, false, 'Array: un índice vacío no debe interpretarse como la posición 0.');
+assert.deepEqual(arrayWithoutIndex.values, loopExample.values, 'Array: una inserción sin índice no debe modificar los datos.');
 const loopCode = getBeginnerJava(loopExample, 'add-start');
 const loopIterations = loopExample.values.length;
 const loopTrace = buildCodeExecutionTrace(loopCode, loopIterations);
@@ -657,5 +660,42 @@ for (const graphId of visualGraphIds) {
 assert.match(getBeginnerJava(sudoku, 'solve'), /boolean isValid/, 'Sudoku: falta mostrar isValid en Java.');
 assert.match(getBeginnerJava(maze, 'solve'), /boolean isFree/, 'Laberinto: falta mostrar isFree en Java.');
 assert.match(getBeginnerJava(maze, 'solve'), /boolean isExit/, 'Laberinto: falta mostrar isExit en Java.');
+
+const arrayAlgorithm = algorithms.find(item => item.id === 'array');
+const arrayCases = [
+  ['add-start', { value: '99' }],
+  ['add-end', { value: '99' }],
+  ['add-index', { value: '99', index: '2' }],
+  ['set-index', { value: '99', index: '2' }],
+  ['remove-start', {}],
+  ['remove-end', {}],
+  ['remove-index', { index: '2' }],
+];
+for (const [actionId, fields] of arrayCases) {
+  const beforeValues = [...arrayAlgorithm.values];
+  const result = run(arrayAlgorithm, actionId, fields);
+  const code = getBeginnerJava(arrayAlgorithm, actionId);
+  const frames = createCodeSynchronizedFrames({
+    algorithm: arrayAlgorithm,
+    code,
+    actionId,
+    beforeValues,
+    afterValues: result.values,
+    beforeEdges: edges(),
+    afterEdges: result.edges,
+    finalStep: result.step,
+    finalMessage: result.message,
+    succeeded: result.ok,
+    inputValues: fields,
+  });
+  const indexes = frames.flatMap(frame => (
+    frame.variables?.filter(variable => variable.name === 'i').map(variable => Number(variable.value)) ?? []
+  ));
+
+  assert.match(code, /int n = values\.length;/, `Array ${actionId}: debe explicar de dónde sale n.`);
+  assert.doesNotMatch(code, /\bsize\b/, `Array ${actionId}: no debe depender de un size sin declarar.`);
+  assert.ok(indexes.every((value, index) => index === 0 || value >= indexes[index - 1]), `Array ${actionId}: el recorrido debe avanzar desde 0.`);
+  assert.deepEqual(frames.at(-1)?.values, result.values, `Array ${actionId}: código y animación terminan en estados distintos.`);
+}
 
 console.log(`AUDITORÍA OK: ${algorithms.length} temas, ${actionCount} acciones, ${executionCount} pruebas funcionales y ${actionIds.size} funciones distintas.`);

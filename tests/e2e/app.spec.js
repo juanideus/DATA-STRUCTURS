@@ -76,6 +76,11 @@ test('rechaza datos extremos sin alterar ni romper las estructuras', async ({ pa
   await page.goto('/array');
   const initialArrayCells = await page.locator('.linear-visual .data-cell').count();
   await page.getByLabel('Valor').fill('99');
+  await page.getByRole('button', { name: 'Agregar en índice' }).click();
+  await expect(page.locator('.operation-message')).toHaveClass(/error/);
+  await expect(page.locator('.linear-visual .data-cell')).toHaveCount(initialArrayCells);
+
+  await page.getByLabel('Valor').fill('99');
   await page.getByLabel('Índice').fill('-1');
   await page.getByRole('button', { name: 'Agregar en índice' }).click();
   await expect(page.locator('.operation-message')).toHaveClass(/error/);

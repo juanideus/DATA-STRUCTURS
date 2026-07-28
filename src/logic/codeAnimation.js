@@ -71,12 +71,14 @@ function expandBlock(lines, start, end, baseIterations, depth = 0, outerIteratio
   return trace;
 }
 
-export function estimateLoopIterations({ actionId, beforeValues, afterValues, finalStep, finalMessage = '' }) {
+export function estimateLoopIterations({ actionId, beforeValues, afterValues, finalStep, finalMessage = '', lengthBasedArray = false }) {
   const beforeLength = Math.max(1, beforeValues.length);
   const afterLength = Math.max(1, afterValues.length);
   const target = Math.max(0, Number(finalStep) || 0);
   const failedSearch = /no (?:existe|fue encontrado|aparece)|no existe/i.test(finalMessage);
 
+  if (lengthBasedArray && ['add-start', 'add-end', 'add-index'].includes(actionId)) return beforeValues.length;
+  if (lengthBasedArray && ['remove-start', 'remove-end', 'remove-index'].includes(actionId)) return afterValues.length;
   if (actionId === 'add-start') return beforeLength;
   if (actionId === 'add-index') return Math.max(1, beforeLength - target);
   if (['remove-start','dequeue'].includes(actionId)) return Math.max(1, afterValues.length);
@@ -108,11 +110,18 @@ export function buildCodeExecutionTrace(code, iterationCount) {
 
 const cloneEdges = edges => edges.map(edge => [...edge]);
 
-function framePosition(actionId, line, beforeValues, workingValues, finalStep) {
+function framePosition(actionId, line, beforeValues, workingValues, finalStep, lengthBasedArray = false) {
   const length = Math.max(1, workingValues.length);
   const iteration = Math.max(0, line.iteration ?? 0);
   const target = Math.max(0, Number(finalStep) || 0);
 
+  if (lengthBasedArray && line.iteration !== null && line.iteration !== undefined) {
+    if (actionId === 'add-start') return Math.min(length - 1, iteration + 1);
+    if (actionId === 'add-index') return Math.min(length - 1, iteration < target ? iteration : iteration + 1);
+    if (['add-end', 'remove-start', 'remove-end', 'remove-index'].includes(actionId)) {
+      return Math.min(length - 1, iteration);
+    }
+  }
   if (['add-start','add-index'].includes(actionId)) return Math.max(target, Math.min(length - 1, beforeValues.length - iteration));
   if (['remove-start','remove-index','dequeue'].includes(actionId)) return Math.min(length - 1, target + iteration);
   if (['find','remove-value','cache-get','word-find','prefix-sum','range-min','range-view','merkle-root','reset','clear-bits'].includes(actionId)) return Math.min(length - 1, iteration);
@@ -120,10 +129,45 @@ function framePosition(actionId, line, beforeValues, workingValues, finalStep) {
   return Math.min(length - 1, line.iteration === null || line.iteration === undefined ? target : iteration);
 }
 
-function applyVisibleMutation({ actionId, line, workingValues, beforeValues, afterValues, finalStep }) {
+function applyVisibleMutation({ actionId, line, workingValues, beforeValues, afterValues, finalStep, lengthBasedArray = false }) {
   const text = line.text.replace(/\s+/g, ' ');
   const iteration = Math.max(0, line.iteration ?? 0);
   const target = Math.max(0, Number(finalStep) || 0);
+
+  if (lengthBasedArray) {
+    if (/int\[\] result = new int\[n \+ 1\]/.test(text) && workingValues.length < afterValues.length) {
+      workingValues.push(undefined);
+    }
+    if (/int\[\] result = new int\[n - 1\]/.test(text) && workingValues.length > afterValues.length) {
+      workingValues.length = afterValues.length;
+    }
+
+    if (actionId === 'add-start' && /result\[i \+ 1\] = values\[i\]/.test(text) && iteration < beforeValues.length) {
+      workingValues[iteration + 1] = beforeValues[iteration];
+    }
+    if (actionId === 'add-end' && /result\[i\] = values\[i\]/.test(text) && iteration < beforeValues.length) {
+      workingValues[iteration] = beforeValues[iteration];
+    }
+    if (actionId === 'add-index' && /result\[destination\] = values\[i\]/.test(text) && iteration < beforeValues.length) {
+      const destination = iteration < target ? iteration : iteration + 1;
+      workingValues[destination] = beforeValues[iteration];
+    }
+    if (actionId === 'remove-start' && /result\[i\] = values\[i \+ 1\]/.test(text) && iteration < afterValues.length) {
+      workingValues[iteration] = beforeValues[iteration + 1];
+    }
+    if (actionId === 'remove-end' && /result\[i\] = values\[i\]/.test(text) && iteration < afterValues.length) {
+      workingValues[iteration] = beforeValues[iteration];
+    }
+    if (actionId === 'remove-index' && /result\[i\] = values\[source\]/.test(text) && iteration < afterValues.length) {
+      const source = iteration < target ? iteration : iteration + 1;
+      workingValues[iteration] = beforeValues[source];
+    }
+    if (actionId === 'add-start' && /result\[0\] = value/.test(text)) workingValues[0] = afterValues[0];
+    if (actionId === 'add-end' && /result\[n\] = value/.test(text)) workingValues[afterValues.length - 1] = afterValues.at(-1);
+    if (actionId === 'add-index' && /result\[index\] = value/.test(text)) workingValues[target] = afterValues[target];
+    if (actionId === 'set-index' && /values\[index\] = value/.test(text)) workingValues[target] = afterValues[target];
+    return;
+  }
 
   if (['add-start','add-index'].includes(actionId) && /values\[i\]\s*=\s*values\[i\s*-\s*1\]/.test(text)) {
     if (workingValues.length < afterValues.length) workingValues.push(undefined);
@@ -157,11 +201,12 @@ function readableVariableValue(value) {
   return String(value);
 }
 
-function loopIndexValue(actionId, line, beforeValues, finalStep) {
+function loopIndexValue(actionId, line, beforeValues, finalStep, lengthBasedArray = false) {
   if (line.iteration === null || line.iteration === undefined) return null;
   const iteration = Math.max(0, line.iteration);
   const target = Math.max(0, Number(finalStep) || 0);
 
+  if (lengthBasedArray) return iteration;
   if (['add-start', 'add-index'].includes(actionId)) {
     return Math.max(target, beforeValues.length - iteration);
   }
@@ -169,8 +214,8 @@ function loopIndexValue(actionId, line, beforeValues, finalStep) {
   return iteration;
 }
 
-function createLiveVariables({ actionId, line, beforeValues, workingValues, finalStep, position, inputValues = {} }) {
-  const index = loopIndexValue(actionId, line, beforeValues, finalStep);
+function createLiveVariables({ actionId, line, beforeValues, workingValues, finalStep, position, inputValues = {}, lengthBasedArray = false }) {
+  const index = loopIndexValue(actionId, line, beforeValues, finalStep, lengthBasedArray);
   const hasRequestedIndex = inputValues.index !== undefined && inputValues.index !== null && inputValues.index !== '';
   const requestedIndex = hasRequestedIndex ? Number(inputValues.index) : null;
   const requestedValue = inputValues.value ?? inputValues.word ?? inputValues.key;
@@ -180,7 +225,14 @@ function createLiveVariables({ actionId, line, beforeValues, workingValues, fina
   const variables = [];
 
   if (index !== null) variables.push({ name: 'i', value: readableVariableValue(index), role: 'index' });
-  variables.push({ name: 'size', value: readableVariableValue(visibleSize), role: 'size' });
+  if (lengthBasedArray) {
+    variables.push({ name: 'n', value: readableVariableValue(beforeValues.length), role: 'size' });
+    if (/\bresult\b/.test(line.text) || workingValues.length !== beforeValues.length) {
+      variables.push({ name: 'result.length', value: readableVariableValue(workingValues.length), role: 'size' });
+    }
+  } else {
+    variables.push({ name: 'size', value: readableVariableValue(visibleSize), role: 'size' });
+  }
   if (requestedValue !== undefined && requestedValue !== '') {
     variables.push({ name: 'value', value: readableVariableValue(requestedValue), role: 'input' });
   }
@@ -210,21 +262,22 @@ function executionMessage(line) {
 export function createCodeSynchronizedFrames({ code, actionId, beforeValues, afterValues, beforeEdges, afterEdges, finalStep, finalMessage, succeeded = true, inputValues = {} }) {
   const executable = executableCodeLines(code);
   const fallbackLine = executable[0] ?? { index: 0, text: 'operation' };
+  const lengthBasedArray = /\bint\s+n\s*=\s*values\.length\b/.test(code);
 
   if (!succeeded) {
     return [{
       values: copyVisualValues(beforeValues), edges: cloneEdges(beforeEdges), position: 0,
       codeLine: fallbackLine.index, message: finalMessage, delayMs: 0, failed: true,
-      variables: createLiveVariables({ actionId, line: fallbackLine, beforeValues, workingValues: beforeValues, finalStep, position: 0, inputValues }),
+      variables: createLiveVariables({ actionId, line: fallbackLine, beforeValues, workingValues: beforeValues, finalStep, position: 0, inputValues, lengthBasedArray }),
     }];
   }
 
-  const iterationCount = estimateLoopIterations({ actionId, beforeValues, afterValues, finalStep, finalMessage });
+  const iterationCount = estimateLoopIterations({ actionId, beforeValues, afterValues, finalStep, finalMessage, lengthBasedArray });
   const sequence = buildCodeExecutionTrace(code, iterationCount);
   const workingValues = copyVisualValues(beforeValues);
   const frames = sequence.map(line => {
-    applyVisibleMutation({ actionId, line, workingValues, beforeValues, afterValues, finalStep });
-    const position = framePosition(actionId, line, beforeValues, workingValues, finalStep);
+    applyVisibleMutation({ actionId, line, workingValues, beforeValues, afterValues, finalStep, lengthBasedArray });
+    const position = framePosition(actionId, line, beforeValues, workingValues, finalStep, lengthBasedArray);
     return {
       values: copyVisualValues(workingValues),
       edges: cloneEdges(beforeEdges),
@@ -235,7 +288,7 @@ export function createCodeSynchronizedFrames({ code, actionId, beforeValues, aft
       iteration: line.iteration,
       totalIterations: line.totalIterations,
       loopExit: line.loopExit ?? false,
-      variables: createLiveVariables({ actionId, line, beforeValues, workingValues, finalStep, position, inputValues }),
+      variables: createLiveVariables({ actionId, line, beforeValues, workingValues, finalStep, position, inputValues, lengthBasedArray }),
     };
   });
 
@@ -248,7 +301,12 @@ export function createCodeSynchronizedFrames({ code, actionId, beforeValues, aft
     delayMs: 650,
     completed: true,
     variables: [
-      { name: 'size', value: readableVariableValue(afterValues.length), role: 'size' },
+      ...(lengthBasedArray
+        ? [
+            { name: 'n', value: readableVariableValue(beforeValues.length), role: 'size' },
+            { name: 'result.length', value: readableVariableValue(afterValues.length), role: 'size' },
+          ]
+        : [{ name: 'size', value: readableVariableValue(afterValues.length), role: 'size' }]),
       { name: 'posición final', value: readableVariableValue(Math.max(0, Number(finalStep) || 0)), role: 'position' },
       { name: 'estado', value: 'completado', role: 'true' },
     ],

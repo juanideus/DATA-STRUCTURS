@@ -1036,6 +1036,98 @@ const contextualHelpers = {
   },
 };
 
+const arrayJava = {
+  'add-start': `int[] addAtStart(int[] values, int value) {
+    int n = values.length;
+    int[] result = new int[n + 1];
+
+    for (int i = 0; i < n; i++) {
+        result[i + 1] = values[i];
+    }
+
+    result[0] = value;
+    return result;
+}`,
+  'add-end': `int[] addAtEnd(int[] values, int value) {
+    int n = values.length;
+    int[] result = new int[n + 1];
+
+    for (int i = 0; i < n; i++) {
+        result[i] = values[i];
+    }
+
+    result[n] = value;
+    return result;
+}`,
+  'add-index': `int[] addAtIndex(int[] values, int value, int index) {
+    int n = values.length;
+    if (index < 0 || index > n) {
+        return values;
+    }
+
+    int[] result = new int[n + 1];
+    for (int i = 0; i < n; i++) {
+        int destination = i;
+        if (i >= index) {
+            destination = i + 1;
+        }
+        result[destination] = values[i];
+    }
+
+    result[index] = value;
+    return result;
+}`,
+  'set-index': `boolean updateAtIndex(int[] values, int value, int index) {
+    int n = values.length;
+    if (index < 0 || index >= n) {
+        return false;
+    }
+
+    values[index] = value;
+    return true;
+}`,
+  'remove-start': `int[] removeFromStart(int[] values) {
+    int n = values.length;
+    if (n == 0) {
+        return values;
+    }
+
+    int[] result = new int[n - 1];
+    for (int i = 0; i < n - 1; i++) {
+        result[i] = values[i + 1];
+    }
+    return result;
+}`,
+  'remove-end': `int[] removeFromEnd(int[] values) {
+    int n = values.length;
+    if (n == 0) {
+        return values;
+    }
+
+    int[] result = new int[n - 1];
+    for (int i = 0; i < n - 1; i++) {
+        result[i] = values[i];
+    }
+    return result;
+}`,
+  'remove-index': `int[] removeAtIndex(int[] values, int index) {
+    int n = values.length;
+    if (index < 0 || index >= n) {
+        return values;
+    }
+
+    int[] result = new int[n - 1];
+    for (int i = 0; i < n - 1; i++) {
+        int source = i;
+        if (i >= index) {
+            source = i + 1;
+        }
+        result[i] = values[source];
+    }
+    return result;
+}`,
+};
+
 function definedMethods(source) {
   return new Set(
     [...source.matchAll(/(?:^|\n)\s*(?:(?:public|private|protected|static|final)\s+)*(?:[\w<>\[\],?]+\s+)+([A-Za-z_]\w*)\s*\([^;{}]*\)\s*\{/g)]
@@ -1085,6 +1177,8 @@ export function getBeginnerJava(algorithm, actionId) {
     source = sparseMatrixSource;
   } else if (treeSource) {
     source = treeSource;
+  } else if (algorithm.id === 'array') {
+    source = arrayJava[actionId] ?? basic[actionId];
   } else if (algorithm.id === 'factorial' && actionId === 'calculate') {
     source = special['math:calculate:factorial'];
   } else if (algorithm.id === 'sudoku' && actionId === 'step-solution') {

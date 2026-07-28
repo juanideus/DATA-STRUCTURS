@@ -1123,6 +1123,7 @@ const solveHanoiWithTrace = diskValues => {
 };
 
 const validIndex = (raw, length, allowEnd = false) => {
+  if (raw === null || raw === undefined || String(raw).trim() === '') return null;
   const index = Number(raw);
   const maximum = allowEnd ? length : length - 1;
   return Number.isInteger(index) && index >= 0 && index <= maximum ? index : null;
