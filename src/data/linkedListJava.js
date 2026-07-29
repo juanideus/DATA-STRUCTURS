@@ -12,7 +12,6 @@ ${indentBlock(`class Node {
 }
 
 Node head = null;
-Node tail = null;
 int size = 0;
 
 // Start of the selected operation
@@ -24,10 +23,6 @@ const simpleMethods = {
     Node newNode = new Node(value);
     newNode.next = head;
     head = newNode;
-
-    if (tail == null) {
-        tail = newNode;
-    }
     size++;
 }`,
   'add-end': `void addAtEnd(int value) {
@@ -35,10 +30,12 @@ const simpleMethods = {
 
     if (head == null) {
         head = newNode;
-        tail = newNode;
     } else {
-        tail.next = newNode;
-        tail = newNode;
+        Node current = head;
+        while (current.next != null) {
+            current = current.next;
+        }
+        current.next = newNode;
     }
     size++;
 }`,
@@ -51,17 +48,13 @@ const simpleMethods = {
     if (index == 0) {
         newNode.next = head;
         head = newNode;
-        if (tail == null) tail = newNode;
-    } else if (index == size) {
-        tail.next = newNode;
-        tail = newNode;
     } else {
-        Node current = head;
+        Node previous = head;
         for (int i = 0; i < index - 1; i++) {
-            current = current.next;
+            previous = previous.next;
         }
-        newNode.next = current.next;
-        current.next = newNode;
+        newNode.next = previous.next;
+        previous.next = newNode;
     }
     size++;
     return true;
@@ -73,9 +66,6 @@ const simpleMethods = {
 
     head = head.next;
     size--;
-    if (head == null) {
-        tail = null;
-    }
     return true;
 }`,
   'remove-end': `boolean removeFromEnd() {
@@ -83,16 +73,14 @@ const simpleMethods = {
         return false;
     }
 
-    if (head == tail) {
+    if (head.next == null) {
         head = null;
-        tail = null;
     } else {
         Node current = head;
-        while (current.next != tail) {
+        while (current.next.next != null) {
             current = current.next;
         }
         current.next = null;
-        tail = current;
     }
     size--;
     return true;
@@ -105,7 +93,6 @@ const simpleMethods = {
     if (index == 0) {
         head = head.next;
         size--;
-        if (head == null) tail = null;
         return true;
     }
 
@@ -113,9 +100,7 @@ const simpleMethods = {
     for (int i = 0; i < index - 1; i++) {
         previous = previous.next;
     }
-    Node removed = previous.next;
-    previous.next = removed.next;
-    if (removed == tail) tail = previous;
+    previous.next = previous.next.next;
     size--;
     return true;
 }`,
@@ -128,7 +113,6 @@ const simpleMethods = {
             if (previous == null) head = current.next;
             else previous.next = current.next;
 
-            if (current == tail) tail = previous;
             size--;
             return true;
         }
@@ -155,9 +139,7 @@ const doubleMethods = {
     Node newNode = new Node(value);
     newNode.next = head;
 
-    if (head == null) {
-        tail = newNode;
-    } else {
+    if (head != null) {
         head.prev = newNode;
     }
     head = newNode;
@@ -165,14 +147,17 @@ const doubleMethods = {
 }`,
   'add-end': `void addAtEnd(int value) {
     Node newNode = new Node(value);
-    newNode.prev = tail;
 
-    if (tail == null) {
+    if (head == null) {
         head = newNode;
     } else {
-        tail.next = newNode;
+        Node current = head;
+        while (current.next != null) {
+            current = current.next;
+        }
+        current.next = newNode;
+        newNode.prev = current;
     }
-    tail = newNode;
     size++;
 }`,
   'add-index': `boolean addAtIndex(int value, int index) {
@@ -183,22 +168,19 @@ const doubleMethods = {
     Node newNode = new Node(value);
     if (index == 0) {
         newNode.next = head;
-        if (head == null) tail = newNode;
-        else head.prev = newNode;
+        if (head != null) head.prev = newNode;
         head = newNode;
-    } else if (index == size) {
-        newNode.prev = tail;
-        tail.next = newNode;
-        tail = newNode;
     } else {
-        Node current = head;
-        for (int i = 0; i < index; i++) {
-            current = current.next;
+        Node previous = head;
+        for (int i = 0; i < index - 1; i++) {
+            previous = previous.next;
         }
-        newNode.prev = current.prev;
-        newNode.next = current;
-        current.prev.next = newNode;
-        current.prev = newNode;
+        newNode.next = previous.next;
+        newNode.prev = previous;
+        if (previous.next != null) {
+            previous.next.prev = newNode;
+        }
+        previous.next = newNode;
     }
     size++;
     return true;
@@ -210,19 +192,21 @@ const doubleMethods = {
 
     head = head.next;
     size--;
-    if (head == null) tail = null;
-    else head.prev = null;
+    if (head != null) head.prev = null;
     return true;
 }`,
   'remove-end': `boolean removeFromEnd() {
-    if (tail == null) {
+    if (head == null) {
         return false;
     }
 
-    tail = tail.prev;
+    Node current = head;
+    while (current.next != null) {
+        current = current.next;
+    }
+    if (current.prev == null) head = null;
+    else current.prev.next = null;
     size--;
-    if (tail == null) head = null;
-    else tail.next = null;
     return true;
 }`,
   'remove-index': `boolean removeAtIndex(int index) {
@@ -237,8 +221,7 @@ const doubleMethods = {
     if (current.prev == null) head = current.next;
     else current.prev.next = current.next;
 
-    if (current.next == null) tail = current.prev;
-    else current.next.prev = current.prev;
+    if (current.next != null) current.next.prev = current.prev;
     size--;
     return true;
 }`,
@@ -250,8 +233,7 @@ const doubleMethods = {
             if (current.prev == null) head = current.next;
             else current.prev.next = current.next;
 
-            if (current.next == null) tail = current.prev;
-            else current.next.prev = current.prev;
+            if (current.next != null) current.next.prev = current.prev;
             size--;
             return true;
         }
@@ -278,12 +260,15 @@ const circularSimpleMethods = {
 
     if (head == null) {
         head = newNode;
-        tail = newNode;
         newNode.next = newNode;
     } else {
+        Node last = head;
+        while (last.next != head) {
+            last = last.next;
+        }
         newNode.next = head;
+        last.next = newNode;
         head = newNode;
-        tail.next = head;
     }
     size++;
 }`,
@@ -292,12 +277,14 @@ const circularSimpleMethods = {
 
     if (head == null) {
         head = newNode;
-        tail = newNode;
         newNode.next = newNode;
     } else {
+        Node last = head;
+        while (last.next != head) {
+            last = last.next;
+        }
         newNode.next = head;
-        tail.next = newNode;
-        tail = newNode;
+        last.next = newNode;
     }
     size++;
 }`,
@@ -309,12 +296,15 @@ const circularSimpleMethods = {
     Node newNode = new Node(value);
     if (size == 0) {
         head = newNode;
-        tail = newNode;
         newNode.next = newNode;
     } else if (index == 0) {
+        Node last = head;
+        while (last.next != head) {
+            last = last.next;
+        }
         newNode.next = head;
+        last.next = newNode;
         head = newNode;
-        tail.next = head;
     } else {
         Node previous = head;
         for (int i = 0; i < index - 1; i++) {
@@ -322,8 +312,6 @@ const circularSimpleMethods = {
         }
         newNode.next = previous.next;
         previous.next = newNode;
-        if (index == size) tail = newNode;
-        tail.next = head;
     }
     size++;
     return true;
@@ -333,12 +321,15 @@ const circularSimpleMethods = {
         return false;
     }
 
-    if (head == tail) {
+    if (head.next == head) {
         head = null;
-        tail = null;
     } else {
+        Node last = head;
+        while (last.next != head) {
+            last = last.next;
+        }
         head = head.next;
-        tail.next = head;
+        last.next = head;
     }
     size--;
     return true;
@@ -348,16 +339,14 @@ const circularSimpleMethods = {
         return false;
     }
 
-    if (head == tail) {
+    if (head.next == head) {
         head = null;
-        tail = null;
     } else {
         Node previous = head;
-        while (previous.next != tail) {
+        while (previous.next.next != head) {
             previous = previous.next;
         }
         previous.next = head;
-        tail = previous;
     }
     size--;
     return true;
@@ -369,18 +358,19 @@ const circularSimpleMethods = {
 
     if (size == 1) {
         head = null;
-        tail = null;
     } else if (index == 0) {
+        Node last = head;
+        while (last.next != head) {
+            last = last.next;
+        }
         head = head.next;
-        tail.next = head;
+        last.next = head;
     } else {
         Node previous = head;
         for (int i = 0; i < index - 1; i++) {
             previous = previous.next;
         }
-        if (previous.next == tail) tail = previous;
         previous.next = previous.next.next;
-        tail.next = head;
     }
     size--;
     return true;
@@ -388,19 +378,26 @@ const circularSimpleMethods = {
   'remove-value': `boolean removeValue(int target) {
     if (head == null) return false;
 
-    Node current = head;
-    Node previous = tail;
+    if (head.value == target) {
+        if (head.next == head) {
+            head = null;
+        } else {
+            Node last = head;
+            while (last.next != head) {
+                last = last.next;
+            }
+            head = head.next;
+            last.next = head;
+        }
+        size--;
+        return true;
+    }
+
+    Node previous = head;
+    Node current = head.next;
     do {
         if (current.value == target) {
-            if (size == 1) {
-                head = null;
-                tail = null;
-            } else {
-                previous.next = current.next;
-                if (current == head) head = current.next;
-                if (current == tail) tail = previous;
-                tail.next = head;
-            }
+            previous.next = current.next;
             size--;
             return true;
         }
@@ -429,14 +426,14 @@ const circularDoubleMethods = {
 
     if (head == null) {
         head = newNode;
-        tail = newNode;
         newNode.next = newNode;
         newNode.prev = newNode;
     } else {
+        Node last = head.prev;
         newNode.next = head;
-        newNode.prev = tail;
+        newNode.prev = last;
         head.prev = newNode;
-        tail.next = newNode;
+        last.next = newNode;
         head = newNode;
     }
     size++;
@@ -446,15 +443,14 @@ const circularDoubleMethods = {
 
     if (head == null) {
         head = newNode;
-        tail = newNode;
         newNode.next = newNode;
         newNode.prev = newNode;
     } else {
-        newNode.prev = tail;
+        Node last = head.prev;
+        newNode.prev = last;
         newNode.next = head;
-        tail.next = newNode;
+        last.next = newNode;
         head.prev = newNode;
-        tail = newNode;
     }
     size++;
 }`,
@@ -466,21 +462,15 @@ const circularDoubleMethods = {
     Node newNode = new Node(value);
     if (size == 0) {
         head = newNode;
-        tail = newNode;
         newNode.next = newNode;
         newNode.prev = newNode;
     } else if (index == 0) {
+        Node last = head.prev;
         newNode.next = head;
-        newNode.prev = tail;
+        newNode.prev = last;
         head.prev = newNode;
-        tail.next = newNode;
+        last.next = newNode;
         head = newNode;
-    } else if (index == size) {
-        newNode.prev = tail;
-        newNode.next = head;
-        tail.next = newNode;
-        head.prev = newNode;
-        tail = newNode;
     } else {
         Node current = head;
         for (int i = 0; i < index; i++) {
@@ -499,29 +489,29 @@ const circularDoubleMethods = {
         return false;
     }
 
-    if (head == tail) {
+    if (head.next == head) {
         head = null;
-        tail = null;
     } else {
+        Node last = head.prev;
         head = head.next;
-        head.prev = tail;
-        tail.next = head;
+        head.prev = last;
+        last.next = head;
     }
     size--;
     return true;
 }`,
   'remove-end': `boolean removeFromEnd() {
-    if (tail == null) {
+    if (head == null) {
         return false;
     }
 
-    if (head == tail) {
+    if (head.next == head) {
         head = null;
-        tail = null;
     } else {
-        tail = tail.prev;
-        tail.next = head;
-        head.prev = tail;
+        Node last = head.prev;
+        Node newLast = last.prev;
+        newLast.next = head;
+        head.prev = newLast;
     }
     size--;
     return true;
@@ -537,14 +527,10 @@ const circularDoubleMethods = {
     }
     if (size == 1) {
         head = null;
-        tail = null;
     } else {
         current.prev.next = current.next;
         current.next.prev = current.prev;
         if (current == head) head = current.next;
-        if (current == tail) tail = current.prev;
-        head.prev = tail;
-        tail.next = head;
     }
     size--;
     return true;
@@ -557,14 +543,10 @@ const circularDoubleMethods = {
         if (current.value == target) {
             if (size == 1) {
                 head = null;
-                tail = null;
             } else {
                 current.prev.next = current.next;
                 current.next.prev = current.prev;
                 if (current == head) head = current.next;
-                if (current == tail) tail = current.prev;
-                head.prev = tail;
-                tail.next = head;
             }
             size--;
             return true;

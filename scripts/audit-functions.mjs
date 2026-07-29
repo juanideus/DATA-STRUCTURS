@@ -15,6 +15,7 @@ import {
   adaptFramesToCode,
   buildCodeExecutionTrace,
   createCodeSynchronizedFrames,
+  createLinkedListSynchronizedFrames,
   createTreeSynchronizedFrames,
   estimateLoopIterations,
 } from '../src/logic/codeAnimation.js';
@@ -211,9 +212,11 @@ for (const algorithm of algorithms) {
           return hasValidLine || hasValidNeedle;
         }), `${label}: un fotograma apunta fuera del código Java.`);
       }
-      const frameFactory = algorithm.category === 'Árboles'
-        ? createTreeSynchronizedFrames
-        : createCodeSynchronizedFrames;
+      const frameFactory = operationGroup(algorithm) === 'list'
+        ? createLinkedListSynchronizedFrames
+        : algorithm.category === 'Árboles'
+          ? createTreeSynchronizedFrames
+          : createCodeSynchronizedFrames;
       const frames = usesCustomFrames
         ? adaptFramesToCode(result.frames, java, true)
         : frameFactory({
@@ -237,7 +240,9 @@ for (const algorithm of algorithms) {
 
       if (!usesCustomFrames) {
         assert.deepEqual(frames.at(-1).edges, result.edges, `${label}: las aristas finales no coinciden.`);
-        if (!result.ok) assert.equal(frames.length, 1, `${label}: un error no debe reproducir una animación falsa.`);
+        if (!result.ok && operationGroup(algorithm) !== 'list') {
+          assert.equal(frames.length, 1, `${label}: un error no debe reproducir una animación falsa.`);
+        }
 
         const javaLines = java.split('\n');
         const startMarker = javaLines.findIndex(line => line.trim() === '// Start of the selected operation');
@@ -256,7 +261,7 @@ for (const algorithm of algorithms) {
           finalStep: result.step,
           finalMessage: result.message,
         });
-        if (result.ok && firstLoopLine >= 0 && iterations > 1) {
+        if (result.ok && operationGroup(algorithm) !== 'list' && firstLoopLine >= 0 && iterations > 1) {
           assert.ok(frames.filter(frame => frame.codeLine === firstLoopLine).length >= 2, `${label}: el ciclo no vuelve a su condición.`);
         }
       }
@@ -342,7 +347,7 @@ for (const listId of linkedListIds) {
     assert.match(java, /class \w+LinkedList/, `${listId}/${actionId}: falta la clase completa de la lista.`);
     assert.match(java, /class Node/, `${listId}/${actionId}: falta mostrar la clase Node.`);
     assert.match(java, /Node head = null;/, `${listId}/${actionId}: falta mostrar head.`);
-    assert.match(java, /Node tail = null;/, `${listId}/${actionId}: falta mostrar tail.`);
+    assert.doesNotMatch(java, /\bNode tail\b|\btail\b/, `${listId}/${actionId}: no debe existir una variable tail.`);
     assert.match(java, /int size = 0;/, `${listId}/${actionId}: falta mostrar size.`);
     assert.match(java, /Start of the selected operation/, `${listId}/${actionId}: falta delimitar la operación animada.`);
     assert.ok(!java.includes('values['), `${listId}/${actionId}: no debe reutilizar código de Array.`);
@@ -350,6 +355,81 @@ for (const listId of linkedListIds) {
       assert.match(java, /Node prev;/, `${listId}/${actionId}: falta el enlace prev.`);
     }
   }
+}
+
+const frameVariable = (frame, name) => frame.variables?.find(variable => variable.name === name)?.value;
+for (const listId of linkedListIds) {
+  const list = algorithms.find(item => item.id === listId);
+  const beforeValues = [...list.values];
+  const requestedIndex = Math.min(3, beforeValues.length);
+  const fields = { value: '99', second: '', index: String(requestedIndex) };
+  const result = run(list, 'add-index', fields, beforeValues);
+  const java = getBeginnerJava(list, 'add-index');
+  const javaLines = java.split('\n');
+  const frames = createLinkedListSynchronizedFrames({
+    algorithm: list,
+    code: java,
+    actionId: 'add-index',
+    beforeValues,
+    afterValues: result.values,
+    beforeEdges: edges(),
+    afterEdges: result.edges,
+    finalStep: result.step,
+    finalMessage: result.message,
+    succeeded: result.ok,
+    inputValues: fields,
+  });
+
+  const visitedIndexes = frames
+    .map(frame => Number(frameVariable(frame, 'i')))
+    .filter(Number.isFinite);
+  assert.equal(visitedIndexes[0], 0, `${listId}: el recorrido por índice debe comenzar en 0.`);
+  assert.ok(
+    visitedIndexes.every((value, index) => index === 0 || value >= visitedIndexes[index - 1]),
+    `${listId}: el recorrido por índice retrocede en vez de avanzar desde head.`,
+  );
+  assert.ok(
+    frames.every(frame => frameVariable(frame, 'sentido') === 'head → next'),
+    `${listId}: la animación debe indicar el recorrido head → next.`,
+  );
+
+  const loopLine = javaLines.findIndex(line => /for \(int i = 0; i < index(?: - 1)?; i\+\+\)/.test(line));
+  assert.ok(frames.filter(frame => frame.codeLine === loopLine).length >= 2, `${listId}: el for no muestra su evaluación y su repetición.`);
+  const conditionValues = frames.map(frame => frameVariable(frame, 'condición')).filter(Boolean);
+  assert.ok(conditionValues.includes('true') && conditionValues.includes('false'), `${listId}: faltan resultados true/false en las condiciones.`);
+
+  const headAssignmentLines = javaLines
+    .map((line, index) => line.trim() === 'head = newNode;' ? index : -1)
+    .filter(index => index >= 0);
+  assert.ok(
+    frames.every(frame => !headAssignmentLines.includes(frame.codeLine)),
+    `${listId}: entró al bloque index == 0 aunque el índice solicitado fue ${requestedIndex}.`,
+  );
+  assert.deepEqual(frames.at(-1).values, result.values, `${listId}: la inserción animada no termina con los datos reales.`);
+
+  const invalidFields = { value: '99', second: '', index: '-1' };
+  const invalidResult = run(list, 'add-index', invalidFields, beforeValues);
+  const invalidFrames = createLinkedListSynchronizedFrames({
+    algorithm: list,
+    code: java,
+    actionId: 'add-index',
+    beforeValues,
+    afterValues: invalidResult.values,
+    beforeEdges: edges(),
+    afterEdges: invalidResult.edges,
+    finalStep: invalidResult.step,
+    finalMessage: invalidResult.message,
+    succeeded: invalidResult.ok,
+    inputValues: invalidFields,
+  });
+  const creationLine = javaLines.findIndex(line => line.includes('Node newNode = new Node(value)'));
+  assert.ok(invalidFrames.every(frame => frame.codeLine !== creationLine), `${listId}: un índice inválido no debe crear ni insertar un nodo.`);
+  assert.equal(
+    frameVariable(invalidFrames.find(frame => frameVariable(frame, 'condición')), 'condición'),
+    'true',
+    `${listId}: la validación de un índice inválido debe ser true.`,
+  );
+  assert.deepEqual(invalidFrames.at(-1).values, beforeValues, `${listId}: un índice inválido modificó la lista.`);
 }
 
 function occupiedTree(values, index) {
@@ -380,7 +460,7 @@ function assertAvlBalance(values, label) {
     assert.ok(Math.abs(balance) <= 1, `${label}: el nodo ${values[index]} tiene factor ${balance}.`);
   }
 }
-assert.match(getBeginnerJava(algorithms.find(item => item.id === 'lista-circular-simple'), 'add-start'), /tail\.next = head;/, 'Lista circular simple: no se cierra el ciclo.');
+assert.match(getBeginnerJava(algorithms.find(item => item.id === 'lista-circular-simple'), 'add-start'), /last\.next = newNode;/, 'Lista circular simple: no se cierra el ciclo.');
 assert.match(getBeginnerJava(algorithms.find(item => item.id === 'lista-circular-doble'), 'add-end'), /head\.prev = newNode;/, 'Lista circular doble: no se conserva el enlace hacia atrás.');
 
 const circularRemovalCode = getBeginnerJava(algorithms.find(item => item.id === 'lista-circular-simple'), 'remove-value');

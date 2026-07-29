@@ -316,6 +316,666 @@ export function createCodeSynchronizedFrames({ code, actionId, beforeValues, aft
   return frames;
 }
 
+export function createLinkedListSynchronizedFrames({
+  algorithm,
+  code,
+  actionId,
+  beforeValues,
+  afterValues,
+  beforeEdges,
+  afterEdges,
+  finalStep,
+  finalMessage,
+  succeeded = true,
+  inputValues = {},
+}) {
+  const sourceLines = code.split('\n');
+  const operationMarker = sourceLines.findIndex(line => line.trim() === '// Start of the selected operation');
+  const firstLine = operationMarker >= 0 ? operationMarker + 1 : 0;
+  const lineOf = (pattern, occurrence = 0) => {
+    let seen = 0;
+    for (let index = firstLine; index < sourceLines.length; index++) {
+      if (!pattern.test(sourceLines[index].trim())) continue;
+      if (seen === occurrence) return index;
+      seen++;
+    }
+    return firstLine;
+  };
+  const methodPatterns = {
+    'add-start': /void addAtStart\(/,
+    'add-end': /void addAtEnd\(/,
+    'add-index': /boolean addAtIndex\(/,
+    'remove-start': /boolean removeFromStart\(/,
+    'remove-end': /boolean removeFromEnd\(/,
+    'remove-index': /boolean removeAtIndex\(/,
+    'remove-value': /boolean removeValue\(/,
+    find: /int find\(/,
+  };
+  const methodLine = lineOf(methodPatterns[actionId] ?? /(?:void|boolean|int)\s+\w+\(/);
+  const circular = algorithm.id.includes('circular');
+  const doubly = algorithm.id.includes('doble');
+  const requestedIndex = inputValues.index === '' || inputValues.index === undefined
+    ? null
+    : Number(inputValues.index);
+  const requestedValue = inputValues.value;
+  const targetIndex = beforeValues.findIndex(value => String(value) === String(requestedValue));
+  const frames = [];
+
+  const frameVariables = ({ values, position, pointer = 'current', pointerValue, index = null, condition = null }) => [
+    { name: 'head', value: readableVariableValue(values[0] ?? null), role: 'value' },
+    { name: 'size', value: readableVariableValue(values.length), role: 'size' },
+    ...(index === null ? [] : [{ name: 'i', value: readableVariableValue(index), role: 'index' }]),
+    {
+      name: pointer,
+      value: readableVariableValue(
+        pointerValue !== undefined
+          ? pointerValue
+          : pointer === 'newNode'
+            ? requestedValue
+            : values[position] ?? null,
+      ),
+      role: 'position',
+    },
+    ...(requestedValue === undefined || requestedValue === '' ? [] : [{ name: 'value', value: readableVariableValue(requestedValue), role: 'input' }]),
+    ...(requestedIndex === null || !Number.isFinite(requestedIndex) ? [] : [{ name: 'index', value: readableVariableValue(requestedIndex), role: 'input' }]),
+    ...(condition === null ? [] : [{ name: 'condición', value: condition ? 'true' : 'false', role: condition ? 'true' : 'false' }]),
+    { name: 'sentido', value: 'head → next', role: 'value' },
+  ];
+  const addFrame = ({
+    pattern,
+    message,
+    position = 0,
+    values = beforeValues,
+    pointer = 'current',
+    index = null,
+    condition = null,
+    completed = false,
+    delayMs = 280,
+    occurrence = 0,
+    pointerValue,
+  }) => {
+    const safePosition = Math.max(0, Math.min(Math.max(0, values.length - 1), position));
+    frames.push({
+      values: copyVisualValues(values),
+      edges: cloneEdges(completed ? afterEdges : beforeEdges),
+      position: safePosition,
+      codeLine: pattern ? lineOf(pattern, occurrence) : methodLine,
+      message,
+      delayMs,
+      completed,
+      variables: frameVariables({ values, position: safePosition, pointer, pointerValue, index, condition }),
+    });
+  };
+  const conditionFrame = (pattern, condition, message, position = 0, pointer = 'current', index = null, values = beforeValues, occurrence = 0, pointerValue) => {
+    addFrame({ pattern, condition, message: `${message} La condición es ${condition ? 'true' : 'false'}.`, position, pointer, pointerValue, index, values, occurrence, delayMs: 240 });
+  };
+  const traverse = ({ pointer, initPattern, loopPattern, movePattern, moves, start = 0 }) => {
+    if (initPattern) {
+      addFrame({
+        pattern: initPattern,
+        message: `${pointer} comienza en head, que corresponde al índice 0.`,
+        position: start,
+        pointer,
+        index: 0,
+        delayMs: 240,
+      });
+    }
+    for (let index = 0; index < moves; index++) {
+      const position = beforeValues.length ? (start + index) % beforeValues.length : 0;
+      conditionFrame(loopPattern, true, `${pointer} todavía no llegó a la posición buscada.`, position, pointer, index);
+      addFrame({
+        pattern: movePattern,
+        message: `${pointer} avanza desde el índice ${position} al índice ${(position + 1) % Math.max(1, beforeValues.length)}.`,
+        position: beforeValues.length ? (position + 1) % beforeValues.length : 0,
+        pointer,
+        index: index + 1,
+        delayMs: 250,
+      });
+    }
+    const finalPosition = beforeValues.length ? (start + moves) % beforeValues.length : 0;
+    conditionFrame(loopPattern, false, `${pointer} termina el recorrido hacia adelante.`, finalPosition, pointer, moves);
+    return finalPosition;
+  };
+  const finishSuccessfulOperation = (message = finalMessage, position = finalStep) => {
+    const changesSize = actionId.startsWith('add-')
+      || actionId.startsWith('remove-');
+    if (changesSize) {
+      const isInsertion = actionId.startsWith('add-');
+      const returnsBoolean = !['add-start', 'add-end'].includes(actionId);
+      addFrame({
+        pattern: isInsertion ? /size\+\+;/ : /size--;/,
+        message: isInsertion
+          ? `size aumenta a ${afterValues.length}.`
+          : `size disminuye a ${afterValues.length}.`,
+        position,
+        values: afterValues,
+        completed: !returnsBoolean,
+        delayMs: 230,
+      });
+      if (returnsBoolean) {
+        addFrame({
+          pattern: /return true;/,
+          message,
+          position,
+          values: afterValues,
+          completed: true,
+          delayMs: 240,
+        });
+      }
+    }
+  };
+  const complete = (pattern, message = finalMessage, position = finalStep, occurrence = 0) => {
+    if (!succeeded) {
+      addFrame({
+        pattern,
+        message,
+        position,
+        values: afterValues,
+        completed: true,
+        delayMs: 320,
+        occurrence,
+      });
+      return;
+    }
+
+    addFrame({
+      pattern,
+      message,
+      position,
+      values: afterValues,
+      completed: actionId === 'find',
+      delayMs: 320,
+      occurrence,
+    });
+    if (actionId === 'find') return;
+    finishSuccessfulOperation(message, position);
+  };
+  const reject = (pattern, condition, message = finalMessage) => {
+    conditionFrame(pattern, condition, message, 0);
+    addFrame({ pattern: /return false;|return -1;/, message, condition, completed: true, delayMs: 260 });
+    return frames;
+  };
+
+  addFrame({ message: `Comienza ${sourceLines[methodLine].trim()}.`, position: 0, pointer: 'head', delayMs: 220 });
+
+  if (['add-index', 'remove-index'].includes(actionId)) {
+    const validation = actionId === 'add-index'
+      ? /if \(index < 0 \|\| index > size\)/
+      : /if \(index < 0 \|\| index >= size\)/;
+    const valid = Number.isInteger(requestedIndex)
+      && requestedIndex >= 0
+      && requestedIndex <= beforeValues.length - (actionId === 'remove-index' ? 1 : 0);
+    conditionFrame(validation, !valid, valid ? 'El índice pertenece al rango permitido.' : finalMessage, 0, 'head');
+    if (!valid) {
+      addFrame({ pattern: /return false;/, message: finalMessage, condition: true, completed: true, delayMs: 260 });
+      return frames;
+    }
+  }
+
+  if (['remove-start', 'remove-end'].includes(actionId) && beforeValues.length === 0) {
+    return reject(/if \(head == null\)/, true);
+  }
+
+  if (actionId === 'add-start') {
+    addFrame({ pattern: /Node newNode = new Node\(value\);/, message: `Se crea el nodo nuevo con el valor ${requestedValue}.`, pointer: 'newNode' });
+    if (!circular && !doubly) {
+      addFrame({ pattern: /newNode\.next = head;/, message: 'El nuevo nodo apunta a la cabeza actual.', pointer: 'newNode' });
+      complete(/head = newNode;/);
+      return frames;
+    }
+    if (!circular && doubly) {
+      addFrame({ pattern: /newNode\.next = head;/, message: 'El nuevo nodo apunta a la cabeza actual.', pointer: 'newNode' });
+      conditionFrame(/if \(head != null\)/, beforeValues.length > 0, 'Comprueba si debe actualizarse el enlace prev de la cabeza.');
+      if (beforeValues.length > 0) addFrame({ pattern: /head\.prev = newNode;/, message: 'La cabeza anterior apunta hacia atrás al nodo nuevo.' });
+      complete(/head = newNode;/);
+      return frames;
+    }
+
+    conditionFrame(/if \(head == null\)/, beforeValues.length === 0, 'Comprueba si la lista circular está vacía.');
+    if (beforeValues.length === 0) {
+      addFrame({ pattern: /head = newNode;/, message: 'head comienza apuntando al primer nodo.', pointer: 'head' });
+      if (doubly) {
+        addFrame({ pattern: /newNode\.next = newNode;/, message: 'next vuelve al mismo nodo y cierra el ciclo.', pointer: 'newNode' });
+        complete(/newNode\.prev = newNode;/);
+      } else {
+        complete(/newNode\.next = newNode;/);
+      }
+      return frames;
+    }
+    if (!doubly) {
+      traverse({ pointer: 'last', initPattern: /Node last = head;/, loopPattern: /while \(last\.next != head\)/, movePattern: /last = last\.next;/, moves: Math.max(0, beforeValues.length - 1) });
+      addFrame({ pattern: /newNode\.next = head;/, message: 'El nodo nuevo apunta a la cabeza actual.', pointer: 'newNode' });
+      addFrame({ pattern: /last\.next = newNode;/, message: 'El último nodo enlaza con el nuevo nodo.' });
+    } else {
+      addFrame({ pattern: /Node last = head\.prev;/, message: 'El último nodo se obtiene desde head.prev, sin guardar una variable de cola.', position: beforeValues.length - 1, pointer: 'last' });
+      addFrame({ pattern: /newNode\.next = head;/, message: 'El nodo nuevo apunta a la cabeza actual.', pointer: 'newNode' });
+      addFrame({ pattern: /newNode\.prev = last;/, message: 'El enlace prev del nodo nuevo apunta al último nodo.', position: beforeValues.length - 1, pointer: 'newNode' });
+      addFrame({ pattern: /head\.prev = newNode;/, message: 'La cabeza enlaza hacia atrás con el nodo nuevo.', pointer: 'head' });
+      addFrame({ pattern: /last\.next = newNode;/, message: 'El último nodo enlaza con el nuevo nodo.', position: beforeValues.length - 1, pointer: 'last' });
+    }
+    complete(/head = newNode;/);
+    return frames;
+  }
+
+  if (actionId === 'add-end') {
+    addFrame({ pattern: /Node newNode = new Node\(value\);/, message: `Se crea el nodo nuevo con el valor ${requestedValue}.`, pointer: 'newNode' });
+    conditionFrame(/if \(head == null\)/, beforeValues.length === 0, 'Comprueba si la lista está vacía.');
+    if (beforeValues.length === 0) {
+      if (circular) {
+        addFrame({ pattern: /head = newNode;/, message: 'head comienza apuntando al primer nodo.', pointer: 'head' });
+        if (doubly) {
+          addFrame({ pattern: /newNode\.next = newNode;/, message: 'next vuelve al mismo nodo y cierra el ciclo.', pointer: 'newNode' });
+          complete(/newNode\.prev = newNode;/);
+        } else {
+          complete(/newNode\.next = newNode;/);
+        }
+      } else {
+        complete(/head = newNode;/);
+      }
+      return frames;
+    }
+    if (circular && doubly) {
+      addFrame({ pattern: /Node last = head\.prev;/, message: 'Obtiene el último nodo desde head.prev.', position: beforeValues.length - 1, pointer: 'last' });
+      addFrame({ pattern: /newNode\.prev = last;/, message: 'El nuevo nodo apunta hacia atrás al último.', position: beforeValues.length - 1, pointer: 'newNode' });
+      addFrame({ pattern: /newNode\.next = head;/, message: 'El nuevo nodo apunta hacia adelante a head.', pointer: 'newNode' });
+      addFrame({ pattern: /last\.next = newNode;/, message: 'El último nodo apunta hacia adelante al nuevo.', position: beforeValues.length - 1, pointer: 'last' });
+      complete(/head\.prev = newNode;/, finalMessage, afterValues.length - 1);
+      return frames;
+    }
+    const pointer = circular ? 'last' : 'current';
+    const loopPattern = circular ? /while \(last\.next != head\)/ : /while \(current\.next != null\)/;
+    const movePattern = circular ? /last = last\.next;/ : /current = current\.next;/;
+    traverse({
+      pointer,
+      initPattern: circular ? /Node last = head;/ : /Node current = head;/,
+      loopPattern,
+      movePattern,
+      moves: Math.max(0, beforeValues.length - 1),
+    });
+    if (circular) {
+      addFrame({ pattern: /newNode\.next = head;/, message: 'El nodo nuevo vuelve a head para conservar el ciclo.', pointer: 'newNode' });
+      complete(/last\.next = newNode;/, finalMessage, afterValues.length - 1);
+    } else if (doubly) {
+      addFrame({ pattern: /current\.next = newNode;/, message: 'El último nodo apunta al nodo nuevo.', position: beforeValues.length - 1, pointer: 'current' });
+      complete(/newNode\.prev = current;/, finalMessage, afterValues.length - 1);
+    } else {
+      complete(/current\.next = newNode;/, finalMessage, afterValues.length - 1);
+    }
+    return frames;
+  }
+
+  if (actionId === 'add-index') {
+    const index = requestedIndex;
+    addFrame({ pattern: /Node newNode = new Node\(value\);/, message: `Se crea el nodo nuevo con el valor ${requestedValue}.`, pointer: 'newNode' });
+    if (circular) conditionFrame(/if \(size == 0\)/, beforeValues.length === 0, 'Comprueba si debe crearse el primer ciclo.', 0, 'head');
+    const atStart = index === 0;
+    if (beforeValues.length > 0 || !circular) conditionFrame(/(?:else )?if \(index == 0\)/, atStart, 'Comprueba si la inserción corresponde a la cabeza.', 0, 'head');
+
+    if (atStart) {
+      if (circular && beforeValues.length === 0) {
+        addFrame({ pattern: /head = newNode;/, message: 'head comienza apuntando al primer nodo.', pointer: 'head' });
+        if (doubly) {
+          addFrame({ pattern: /newNode\.next = newNode;/, message: 'next vuelve al mismo nodo y cierra el ciclo.', pointer: 'newNode' });
+          complete(/newNode\.prev = newNode;/, finalMessage, 0);
+        } else {
+          complete(/newNode\.next = newNode;/, finalMessage, 0);
+        }
+        return frames;
+      }
+      if (circular && !doubly) {
+        traverse({ pointer: 'last', initPattern: /Node last = head;/, loopPattern: /while \(last\.next != head\)/, movePattern: /last = last\.next;/, moves: Math.max(0, beforeValues.length - 1) });
+        addFrame({ pattern: /newNode\.next = head;/, message: 'El nodo nuevo apunta a la cabeza actual.', pointer: 'newNode' });
+        addFrame({ pattern: /last\.next = newNode;/, message: 'El último nodo apunta al nodo nuevo.', position: beforeValues.length - 1, pointer: 'last' });
+        complete(/head = newNode;/, finalMessage, 0, 1);
+        return frames;
+      }
+      if (circular && doubly) {
+        addFrame({ pattern: /Node last = head\.prev;/, message: 'El último nodo se obtiene desde head.prev.', position: beforeValues.length - 1, pointer: 'last' });
+        addFrame({ pattern: /newNode\.next = head;/, message: 'El nodo nuevo apunta hacia adelante a head.', pointer: 'newNode' });
+        addFrame({ pattern: /newNode\.prev = last;/, message: 'El nodo nuevo apunta hacia atrás al último.', position: beforeValues.length - 1, pointer: 'newNode' });
+        addFrame({ pattern: /head\.prev = newNode;/, message: 'head enlaza hacia atrás con el nodo nuevo.', pointer: 'head' });
+        addFrame({ pattern: /last\.next = newNode;/, message: 'El último nodo enlaza hacia adelante con el nuevo.', position: beforeValues.length - 1, pointer: 'last' });
+        complete(/head = newNode;/, finalMessage, 0, 1);
+        return frames;
+      }
+      if (doubly) {
+        addFrame({ pattern: /newNode\.next = head;/, message: 'El nodo nuevo apunta a la cabeza actual.', pointer: 'newNode' });
+        conditionFrame(/if \(head != null\)/, beforeValues.length > 0, 'Comprueba si la cabeza anterior debe enlazar hacia atrás.');
+        if (beforeValues.length > 0) addFrame({ pattern: /head\.prev = newNode;/, message: 'La cabeza anterior enlaza hacia atrás con el nodo nuevo.', pointer: 'head' });
+      } else {
+        addFrame({ pattern: /newNode\.next = head;/, message: 'El nodo nuevo apunta a la cabeza actual.', pointer: 'newNode' });
+      }
+      complete(/head = newNode;/, finalMessage, 0);
+      return frames;
+    }
+
+    if (circular && doubly) {
+      traverse({ pointer: 'current', initPattern: /Node current = head;/, loopPattern: /for \(int i = 0; i < index; i\+\+\)/, movePattern: /current = current\.next;/, moves: index });
+      addFrame({ pattern: /newNode\.prev = current\.prev;/, message: 'prev del nodo nuevo apunta al nodo anterior.', position: index, pointer: 'newNode' });
+      addFrame({ pattern: /newNode\.next = current;/, message: 'next del nodo nuevo apunta al nodo encontrado.', position: index, pointer: 'newNode' });
+      addFrame({ pattern: /current\.prev\.next = newNode;/, message: 'El nodo anterior enlaza hacia adelante con el nuevo.', position: Math.max(0, index - 1), pointer: 'current.prev' });
+      complete(/current\.prev = newNode;/, finalMessage, index);
+      return frames;
+    }
+    traverse({
+      pointer: 'previous',
+      initPattern: /Node previous = head;/,
+      loopPattern: /for \(int i = 0; i < index - 1; i\+\+\)/,
+      movePattern: /previous = previous\.next;/,
+      moves: Math.max(0, index - 1),
+    });
+    addFrame({ pattern: /newNode\.next = previous\.next;/, message: 'El nodo nuevo conserva la referencia al siguiente.', position: index, pointer: 'newNode' });
+    if (doubly) {
+      addFrame({ pattern: /newNode\.prev = previous;/, message: 'El nodo nuevo apunta hacia atrás al nodo anterior.', position: Math.max(0, index - 1), pointer: 'newNode' });
+      const hasFollowingNode = index < beforeValues.length;
+      conditionFrame(/if \(previous\.next != null\)/, hasFollowingNode, 'Comprueba si existe un nodo siguiente que deba actualizar prev.', Math.max(0, index - 1), 'previous', index - 1);
+      if (hasFollowingNode) {
+        addFrame({ pattern: /previous\.next\.prev = newNode;/, message: 'El nodo siguiente enlaza hacia atrás con el nodo nuevo.', position: index, pointer: 'previous.next' });
+      }
+    }
+    complete(/previous\.next = newNode;/, finalMessage, index);
+    return frames;
+  }
+
+  if (actionId === 'remove-start') {
+    conditionFrame(/if \(head == null\)/, false, 'La lista contiene al menos un nodo.');
+    if (!circular) {
+      if (doubly) {
+        addFrame({ pattern: /head = head\.next;/, message: 'head avanza al nodo siguiente.', position: 0, values: afterValues, pointer: 'head' });
+        const hasNewHead = afterValues.length > 0;
+        conditionFrame(/if \(head != null\)/, hasNewHead, 'Comprueba si quedó una nueva cabeza.', 0, 'head');
+        if (hasNewHead) complete(/head\.prev = null;/, finalMessage, 0);
+        else finishSuccessfulOperation(finalMessage, 0);
+      } else {
+        complete(/head = head\.next;/, finalMessage, 0);
+      }
+      return frames;
+    }
+    const single = beforeValues.length === 1;
+    conditionFrame(/if \(head\.next == head\)/, single, 'Comprueba si la cabeza es el único nodo.');
+    if (single) {
+      complete(/head = null;/, finalMessage, 0);
+      return frames;
+    }
+    if (!doubly) {
+      traverse({ pointer: 'last', initPattern: /Node last = head;/, loopPattern: /while \(last\.next != head\)/, movePattern: /last = last\.next;/, moves: beforeValues.length - 1 });
+      addFrame({ pattern: /head = head\.next;/, message: 'La cabeza avanza al siguiente nodo.', position: 0, values: afterValues, pointer: 'head' });
+      complete(/last\.next = head;/, finalMessage, 0);
+    } else {
+      addFrame({ pattern: /Node last = head\.prev;/, message: 'Obtiene el último nodo desde head.prev.', position: beforeValues.length - 1, pointer: 'last' });
+      addFrame({ pattern: /head = head\.next;/, message: 'La cabeza avanza al siguiente nodo.', position: 0, values: afterValues, pointer: 'head' });
+      addFrame({ pattern: /head\.prev = last;/, message: 'La nueva cabeza enlaza hacia atrás con el último nodo.', position: 0, values: afterValues, pointer: 'head' });
+      complete(/last\.next = head;/, finalMessage, 0);
+    }
+    return frames;
+  }
+
+  if (actionId === 'remove-end') {
+    conditionFrame(/if \(head == null\)/, false, 'La lista contiene al menos un nodo.');
+    if (!circular && doubly) {
+      traverse({
+        pointer: 'current',
+        initPattern: /Node current = head;/,
+        loopPattern: /while \(current\.next != null\)/,
+        movePattern: /current = current\.next;/,
+        moves: Math.max(0, beforeValues.length - 1),
+      });
+      const single = beforeValues.length === 1;
+      conditionFrame(/if \(current\.prev == null\)/, single, 'Comprueba si el nodo encontrado también es la cabeza.', beforeValues.length - 1, 'current', beforeValues.length - 1);
+      if (single) complete(/head = null;/, finalMessage, 0);
+      else complete(/current\.prev\.next = null;/, finalMessage, Math.max(0, afterValues.length - 1));
+      return frames;
+    }
+    const single = beforeValues.length === 1;
+    const singlePattern = circular ? /if \(head\.next == head\)/ : /if \(head\.next == null\)/;
+    conditionFrame(singlePattern, single, 'Comprueba si existe un solo nodo.');
+    if (single) {
+      complete(/head = null;/, finalMessage, 0);
+      return frames;
+    }
+    if (circular && doubly) {
+      addFrame({ pattern: /Node last = head\.prev;/, message: 'Obtiene el último nodo desde head.prev.', position: beforeValues.length - 1, pointer: 'last' });
+      addFrame({ pattern: /Node newLast = last\.prev;/, message: 'El nodo anterior será el nuevo último.', position: Math.max(0, beforeValues.length - 2), pointer: 'newLast' });
+      addFrame({ pattern: /newLast\.next = head;/, message: 'El nuevo último vuelve a apuntar a head.', position: Math.max(0, afterValues.length - 1), values: afterValues, pointer: 'newLast' });
+      complete(/head\.prev = newLast;/, finalMessage, Math.max(0, afterValues.length - 1));
+      return frames;
+    }
+    if (circular) {
+      traverse({ pointer: 'previous', initPattern: /Node previous = head;/, loopPattern: /while \(previous\.next\.next != head\)/, movePattern: /previous = previous\.next;/, moves: Math.max(0, beforeValues.length - 2) });
+      complete(/previous\.next = head;/, finalMessage, Math.max(0, afterValues.length - 1));
+      return frames;
+    }
+    traverse({ pointer: 'current', initPattern: /Node current = head;/, loopPattern: /while \(current\.next\.next != null\)/, movePattern: /current = current\.next;/, moves: Math.max(0, beforeValues.length - 2) });
+    complete(/current\.next = null;/, finalMessage, Math.max(0, afterValues.length - 1));
+    return frames;
+  }
+
+  if (actionId === 'remove-index') {
+    const index = requestedIndex;
+    if (!circular && !doubly) {
+      conditionFrame(/if \(index == 0\)/, index === 0, 'Comprueba si debe eliminarse la cabeza.', 0, 'head');
+      if (index === 0) {
+        complete(/head = head\.next;/, finalMessage, 0);
+      } else {
+        traverse({ pointer: 'previous', initPattern: /Node previous = head;/, loopPattern: /for \(int i = 0; i < index - 1; i\+\+\)/, movePattern: /previous = previous\.next;/, moves: index - 1 });
+        complete(/previous\.next = previous\.next\.next;/, finalMessage, Math.max(0, index - 1));
+      }
+      return frames;
+    }
+    if (circular && !doubly) {
+      const single = beforeValues.length === 1;
+      conditionFrame(/if \(size == 1\)/, single, 'Comprueba si existe un solo nodo.', 0, 'head');
+      if (single) {
+        complete(/head = null;/, finalMessage, 0);
+      } else if (index === 0) {
+        conditionFrame(/else if \(index == 0\)/, true, 'El índice corresponde a la cabeza.', 0, 'head');
+        traverse({ pointer: 'last', initPattern: /Node last = head;/, loopPattern: /while \(last\.next != head\)/, movePattern: /last = last\.next;/, moves: beforeValues.length - 1 });
+        addFrame({ pattern: /head = head\.next;/, message: 'head avanza al siguiente nodo.', position: 0, values: afterValues, pointer: 'head' });
+        complete(/last\.next = head;/, finalMessage, 0);
+      } else {
+        conditionFrame(/else if \(index == 0\)/, false, 'El índice no corresponde a la cabeza.', 0, 'head');
+        traverse({ pointer: 'previous', initPattern: /Node previous = head;/, loopPattern: /for \(int i = 0; i < index - 1; i\+\+\)/, movePattern: /previous = previous\.next;/, moves: index - 1 });
+        complete(/previous\.next = previous\.next\.next;/, finalMessage, Math.max(0, index - 1));
+      }
+      return frames;
+    }
+
+    traverse({ pointer: 'current', initPattern: /Node current = head;/, loopPattern: /for \(int i = 0; i < index; i\+\+\)/, movePattern: /current = current\.next;/, moves: index });
+    if (circular) {
+      conditionFrame(/if \(size == 1\)/, beforeValues.length === 1, 'Comprueba si existe un solo nodo.', index, 'current', index);
+      if (beforeValues.length === 1) complete(/head = null;/, finalMessage, 0);
+      else {
+        addFrame({ pattern: /current\.prev\.next = current\.next;/, message: 'El nodo anterior salta al nodo que sigue.', position: Math.max(0, index - 1), values: afterValues, pointer: 'current.prev' });
+        addFrame({ pattern: /current\.next\.prev = current\.prev;/, message: 'El nodo siguiente enlaza hacia atrás con el anterior.', position: Math.min(index, Math.max(0, afterValues.length - 1)), values: afterValues, pointer: 'current.next' });
+        conditionFrame(/if \(current == head\)/, index === 0, 'Comprueba si el nodo encontrado es la cabeza.', index, 'current', index);
+        if (index === 0) complete(/head = current\.next;/, finalMessage, 0);
+        else finishSuccessfulOperation(finalMessage, Math.max(0, index - 1));
+      }
+    } else {
+      conditionFrame(/if \(current\.prev == null\)/, index === 0, 'Comprueba si el nodo encontrado es la cabeza.', index, 'current', index);
+      if (index === 0) {
+        addFrame({ pattern: /head = current\.next;/, message: 'head avanza al nodo siguiente.', position: 0, values: afterValues, pointer: 'head' });
+      } else {
+        addFrame({ pattern: /current\.prev\.next = current\.next;/, message: 'El nodo anterior salta al nodo eliminado.', position: Math.max(0, index - 1), values: afterValues, pointer: 'current.prev' });
+      }
+      const hasFollowingNode = index < beforeValues.length - 1;
+      conditionFrame(/if \(current\.next != null\)/, hasFollowingNode, 'Comprueba si existe un nodo siguiente que deba actualizar prev.', index, 'current', index);
+      if (hasFollowingNode) complete(/current\.next\.prev = current\.prev;/, finalMessage, Math.min(index, Math.max(0, afterValues.length - 1)));
+      else finishSuccessfulOperation(finalMessage, Math.max(0, afterValues.length - 1));
+    }
+    return frames;
+  }
+
+  if (['find', 'remove-value'].includes(actionId)) {
+    const isFind = actionId === 'find';
+    const returnFailurePattern = isFind ? /return -1;/ : /return false;/;
+
+    if (beforeValues.length === 0) {
+      if (circular) {
+        conditionFrame(/if \(head == null\)/, true, 'Comprueba si la lista está vacía.', 0, 'head');
+      } else {
+        addFrame({ pattern: /Node current = head;/, message: 'current comienza en head, que es null.', position: 0, pointer: 'current' });
+        if (!isFind && !doubly) {
+          addFrame({ pattern: /Node previous = null;/, message: 'Todavía no existe un nodo anterior.', position: 0, pointer: 'previous' });
+        }
+        if (isFind) addFrame({ pattern: /int index = 0;/, message: 'La búsqueda prepara el índice 0.', position: 0, pointer: 'current', index: 0 });
+        conditionFrame(/while \(current != null\)/, false, 'No hay un nodo que visitar.', 0, 'current', isFind ? 0 : null);
+      }
+      complete(returnFailurePattern, finalMessage, 0);
+      return frames;
+    }
+
+    const lastVisited = targetIndex >= 0 ? targetIndex : beforeValues.length - 1;
+
+    if (circular) {
+      conditionFrame(/if \(head == null\)/, false, 'La lista contiene al menos un nodo.', 0, 'head');
+
+      if (!isFind && !doubly) {
+        const headMatches = targetIndex === 0;
+        conditionFrame(/if \(head\.value == target\)/, headMatches, `Compara la cabeza ${beforeValues[0]} con ${requestedValue}.`, 0, 'head', 0);
+        if (headMatches) {
+          const single = beforeValues.length === 1;
+          conditionFrame(/if \(head\.next == head\)/, single, 'Comprueba si la cabeza es el único nodo.', 0, 'head', 0);
+          if (single) {
+            complete(/head = null;/, finalMessage, 0);
+          } else {
+            traverse({
+              pointer: 'last',
+              initPattern: /Node last = head;/,
+              loopPattern: /while \(last\.next != head\)/,
+              movePattern: /last = last\.next;/,
+              moves: beforeValues.length - 1,
+            });
+            addFrame({ pattern: /head = head\.next;/, message: 'head avanza al nodo siguiente.', position: 0, values: afterValues, pointer: 'head' });
+            complete(/last\.next = head;/, finalMessage, 0);
+          }
+          return frames;
+        }
+
+        addFrame({ pattern: /Node previous = head;/, message: 'previous comienza en head, índice 0.', position: 0, pointer: 'previous', index: 0 });
+        addFrame({ pattern: /Node current = head\.next;/, message: 'current comienza en el índice 1.', position: Math.min(1, beforeValues.length - 1), pointer: 'current', index: 1 });
+        const circularSimpleStart = 1;
+        const circularSimpleEnd = targetIndex >= 1 ? targetIndex : beforeValues.length - 1;
+        for (let index = circularSimpleStart; index <= circularSimpleEnd; index++) {
+          addFrame({ pattern: /do \{/, message: `El ciclo procesa el índice ${index}.`, position: index, pointer: 'current', index });
+          const matches = index === targetIndex;
+          conditionFrame(/if \(current\.value == target\)/, matches, `Compara ${beforeValues[index]} con ${requestedValue}.`, index, 'current', index);
+          if (matches) {
+            complete(/previous\.next = current\.next;/, finalMessage, Math.max(0, index - 1));
+            return frames;
+          }
+          addFrame({ pattern: /previous = current;/, message: `previous queda en el índice ${index}.`, position: index, pointer: 'previous', index });
+          const returnsToHead = index === beforeValues.length - 1;
+          addFrame({
+            pattern: /current = current\.next;/,
+            message: returnsToHead ? 'current vuelve a head.' : `current avanza al índice ${index + 1}.`,
+            position: returnsToHead ? 0 : index + 1,
+            pointer: 'current',
+            index: index + 1,
+          });
+          conditionFrame(/while \(current != head\)/, !returnsToHead, returnsToHead ? 'El recorrido volvió a head y termina.' : 'El recorrido todavía no volvió a head.', returnsToHead ? 0 : index + 1, 'current', index + 1);
+        }
+        complete(/return false;/, finalMessage, Math.max(0, beforeValues.length - 1));
+        return frames;
+      }
+
+      addFrame({ pattern: /Node current = head;/, message: 'current comienza en head, índice 0.', position: 0, pointer: 'current', index: 0 });
+      if (isFind) addFrame({ pattern: /int index = 0;/, message: 'La búsqueda comienza en el índice 0.', position: 0, pointer: 'current', index: 0 });
+
+      for (let index = 0; index <= lastVisited; index++) {
+        addFrame({ pattern: /do \{/, message: `El ciclo procesa el índice ${index}.`, position: index, pointer: 'current', index });
+        const matches = index === targetIndex;
+        conditionFrame(/if \(current\.value == target\)/, matches, `Compara ${beforeValues[index]} con ${requestedValue}.`, index, 'current', index);
+        if (matches) {
+          if (isFind) {
+            complete(/return index;/, finalMessage, index);
+            return frames;
+          }
+
+          const single = beforeValues.length === 1;
+          conditionFrame(/if \(size == 1\)/, single, 'Comprueba si current es el único nodo.', index, 'current', index);
+          if (single) {
+            complete(/head = null;/, finalMessage, 0);
+            return frames;
+          }
+          addFrame({ pattern: /current\.prev\.next = current\.next;/, message: 'El nodo anterior salta al nodo encontrado.', position: Math.max(0, index - 1), values: afterValues, pointer: 'current.prev', index });
+          addFrame({ pattern: /current\.next\.prev = current\.prev;/, message: 'El nodo siguiente enlaza hacia atrás con el anterior.', position: Math.min(index, Math.max(0, afterValues.length - 1)), values: afterValues, pointer: 'current.next', index });
+          conditionFrame(/if \(current == head\)/, index === 0, 'Comprueba si el nodo eliminado es head.', index, 'current', index, afterValues);
+          if (index === 0) complete(/head = current\.next;/, finalMessage, 0);
+          else finishSuccessfulOperation(finalMessage, Math.max(0, index - 1));
+          return frames;
+        }
+
+        const returnsToHead = index === beforeValues.length - 1;
+        addFrame({
+          pattern: /current = current\.next;/,
+          message: returnsToHead ? 'current vuelve a head.' : `current avanza al índice ${index + 1}.`,
+          position: returnsToHead ? 0 : index + 1,
+          pointer: 'current',
+          index: index + 1,
+        });
+        if (isFind) addFrame({ pattern: /index\+\+;/, message: `index aumenta a ${index + 1}.`, position: returnsToHead ? 0 : index + 1, pointer: 'current', index: index + 1 });
+        conditionFrame(/while \(current != head\)/, !returnsToHead, returnsToHead ? 'El recorrido volvió a head y termina.' : 'El recorrido continúa.', returnsToHead ? 0 : index + 1, 'current', index + 1);
+      }
+      complete(returnFailurePattern, finalMessage, Math.max(0, beforeValues.length - 1));
+      return frames;
+    }
+
+    addFrame({ pattern: /Node current = head;/, message: 'current comienza en head, índice 0.', position: 0, pointer: 'current', index: 0 });
+    if (!isFind && !doubly) addFrame({ pattern: /Node previous = null;/, message: 'Al comenzar todavía no existe un nodo anterior.', position: 0, pointer: 'previous', index: 0 });
+    if (isFind) addFrame({ pattern: /int index = 0;/, message: 'La búsqueda comienza en el índice 0.', position: 0, pointer: 'current', index: 0 });
+
+    for (let index = 0; index <= lastVisited; index++) {
+      conditionFrame(/while \(current != null\)/, true, `El recorrido visita el índice ${index}.`, index, 'current', index);
+      const matches = index === targetIndex;
+      conditionFrame(/if \(current\.value == target\)/, matches, `Compara ${beforeValues[index]} con ${requestedValue}.`, index, 'current', index);
+      if (matches) {
+        if (isFind) {
+          complete(/return index;/, finalMessage, index);
+          return frames;
+        }
+        if (!doubly) {
+          const atHead = index === 0;
+          conditionFrame(/if \(previous == null\)/, atHead, 'Comprueba si current es head.', index, 'current', index);
+          complete(atHead ? /head = current\.next;/ : /previous\.next = current\.next;/, finalMessage, Math.max(0, index - 1));
+          return frames;
+        }
+
+        const atHead = index === 0;
+        conditionFrame(/if \(current\.prev == null\)/, atHead, 'Comprueba si current es head.', index, 'current', index);
+        if (atHead) {
+          addFrame({ pattern: /head = current\.next;/, message: 'head avanza al nodo siguiente.', position: 0, values: afterValues, pointer: 'head', index });
+        } else {
+          addFrame({ pattern: /current\.prev\.next = current\.next;/, message: 'El nodo anterior salta al nodo encontrado.', position: Math.max(0, index - 1), values: afterValues, pointer: 'current.prev', index });
+        }
+        const hasFollowingNode = index < beforeValues.length - 1;
+        conditionFrame(/if \(current\.next != null\)/, hasFollowingNode, 'Comprueba si existe un nodo siguiente que deba actualizar prev.', index, 'current', index, afterValues);
+        if (hasFollowingNode) complete(/current\.next\.prev = current\.prev;/, finalMessage, Math.min(index, Math.max(0, afterValues.length - 1)));
+        else finishSuccessfulOperation(finalMessage, Math.max(0, afterValues.length - 1));
+        return frames;
+      }
+
+      if (!isFind && !doubly) addFrame({ pattern: /previous = current;/, message: `previous queda en el índice ${index}.`, position: index, pointer: 'previous', index });
+      addFrame({
+        pattern: /current = current\.next;/,
+        message: index === beforeValues.length - 1 ? 'current avanza a null.' : `current avanza al índice ${index + 1}.`,
+        position: Math.min(index + 1, beforeValues.length - 1),
+        pointer: 'current',
+        pointerValue: index === beforeValues.length - 1 ? null : undefined,
+        index: index + 1,
+      });
+      if (isFind) addFrame({ pattern: /index\+\+;/, message: `index aumenta a ${index + 1}.`, position: Math.min(index + 1, beforeValues.length - 1), pointer: 'current', index: index + 1 });
+    }
+    conditionFrame(/while \(current != null\)/, false, 'current es null y el recorrido termina.', Math.max(0, beforeValues.length - 1), 'current', beforeValues.length, beforeValues, 0, null);
+    complete(returnFailurePattern, finalMessage, Math.max(0, beforeValues.length - 1));
+    return frames;
+  }
+
+  if (!succeeded) return reject(/return false;|return -1;/, true);
+  complete(null);
+  return frames;
+}
+
 const orderedBinaryTreeIds = new Set(['bst', 'avl', 'rojo-negro', 'splay-tree', 'kd-tree']);
 const binaryTreeIds = new Set([
   'arbol-binario', 'bst', 'avl', 'rojo-negro', 'splay-tree', 'heap',

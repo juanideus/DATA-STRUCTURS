@@ -55,7 +55,7 @@ export const educationalDescriptions = {
   'lista-simple': guide(
     'Una Lista Simple está formada por nodos. Cada nodo guarda un valor y una referencia al nodo siguiente.',
     'La lista comienza en cabeza y termina cuando next es null. Los nodos no necesitan ocupar posiciones contiguas; para llegar a una posición hay que avanzar enlace por enlace desde la cabeza.',
-    'Insertar al inicio cambiando la cabeza|Insertar al final recorriendo o conservando una cola|Buscar avanzando por next|Eliminar reconectando el nodo anterior con el siguiente',
+    'Insertar al inicio cambiando la cabeza|Insertar al final recorriendo desde la cabeza|Buscar avanzando por next desde el índice 0|Eliminar reconectando el nodo anterior con el siguiente',
     'Tamaño dinámico|Insertar al inicio es inmediato|No exige memoria contigua|Sólo reserva memoria para los nodos existentes',
     'Acceso por índice lento|Cada nodo consume memoria para next|No puede recorrerse hacia atrás|Perder una referencia puede desconectar parte de la lista',
     'Listas de reproducción|Cadenas de tareas|Implementación de colas|Representación de colisiones en hashing',
@@ -66,7 +66,7 @@ export const educationalDescriptions = {
     'Una Lista Doble usa nodos con dos referencias: next apunta al siguiente y prev al anterior.',
     'La doble conexión permite recorrer en ambas direcciones. Insertar o eliminar un nodo conocido requiere actualizar hasta cuatro enlaces para que sus vecinos sigan correctamente conectados.',
     'Recorrer hacia adelante con next|Recorrer hacia atrás con prev|Insertar entre dos nodos|Eliminar reconectando anterior y siguiente',
-    'Recorrido bidireccional|Eliminación eficiente de un nodo conocido|Acceso sencillo a cabeza y cola|Adecuada para historiales',
+    'Recorrido bidireccional|Eliminación eficiente de un nodo conocido|Acceso al último nodo recorriendo desde la cabeza|Adecuada para historiales',
     'Usa más memoria que una lista simple|Hay más referencias que mantener|Un enlace mal actualizado rompe la consistencia|Buscar por valor continúa siendo lineal',
     'Botones anterior y siguiente|LRU Cache|Editores y listas de reproducción|Implementación de Deque',
     'Como vagones unidos por delante y por detrás: puedes recorrer el tren en ambos sentidos.',
@@ -74,23 +74,23 @@ export const educationalDescriptions = {
   ),
   'lista-circular-simple': guide(
     'Una Lista Circular Simple es una lista enlazada cuyo último nodo apunta nuevamente a la cabeza en lugar de apuntar a null.',
-    'El recorrido forma un ciclo. Para evitar un bucle infinito se conserva el nodo inicial y se detiene cuando el recorrido vuelve a él. Con una referencia a la cola, insertar al inicio o al final es muy eficiente.',
-    'Insertar manteniendo cola.next igual a cabeza|Recorrer hasta volver al nodo inicial|Eliminar la cabeza reparando el cierre|Rotar el punto de inicio',
-    'No existe un final desconectado|Permite ciclos repetitivos naturales|Inserciones rápidas con referencia a la cola|Todos los nodos pueden alcanzarse desde cualquier punto',
+    'El recorrido forma un ciclo. Para evitar un bucle infinito se conserva el nodo inicial y se detiene cuando el recorrido vuelve a él. En esta implementación sólo se guarda head; cuando se necesita el último nodo, se recorre desde el índice 0.',
+    'Insertar reparando el enlace del último nodo con head|Recorrer desde head hasta volver al nodo inicial|Eliminar la cabeza reparando el cierre|Rotar el punto de inicio',
+    'No existe un final desconectado|Permite ciclos repetitivos naturales|No necesita una variable de cola|Todos los nodos pueden alcanzarse desde head',
     'Un recorrido sin condición correcta nunca termina|No permite retroceder|La lista vacía y la de un nodo necesitan cuidado especial|Depurar ciclos puede ser más difícil',
     'Turnos rotativos|Planificación Round Robin|Carruseles|Juegos por turnos',
     'Como personas sentadas en círculo: después de la última vuelve a tocar la primera.',
     'Nunca recorras buscando null; termina cuando actual vuelva a ser igual a cabeza.'
   ),
   'lista-circular-doble': guide(
-    'Una Lista Circular Doble conecta cada nodo con el anterior y el siguiente, y además une la cabeza con la cola en ambos sentidos.',
-    'La cabeza tiene como prev a la cola y la cola tiene como next a la cabeza. Esto permite avanzar, retroceder y rotar indefinidamente sin encontrar null.',
+    'Una Lista Circular Doble conecta cada nodo con el anterior y el siguiente, y además une la cabeza con el último nodo en ambos sentidos.',
+    'La cabeza tiene como prev al último nodo y el último tiene como next a la cabeza. La estructura sólo conserva head; esto permite avanzar, retroceder y rotar indefinidamente sin encontrar null.',
     'Insertar antes o después de cualquier nodo|Eliminar un nodo actualizando cuatro enlaces|Recorrer con next o prev|Mover la cabeza para rotar la lista',
     'Navegación en dos sentidos|Operaciones constantes sobre nodos conocidos|Rotación eficiente|No necesita casos de final durante el recorrido',
     'Mayor consumo de memoria|Más enlaces susceptibles a errores|La condición de término debe estar bien definida|Los casos vacío y de un solo nodo son delicados',
     'Carruseles bidireccionales|Listas multimedia repetitivas|Planificadores circulares|Juegos de mesa digitales',
     'Es una rotonda de doble sentido: puedes seguir girando hacia adelante o hacia atrás.',
-    'Comprueba siempre las cuatro relaciones del cierre: cabeza.prev, cola.next y sus enlaces inversos.'
+    'Comprueba siempre las relaciones del cierre: head.prev llega al último nodo y ese nodo.next vuelve a head.'
   ),
   'skip-list': guide(
     'Una Skip List mantiene varias capas de listas ordenadas. Las capas superiores contienen atajos que permiten saltar sobre muchos nodos.',

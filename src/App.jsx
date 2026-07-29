@@ -8,7 +8,13 @@ import { getBeginnerJava } from './data/beginnerJava.js';
 import { getGraphDesign, graphEdgesFor, graphPositionsFor } from './data/graphDesigns.js';
 import OperationsPanel from './components/OperationsPanel.jsx';
 import VariablesPanel from './components/VariablesPanel.jsx';
-import { adaptFramesToCode, copyVisualValues, createCodeSynchronizedFrames, createTreeSynchronizedFrames } from './logic/codeAnimation.js';
+import {
+  adaptFramesToCode,
+  copyVisualValues,
+  createCodeSynchronizedFrames,
+  createLinkedListSynchronizedFrames,
+  createTreeSynchronizedFrames,
+} from './logic/codeAnimation.js';
 import { DEFAULT_GRAPH_EDGES, DEFAULT_GRAPH_POSITIONS, executeOperation, getOperationDefinition, getThreadedTreeLinks, operationGroup, SPARSE_MATRIX_COLUMNS, SPARSE_MATRIX_ROWS } from './logic/operations.js';
 import { createRandomPathMap, DEFAULT_PATH_MAP } from './logic/pathfindingMap.js';
 
@@ -1332,7 +1338,7 @@ function App() {
   const operationDefinition = getOperationDefinition(baseAlgorithm);
   const activeOperationLabel = operationDefinition.actions.find(item=>item.id===activeOperation)?.label ?? 'Operación';
   const javaOverview = operationGroup(baseAlgorithm) === 'list'
-    ? `El código muestra la clase Node, head, tail, size y los enlaces next${baseAlgorithm.id.includes('doble') ? ' y prev' : ''}. La línea iluminada corresponde al cambio que se observa en la lista.`
+    ? `El código muestra la clase Node, head, size y los enlaces next${baseAlgorithm.id.includes('doble') ? ' y prev' : ''}. No existe una variable de cola: cada recorrido parte en head y avanza del índice 0 hacia adelante. Cada if se evalúa antes de entrar únicamente al bloque que corresponde.`
     : baseAlgorithm.id === 'matriz-dispersa'
       ? 'El código muestra AROW, ACOL y un único Node con left y up. AROW recorre de derecha a izquierda y ACOL de abajo hacia arriba hasta volver a sus cabeceras.'
       : baseAlgorithm.id === 'arbol-enhebrado'
@@ -1511,9 +1517,14 @@ function App() {
       initialValues: baseAlgorithm.values,
       initialEdges: edgesForAlgorithm(baseAlgorithm),
     });
+    const synchronizedFrameFactory = operationGroup(baseAlgorithm) === 'list'
+      ? createLinkedListSynchronizedFrames
+      : baseAlgorithm.category === 'Árboles'
+        ? createTreeSynchronizedFrames
+        : createCodeSynchronizedFrames;
     const frames = result.frames?.length
       ? adaptFramesToCode(result.frames, codeForAnimation, codeMode === 'java')
-      : (baseAlgorithm.category === 'Árboles' ? createTreeSynchronizedFrames : createCodeSynchronizedFrames)({
+      : synchronizedFrameFactory({
           algorithm: baseAlgorithm,
           code: codeForAnimation,
           actionId,
