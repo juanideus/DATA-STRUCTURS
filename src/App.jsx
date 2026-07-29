@@ -524,7 +524,15 @@ function treeHeight(values, index) {
 
 function BinaryTreeDiagram({ algorithm, step, displayValues = algorithm.values.slice(0,15), badges = null, kindLabel = null }) {
   const values = displayValues;
+  const frame = algorithm.animationFrame;
   const orderedTree = ['bst','avl','rojo-negro','splay-tree'].includes(algorithm.id);
+  const heapCandidates = new Set(frame?.heapCandidatePositions ?? []);
+  const movingHeapNode = algorithm.id === 'heap'
+    && frame?.heapPhase === 'move-last'
+    && Number.isInteger(frame.heapSourcePosition)
+    && Number.isInteger(frame.heapTargetPosition)
+    && BINARY_POSITIONS[frame.heapSourcePosition]
+    && BINARY_POSITIONS[frame.heapTargetPosition];
   const redBlackMaximumDepth = algorithm.id === 'rojo-negro'
     ? Math.max(0, ...values.map((value,index) => value === undefined ? 0 : Math.floor(Math.log2(index + 1))))
     : 0;
@@ -535,13 +543,30 @@ function BinaryTreeDiagram({ algorithm, step, displayValues = algorithm.values.s
         <TreeEdge key={`${from}-${to}`} from={BINARY_POSITIONS[from]} to={BINARY_POSITIONS[to]} label={orderedTree ? to===from*2+1?'L':'R' : null}/>
       )}
     </svg>
+    {movingHeapNode && <div
+      className="heap-moving-node"
+      style={{
+        '--heap-from-x': `${BINARY_POSITIONS[frame.heapSourcePosition][0]}%`,
+        '--heap-from-y': `${BINARY_POSITIONS[frame.heapSourcePosition][1]}%`,
+        '--heap-to-x': `${BINARY_POSITIONS[frame.heapTargetPosition][0]}%`,
+        '--heap-to-y': `${BINARY_POSITIONS[frame.heapTargetPosition][1]}%`,
+      }}
+      aria-hidden="true"
+    >
+      {values[frame.heapSourcePosition]}
+      <small>ÚLTIMO</small>
+    </div>}
     {BINARY_POSITIONS.map(([x,y],index) => {
       if (values[index] === undefined) return null;
       const redBlackDepth = Math.floor(Math.log2(index + 1));
       const redBlackClass = algorithm.id === 'rojo-negro'
         ? index !== 0 && redBlackDepth === redBlackMaximumDepth ? 'red-node' : 'black-node'
         : '';
-      return <div key={index} data-tree-index={index} data-node-color={redBlackClass || undefined} className={`tree-node ${index>=7?'deep-node':''} ${index===step%values.length?'active':''} ${redBlackClass} ${algorithm.id==='expression-tree'&&['+','-','−','*','×','/'].includes(String(values[index]))?'operator-node':''}`} style={{left:`${x}%`,top:`${y}%`}}>
+      const heapSource = algorithm.id === 'heap' && index === frame?.heapSourcePosition;
+      const heapTarget = algorithm.id === 'heap' && index === frame?.heapTargetPosition;
+      const heapParent = algorithm.id === 'heap' && index === frame?.heapParentPosition;
+      const heapCandidate = algorithm.id === 'heap' && heapCandidates.has(index);
+      return <div key={index} data-tree-index={index} data-node-color={redBlackClass || undefined} className={`tree-node ${index>=7?'deep-node':''} ${index===step%values.length?'active':''} ${redBlackClass} ${heapSource?'heap-source':''} ${heapTarget?'heap-target':''} ${heapParent?'heap-parent':''} ${heapCandidate?'heap-candidate':''} ${algorithm.id==='expression-tree'&&['+','-','−','*','×','/'].includes(String(values[index]))?'operator-node':''}`} style={{left:`${x}%`,top:`${y}%`}}>
       <span className="tree-value">{values[index]}</span>
       {badges?.[index] && <small className="tree-node-badge">{badges[index]}</small>}
       </div>;
@@ -758,13 +783,27 @@ function TreeVisual({ algorithm, step }) {
 
   const badges = values.map((_,index) => {
     if (algorithm.id==='avl') return `BF ${treeHeight(values,index*2+1)-treeHeight(values,index*2+2)}`;
-    if (algorithm.id==='heap') return index===0?'MAX':`i=${index}`;
+    if (algorithm.id==='heap') {
+      const frame = algorithm.animationFrame;
+      if (index === frame?.heapSourcePosition && frame.heapPhase === 'move-last') return 'ÚLTIMO';
+      if (index === frame?.heapTargetPosition && ['move-last','root-replaced'].includes(frame.heapPhase)) return 'RAÍZ';
+      if (index === frame?.heapParentPosition) return 'PADRE';
+      if (frame?.heapCandidatePositions?.includes(index)) return index === frame.heapParentPosition * 2 + 1 ? 'HIJO IZQ.' : 'HIJO DER.';
+      return index===0?'MAX':`i=${index}`;
+    }
     if (algorithm.id==='kd-tree') return index===0||index===3||index===4||index===5||index===6?'eje X':'eje Y';
     if (algorithm.id==='splay-tree') return index===0?'ÚLTIMO ACCESO':'BST';
     if (algorithm.id==='expression-tree') return ['+','-','−','*','×','/'].includes(String(values[index]))?'OPERADOR':'OPERANDO';
     return null;
   });
-  const labels = { avl:'ALTURA BALANCEADA', bst:'IZQUIERDA < RAÍZ < DERECHA', 'rojo-negro':'REGLAS DE COLOR', 'splay-tree':'ACCESO MOVIDO A LA RAÍZ', heap:'MAX-HEAP COMPLETO', 'kd-tree':'PARTICIÓN POR EJES', 'expression-tree':'OPERADORES Y OPERANDOS' };
+  const heapPhaseLabel = {
+    'capture-root': 'EXTRAYENDO EL MÁXIMO',
+    'move-last': 'ÚLTIMO NODO → RAÍZ',
+    'root-replaced': 'RAÍZ REEMPLAZADA',
+    'remove-last': 'ÁRBOL COMPLETO · ÚLTIMA HOJA ELIMINADA',
+    'complete': 'MAX-HEAP RESTAURADO',
+  }[algorithm.animationFrame?.heapPhase] ?? (algorithm.animationFrame?.heapPhase ? 'HEAPIFY DOWN · RESTAURANDO MAX-HEAP' : 'MAX-HEAP COMPLETO');
+  const labels = { avl:'ALTURA BALANCEADA', bst:'IZQUIERDA < RAÍZ < DERECHA', 'rojo-negro':'REGLAS DE COLOR', 'splay-tree':'ACCESO MOVIDO A LA RAÍZ', heap:heapPhaseLabel, 'kd-tree':'PARTICIÓN POR EJES', 'expression-tree':'OPERADORES Y OPERANDOS' };
   return <BinaryTreeDiagram algorithm={algorithm} step={step} badges={badges} kindLabel={labels[algorithm.id]}/>;
 }
 

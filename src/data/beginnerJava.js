@@ -136,23 +136,14 @@ const basic = {
     }
 }`,
   'heap-extract': `int removeRoot() {
+    if (size == 0) {
+        throw new IllegalStateException("Heap vacío");
+    }
+
     int root = heap[0];
     heap[0] = heap[size - 1];
     size--;
-
-    int index = 0;
-    while (true) {
-        int left = index * 2 + 1;
-        int right = index * 2 + 2;
-        int largest = index;
-        if (left < size && heap[left] > heap[largest]) largest = left;
-        if (right < size && heap[right] > heap[largest]) largest = right;
-        if (largest == index) break;
-        int temp = heap[index];
-        heap[index] = heap[largest];
-        heap[largest] = temp;
-        index = largest;
-    }
+    heapifyDown(0);
     return root;
 }`,
   preorder: `void preorder(Node node) {
@@ -918,6 +909,28 @@ const contextualHelpers = {
 }`,
   },
   heap: {
+    heapifyDown: `void heapifyDown(int index) {
+    while (true) {
+        int left = index * 2 + 1;
+        int right = index * 2 + 2;
+        int largest = index;
+
+        if (left < size && heap[left] > heap[largest]) {
+            largest = left;
+        }
+        if (right < size && heap[right] > heap[largest]) {
+            largest = right;
+        }
+        if (largest == index) {
+            break;
+        }
+
+        int temp = heap[index];
+        heap[index] = heap[largest];
+        heap[largest] = temp;
+        index = largest;
+    }
+}`,
     swap: `void swap(int first, int second) {
     int temporary = heap[first];
     heap[first] = heap[second];

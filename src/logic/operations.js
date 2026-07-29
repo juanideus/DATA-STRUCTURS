@@ -1888,6 +1888,420 @@ function executeSparseMatrixOperation({ actionId, fields, values, edges }) {
   return fail('La operación de matriz todavía no está disponible.');
 }
 
+function heapFrameVariables({
+  heap,
+  root,
+  last,
+  index,
+  left,
+  right,
+  largest,
+  condition,
+}) {
+  return [
+    { name: 'root', value: root, role: 'value' },
+    { name: 'size', value: heap.length, role: 'size' },
+    ...(last === undefined ? [] : [{ name: 'last', value: last, role: 'value' }]),
+    ...(index === undefined ? [] : [{ name: 'index', value: index, role: 'index' }]),
+    ...(left === undefined ? [] : [{ name: 'left', value: left, role: 'index' }]),
+    ...(right === undefined ? [] : [{ name: 'right', value: right, role: 'index' }]),
+    ...(largest === undefined ? [] : [{ name: 'largest', value: largest, role: 'position' }]),
+    ...(condition === undefined ? [] : [{
+      name: 'condición',
+      value: condition ? 'true' : 'false',
+      role: condition ? 'true' : 'false',
+    }]),
+  ];
+}
+
+function extractBinaryMaxHeap(values, edges) {
+  const before = [...values];
+  const root = before[0];
+  const lastIndex = before.length - 1;
+  const last = before[lastIndex];
+  const frames = [];
+  const addFrame = ({
+    heap,
+    position,
+    codeNeedle,
+    message,
+    phase,
+    index,
+    left,
+    right,
+    largest,
+    condition,
+    source,
+    target,
+    candidates,
+    completed = false,
+    delayMs = 360,
+  }) => {
+    frames.push({
+      values: [...heap],
+      position: Math.max(0, position ?? 0),
+      codeNeedle,
+      message,
+      heapPhase: phase,
+      heapSourcePosition: source,
+      heapTargetPosition: target,
+      heapParentPosition: index,
+      heapCandidatePositions: candidates ?? [],
+      delayMs,
+      completed,
+      variables: heapFrameVariables({
+        heap,
+        root,
+        last,
+        index,
+        left,
+        right,
+        largest,
+        condition,
+      }),
+    });
+  };
+
+  addFrame({
+    heap: before,
+    position: 0,
+    codeNeedle: 'if (size == 0) {',
+    message: 'size es mayor que 0, por lo tanto la extracción puede continuar.',
+    phase: 'validate-size',
+    condition: false,
+  });
+  addFrame({
+    heap: before,
+    position: 0,
+    codeNeedle: 'int root = heap[0];',
+    message: `${root} es la raíz y el máximo que se extraerá.`,
+    phase: 'capture-root',
+  });
+  addFrame({
+    heap: before,
+    position: lastIndex,
+    codeNeedle: 'heap[0] = heap[size - 1];',
+    message: `El último nodo del árbol completo es ${last}, ubicado en el índice ${lastIndex}. Se moverá a la raíz.`,
+    phase: 'move-last',
+    source: lastIndex,
+    target: 0,
+    delayMs: 1200,
+  });
+
+  const replaced = [...before];
+  replaced[0] = last;
+  addFrame({
+    heap: replaced,
+    position: 0,
+    codeNeedle: 'heap[0] = heap[size - 1];',
+    message: `${last} reemplaza a ${root} en la raíz. Por un instante también sigue visible en la última posición.`,
+    phase: 'root-replaced',
+    source: lastIndex,
+    target: 0,
+    delayMs: 460,
+  });
+
+  let heap = replaced.slice(0, -1);
+  addFrame({
+    heap,
+    position: 0,
+    codeNeedle: 'size--;',
+    message: `size disminuye a ${heap.length}; se elimina la última posición y el árbol continúa siendo completo.`,
+    phase: 'remove-last',
+  });
+  addFrame({
+    heap,
+    position: 0,
+    codeNeedle: 'heapifyDown(0);',
+    message: 'Se llama a heapifyDown desde la raíz para recuperar la propiedad de max-heap.',
+    phase: 'heapify-call',
+    index: 0,
+  });
+
+  if (heap.length === 0) {
+    addFrame({
+      heap,
+      position: 0,
+      codeNeedle: 'int index = 0;',
+      message: 'heapifyDown recibe el índice 0, pero el heap ya quedó vacío.',
+      phase: 'heapify-start',
+      index: 0,
+    });
+    addFrame({
+      heap,
+      position: 0,
+      codeNeedle: 'while (true) {',
+      message: 'Se evalúa una vez el ciclo de heapifyDown.',
+      phase: 'heapify-loop',
+      index: 0,
+    });
+    addFrame({
+      heap,
+      position: 0,
+      codeNeedle: 'int left = index * 2 + 1;',
+      message: 'left vale 1 y queda fuera del heap vacío.',
+      phase: 'calculate-left',
+      index: 0,
+      left: 1,
+    });
+    addFrame({
+      heap,
+      position: 0,
+      codeNeedle: 'int right = index * 2 + 2;',
+      message: 'right vale 2 y también queda fuera del heap.',
+      phase: 'calculate-right',
+      index: 0,
+      left: 1,
+      right: 2,
+    });
+    addFrame({
+      heap,
+      position: 0,
+      codeNeedle: 'int largest = index;',
+      message: 'largest permanece en 0 porque no existen hijos.',
+      phase: 'select-largest',
+      index: 0,
+      left: 1,
+      right: 2,
+      largest: 0,
+    });
+    addFrame({
+      heap,
+      position: 0,
+      codeNeedle: 'if (left < size && heap[left] > heap[largest]) {',
+      message: 'left < size es false.',
+      phase: 'compare-left',
+      index: 0,
+      left: 1,
+      right: 2,
+      largest: 0,
+      condition: false,
+    });
+    addFrame({
+      heap,
+      position: 0,
+      codeNeedle: 'if (right < size && heap[right] > heap[largest]) {',
+      message: 'right < size es false.',
+      phase: 'compare-right',
+      index: 0,
+      left: 1,
+      right: 2,
+      largest: 0,
+      condition: false,
+    });
+    addFrame({
+      heap,
+      position: 0,
+      codeNeedle: 'if (largest == index) {',
+      message: 'largest == index es true; no se necesita ningún intercambio.',
+      phase: 'heapify-stop',
+      index: 0,
+      left: 1,
+      right: 2,
+      largest: 0,
+      condition: true,
+    });
+  }
+
+  if (heap.length > 0) {
+    let index = 0;
+    addFrame({
+      heap,
+      position: index,
+      codeNeedle: 'int index = 0;',
+      message: 'heapifyDown comienza en la raíz, índice 0.',
+      phase: 'heapify-start',
+      index,
+    });
+
+    while (true) {
+      addFrame({
+        heap,
+        position: index,
+        codeNeedle: 'while (true) {',
+        message: `Se revisa si el nodo ${heap[index]} debe bajar desde el índice ${index}.`,
+        phase: 'heapify-loop',
+        index,
+      });
+
+      const left = index * 2 + 1;
+      const right = index * 2 + 2;
+      let largest = index;
+      const candidates = [left, right].filter(position => position < heap.length);
+
+      addFrame({
+        heap,
+        position: Math.min(left, Math.max(0, heap.length - 1)),
+        codeNeedle: 'int left = index * 2 + 1;',
+        message: `El hijo izquierdo corresponde al índice ${left}${left < heap.length ? ` y contiene ${heap[left]}` : ', fuera del heap'}.`,
+        phase: 'calculate-left',
+        index,
+        left,
+        candidates,
+      });
+      addFrame({
+        heap,
+        position: Math.min(right, Math.max(0, heap.length - 1)),
+        codeNeedle: 'int right = index * 2 + 2;',
+        message: `El hijo derecho corresponde al índice ${right}${right < heap.length ? ` y contiene ${heap[right]}` : ', fuera del heap'}.`,
+        phase: 'calculate-right',
+        index,
+        left,
+        right,
+        candidates,
+      });
+      addFrame({
+        heap,
+        position: index,
+        codeNeedle: 'int largest = index;',
+        message: `Por ahora, largest es el nodo actual en el índice ${index}.`,
+        phase: 'select-largest',
+        index,
+        left,
+        right,
+        largest,
+        candidates,
+      });
+
+      const leftIsLarger = left < heap.length && Number(heap[left]) > Number(heap[largest]);
+      if (leftIsLarger) largest = left;
+      addFrame({
+        heap,
+        position: left < heap.length ? left : index,
+        codeNeedle: 'if (left < size && heap[left] > heap[largest]) {',
+        message: leftIsLarger
+          ? `${heap[left]} es mayor que ${heap[index]}; largest cambia al hijo izquierdo.`
+          : 'El hijo izquierdo no existe o no supera al candidato actual.',
+        phase: 'compare-left',
+        index,
+        left,
+        right,
+        largest,
+        condition: leftIsLarger,
+        candidates,
+      });
+
+      const previousLargest = largest;
+      const rightIsLarger = right < heap.length && Number(heap[right]) > Number(heap[largest]);
+      if (rightIsLarger) largest = right;
+      addFrame({
+        heap,
+        position: right < heap.length ? right : largest,
+        codeNeedle: 'if (right < size && heap[right] > heap[largest]) {',
+        message: rightIsLarger
+          ? `${heap[right]} supera al candidato ${heap[previousLargest]}; largest cambia al hijo derecho.`
+          : 'El hijo derecho no existe o no supera al candidato actual.',
+        phase: 'compare-right',
+        index,
+        left,
+        right,
+        largest,
+        condition: rightIsLarger,
+        candidates,
+      });
+
+      const heapPropertyRestored = largest === index;
+      addFrame({
+        heap,
+        position: index,
+        codeNeedle: 'if (largest == index) {',
+        message: heapPropertyRestored
+          ? `${heap[index]} ya es mayor o igual que sus hijos; heapifyDown termina.`
+          : `${heap[largest]} debe subir y ${heap[index]} debe bajar.`,
+        phase: heapPropertyRestored ? 'heapify-stop' : 'swap-required',
+        index,
+        left,
+        right,
+        largest,
+        condition: heapPropertyRestored,
+        source: largest,
+        target: index,
+        candidates,
+      });
+      if (heapPropertyRestored) break;
+
+      const temporary = heap[index];
+      addFrame({
+        heap,
+        position: index,
+        codeNeedle: 'int temp = heap[index];',
+        message: `${temporary} se guarda temporalmente antes del intercambio.`,
+        phase: 'swap-save',
+        index,
+        left,
+        right,
+        largest,
+        source: index,
+        target: largest,
+        candidates,
+      });
+
+      const partialSwap = [...heap];
+      partialSwap[index] = heap[largest];
+      addFrame({
+        heap: partialSwap,
+        position: index,
+        codeNeedle: 'heap[index] = heap[largest];',
+        message: `${heap[largest]} sube desde el índice ${largest} al índice ${index}.`,
+        phase: 'swap-up',
+        index,
+        left,
+        right,
+        largest,
+        source: largest,
+        target: index,
+        candidates,
+      });
+
+      partialSwap[largest] = temporary;
+      heap = partialSwap;
+      addFrame({
+        heap,
+        position: largest,
+        codeNeedle: 'heap[largest] = temp;',
+        message: `${temporary} baja al índice ${largest}; el intercambio queda completo.`,
+        phase: 'swap-complete',
+        index,
+        left,
+        right,
+        largest,
+        source: index,
+        target: largest,
+        candidates,
+      });
+
+      index = largest;
+      addFrame({
+        heap,
+        position: index,
+        codeNeedle: 'index = largest;',
+        message: `heapifyDown continúa desde el índice ${index}.`,
+        phase: 'continue-down',
+        index,
+      });
+    }
+  }
+
+  const finalMessage = `${root} fue extraído; ${last} ocupó primero la raíz y heapifyDown restauró el max-heap.`;
+  addFrame({
+    heap,
+    position: 0,
+    codeNeedle: 'return root;',
+    message: finalMessage,
+    phase: 'complete',
+    completed: true,
+    delayMs: 420,
+  });
+  return {
+    ok: true,
+    values: heap,
+    edges,
+    message: finalMessage,
+    step: 0,
+    frames,
+  };
+}
+
 export function executeOperation({ algorithm, actionId, fields, values, edges, initialValues, initialEdges = DEFAULT_GRAPH_EDGES }) {
   const group = operationGroup(algorithm);
   if (group === 'sparseMatrix') return executeSparseMatrixOperation({ actionId, fields, values, edges });
@@ -1927,6 +2341,9 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     case 'dequeue':
     case 'heap-extract': {
       if (!next.length) return fail('La estructura ya está vacía.');
+      if (actionId === 'heap-extract' && algorithm.id === 'heap') {
+        return extractBinaryMaxHeap(next, edges);
+      }
       const removeFromStart = actionId === 'dequeue' || actionId === 'heap-extract';
       const removed = removeFromStart ? next.shift() : next.pop();
       if (actionId === 'heap-extract') {
@@ -2091,7 +2508,18 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       const maximum = algorithm.id === 'fibonacci-heap' ? 9 : 15;
       if (next.length >= maximum) return fail(`El heap visual admite hasta ${maximum} nodos.`);
       const minimumHeap = algorithm.id === 'fibonacci-heap';
-      next.push(value); next.sort((a,b) => minimumHeap ? Number(a) - Number(b) : Number(b) - Number(a));
+      next.push(value);
+      if (minimumHeap) {
+        next.sort((a,b) => Number(a) - Number(b));
+      } else {
+        let index = next.length - 1;
+        while (index > 0) {
+          const parent = Math.floor((index - 1) / 2);
+          if (Number(next[parent]) >= Number(next[index])) break;
+          [next[parent], next[index]] = [next[index], next[parent]];
+          index = parent;
+        }
+      }
       return done(next, `${value} fue insertado y el heap fue reorganizado.`, next.indexOf(value));
     }
     case 'find': {
