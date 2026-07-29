@@ -2022,7 +2022,7 @@ function extractBinaryMaxHeap(values, edges) {
     addFrame({
       heap,
       position: 0,
-      codeNeedle: 'int index = 0;',
+      codeNeedle: 'void heapifyDown(int index) {',
       message: 'heapifyDown recibe el índice 0, pero el heap ya quedó vacío.',
       phase: 'heapify-start',
       index: 0,
@@ -2108,7 +2108,7 @@ function extractBinaryMaxHeap(values, edges) {
     addFrame({
       heap,
       position: index,
-      codeNeedle: 'int index = 0;',
+      codeNeedle: 'void heapifyDown(int index) {',
       message: 'heapifyDown comienza en la raíz, índice 0.',
       phase: 'heapify-start',
       index,
