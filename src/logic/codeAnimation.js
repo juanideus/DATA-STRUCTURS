@@ -979,7 +979,7 @@ export function createLinkedListSynchronizedFrames({
 const orderedBinaryTreeIds = new Set(['bst', 'avl', 'rojo-negro', 'splay-tree', 'kd-tree']);
 const binaryTreeIds = new Set([
   'arbol-binario', 'bst', 'avl', 'rojo-negro', 'splay-tree', 'heap',
-  'segment-tree', 'merkle-tree', 'kd-tree', 'expression-tree',
+  'segment-tree', 'merkle-tree', 'kd-tree', 'expression-tree', 'ast',
 ]);
 
 const occupiedTreePosition = (values, index) => (

@@ -52,6 +52,7 @@ function baselineFields(algorithm, actionId, trial = 0) {
   if (actionId === 'cache-get') fields.value = String(first).split(':')[0];
   if (['bloom-add', 'bloom-check'].includes(actionId)) fields.value = `hola${trial}`;
   if (['set-expression', 'evaluate'].includes(actionId)) fields.value = '8+3*2';
+  if (actionId === 'ast-build') fields.value = 'total = price + quantity * 2;';
   if (actionId === 'calculate') fields.value = String(trial % 10);
   if (actionId === 'hanoi-set') fields.value = String(1 + (trial % 7));
   if (algorithm.id === 'n-reinas') fields.value = String(4 + (trial % 5));

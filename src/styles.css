@@ -475,6 +475,13 @@ body{background:
 .tree-rojo-negro .tree-node.black-node{background:#25302d;border-color:#111815;color:#fff}
 .tree-rojo-negro .tree-node.active{box-shadow:0 0 0 6px rgba(239,90,54,.2),0 9px 20px rgba(34,40,38,.28)}
 .tree-expression-tree .operator-node{border-radius:10px;background:var(--green);border-color:var(--green);color:#fff}
+.tree-ast .tree-node{width:72px;height:42px;border-radius:9px;font-size:10px}
+.tree-ast .tree-node.deep-node{width:64px;height:36px;font-size:9px}
+.tree-ast .ast-statement-node{background:#27364c;border-color:#27364c;color:#fff;font-weight:700}
+.tree-ast .ast-operator-node{background:#b76b31;border-color:#b76b31;color:#fff;font-size:15px;font-weight:700}
+.tree-ast .ast-identifier-node{background:#eef3f6;border-color:#58738a;color:#263b4c}
+.tree-ast .ast-literal-node{background:#f5efe0;border-color:#a98743;color:#5c471d}
+.tree-ast .tree-node.active{background:var(--orange);border-color:var(--orange);color:#fff}
 .tree-merkle-tree .tree-node{width:66px;border-radius:9px}
 .tree-merkle-tree .tree-value{font-size:8px}
 .tree-segment-tree .tree-node{border-radius:8px;background:#f9f2df;border-color:#c08d2d}

@@ -1,4 +1,5 @@
 import { DEFAULT_PATH_MAP, runGridPathfinding } from './pathfindingMap.js';
+import { astPreorderPositions, parseSimpleJavaAssignment } from './ast.js';
 
 export const DEFAULT_GRAPH_EDGES = [
   [0, 1, 4], [1, 2, 2], [0, 3, 7], [1, 3, 3], [1, 4, 5],
@@ -80,6 +81,14 @@ const definitions = {
     fields: [field('value', 'Expresión')],
     actions: [action('set-expression', 'Construir'), action('evaluate', 'Evaluar'), action('preorder', 'Prefija'), action('postorder', 'Postfija')],
   },
+  ast: {
+    fields: [field('value', 'Código Java simple')],
+    actions: [
+      action('ast-build', 'Construir AST'),
+      action('ast-preorder', 'Recorrer preorden'),
+      action('ast-clear', 'Vaciar', 'danger'),
+    ],
+  },
   hash: {
     fields: [field('value', 'Clave'), field('second', 'Valor')],
     actions: [action('hash-put', 'Guardar'), action('remove-value', 'Eliminar clave', 'danger'), action('find', 'Buscar clave'), action('clear', 'Vaciar', 'danger')],
@@ -159,6 +168,7 @@ export function operationGroup(algorithm) {
   if (algorithm.id === 'merkle-tree') return 'merkle';
   if (['kd-tree','quadtree','octree'].includes(algorithm.id)) return 'spatial';
   if (algorithm.id === 'expression-tree') return 'expression';
+  if (algorithm.id === 'ast') return 'ast';
   if (algorithm.type === 'heap') return 'heap';
   if (algorithm.type === 'trie') return 'trie';
   if (algorithm.category === 'Árboles') return 'tree';
@@ -3875,10 +3885,158 @@ function executeQueueOperation({ actionId, fields, values, edges }) {
   return null;
 }
 
+function executeAstOperation({ actionId, fields, values, edges }) {
+  const before = [...values];
+  const copiedEdges = edges.map(edge => [...edge]);
+  const frame = (currentValues, codeNeedle, message, position = 0, variables = [], options = {}) => ({
+    values: [...currentValues],
+    edges: copiedEdges,
+    position: Math.max(0, position),
+    codeNeedle,
+    message,
+    variables,
+    delayMs: 720,
+    ...options,
+  });
+  const finish = (ok, updated, message, frames, position = 0) => ({
+    ok,
+    values: updated,
+    edges: copiedEdges,
+    message,
+    step: position,
+    frames,
+  });
+
+  if (actionId === 'ast-build') {
+    const source = String(fields.value ?? '').trim();
+    let parsed;
+    try {
+      parsed = parseSimpleJavaAssignment(source);
+    } catch (error) {
+      return finish(false, before, error.message, [], 0);
+    }
+
+    const revealed = new Array(parsed.values.length);
+    const commonVariables = (event = null) => [
+      { name: 'source', value: parsed.source, role: 'input' },
+      { name: 'position', value: event?.tokenPosition ?? 0, role: 'index' },
+      { name: 'token', value: event?.label ?? 'inicio', role: 'value' },
+      { name: 'tipo', value: event?.kind ?? 'sentencia', role: 'value' },
+      { name: 'nodos creados', value: revealed.filter(value => value !== undefined).length, role: 'size' },
+    ];
+    const frames = [
+      frame(revealed, 'Node buildAst(String code) {', 'Comienza el análisis de una asignación Java.', 0, commonVariables()),
+      frame(revealed, 'source = code;', `source guarda: ${parsed.source}`, 0, commonVariables()),
+      frame(revealed, 'position = 0;', 'El lector comienza en el primer carácter.', 0, commonVariables()),
+    ];
+
+    parsed.created.forEach(event => {
+      revealed[event.treeIndex] = event.label;
+      const kindNames = {
+        statement: 'sentencia',
+        operator: 'operador',
+        identifier: 'identificador',
+        literal: 'literal',
+      };
+      frames.push(frame(
+        revealed,
+        event.codeNeedle,
+        `Se crea el nodo ${event.label} como ${kindNames[event.kind]}.`,
+        event.treeIndex,
+        commonVariables(event),
+      ));
+    });
+    frames.push(frame(
+      parsed.values,
+      'return root;',
+      'El AST está completo y conserva la precedencia de la instrucción.',
+      0,
+      [
+        { name: 'root', value: 'ASSIGN', role: 'value' },
+        { name: 'nodos', value: parsed.created.length, role: 'size' },
+      ],
+      { completed: true },
+    ));
+    return finish(true, parsed.values, `AST construido desde: ${parsed.source}`, frames, 0);
+  }
+
+  if (actionId === 'ast-preorder') {
+    const positions = astPreorderPositions(before);
+    if (!positions.length) {
+      return finish(false, before, 'Primero construye un AST para poder recorrerlo.', [], 0);
+    }
+
+    const output = [];
+    const variables = (index, depth, condition = null) => [
+      { name: 'node', value: index === null ? 'null' : before[index], role: 'value' },
+      { name: 'profundidad', value: depth, role: 'index' },
+      { name: 'salida', value: output.join(' → ') || 'vacía', role: 'value' },
+      ...(condition === null ? [] : [{ name: 'node == null', value: String(condition), role: condition ? 'true' : 'false' }]),
+    ];
+    const frames = [
+      frame(before, 'void showPreorder() {', 'Comienza el recorrido preorden del AST.', 0, variables(0, 0)),
+      frame(before, 'preorder(root);', 'La primera llamada recibe la raíz ASSIGN.', 0, variables(0, 0)),
+    ];
+
+    const visit = (index, depth) => {
+      if (index >= before.length || before[index] === undefined) {
+        frames.push(
+          frame(before, 'if (node == null) {', 'La referencia es null: esta rama terminó.', 0, variables(null, depth, true)),
+          frame(before, 'return;', 'La llamada retorna a su nodo anterior.', 0, variables(null, depth)),
+        );
+        return;
+      }
+      frames.push(
+        frame(before, 'void preorder(Node node) {', `Entra a preorder con el nodo ${before[index]}.`, index, variables(index, depth)),
+        frame(before, 'if (node == null) {', `${before[index]} existe, por lo tanto la condición es falsa.`, index, variables(index, depth, false)),
+      );
+      output.push(before[index]);
+      frames.push(frame(
+        before,
+        'System.out.println(node.label);',
+        `Visita ${before[index]}. Salida: ${output.join(' → ')}`,
+        index,
+        variables(index, depth),
+      ));
+      frames.push(frame(before, 'preorder(node.left);', `Intenta recorrer el hijo izquierdo de ${before[index]}.`, index, variables(index, depth)));
+      visit(index * 2 + 1, depth + 1);
+      frames.push(frame(before, 'preorder(node.right);', `Intenta recorrer el hijo derecho de ${before[index]}.`, index, variables(index, depth)));
+      visit(index * 2 + 2, depth + 1);
+    };
+
+    visit(0, 0);
+    frames.push(frame(
+      before,
+      'preorder(node.right);',
+      `Preorden: ${output.join(' → ')}`,
+      positions.at(-1),
+      variables(positions.at(-1), 0),
+      { completed: true },
+    ));
+    return finish(true, before, `Preorden: ${output.join(' → ')}`, frames, positions.at(-1));
+  }
+
+  if (actionId === 'ast-clear') {
+    const frames = [
+      frame(before, 'void clear() {', 'La operación vaciará la referencia principal del AST.', 0, [
+        { name: 'root', value: before[0] ?? 'null', role: 'value' },
+      ]),
+      frame([], 'root = null;', 'root queda en null y el árbol deja de tener nodos accesibles.', 0, [
+        { name: 'root', value: 'null', role: 'value' },
+        { name: 'nodos', value: 0, role: 'size' },
+      ], { completed: true }),
+    ];
+    return finish(true, [], 'El AST quedó vacío.', frames, 0);
+  }
+
+  return null;
+}
+
 export function executeOperation({ algorithm, actionId, fields, values, edges, initialValues, initialEdges = DEFAULT_GRAPH_EDGES }) {
   const group = operationGroup(algorithm);
   if (group === 'sparseMatrix') return executeSparseMatrixOperation({ actionId, fields, values, edges });
   if (group === 'threadedTree') return executeThreadedTreeOperation({ actionId, fields, values, initialValues, edges });
+  if (group === 'ast') return executeAstOperation({ actionId, fields, values, edges });
   if (group === 'stack') return executeStackOperation({ actionId, fields, values, edges });
   if (group === 'queue') return executeQueueOperation({ actionId, fields, values, edges });
   const next = [...values];

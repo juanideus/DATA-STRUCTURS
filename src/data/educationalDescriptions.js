@@ -323,6 +323,16 @@ export const educationalDescriptions = {
     'En (8 + 3) × 2, la suma forma un subárbol que se evalúa antes de multiplicar.',
     'Preorden produce notación prefija; inorden con paréntesis produce infija; postorden produce postfija.'
   ),
+  ast: guide(
+    'Un AST, o Árbol de Sintaxis Abstracta, representa el significado estructural de una instrucción de código. No guarda cada carácter del texto: conserva los elementos necesarios para comprender qué operación se realiza.',
+    'En esta demostración se analiza una asignación Java sencilla. La raíz ASSIGN separa el identificador que recibirá el resultado de la expresión que produce el valor. El parser usa descenso recursivo: parseExpression reconoce suma y resta, parseTerm reconoce multiplicación y división, y parseFactor reconoce identificadores, números y expresiones entre paréntesis. Esta separación hace que la multiplicación y la división tengan prioridad sobre la suma y la resta.',
+    'Construir el AST desde una asignación|Reconocer identificadores y literales|Respetar precedencia y paréntesis|Recorrer todos los nodos en preorden|Vaciar el árbol',
+    'Muestra la estructura real del programa|Elimina símbolos que no aportan significado al árbol|Facilita recorridos y transformaciones|Separa el análisis del texto de su futura ejecución',
+    'Un parser real necesita muchas más reglas de Java|Debe informar errores de sintaxis con claridad|Las expresiones muy profundas necesitan más espacio|Un AST no ejecuta el programa por sí solo',
+    'Compiladores e intérpretes|Análisis estático|Autocompletado de editores|Refactorización de código|Detección de errores y generación de código',
+    'Para total = price + quantity * 2;, ASSIGN es la raíz. Su hijo izquierdo es total y su hijo derecho es +. La multiplicación queda debajo de + porque debe calcularse primero.',
+    'No confundas un AST con el texto original ni con un árbol de expresión aislado. El punto y coma y los paréntesis pueden desaparecer del árbol, pero su efecto sobre la estructura y la precedencia debe conservarse.'
+  ),
 
   'hash-table': guide(
     'Una Hash Table guarda pares clave-valor y usa una función hash para convertir cada clave en un índice.',

@@ -121,7 +121,7 @@ Cada tema incluye una guía con:
 
 ## Catálogo de contenidos
 
-La versión actual contiene **54 temas**, agrupados en siete categorías.
+La versión actual contiene **55 temas**, agrupados en siete categorías.
 
 ### 1. Estructuras lineales — 9 temas
 
@@ -135,7 +135,7 @@ La versión actual contiene **54 temas**, agrupados en siete categorías.
 8. Lista circular doble
 9. Skip List
 
-### 2. Árboles — 22 temas
+### 2. Árboles — 23 temas
 
 10. Árbol general
 11. Árbol N-ario
@@ -159,44 +159,45 @@ La versión actual contiene **54 temas**, agrupados en siete categorías.
 29. QuadTree
 30. Octree
 31. Árbol de expresión
+32. AST (Abstract Syntax Tree)
 
 ### 3. Hashing — 3 temas
 
-32. Hash Table
-33. Open Addressing
-34. Separate Chaining
+33. Hash Table
+34. Open Addressing
+35. Separate Chaining
 
 ### 4. Grafos — 8 temas
 
-35. Grafo
-36. Grafo dirigido
-37. DFS
-38. BFS
-39. Dijkstra
-40. A* (A-Star)
-41. Prim
-42. Kruskal
+36. Grafo
+37. Grafo dirigido
+38. DFS
+39. BFS
+40. Dijkstra
+41. A* (A-Star)
+42. Prim
+43. Kruskal
 
 ### 5. Recursión — 5 temas
 
-43. Fibonacci
-44. Factorial
-45. Torres de Hanoi
-46. Merge Sort
-47. Quick Sort
+44. Fibonacci
+45. Factorial
+46. Torres de Hanoi
+47. Merge Sort
+48. Quick Sort
 
 ### 6. Backtracking — 3 temas
 
-48. N-Reinas
-49. Laberinto
-50. Sudoku Solver 9×9
+49. N-Reinas
+50. Laberinto
+51. Sudoku Solver 9×9
 
 ### 7. Otros — 4 temas
 
-51. Matriz poco poblada
-52. Union-Find
-53. LRU Cache
-54. Bloom Filter
+52. Matriz poco poblada
+53. Union-Find
+54. LRU Cache
+55. Bloom Filter
 
 ## Cómo funciona la experiencia
 
@@ -296,7 +297,7 @@ npm run preview
 | `npm run build` | Genera la versión optimizada dentro de `dist/` |
 | `npm run preview` | Sirve localmente la compilación de producción |
 | `npm run audit` | Ejecuta la auditoría funcional y educativa del catálogo |
-| `npm run audit:java` | Compila con `javac` los 251 códigos Java visibles |
+| `npm run audit:java` | Compila con `javac` los 250 códigos Java visibles |
 | `npm run audit:stress` | Prueba entradas extremas y secuencias largas de operaciones |
 | `npm run test:e2e` | Ejecuta pruebas reales de navegador en escritorio y móvil |
 | `npm run check` | Ejecuta las auditorías funcional, Java y de estrés, además de las pruebas E2E |
@@ -339,7 +340,8 @@ DSA/
 │   │   ├── OperationsPanel.jsx        # Campos y botones de operaciones
 │   │   └── VariablesPanel.jsx         # Variables de la ejecución en tiempo real
 │   ├── data/
-│   │   ├── algorithms.js              # Catálogo de 54 temas
+│   │   ├── algorithms.js              # Catálogo de 55 temas
+│   │   ├── astJava.js                 # Parser AST y operaciones completas en Java
 │   │   ├── beginnerJava.js            # Código Java por operación
 │   │   ├── educationalDescriptions.js # Contenido educativo detallado
 │   │   ├── graphDesigns.js             # Topologías visuales de los grafos
@@ -349,6 +351,7 @@ DSA/
 │   │   └── sparseMatrixJava.js         # Matriz circular AROW/ACOL completa en Java
 │   ├── logic/
 │   │   ├── codeAnimation.js            # Sincronización entre código y animaciones
+│   │   ├── ast.js                      # Parser y disposición visual del AST
 │   │   ├── operations.js               # Implementación de las acciones interactivas
 │   │   └── pathfindingMap.js           # Mapas para Dijkstra y A*
 ├── .gitignore                         # Archivos excluidos del repositorio
@@ -378,7 +381,7 @@ npm run audit
 
 comprueba automáticamente, entre otros puntos:
 
-- Que existan los 54 temas esperados.
+- Que existan los 55 temas esperados.
 - Que cada tema tenga descripción educativa suficiente.
 - Que cada tema incluya un ejemplo Java.
 - Que todas las acciones devuelvan valores, aristas y mensajes válidos.
@@ -396,14 +399,15 @@ comprueba automáticamente, entre otros puntos:
 - Que el árbol enhebrado conserve el orden BST, repare hilos al eliminar y recorra inorden sin pila ni recursión.
 - Que Splay lleve el nodo accedido a la raíz.
 - Que Merkle combine hashes por parejas y el árbol de expresión respete precedencia.
+- Que el AST distinga sentencias, identificadores, operadores y literales, respete precedencia y sincronice su recorrido recursivo.
 - Que la matriz poco poblada inserte un único nodo en AROW y ACOL, recorra ambas listas en orden invertido y cierre sus enlaces circulares.
 
-La auditoría actual cubre **54 temas, 251 acciones, 2510 pruebas funcionales y 62 funciones distintas**. La capa de estrés añade **13 121 comprobaciones** —9881 entradas extremas y 3240 operaciones encadenadas—, para un total de **15 631 pruebas de lógica**. Además, los **251 códigos Java visibles** se compilan realmente con `javac`.
+La auditoría actual cubre **55 temas, 250 acciones, 2500 pruebas funcionales y 67 funciones distintas**. La capa de estrés añade **12 700 comprobaciones** —9400 entradas extremas y 3300 operaciones encadenadas—, para un total de **15 200 pruebas de lógica**. Además, los **250 códigos Java visibles** se compilan realmente con `javac`.
 
 Además, Playwright verifica los recorridos críticos en Chromium de escritorio y móvil:
 
 - Enlaces compartibles como `/avl` y `/sudoku`.
-- Carga directa de los 54 temas, sus visualizadores, controles y paneles de código.
+- Carga directa de los 55 temas, sus visualizadores, controles y paneles de código.
 - Rechazo seguro de índices negativos, coordenadas fuera de rango, valores enormes y texto potencialmente peligroso.
 - Avance sincronizado de animación, línea Java, explicación y variables en arreglos, grafos, Hanoi y N-Reinas.
 - Persistencia del tema, velocidad y formato de código.

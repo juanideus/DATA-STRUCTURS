@@ -77,6 +77,7 @@ function fieldsFor(algorithm, actionId, trial = 0) {
   if (actionId === 'cache-get') samples.value = String(first).split(':')[0];
   if (['bloom-add', 'bloom-check'].includes(actionId)) samples.value = `hola${trial}`;
   if (actionId === 'set-expression' || actionId === 'evaluate') samples.value = '8+3*2';
+  if (actionId === 'ast-build') samples.value = 'total = price + quantity * 2;';
   if (actionId === 'calculate') samples.value = String(trial % 10);
   if (actionId === 'hanoi-set') samples.value = String(1 + (trial % 7));
   if (algorithm.id === 'n-reinas') samples.value = String(4 + (trial % 5));
@@ -137,7 +138,7 @@ function validQueens(queens) {
   )));
 }
 
-assert.equal(algorithms.length, 54, 'El catálogo debe contener 54 temas.');
+assert.equal(algorithms.length, 55, 'El catálogo debe contener 55 temas.');
 assert.equal(new Set(algorithms.map(algorithm => algorithm.id)).size, algorithms.length, 'El catálogo contiene identificadores duplicados.');
 assert.equal(new Set(algorithms.map(algorithm => algorithm.name)).size, algorithms.length, 'El catálogo contiene nombres duplicados.');
 assert.equal(Object.keys(educationalDescriptions).length, algorithms.length, 'La cantidad de descripciones no coincide con el catálogo.');
@@ -713,6 +714,41 @@ assert.deepEqual(
 const evaluatedExpression = run(expressionTree, 'evaluate', { value: '', second: '', index: '' }, builtExpression.values);
 assert.match(evaluatedExpression.message, /14/, 'Árbol de expresión: 8 + 3 × 2 debe producir 14.');
 assert.match(getBeginnerJava(expressionTree, 'set-expression'), /applyTop/, 'Árbol de expresión: falta mostrar cómo se conectan operadores y operandos.');
+const ast = algorithms.find(item => item.id === 'ast');
+const builtAst = run(ast, 'ast-build', { value: 'total = price + quantity * 2;', second: '', index: '' });
+assert.equal(builtAst.ok, true, 'AST: una asignación Java válida debe construirse.');
+assert.deepEqual(
+  builtAst.values,
+  ['ASSIGN', 'total', '+', undefined, undefined, 'price', '*', undefined, undefined, undefined, undefined, undefined, undefined, 'quantity', '2'],
+  'AST: debe respetar la asignación y la prioridad de la multiplicación.',
+);
+assert.ok(builtAst.frames.length >= 10, 'AST: la construcción debe mostrar cada etapa del parser.');
+assert.ok(
+  builtAst.frames.every(frame => getBeginnerJava(ast, 'ast-build').includes(frame.codeNeedle)),
+  'AST: cada fotograma debe señalar una línea visible del Java.',
+);
+const astJava = getBeginnerJava(ast, 'ast-build');
+for (const method of ['buildAst', 'parseExpression', 'parseTerm', 'parseFactor', 'readIdentifier', 'readNumber']) {
+  assert.match(astJava, new RegExp(`\\b${method}\\s*\\(`), `AST: falta mostrar el método ${method}.`);
+}
+assert.doesNotMatch(astJava, /\bStack\b|\bQueue\b/, 'AST: no debe reutilizar el algoritmo del árbol de expresión.');
+const astPreorder = run(ast, 'ast-preorder', {}, builtAst.values);
+assert.equal(astPreorder.ok, true, 'AST: el recorrido preorden debe ejecutarse.');
+assert.match(
+  astPreorder.message,
+  /ASSIGN → total → \+ → price → \* → quantity → 2/,
+  'AST: el preorden no coincide con la estructura construida.',
+);
+assert.ok(
+  astPreorder.frames.some(frame => frame.codeNeedle === 'if (node == null) {' && frame.variables.some(variable => variable.value === 'true')),
+  'AST: el recorrido debe mostrar cuándo la recursión llega a null.',
+);
+assert.deepEqual(run(ast, 'ast-clear', {}, builtAst.values).values, [], 'AST: vaciar debe eliminar la raíz.');
+for (const invalidSource of ['', 'total price + 2;', 'total = ;', 'total = price @ 2;', 'x = 1 + 2 + 3 + 4 + 5;']) {
+  const invalidAst = run(ast, 'ast-build', { value: invalidSource, second: '', index: '' }, builtAst.values);
+  assert.equal(invalidAst.ok, false, `AST: debe rechazar la entrada inválida "${invalidSource}".`);
+  assert.deepEqual(invalidAst.values, builtAst.values, 'AST: una entrada inválida no debe modificar el árbol.');
+}
 assert.match(getBeginnerJava(merkle, 'merkle-root'), /combineHash/, 'Merkle Tree: la raíz debe combinar hashes por parejas.');
 for (const treeAlgorithm of algorithms.filter(item => item.category === 'Árboles')) {
   for (const action of getOperationDefinition(treeAlgorithm).actions) {

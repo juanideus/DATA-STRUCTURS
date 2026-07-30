@@ -1,4 +1,5 @@
 import { operationGroup } from '../logic/operations.js';
+import { getAstJava } from './astJava.js';
 import { getGraphJava } from './graphJava.js';
 import { getLinearJava } from './linearJava.js';
 import { linkedListJava } from './linkedListJava.js';
@@ -1261,12 +1262,15 @@ export function getBeginnerJava(algorithm, actionId) {
     ? getSparseMatrixJava(actionId)
     : null;
   const graphSource = sparseMatrixSource ? null : getGraphJava(algorithm.id, actionId);
-  const linearSource = sparseMatrixSource || graphSource ? null : getLinearJava(algorithm.id, actionId);
-  const treeSource = sparseMatrixSource || graphSource || linearSource ? null : getTreeJava(algorithm.id, actionId);
+  const astSource = sparseMatrixSource || graphSource ? null : algorithm.id === 'ast' ? getAstJava(actionId) : null;
+  const linearSource = sparseMatrixSource || graphSource || astSource ? null : getLinearJava(algorithm.id, actionId);
+  const treeSource = sparseMatrixSource || graphSource || astSource || linearSource ? null : getTreeJava(algorithm.id, actionId);
   if (sparseMatrixSource) {
     source = sparseMatrixSource;
   } else if (graphSource) {
     source = graphSource;
+  } else if (astSource) {
+    source = astSource;
   } else if (linearSource) {
     source = linearSource;
   } else if (treeSource) {

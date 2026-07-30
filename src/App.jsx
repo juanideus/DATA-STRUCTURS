@@ -16,6 +16,7 @@ import {
   createTreeSynchronizedFrames,
 } from './logic/codeAnimation.js';
 import { DEFAULT_GRAPH_EDGES, DEFAULT_GRAPH_POSITIONS, executeOperation, getOperationDefinition, getThreadedTreeLinks, operationGroup, SPARSE_MATRIX_COLUMNS, SPARSE_MATRIX_ROWS } from './logic/operations.js';
+import { AST_EXAMPLES, astValuesFromSource } from './logic/ast.js';
 import { createRandomPathMap, DEFAULT_PATH_MAP } from './logic/pathfindingMap.js';
 
 const EducationalDescription = lazy(() => import('./components/EducationalDescription.jsx'));
@@ -199,6 +200,7 @@ function createRandomValues(algorithm) {
   }
   if (algorithm.id === 'suffix-tree') return [...['ALGORITMO','BANANA','DATOS','CASACA'][randomNumber(0, 3)]];
   if (algorithm.id === 'expression-tree') return ['+','×','−',...randomUniqueNumbers(4, 1, 9).map(String)];
+  if (algorithm.id === 'ast') return astValuesFromSource(AST_EXAMPLES[randomNumber(0, AST_EXAMPLES.length - 1)]);
   if (algorithm.id === 'merkle-tree') return Array.from({ length: amount }, () => `B${randomNumber(10, 99)}`);
   if (algorithm.category === 'Grafos') {
     const offset = randomNumber(0, 19);
@@ -696,7 +698,16 @@ function BinaryTreeDiagram({ algorithm, step, displayValues = algorithm.values.s
       const heapTarget = algorithm.id === 'heap' && index === frame?.heapTargetPosition;
       const heapParent = algorithm.id === 'heap' && index === frame?.heapParentPosition;
       const heapCandidate = algorithm.id === 'heap' && heapCandidates.has(index);
-      return <div key={index} data-tree-index={index} data-node-color={redBlackClass || undefined} className={`tree-node ${index>=7?'deep-node':''} ${index===step%values.length?'active':''} ${redBlackClass} ${heapSource?'heap-source':''} ${heapTarget?'heap-target':''} ${heapParent?'heap-parent':''} ${heapCandidate?'heap-candidate':''} ${algorithm.id==='expression-tree'&&['+','-','−','*','×','/'].includes(String(values[index]))?'operator-node':''}`} style={{left:`${x}%`,top:`${y}%`}}>
+      const astNodeClass = algorithm.id !== 'ast'
+        ? ''
+        : values[index] === 'ASSIGN'
+          ? 'ast-statement-node'
+          : ['+','-','*','/'].includes(String(values[index]))
+            ? 'ast-operator-node'
+            : /^\d+$/.test(String(values[index]))
+              ? 'ast-literal-node'
+              : 'ast-identifier-node';
+      return <div key={index} data-tree-index={index} data-node-color={redBlackClass || undefined} className={`tree-node ${index>=7?'deep-node':''} ${index===step%values.length?'active':''} ${redBlackClass} ${heapSource?'heap-source':''} ${heapTarget?'heap-target':''} ${heapParent?'heap-parent':''} ${heapCandidate?'heap-candidate':''} ${algorithm.id==='expression-tree'&&['+','-','−','*','×','/'].includes(String(values[index]))?'operator-node':''} ${astNodeClass}`} style={{left:`${x}%`,top:`${y}%`}}>
       <span className="tree-value">{values[index]}</span>
       {badges?.[index] && <small className="tree-node-badge">{badges[index]}</small>}
       </div>;
@@ -924,6 +935,11 @@ function TreeVisual({ algorithm, step }) {
     if (algorithm.id==='kd-tree') return index===0||index===3||index===4||index===5||index===6?'eje X':'eje Y';
     if (algorithm.id==='splay-tree') return index===0?'ÚLTIMO ACCESO':'BST';
     if (algorithm.id==='expression-tree') return ['+','-','−','*','×','/'].includes(String(values[index]))?'OPERADOR':'OPERANDO';
+    if (algorithm.id==='ast') {
+      if (values[index] === 'ASSIGN') return 'SENTENCIA';
+      if (['+','-','*','/'].includes(String(values[index]))) return 'OPERADOR';
+      return /^\d+$/.test(String(values[index])) ? 'LITERAL' : 'IDENTIFICADOR';
+    }
     return null;
   });
   const heapPhaseLabel = {
@@ -933,7 +949,7 @@ function TreeVisual({ algorithm, step }) {
     'remove-last': 'ÁRBOL COMPLETO · ÚLTIMA HOJA ELIMINADA',
     'complete': 'MAX-HEAP RESTAURADO',
   }[algorithm.animationFrame?.heapPhase] ?? (algorithm.animationFrame?.heapPhase ? 'HEAPIFY DOWN · RESTAURANDO MAX-HEAP' : 'MAX-HEAP COMPLETO');
-  const labels = { avl:'ALTURA BALANCEADA', bst:'IZQUIERDA < RAÍZ < DERECHA', 'rojo-negro':'REGLAS DE COLOR', 'splay-tree':'ACCESO MOVIDO A LA RAÍZ', heap:heapPhaseLabel, 'kd-tree':'PARTICIÓN POR EJES', 'expression-tree':'OPERADORES Y OPERANDOS' };
+  const labels = { avl:'ALTURA BALANCEADA', bst:'IZQUIERDA < RAÍZ < DERECHA', 'rojo-negro':'REGLAS DE COLOR', 'splay-tree':'ACCESO MOVIDO A LA RAÍZ', heap:heapPhaseLabel, 'kd-tree':'PARTICIÓN POR EJES', 'expression-tree':'OPERADORES Y OPERANDOS', ast:'SENTENCIA · OPERADORES · DATOS' };
   return <BinaryTreeDiagram algorithm={algorithm} step={step} badges={badges} kindLabel={labels[algorithm.id]}/>;
 }
 
@@ -1538,6 +1554,8 @@ function App() {
       ? 'El código muestra AROW, ACOL y un único Node con left y up. AROW recorre de derecha a izquierda y ACOL de abajo hacia arriba hasta volver a sus cabeceras.'
       : baseAlgorithm.id === 'arbol-enhebrado'
         ? 'Las líneas sólidas son hijos reales. Las flechas discontinuas son hilos: LT lleva al predecesor y RT al sucesor inorden. El código comprueba los indicadores antes de seguir cada referencia.'
+      : baseAlgorithm.id === 'ast'
+        ? 'El analizador lee una asignación Java con descenso recursivo. parseExpression procesa + y -, parseTerm respeta la prioridad de * y /, y parseFactor reconoce paréntesis, identificadores y números. Cada nodo que aparece corresponde a la línea iluminada.'
       : 'El código usa variables, arreglos, ciclos, condiciones y métodos pequeños. Cada línea iluminada corresponde al cambio mostrado en la estructura.';
   const displayedCode = codeMode === 'java' ? getBeginnerJava(baseAlgorithm, activeOperation) : baseAlgorithm.code;
   const codeLines = displayedCode.split('\n');
