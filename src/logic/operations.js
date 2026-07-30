@@ -3598,10 +3598,289 @@ function extractBinaryMaxHeap(values, edges) {
   };
 }
 
+function linearStructureFrame(values, edges, codeNeedle, message, position, variables, extras = {}) {
+  return {
+    values: [...values],
+    edges: edges.map(edge => [...edge]),
+    position: Math.max(0, position),
+    codeNeedle,
+    message,
+    delayMs: 560,
+    variables,
+    ...extras,
+  };
+}
+
+function stackVariables(values, top, extras = []) {
+  return [
+    { name: 'top', value: top, role: 'index' },
+    { name: 'size', value: values.length, role: 'size' },
+    ...extras,
+  ];
+}
+
+function executeStackOperation({ actionId, fields, values, edges }) {
+  const before = [...values];
+  const top = before.length - 1;
+  const value = numericValue(fields.value ?? '', values);
+  const frame = (currentValues, codeNeedle, message, position = Math.max(0, currentValues.length - 1), extras = [], options = {}) => (
+    linearStructureFrame(
+      currentValues,
+      edges,
+      codeNeedle,
+      message,
+      position,
+      stackVariables(currentValues, currentValues.length - 1, extras),
+      options,
+    )
+  );
+  const finish = (ok, updated, message, frames, position = Math.max(0, updated.length - 1)) => ({
+    ok,
+    values: updated,
+    edges: edges.map(edge => [...edge]),
+    message,
+    step: position,
+    frames,
+  });
+
+  if (actionId === 'push') {
+    if (value === null) return finish(false, before, 'Ingresa un valor válido antes de ejecutar Push.', []);
+    const frames = [
+      frame(before, 'boolean push(int value) {', `Push recibe el valor ${value}.`, Math.max(0, top), [{ name: 'value', value, role: 'input' }]),
+      frame(before, 'if (top == MAX_SIZE - 1) {', before.length === 15
+        ? 'top alcanzó el último espacio: la pila está llena.'
+        : `top vale ${top}; todavía existe espacio para insertar.`, Math.max(0, top), [
+        { name: 'MAX_SIZE', value: 15, role: 'size' },
+        { name: 'condición', value: String(before.length === 15), role: before.length === 15 ? 'true' : 'false' },
+      ]),
+    ];
+    if (before.length === 15) {
+      frames.push(frame(before, 'return false;', 'Push termina sin modificar la pila porque ocurrió overflow.', Math.max(0, top), [], { completed: true }));
+      return finish(false, before, 'La pila está llena: capacidad máxima de 15 elementos.', frames);
+    }
+
+    const after = [...before, value];
+    frames.push(
+      linearStructureFrame(before, edges, 'top++;', `top avanza de ${top} a ${top + 1}.`, Math.max(0, top), stackVariables(before, top + 1, [{ name: 'value', value, role: 'input' }])),
+      frame(after, 'values[top] = value;', `${value} se guarda en values[${top + 1}] y aparece en el tope.`, top + 1, [{ name: 'value', value, role: 'input' }]),
+      frame(after, 'return true;', `Push terminó: ${value} es el nuevo tope.`, top + 1, [], { completed: true }),
+    );
+    return finish(true, after, `Push: ${value} ahora está en el tope.`, frames, top + 1);
+  }
+
+  if (actionId === 'pop') {
+    const frames = [
+      frame(before, 'Integer pop() {', 'Pop intentará retirar el elemento ubicado en top.'),
+      frame(before, 'if (top == -1) {', top === -1
+        ? 'top vale -1: la pila está vacía.'
+        : `top vale ${top}; existe un elemento para retirar.`, Math.max(0, top), [
+        { name: 'condición', value: String(top === -1), role: top === -1 ? 'true' : 'false' },
+      ]),
+    ];
+    if (top === -1) {
+      frames.push(frame(before, 'return null;', 'Pop devuelve null porque ocurrió underflow.', 0, [], { completed: true }));
+      return finish(false, before, 'La pila está vacía: no se puede ejecutar Pop.', frames, 0);
+    }
+
+    const removed = before[top];
+    const cleared = [...before];
+    cleared[top] = '∅';
+    const after = before.slice(0, -1);
+    frames.push(
+      frame(before, 'int removed = values[top];', `${removed} se guarda en la variable removed.`, top, [{ name: 'removed', value: removed, role: 'value' }]),
+      frame(cleared, 'values[top] = 0;', `La posición ${top} se limpia antes de bajar el tope.`, top, [{ name: 'removed', value: removed, role: 'value' }]),
+      frame(after, 'top--;', `top baja de ${top} a ${top - 1}; ${removed} deja la pila.`, Math.max(0, top - 1), [{ name: 'removed', value: removed, role: 'value' }]),
+      frame(after, 'return removed;', `Pop devuelve ${removed}.`, Math.max(0, top - 1), [{ name: 'removed', value: removed, role: 'value' }], { completed: true }),
+    );
+    return finish(true, after, `Pop: ${removed} fue retirado del tope.`, frames);
+  }
+
+  if (actionId === 'peek') {
+    const frames = [
+      frame(before, 'Integer peek() {', 'Peek consulta el tope sin modificar la pila.'),
+      frame(before, 'if (top == -1) {', top === -1
+        ? 'top vale -1: no existe un elemento visible.'
+        : `top vale ${top}; la pila contiene ${before[top]}.`, Math.max(0, top), [
+        { name: 'condición', value: String(top === -1), role: top === -1 ? 'true' : 'false' },
+      ]),
+    ];
+    if (top === -1) {
+      frames.push(frame(before, 'return null;', 'Peek devuelve null porque la pila está vacía.', 0, [], { completed: true }));
+      return finish(false, before, 'La pila está vacía.', frames, 0);
+    }
+    frames.push(frame(before, 'return values[top];', `Peek devuelve ${before[top]} sin eliminarlo.`, top, [
+      { name: 'retorno', value: before[top], role: 'value' },
+    ], { completed: true }));
+    return finish(true, before, `Peek: el elemento del tope es ${before[top]}.`, frames, top);
+  }
+
+  if (actionId === 'clear') {
+    const frames = [frame(before, 'void clear() {', 'Vaciar comienza desde el tope actual.')];
+    let working = [...before];
+    while (working.length) {
+      const currentTop = working.length - 1;
+      frames.push(frame(working, 'while (top >= 0) {', `top vale ${currentTop}; el ciclo debe limpiar otra posición.`, currentTop, [
+        { name: 'condición', value: 'true', role: 'true' },
+      ]));
+      const cleared = [...working];
+      cleared[currentTop] = '∅';
+      frames.push(frame(cleared, 'values[top] = 0;', `values[${currentTop}] se limpia.`, currentTop));
+      working = working.slice(0, -1);
+      frames.push(frame(working, 'top--;', `top baja a ${working.length - 1}.`, Math.max(0, working.length - 1)));
+    }
+    frames.push(frame([], 'while (top >= 0) {', 'top vale -1; la condición es falsa y el ciclo termina.', 0, [
+      { name: 'condición', value: 'false', role: 'false' },
+    ], { completed: true }));
+    return finish(true, [], 'La pila quedó completamente vacía.', frames, 0);
+  }
+
+  return null;
+}
+
+function queueVariables(values, extras = []) {
+  return [
+    { name: 'front', value: values[0] ?? 'null', role: 'value' },
+    { name: 'rear', value: values.at(-1) ?? 'null', role: 'value' },
+    { name: 'size', value: values.length, role: 'size' },
+    ...extras,
+  ];
+}
+
+function executeQueueOperation({ actionId, fields, values, edges }) {
+  const before = [...values];
+  const value = numericValue(fields.value ?? '', values);
+  const frame = (currentValues, codeNeedle, message, position = 0, extras = [], options = {}) => (
+    linearStructureFrame(currentValues, edges, codeNeedle, message, position, queueVariables(currentValues, extras), options)
+  );
+  const finish = (ok, updated, message, frames, position = 0) => ({
+    ok,
+    values: updated,
+    edges: edges.map(edge => [...edge]),
+    message,
+    step: position,
+    frames,
+  });
+
+  if (actionId === 'enqueue') {
+    if (value === null) return finish(false, before, 'Ingresa un valor válido antes de ejecutar Enqueue.', []);
+    const full = before.length === 15;
+    const frames = [
+      frame(before, 'boolean enqueue(int value) {', `Enqueue recibe el valor ${value}.`, Math.max(0, before.length - 1), [{ name: 'value', value, role: 'input' }]),
+      frame(before, 'if (size == MAX_SIZE) {', full
+        ? 'size alcanzó MAX_SIZE: la cola está llena.'
+        : `size vale ${before.length}; existe espacio para otro nodo.`, Math.max(0, before.length - 1), [
+        { name: 'MAX_SIZE', value: 15, role: 'size' },
+        { name: 'condición', value: String(full), role: full ? 'true' : 'false' },
+      ]),
+    ];
+    if (full) {
+      frames.push(frame(before, 'return false;', 'Enqueue termina sin modificar la cola porque ocurrió overflow.', Math.max(0, before.length - 1), [], { completed: true }));
+      return finish(false, before, 'La cola está llena: capacidad máxima de 15 elementos.', frames);
+    }
+
+    const after = [...before, value];
+    const wasEmpty = before.length === 0;
+    frames.push(
+      frame(before, 'Node newNode = new Node(value);', `Se crea un nodo nuevo que guarda ${value}.`, Math.max(0, before.length - 1), [{ name: 'newNode.value', value, role: 'input' }]),
+      frame(before, 'if (rear == null) {', wasEmpty
+        ? 'rear es null: el nuevo nodo será frente y final.'
+        : `rear apunta a ${before.at(-1)}: el nuevo nodo se enlazará después.`, Math.max(0, before.length - 1), [
+        { name: 'condición', value: String(wasEmpty), role: wasEmpty ? 'true' : 'false' },
+      ]),
+    );
+    if (wasEmpty) {
+      frames.push(
+        frame(after, 'front = newNode;', `${value} se convierte en el frente de la cola.`, 0),
+        frame(after, 'rear = front;', `${value} también se convierte en el final.`, 0),
+      );
+    } else {
+      frames.push(
+        frame(after, 'rear.next = newNode;', `El antiguo final ${before.at(-1)} enlaza al nodo ${value}.`, before.length),
+        frame(after, 'rear = newNode;', `rear avanza y ahora apunta a ${value}.`, before.length),
+      );
+    }
+    frames.push(
+      frame(after, 'size++;', `size aumenta de ${before.length} a ${after.length}.`, after.length - 1),
+      frame(after, 'return true;', `Enqueue terminó: ${value} está al final de la cola.`, after.length - 1, [], { completed: true }),
+    );
+    return finish(true, after, `Enqueue: ${value} fue agregado al final de la cola.`, frames, after.length - 1);
+  }
+
+  if (actionId === 'dequeue') {
+    const empty = before.length === 0;
+    const frames = [
+      frame(before, 'Integer dequeue() {', 'Dequeue intentará retirar el nodo ubicado en front.'),
+      frame(before, 'if (front == null) {', empty
+        ? 'front es null: la cola está vacía.'
+        : `front apunta a ${before[0]}; existe un nodo para retirar.`, 0, [
+        { name: 'condición', value: String(empty), role: empty ? 'true' : 'false' },
+      ]),
+    ];
+    if (empty) {
+      frames.push(frame(before, 'return null;', 'Dequeue devuelve null porque ocurrió underflow.', 0, [], { completed: true }));
+      return finish(false, before, 'La cola está vacía: no se puede ejecutar Dequeue.', frames);
+    }
+
+    const removed = before[0];
+    const after = before.slice(1);
+    frames.push(
+      frame(before, 'int removed = front.value;', `${removed} se guarda en la variable removed.`, 0, [{ name: 'removed', value: removed, role: 'value' }]),
+      frame(after, 'front = front.next;', after.length
+        ? `front avanza al siguiente nodo, que contiene ${after[0]}.`
+        : 'front avanza a null porque no quedan nodos.', 0, [{ name: 'removed', value: removed, role: 'value' }]),
+      frame(after, 'if (front == null) {', after.length === 0
+        ? 'front es null: también se debe limpiar rear.'
+        : 'front no es null: rear conserva el último nodo.', 0, [
+        { name: 'condición', value: String(after.length === 0), role: after.length === 0 ? 'true' : 'false' },
+      ]),
+    );
+    if (!after.length) frames.push(frame(after, 'rear = null;', 'rear queda en null; la cola está completamente vacía.', 0));
+    frames.push(
+      frame(after, 'size--;', `size disminuye de ${before.length} a ${after.length}.`, 0, [{ name: 'removed', value: removed, role: 'value' }]),
+      frame(after, 'return removed;', `Dequeue devuelve ${removed}.`, 0, [{ name: 'removed', value: removed, role: 'value' }], { completed: true }),
+    );
+    return finish(true, after, `Dequeue: ${removed} fue retirado del frente.`, frames, 0);
+  }
+
+  if (actionId === 'front') {
+    const empty = before.length === 0;
+    const frames = [
+      frame(before, 'Integer peekFront() {', 'La operación consulta front sin retirar ningún nodo.'),
+      frame(before, 'if (front == null) {', empty
+        ? 'front es null: la cola está vacía.'
+        : `front apunta al nodo que contiene ${before[0]}.`, 0, [
+        { name: 'condición', value: String(empty), role: empty ? 'true' : 'false' },
+      ]),
+    ];
+    if (empty) {
+      frames.push(frame(before, 'return null;', 'La consulta devuelve null porque no existe frente.', 0, [], { completed: true }));
+      return finish(false, before, 'La cola está vacía.', frames, 0);
+    }
+    frames.push(frame(before, 'return front.value;', `La consulta devuelve ${before[0]} sin modificar la cola.`, 0, [
+      { name: 'retorno', value: before[0], role: 'value' },
+    ], { completed: true }));
+    return finish(true, before, `El frente de la cola es ${before[0]}.`, frames, 0);
+  }
+
+  if (actionId === 'clear') {
+    const frames = [
+      frame(before, 'void clear() {', 'Vaciar desconectará las referencias principales de la cola.'),
+      frame([], 'front = null;', 'front deja de apuntar al primer nodo.', 0),
+      frame([], 'rear = null;', 'rear también queda en null.', 0),
+      frame([], 'size = 0;', 'size queda en 0 y la cola está vacía.', 0, [], { completed: true }),
+    ];
+    return finish(true, [], 'La cola quedó completamente vacía.', frames, 0);
+  }
+
+  return null;
+}
+
 export function executeOperation({ algorithm, actionId, fields, values, edges, initialValues, initialEdges = DEFAULT_GRAPH_EDGES }) {
   const group = operationGroup(algorithm);
   if (group === 'sparseMatrix') return executeSparseMatrixOperation({ actionId, fields, values, edges });
   if (group === 'threadedTree') return executeThreadedTreeOperation({ actionId, fields, values, initialValues, edges });
+  if (group === 'stack') return executeStackOperation({ actionId, fields, values, edges });
+  if (group === 'queue') return executeQueueOperation({ actionId, fields, values, edges });
   const next = [...values];
   const forceText = ['merkle', 'hash', 'cache'].includes(group) || (group === 'spatial' && algorithm.id !== 'kd-tree');
   const value = numericValue(fields.value ?? '', values, forceText);

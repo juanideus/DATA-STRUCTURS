@@ -484,11 +484,13 @@ function LinearVisual({ algorithm, step }) {
   const { values, type } = algorithm;
   if (!values.length) return <div className="empty-visual"><strong>∅</strong><span>Estructura vacía</span></div>;
   if (type === 'stack') {
-    return <div className="stack-visual">{[...values].reverse().map((v, i) => (
-      <div className={`data-cell wide ${i === step % values.length ? 'active' : ''}`} key={`${v}-${i}`}>
-        <span>{v}</span>{i === 0 && <small>TOPE</small>}
-      </div>
-    ))}<div className="stack-base" /></div>;
+    const activeIndex = step % values.length;
+    return <div className="stack-visual">{[...values].reverse().map((v, reversedIndex) => {
+      const logicalIndex = values.length - 1 - reversedIndex;
+      return <div className={`data-cell wide ${logicalIndex === activeIndex ? 'active' : ''}`} key={`${v}-${logicalIndex}`}>
+        <span>{v}</span>{reversedIndex === 0 && <small>TOPE</small>}
+      </div>;
+    })}<div className="stack-base" /></div>;
   }
   if (type === 'circular') return <CircularListVisual algorithm={algorithm} step={step}/>;
   const linked = type === 'linked';
@@ -1528,6 +1530,10 @@ function App() {
   const activeOperationLabel = operationDefinition.actions.find(item=>item.id===activeOperation)?.label ?? 'Operación';
   const javaOverview = operationGroup(baseAlgorithm) === 'list'
     ? `El código muestra la clase Node, head, size y los enlaces next${baseAlgorithm.id.includes('doble') ? ' y prev' : ''}. No existe una variable de cola: cada recorrido parte en head y avanza del índice 0 hacia adelante. Cada if se evalúa antes de entrar únicamente al bloque que corresponde.`
+    : baseAlgorithm.id === 'pila'
+      ? 'La pila usa un arreglo y la variable top. Push aumenta top antes de guardar; Pop limpia el elemento actual y después disminuye top. La animación muestra cada cambio por separado.'
+      : baseAlgorithm.id === 'cola'
+        ? 'La cola usa nodos y dos referencias: front indica quién sale primero y rear dónde se agrega. Enqueue enlaza al final y Dequeue avanza front en O(1), sin desplazar todos los elementos.'
     : baseAlgorithm.id === 'matriz-dispersa'
       ? 'El código muestra AROW, ACOL y un único Node con left y up. AROW recorre de derecha a izquierda y ACOL de abajo hacia arriba hasta volver a sus cabeceras.'
       : baseAlgorithm.id === 'arbol-enhebrado'

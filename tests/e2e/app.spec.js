@@ -349,6 +349,52 @@ test('lista circular doble conserva next y prev cuando queda un solo nodo', asyn
   await expect(previousLoop).toHaveClass(/reverse/);
 });
 
+test('Stack y Queue muestran su código completo mientras cambia la estructura', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chromium', 'La traza y el Java son idénticos en ambos tamaños.');
+
+  await page.goto('/pila');
+  await expect(page.locator('.code-panel pre')).toContainText('class ArrayStack');
+  await expect(page.locator('.code-panel pre')).toContainText('int top = -1');
+  await page.getByLabel('Valor').fill('99');
+  await page.getByRole('button', { name: 'Push', exact: true }).click();
+  const stackLines = new Set();
+  let stackChangedDuringTrace = false;
+  for (let step = 0; step < 7; step++) {
+    stackLines.add((await page.locator('.code-panel code.active').textContent())?.trim());
+    const visibleValues = await page.locator('.stack-visual .data-cell span').allTextContents();
+    if (visibleValues.includes('99')) stackChangedDuringTrace = true;
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+  expect(stackLines.size).toBeGreaterThanOrEqual(4);
+  expect(stackChangedDuringTrace).toBe(true);
+  await expect(page.locator('.stack-visual .data-cell').first()).toContainText('TOPE');
+  await expect(page.locator('.stack-visual .data-cell').first()).toContainText('99');
+
+  await page.goto('/cola');
+  await expect(page.locator('.code-panel pre')).toContainText('class LinkedQueue');
+  await expect(page.locator('.code-panel pre')).toContainText('Node front = null');
+  await expect(page.locator('.code-panel pre')).toContainText('Node rear = null');
+  await page.getByLabel('Valor').fill('99');
+  await page.getByRole('button', { name: 'Enqueue', exact: true }).click();
+  const queueLines = new Set();
+  let queueChangedDuringTrace = false;
+  for (let step = 0; step < 9; step++) {
+    queueLines.add((await page.locator('.code-panel code.active').textContent())?.trim());
+    const visibleValues = await page.locator('.linear-visual.queue .data-cell span').allTextContents();
+    if (visibleValues.includes('99')) queueChangedDuringTrace = true;
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+  expect(queueLines.size).toBeGreaterThanOrEqual(6);
+  expect(queueChangedDuringTrace).toBe(true);
+  await expect(page.locator('.linear-visual.queue .data-cell').last()).toContainText('FINAL');
+  await expect(page.locator('.linear-visual.queue .data-cell').last()).toContainText('99');
+
+  await page.getByRole('button', { name: 'Dequeue', exact: true }).click();
+  const dequeueJava = await page.locator('.code-panel pre').textContent();
+  expect(dequeueJava).toContain('front = front.next');
+  expect(dequeueJava).not.toContain('for (');
+});
+
 test('sincroniza el recorrido BST con la línea Java y las variables', async ({ page }) => {
   await page.goto('/bst');
   await page.getByLabel('Valor').fill('1');

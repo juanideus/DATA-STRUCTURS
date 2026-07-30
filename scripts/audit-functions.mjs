@@ -737,6 +737,60 @@ assert.deepEqual(
   'Grafo/DFS: la animación no termina con el mismo orden que el algoritmo.',
 );
 
+const stackAlgorithm = algorithms.find(item => item.id === 'pila');
+const queueAlgorithm = algorithms.find(item => item.id === 'cola');
+const stackMethods = {
+  push: /boolean push\(int value\)/,
+  pop: /Integer pop\(\)/,
+  peek: /Integer peek\(\)/,
+  clear: /void clear\(\)/,
+};
+for (const [actionId, methodPattern] of Object.entries(stackMethods)) {
+  const java = getBeginnerJava(stackAlgorithm, actionId);
+  const result = run(stackAlgorithm, actionId, { value: '99', second: '', index: '' });
+  assert.match(java, /class ArrayStack \{/, `Stack/${actionId}: falta mostrar la clase completa.`);
+  assert.match(java, /int\[\] values = new int\[MAX_SIZE\]/, `Stack/${actionId}: falta mostrar el arreglo.`);
+  assert.match(java, /int top = -1;/, `Stack/${actionId}: falta declarar top.`);
+  assert.match(java, methodPattern, `Stack/${actionId}: falta el método seleccionado.`);
+  assert.ok(result.frames.length >= 3, `Stack/${actionId}: la animación no recorre el código.`);
+  assert.ok(result.frames.every(frame => java.includes(frame.codeNeedle)), `Stack/${actionId}: una línea animada no existe en el Java mostrado.`);
+  assert.ok(new Set(result.frames.map(frame => frame.codeNeedle)).size >= 3, `Stack/${actionId}: el código permanece detenido en una sola línea.`);
+}
+const stackPush = run(stackAlgorithm, 'push', { value: '99', second: '', index: '' });
+assert.ok(stackPush.frames.some(frame => frame.values.at(-1) === 99 && !frame.completed), 'Stack/Push: el nuevo tope debe aparecer mientras se ejecuta la asignación.');
+const stackPop = run(stackAlgorithm, 'pop');
+assert.ok(stackPop.frames.some(frame => frame.values.length === stackAlgorithm.values.length - 1 && !frame.completed), 'Stack/Pop: el elemento debe desaparecer cuando top disminuye.');
+assert.equal(run(stackAlgorithm, 'push', { value: '99' }, Array.from({ length: 15 }, (_, index) => index)).ok, false, 'Stack/Push: debe impedir overflow al alcanzar MAX_SIZE.');
+
+const queueMethods = {
+  enqueue: /boolean enqueue\(int value\)/,
+  dequeue: /Integer dequeue\(\)/,
+  front: /Integer peekFront\(\)/,
+  clear: /void clear\(\)/,
+};
+for (const [actionId, methodPattern] of Object.entries(queueMethods)) {
+  const java = getBeginnerJava(queueAlgorithm, actionId);
+  const result = run(queueAlgorithm, actionId, { value: '99', second: '', index: '' });
+  assert.match(java, /class LinkedQueue \{/, `Queue/${actionId}: falta mostrar la clase completa.`);
+  assert.match(java, /static class Node \{/, `Queue/${actionId}: falta mostrar la clase Node.`);
+  assert.match(java, /Node front = null;/, `Queue/${actionId}: falta declarar front.`);
+  assert.match(java, /Node rear = null;/, `Queue/${actionId}: falta declarar rear.`);
+  assert.match(java, methodPattern, `Queue/${actionId}: falta el método seleccionado.`);
+  assert.ok(result.frames.length >= 3, `Queue/${actionId}: la animación no recorre el código.`);
+  assert.ok(result.frames.every(frame => java.includes(frame.codeNeedle)), `Queue/${actionId}: una línea animada no existe en el Java mostrado.`);
+  assert.ok(new Set(result.frames.map(frame => frame.codeNeedle)).size >= 3, `Queue/${actionId}: el código permanece detenido en una sola línea.`);
+}
+const queueEnqueueJava = getBeginnerJava(queueAlgorithm, 'enqueue');
+const queueDequeueJava = getBeginnerJava(queueAlgorithm, 'dequeue');
+assert.match(queueEnqueueJava, /rear\.next = newNode;[\s\S]*rear = newNode;/, 'Queue/Enqueue: falta enlazar y actualizar rear.');
+assert.match(queueDequeueJava, /front = front\.next;/, 'Queue/Dequeue: front debe avanzar en O(1).');
+assert.doesNotMatch(queueDequeueJava, /for\s*\(|queue\[i\] = queue\[i \+ 1\]/, 'Queue/Dequeue: no debe desplazar todo el arreglo si declara complejidad O(1).');
+const queueEnqueue = run(queueAlgorithm, 'enqueue', { value: '99', second: '', index: '' });
+assert.ok(queueEnqueue.frames.some(frame => frame.values.at(-1) === 99 && !frame.completed), 'Queue/Enqueue: el nuevo rear debe aparecer durante el enlace.');
+const queueDequeue = run(queueAlgorithm, 'dequeue');
+assert.ok(queueDequeue.frames.some(frame => frame.values[0] === queueAlgorithm.values[1] && !frame.completed), 'Queue/Dequeue: front debe avanzar durante la ejecución.');
+assert.equal(run(queueAlgorithm, 'enqueue', { value: '99' }, Array.from({ length: 15 }, (_, index) => index)).ok, false, 'Queue/Enqueue: debe impedir overflow al alcanzar MAX_SIZE.');
+
 const editableGraphIds = ['grafo', 'grafo-dirigido', 'dfs', 'bfs', 'prim', 'kruskal'];
 const graphProfiles = {
   grafo: ['UndirectedGraph', /boolean\[\]\[\] adjacency/],
