@@ -1,4 +1,43 @@
-const operations = {
+const profiles = {
+  grafo: {
+    className: 'UndirectedGraph',
+    representation: 'matrix',
+    directed: false,
+    weighted: false,
+  },
+  'grafo-dirigido': {
+    className: 'DirectedGraph',
+    representation: 'matrix',
+    directed: true,
+    weighted: false,
+  },
+  bfs: {
+    className: 'BreadthFirstGraph',
+    representation: 'matrix',
+    directed: false,
+    weighted: false,
+  },
+  dfs: {
+    className: 'DepthFirstGraph',
+    representation: 'matrix',
+    directed: false,
+    weighted: false,
+  },
+  prim: {
+    className: 'PrimGraph',
+    representation: 'matrix',
+    directed: false,
+    weighted: true,
+  },
+  kruskal: {
+    className: 'KruskalGraph',
+    representation: 'edge-list',
+    directed: false,
+    weighted: true,
+  },
+};
+
+const commonOperations = {
   'vertex-add': `boolean addVertex(String name) {
     if (name == null || name.trim().length() == 0) {
         return false;
@@ -6,7 +45,7 @@ const operations = {
     if (vertexCount == MAX_VERTICES) {
         return false;
     }
-    if (indexOfVertex(name) != -1) {
+    if (findVertex(name) != -1) {
         return false;
     }
 
@@ -14,69 +53,11 @@ const operations = {
     vertexCount++;
     return true;
 }`,
-  'vertex-remove': `boolean removeVertex(String name) {
-    int vertex = indexOfVertex(name);
-    if (vertex == -1) {
-        return false;
-    }
+};
 
-    for (int index = vertex; index < vertexCount - 1; index++) {
-        vertexNames[index] = vertexNames[index + 1];
-    }
-
-    // Desplazar las filas de la matriz.
-    for (int row = vertex; row < vertexCount - 1; row++) {
-        for (int column = 0; column < vertexCount; column++) {
-            weights[row][column] = weights[row + 1][column];
-        }
-    }
-
-    // Desplazar también las columnas de la matriz.
-    for (int column = vertex; column < vertexCount - 1; column++) {
-        for (int row = 0; row < vertexCount - 1; row++) {
-            weights[row][column] = weights[row][column + 1];
-        }
-    }
-
-    vertexCount--;
-    vertexNames[vertexCount] = null;
-    for (int index = 0; index < MAX_VERTICES; index++) {
-        weights[vertexCount][index] = NO_EDGE;
-        weights[index][vertexCount] = NO_EDGE;
-    }
-    return true;
-}`,
-  'edge-add': `boolean addEdge(String fromName, String toName, int weight) {
-    int from = indexOfVertex(fromName);
-    int to = indexOfVertex(toName);
-    if (from == -1 || to == -1 || from == to) {
-        return false;
-    }
-    if (weights[from][to] != NO_EDGE) {
-        return false;
-    }
-
-    weights[from][to] = weight;
-    if (!directed) {
-        weights[to][from] = weight;
-    }
-    return true;
-}`,
-  'edge-remove': `boolean removeEdge(String fromName, String toName) {
-    int from = indexOfVertex(fromName);
-    int to = indexOfVertex(toName);
-    if (from == -1 || to == -1 || weights[from][to] == NO_EDGE) {
-        return false;
-    }
-
-    weights[from][to] = NO_EDGE;
-    if (!directed) {
-        weights[to][from] = NO_EDGE;
-    }
-    return true;
-}`,
+const traversalOperations = {
   'bfs-run': `void breadthFirst(String startName) {
-    int start = indexOfVertex(startName);
+    int start = findVertex(startName);
     if (start == -1) {
         return;
     }
@@ -95,7 +76,7 @@ const operations = {
         System.out.println(vertexNames[vertex]);
 
         for (int next = 0; next < vertexCount; next++) {
-            boolean hasEdge = weights[vertex][next] != NO_EDGE;
+            boolean hasEdge = adjacency[vertex][next];
             if (hasEdge && !visited[next]) {
                 visited[next] = true;
                 queue[end] = next;
@@ -105,7 +86,7 @@ const operations = {
     }
 }`,
   'dfs-run': `void depthFirst(String startName) {
-    int start = indexOfVertex(startName);
+    int start = findVertex(startName);
     if (start == -1) {
         return;
     }
@@ -113,8 +94,10 @@ const operations = {
     boolean[] visited = new boolean[vertexCount];
     depthFirstFrom(start, visited);
 }`,
-  'prim-run': `void prim(String startName) {
-    int start = indexOfVertex(startName);
+};
+
+const primOperation = `void prim(String startName) {
+    int start = findVertex(startName);
     if (start == -1) {
         return;
     }
@@ -138,7 +121,7 @@ const operations = {
             }
         }
         if (current == -1 || bestWeight[current] == NO_EDGE) {
-            return; // El grafo no es conexo.
+            return; // The graph is disconnected.
         }
 
         inTree[current] = true;
@@ -156,26 +139,19 @@ const operations = {
             }
         }
     }
-}`,
-  'kruskal-run': `void kruskal() {
-    int maximumEdges = vertexCount * vertexCount;
-    int[] from = new int[maximumEdges];
-    int[] to = new int[maximumEdges];
-    int[] edgeWeight = new int[maximumEdges];
-    int edgeCount = 0;
+}`;
 
-    for (int first = 0; first < vertexCount; first++) {
-        for (int second = first + 1; second < vertexCount; second++) {
-            if (weights[first][second] != NO_EDGE) {
-                from[edgeCount] = first;
-                to[edgeCount] = second;
-                edgeWeight[edgeCount] = weights[first][second];
-                edgeCount++;
-            }
-        }
+const kruskalOperation = `void kruskal() {
+    int[] from = new int[edgeCount];
+    int[] to = new int[edgeCount];
+    int[] edgeWeight = new int[edgeCount];
+    for (int edge = 0; edge < edgeCount; edge++) {
+        from[edge] = edges[edge].from;
+        to[edge] = edges[edge].to;
+        edgeWeight[edge] = edges[edge].weight;
     }
 
-    // Ordenar las aristas desde el menor peso.
+    // Sort the edges from the lightest to the heaviest.
     for (int end = edgeCount - 1; end > 0; end--) {
         for (int index = 0; index < end; index++) {
             if (edgeWeight[index] > edgeWeight[index + 1]) {
@@ -204,11 +180,10 @@ const operations = {
             selected++;
         }
     }
-}`,
-};
+}`;
 
 const helpers = {
-  indexOfVertex: `int indexOfVertex(String name) {
+  findVertex: `int findVertex(String name) {
     if (name == null) {
         return -1;
     }
@@ -224,11 +199,18 @@ const helpers = {
     System.out.println(vertexNames[vertex]);
 
     for (int next = 0; next < vertexCount; next++) {
-        boolean hasEdge = weights[vertex][next] != NO_EDGE;
+        boolean hasEdge = adjacency[vertex][next];
         if (hasEdge && !visited[next]) {
             depthFirstFrom(next, visited);
         }
     }
+}`,
+  removeEdgeAt: `void removeEdgeAt(int edgeIndex) {
+    for (int index = edgeIndex; index < edgeCount - 1; index++) {
+        edges[index] = edges[index + 1];
+    }
+    edgeCount--;
+    edges[edgeCount] = null;
 }`,
   find: `int find(int[] parent, int vertex) {
     if (parent[vertex] != vertex) {
@@ -253,49 +235,245 @@ const helpers = {
 }`,
 };
 
-const actionHelpers = {
-  'vertex-add': ['indexOfVertex'],
-  'vertex-remove': ['indexOfVertex'],
-  'edge-add': ['indexOfVertex'],
-  'edge-remove': ['indexOfVertex'],
-  'bfs-run': ['indexOfVertex'],
-  'dfs-run': ['indexOfVertex', 'depthFirstFrom'],
-  'prim-run': ['indexOfVertex'],
-  'kruskal-run': ['find', 'union', 'swap'],
-};
+function matrixVertexRemove(profile) {
+  const matrix = profile.weighted ? 'weights' : 'adjacency';
+  const emptyValue = profile.weighted ? 'NO_EDGE' : 'false';
+  return `boolean removeVertex(String name) {
+    int vertex = findVertex(name);
+    if (vertex == -1) {
+        return false;
+    }
+
+    for (int index = vertex; index < vertexCount - 1; index++) {
+        vertexNames[index] = vertexNames[index + 1];
+    }
+    for (int row = vertex; row < vertexCount - 1; row++) {
+        for (int column = 0; column < vertexCount; column++) {
+            ${matrix}[row][column] = ${matrix}[row + 1][column];
+        }
+    }
+    for (int column = vertex; column < vertexCount - 1; column++) {
+        for (int row = 0; row < vertexCount - 1; row++) {
+            ${matrix}[row][column] = ${matrix}[row][column + 1];
+        }
+    }
+
+    vertexCount--;
+    vertexNames[vertexCount] = null;
+    for (int index = 0; index < MAX_VERTICES; index++) {
+        ${matrix}[vertexCount][index] = ${emptyValue};
+        ${matrix}[index][vertexCount] = ${emptyValue};
+    }
+    return true;
+}`;
+}
+
+function matrixEdgeAdd(profile) {
+  const parameters = profile.weighted
+    ? 'String fromName, String toName, int weight'
+    : 'String fromName, String toName';
+  const matrix = profile.weighted ? 'weights' : 'adjacency';
+  const occupied = profile.weighted
+    ? 'weights[from][to] != NO_EDGE'
+    : 'adjacency[from][to]';
+  const value = profile.weighted ? 'weight' : 'true';
+  const reverse = profile.directed ? '' : `\n    ${matrix}[to][from] = ${value};`;
+  return `boolean addEdge(${parameters}) {
+    int from = findVertex(fromName);
+    int to = findVertex(toName);
+    if (from == -1 || to == -1 || from == to) {
+        return false;
+    }
+    if (${occupied}) {
+        return false;
+    }
+
+    ${matrix}[from][to] = ${value};${reverse}
+    return true;
+}`;
+}
+
+function matrixEdgeRemove(profile) {
+  const matrix = profile.weighted ? 'weights' : 'adjacency';
+  const missing = profile.weighted
+    ? 'weights[from][to] == NO_EDGE'
+    : '!adjacency[from][to]';
+  const emptyValue = profile.weighted ? 'NO_EDGE' : 'false';
+  const reverse = profile.directed ? '' : `\n    ${matrix}[to][from] = ${emptyValue};`;
+  return `boolean removeEdge(String fromName, String toName) {
+    int from = findVertex(fromName);
+    int to = findVertex(toName);
+    if (from == -1 || to == -1 || ${missing}) {
+        return false;
+    }
+
+    ${matrix}[from][to] = ${emptyValue};${reverse}
+    return true;
+}`;
+}
+
+function edgeListOperation(actionId) {
+  if (actionId === 'vertex-remove') {
+    return `boolean removeVertex(String name) {
+    int vertex = findVertex(name);
+    if (vertex == -1) {
+        return false;
+    }
+
+    for (int edge = edgeCount - 1; edge >= 0; edge--) {
+        if (edges[edge].from == vertex || edges[edge].to == vertex) {
+            removeEdgeAt(edge);
+        } else {
+            if (edges[edge].from > vertex) {
+                edges[edge].from--;
+            }
+            if (edges[edge].to > vertex) {
+                edges[edge].to--;
+            }
+        }
+    }
+    for (int index = vertex; index < vertexCount - 1; index++) {
+        vertexNames[index] = vertexNames[index + 1];
+    }
+    vertexCount--;
+    vertexNames[vertexCount] = null;
+    return true;
+}`;
+  }
+  if (actionId === 'edge-add') {
+    return `boolean addEdge(String fromName, String toName, int weight) {
+    int from = findVertex(fromName);
+    int to = findVertex(toName);
+    if (from == -1 || to == -1 || from == to || edgeCount == MAX_EDGES) {
+        return false;
+    }
+    for (int edge = 0; edge < edgeCount; edge++) {
+        boolean sameDirection = edges[edge].from == from && edges[edge].to == to;
+        boolean oppositeDirection = edges[edge].from == to && edges[edge].to == from;
+        if (sameDirection || oppositeDirection) {
+            return false;
+        }
+    }
+
+    edges[edgeCount] = new Edge(from, to, weight);
+    edgeCount++;
+    return true;
+}`;
+  }
+  if (actionId === 'edge-remove') {
+    return `boolean removeEdge(String fromName, String toName) {
+    int from = findVertex(fromName);
+    int to = findVertex(toName);
+    if (from == -1 || to == -1) {
+        return false;
+    }
+    for (int edge = 0; edge < edgeCount; edge++) {
+        boolean sameDirection = edges[edge].from == from && edges[edge].to == to;
+        boolean oppositeDirection = edges[edge].from == to && edges[edge].to == from;
+        if (sameDirection || oppositeDirection) {
+            removeEdgeAt(edge);
+            return true;
+        }
+    }
+    return false;
+}`;
+  }
+  if (actionId === 'kruskal-run') return kruskalOperation;
+  return commonOperations[actionId] ?? null;
+}
+
+function matrixOperation(profile, actionId) {
+  if (actionId === 'vertex-remove') return matrixVertexRemove(profile);
+  if (actionId === 'edge-add') return matrixEdgeAdd(profile);
+  if (actionId === 'edge-remove') return matrixEdgeRemove(profile);
+  if (actionId === 'prim-run' && profile.weighted) return primOperation;
+  if (actionId === 'bfs-run' && !profile.weighted) return traversalOperations[actionId];
+  if (actionId === 'dfs-run' && !profile.weighted) return traversalOperations[actionId];
+  return commonOperations[actionId] ?? null;
+}
+
+function helperNames(profile, actionId) {
+  if (profile.representation === 'edge-list') {
+    if (actionId === 'vertex-remove') return ['findVertex', 'removeEdgeAt'];
+    if (actionId === 'edge-remove') return ['findVertex', 'removeEdgeAt'];
+    if (actionId === 'edge-add' || actionId === 'vertex-add') return ['findVertex'];
+    if (actionId === 'kruskal-run') return ['find', 'union', 'swap'];
+    return [];
+  }
+  if (actionId === 'dfs-run') return ['findVertex', 'depthFirstFrom'];
+  if (['vertex-add', 'vertex-remove', 'edge-add', 'edge-remove', 'bfs-run', 'prim-run'].includes(actionId)) {
+    return ['findVertex'];
+  }
+  return [];
+}
 
 function indent(source, spaces = 4) {
   const padding = ' '.repeat(spaces);
   return source.split('\n').map(line => `${padding}${line}`).join('\n');
 }
 
-export function getGraphJava(algorithmId, actionId) {
-  const operation = operations[actionId];
-  if (!operation || ['dijkstra', 'a-star'].includes(algorithmId)) {
-    return null;
-  }
-
-  const directed = algorithmId === 'grafo-dirigido';
-  const usedHelpers = (actionHelpers[actionId] ?? [])
-    .map(name => `\n    // Método auxiliar utilizado arriba: ${name}\n${indent(helpers[name])}`)
-    .join('\n');
-
-  return `class Graph {
-    static final int MAX_VERTICES = 8;
-    static final int NO_EDGE = 1000000000;
+function matrixFields(profile) {
+  if (profile.weighted) {
+    return `    static final int NO_EDGE = 1000000000;
 
     String[] vertexNames = new String[MAX_VERTICES];
     int[][] weights = new int[MAX_VERTICES][MAX_VERTICES];
     int vertexCount = 0;
-    final boolean directed = ${directed};
 
-    Graph() {
+    ${profile.className}() {
         for (int row = 0; row < MAX_VERTICES; row++) {
             for (int column = 0; column < MAX_VERTICES; column++) {
                 weights[row][column] = NO_EDGE;
             }
         }
+    }`;
+  }
+  return `    String[] vertexNames = new String[MAX_VERTICES];
+    boolean[][] adjacency = new boolean[MAX_VERTICES][MAX_VERTICES];
+    int vertexCount = 0;`;
+}
+
+function edgeListFields() {
+  return `    static final int MAX_EDGES = 28;
+
+    static class Edge {
+        int from;
+        int to;
+        int weight;
+
+        Edge(int from, int to, int weight) {
+            this.from = from;
+            this.to = to;
+            this.weight = weight;
+        }
     }
+
+    String[] vertexNames = new String[MAX_VERTICES];
+    Edge[] edges = new Edge[MAX_EDGES];
+    int vertexCount = 0;
+    int edgeCount = 0;`;
+}
+
+export function getGraphJava(algorithmId, actionId) {
+  const profile = profiles[algorithmId];
+  if (!profile) return null;
+
+  const operation = profile.representation === 'edge-list'
+    ? edgeListOperation(actionId)
+    : matrixOperation(profile, actionId);
+  if (!operation) return null;
+
+  const usedHelpers = helperNames(profile, actionId)
+    .map(name => `\n    // Helper used by the selected operation: ${name}\n${indent(helpers[name])}`)
+    .join('\n');
+  const fields = profile.representation === 'edge-list'
+    ? edgeListFields()
+    : matrixFields(profile);
+
+  return `class ${profile.className} {
+    static final int MAX_VERTICES = 8;
+
+${fields}
 
     // Start of the selected operation
 ${indent(operation)}

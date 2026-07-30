@@ -382,30 +382,36 @@ test('los grafos muestran Java completo y Prim/Kruskal ejecutan su algoritmo', a
   await page.getByLabel('Origen / vértice').fill('G');
   await page.getByRole('button', { name: 'Agregar vértice', exact: true }).click();
   const addVertexJava = await page.locator('.code-panel pre').textContent();
-  expect(addVertexJava).toContain('class Graph');
+  expect(addVertexJava).toContain('class UndirectedGraph');
   expect(addVertexJava).toContain('String[] vertexNames');
-  expect(addVertexJava).toContain('int[][] weights');
+  expect(addVertexJava).toContain('boolean[][] adjacency');
   expect(addVertexJava).toContain('boolean addVertex(String name)');
-  expect(addVertexJava).toContain('int indexOfVertex(String name)');
+  expect(addVertexJava).toContain('int findVertex(String name)');
+  expect(addVertexJava).not.toContain('int[][] weights');
+  expect(addVertexJava).not.toContain('boolean directed');
 
   await page.goto('/grafo-dirigido');
   await page.getByLabel('Origen / vértice').fill('A');
   await page.getByLabel('Destino').fill('F');
-  await page.getByLabel('Peso').fill('4');
+  await expect(page.getByLabel('Peso')).toHaveCount(0);
   await page.getByRole('button', { name: 'Agregar arista', exact: true }).click();
   const directedJava = await page.locator('.code-panel pre').textContent();
-  expect(directedJava).toContain('final boolean directed = true');
-  expect(directedJava).toContain('if (!directed)');
+  expect(directedJava).toContain('class DirectedGraph');
+  expect(directedJava).toContain('adjacency[from][to] = true');
+  expect(directedJava).not.toContain('adjacency[to][from] = true');
+  expect(directedJava).not.toContain('directed');
 
   for (const sample of [
-    { id: 'prim', action: 'Ejecutar Prim', method: 'void prim(String startName)', cost: 15 },
-    { id: 'kruskal', action: 'Ejecutar Kruskal', method: 'void kruskal()', cost: 16 },
+    { id: 'prim', action: 'Ejecutar Prim', method: 'void prim(String startName)', storage: 'int[][] weights', forbidden: 'Edge[] edges', cost: 15 },
+    { id: 'kruskal', action: 'Ejecutar Kruskal', method: 'void kruskal()', storage: 'Edge[] edges', forbidden: 'int[][] weights', cost: 16 },
   ]) {
     await page.goto(`/${sample.id}`);
     await page.getByLabel('Velocidad').selectOption('2');
     await page.getByRole('button', { name: sample.action, exact: true }).click();
     const java = await page.locator('.code-panel pre').textContent();
     expect(java).toContain(sample.method);
+    expect(java).toContain(sample.storage);
+    expect(java).not.toContain(sample.forbidden);
     expect(java).not.toContain('void breadthFirst');
     expect(java).not.toContain('void depthFirst');
     await expect(page.locator('.operation-message')).toContainText(`costo total ${sample.cost}`, { timeout: 35_000 });

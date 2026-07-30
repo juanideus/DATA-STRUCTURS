@@ -182,18 +182,22 @@ export function getOperationDefinition(algorithm) {
   const definition = definitions[group];
   if (group === 'graph') {
     const editingActions = definition.actions.slice(0, 4);
+    const fields = algorithm.type === 'weighted'
+      ? definition.fields
+      : definition.fields.slice(0, 2);
     if (algorithm.id === 'dfs') {
-      return { ...definition, actions: [...editingActions, action('dfs-run', 'Ejecutar DFS')] };
+      return { ...definition, fields, actions: [...editingActions, action('dfs-run', 'Ejecutar DFS')] };
     }
     if (algorithm.id === 'bfs') {
-      return { ...definition, actions: [...editingActions, action('bfs-run', 'Ejecutar BFS')] };
+      return { ...definition, fields, actions: [...editingActions, action('bfs-run', 'Ejecutar BFS')] };
     }
     if (algorithm.id === 'prim') {
-      return { ...definition, actions: [...editingActions, action('prim-run', 'Ejecutar Prim')] };
+      return { ...definition, fields, actions: [...editingActions, action('prim-run', 'Ejecutar Prim')] };
     }
     if (algorithm.id === 'kruskal') {
-      return { ...definition, actions: [...editingActions, action('kruskal-run', 'Ejecutar Kruskal')] };
+      return { ...definition, fields, actions: [...editingActions, action('kruskal-run', 'Ejecutar Kruskal')] };
     }
+    return { ...definition, fields };
   }
   if (group !== 'shortestPath') return definition;
   return {
@@ -921,7 +925,7 @@ function graphTraversalTrace({ algorithm, values, edges, start, depthFirst }) {
     message: `${mode.toUpperCase()} comienza desde el vértice ${values[start]}.`,
   });
   addFrame({
-    codeNeedle: 'int start = indexOfVertex(startName);',
+    codeNeedle: 'int start = findVertex(startName);',
     message: `${values[start]} corresponde al índice ${start}.`,
     variables: [{ name: 'start', value: start, role: 'index' }],
   });
@@ -998,7 +1002,7 @@ function graphTraversalTrace({ algorithm, values, edges, start, depthFirst }) {
           variables: [{ name: 'next', value: next, role: 'index' }],
         });
         addFrame({
-          codeNeedle: 'boolean hasEdge = weights[vertex][next] != NO_EDGE;',
+          codeNeedle: 'boolean hasEdge = adjacency[vertex][next];',
           message: connection
             ? `Sí existe una arista entre ${values[current]} y ${values[next]}.`
             : `No existe una arista entre ${values[current]} y ${values[next]}.`,
@@ -1101,7 +1105,7 @@ function graphTraversalTrace({ algorithm, values, edges, start, depthFirst }) {
           variables: [{ name: 'next', value: next, role: 'index' }],
         });
         addFrame({
-          codeNeedle: 'boolean hasEdge = weights[vertex][next] != NO_EDGE;',
+          codeNeedle: 'boolean hasEdge = adjacency[vertex][next];',
           message: connection
             ? `${values[current]} sí conecta con ${values[next]}.`
             : `${values[current]} no conecta con ${values[next]}.`,

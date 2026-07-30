@@ -738,48 +738,66 @@ assert.deepEqual(
 );
 
 const editableGraphIds = ['grafo', 'grafo-dirigido', 'dfs', 'bfs', 'prim', 'kruskal'];
+const graphProfiles = {
+  grafo: ['UndirectedGraph', /boolean\[\]\[\] adjacency/],
+  'grafo-dirigido': ['DirectedGraph', /boolean\[\]\[\] adjacency/],
+  dfs: ['DepthFirstGraph', /boolean\[\]\[\] adjacency/],
+  bfs: ['BreadthFirstGraph', /boolean\[\]\[\] adjacency/],
+  prim: ['PrimGraph', /int\[\]\[\] weights/],
+  kruskal: ['KruskalGraph', /Edge\[\] edges/],
+};
 for (const graphId of editableGraphIds) {
   const graphAlgorithm = algorithms.find(item => item.id === graphId);
+  const [className, storagePattern] = graphProfiles[graphId];
   for (const action of getOperationDefinition(graphAlgorithm).actions) {
     const java = getBeginnerJava(graphAlgorithm, action.id);
-    assert.match(java, /class Graph \{/, `${graphId}/${action.id}: falta mostrar la clase Graph completa.`);
+    assert.match(java, new RegExp(`class ${className} \\{`), `${graphId}/${action.id}: falta mostrar su clase específica.`);
     assert.match(java, /String\[\] vertexNames/, `${graphId}/${action.id}: falta mostrar dónde se guardan los vértices.`);
-    assert.match(java, /int\[\]\[\] weights/, `${graphId}/${action.id}: falta mostrar dónde se guardan las aristas.`);
+    assert.match(java, storagePattern, `${graphId}/${action.id}: falta mostrar la representación propia de sus aristas.`);
     assert.match(java, /int vertexCount = 0;/, `${graphId}/${action.id}: falta declarar vertexCount.`);
-    assert.match(java, /Graph\(\)/, `${graphId}/${action.id}: falta inicializar la matriz del grafo.`);
     assert.match(java, /Start of the selected operation/, `${graphId}/${action.id}: falta delimitar la operación animada.`);
     assert.match(java, /End of the selected operation/, `${graphId}/${action.id}: falta cerrar la operación animada.`);
   }
 }
+assert.equal(
+  new Set(Object.values(graphProfiles).map(([className]) => className)).size,
+  editableGraphIds.length,
+  'Grafos: cada tema debe mostrar una clase Java identificable y distinta.',
+);
 
 const graphAddVertexJava = getBeginnerJava(graph, 'vertex-add');
 assert.match(graphAddVertexJava, /boolean addVertex\(String name\)/, 'Grafo/insertar vértice: falta el método completo.');
-assert.match(graphAddVertexJava, /int indexOfVertex\(String name\)/, 'Grafo/insertar vértice: falta mostrar la validación de duplicados.');
+assert.match(graphAddVertexJava, /int findVertex\(String name\)/, 'Grafo/insertar vértice: falta mostrar la validación de duplicados.');
 assert.match(graphAddVertexJava, /vertexNames\[vertexCount\] = name\.trim\(\)\.toUpperCase\(\)/, 'Grafo/insertar vértice: falta almacenar la etiqueta.');
 assert.match(graphAddVertexJava, /vertexCount\+\+;/, 'Grafo/insertar vértice: falta aumentar el tamaño.');
+assert.doesNotMatch(graphAddVertexJava, /int\[\]\[\] weights|Edge\[\] edges|boolean directed/, 'Grafo simple: no debe cargar pesos, lista de aristas ni una bandera de dirección.');
 
 const graphRemoveVertexJava = getBeginnerJava(graph, 'vertex-remove');
 assert.match(graphRemoveVertexJava, /vertexNames\[index\] = vertexNames\[index \+ 1\]/, 'Grafo/eliminar vértice: falta desplazar las etiquetas.');
-assert.match(graphRemoveVertexJava, /weights\[row\]\[column\] = weights\[row \+ 1\]\[column\]/, 'Grafo/eliminar vértice: falta desplazar las filas.');
-assert.match(graphRemoveVertexJava, /weights\[row\]\[column\] = weights\[row\]\[column \+ 1\]/, 'Grafo/eliminar vértice: falta desplazar las columnas.');
+assert.match(graphRemoveVertexJava, /adjacency\[row\]\[column\] = adjacency\[row \+ 1\]\[column\]/, 'Grafo/eliminar vértice: falta desplazar las filas.');
+assert.match(graphRemoveVertexJava, /adjacency\[row\]\[column\] = adjacency\[row\]\[column \+ 1\]/, 'Grafo/eliminar vértice: falta desplazar las columnas.');
 
 const directedGraph = algorithms.find(item => item.id === 'grafo-dirigido');
 const directedEdgeJava = getBeginnerJava(directedGraph, 'edge-add');
 const undirectedEdgeJava = getBeginnerJava(graph, 'edge-add');
-assert.match(directedEdgeJava, /final boolean directed = true;/, 'Grafo dirigido: el Java debe conservar la dirección.');
-assert.match(undirectedEdgeJava, /final boolean directed = false;/, 'Grafo no dirigido: el Java debe crear el enlace inverso.');
-assert.match(directedEdgeJava, /if \(!directed\) \{\s*weights\[to\]\[from\] = weight;/s, 'Agregar arista: el enlace inverso debe depender de directed.');
+assert.match(directedEdgeJava, /adjacency\[from\]\[to\] = true;/, 'Grafo dirigido: falta crear la arista de origen a destino.');
+assert.doesNotMatch(directedEdgeJava, /adjacency\[to\]\[from\] = true;|directed/, 'Grafo dirigido: no debe crear el enlace inverso ni usar una bandera genérica.');
+assert.match(undirectedEdgeJava, /adjacency\[from\]\[to\] = true;[\s\S]*adjacency\[to\]\[from\] = true;/, 'Grafo no dirigido: debe crear ambos sentidos de la arista.');
 
 const dfsAlgorithm = algorithms.find(item => item.id === 'dfs');
 const dfsJava = getBeginnerJava(dfsAlgorithm, 'dfs-run');
 assert.match(dfsJava, /void depthFirst\(String startName\)/, 'DFS: falta el método público que recibe el inicio.');
 assert.match(dfsJava, /boolean\[\] visited = new boolean\[vertexCount\]/, 'DFS: falta crear visited.');
 assert.match(dfsJava, /void depthFirstFrom\(int vertex, boolean\[\] visited\)/, 'DFS: falta mostrar el método recursivo auxiliar.');
+assert.doesNotMatch(dfsJava, /int\[\] queue|void breadthFirst|void prim|void kruskal|int\[\]\[\] weights/, 'DFS: contiene estructuras o algoritmos que no utiliza.');
 
 const bfsAlgorithm = algorithms.find(item => item.id === 'bfs');
 const bfsJava = getBeginnerJava(bfsAlgorithm, 'bfs-run');
 assert.match(bfsJava, /int\[\] queue = new int\[vertexCount\]/, 'BFS: falta mostrar la cola.');
 assert.match(bfsJava, /while \(front < end\)/, 'BFS: falta recorrer la cola completa.');
+assert.doesNotMatch(bfsJava, /depthFirst|void prim|void kruskal|int\[\]\[\] weights/, 'BFS: contiene estructuras o algoritmos que no utiliza.');
+assert.deepEqual(getOperationDefinition(bfsAlgorithm).fields.map(item => item.id), ['value', 'second'], 'BFS: no debe pedir peso porque recorre un grafo no ponderado.');
+assert.deepEqual(getOperationDefinition(dfsAlgorithm).fields.map(item => item.id), ['value', 'second'], 'DFS: no debe pedir peso porque recorre un grafo no ponderado.');
 
 for (const [algorithmId, actionId, expectedCost] of [
   ['prim', 'prim-run', 14],
@@ -791,6 +809,15 @@ for (const [algorithmId, actionId, expectedCost] of [
   assert.ok(!actions.includes('bfs-run') && !actions.includes('dfs-run'), `${spanningAlgorithm.name}: no debe sustituirse por BFS o DFS.`);
   const java = getBeginnerJava(spanningAlgorithm, actionId);
   assert.match(java, algorithmId === 'prim' ? /void prim\(String startName\)/ : /void kruskal\(\)/, `${spanningAlgorithm.name}: falta el algoritmo Java completo.`);
+  if (algorithmId === 'prim') {
+    assert.match(java, /int\[\]\[\] weights/, 'Prim: debe usar una matriz de pesos para comparar conexiones desde el árbol.');
+    assert.doesNotMatch(java, /Edge\[\] edges|void kruskal|int\[\] queue|depthFirst|union\(/, 'Prim: contiene estructuras o métodos ajenos a su lógica.');
+  } else {
+    assert.match(java, /Edge\[\] edges/, 'Kruskal: debe guardar una lista de aristas para ordenarlas.');
+    assert.match(java, /int find\(int\[\] parent, int vertex\)/, 'Kruskal: falta Union-Find para detectar ciclos.');
+    assert.doesNotMatch(java, /int\[\]\[\] weights|boolean\[\]\[\] adjacency|void prim|int\[\] queue|depthFirst/, 'Kruskal: contiene representaciones o métodos ajenos a su lógica.');
+  }
+  assert.deepEqual(getOperationDefinition(spanningAlgorithm).fields.map(item => item.id), ['value', 'second', 'index'], `${spanningAlgorithm.name}: debe conservar el campo de peso.`);
   const result = run(spanningAlgorithm, actionId, { value: 'A', second: '', index: '' });
   assert.equal(result.ok, true, `${spanningAlgorithm.name}: no construye el árbol de expansión mínima.`);
   assert.equal(result.frames.at(-1).graphState.visitedEdges.length, spanningAlgorithm.values.length - 1, `${spanningAlgorithm.name}: debe elegir V - 1 aristas.`);
