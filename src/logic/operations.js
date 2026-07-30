@@ -1,5 +1,12 @@
 import { DEFAULT_PATH_MAP, runGridPathfinding } from './pathfindingMap.js';
 import { astPreorderPositions, parseSimpleJavaAssignment } from './ast.js';
+import {
+  DENSE_MATRIX_CELL_COUNT,
+  DENSE_MATRIX_SIZE,
+  denseMatrixIndex,
+  normalizeDenseMatrixValues,
+  validDenseMatrixCoordinate,
+} from './denseMatrix.js';
 
 export const DEFAULT_GRAPH_EDGES = [
   [0, 1, 4], [1, 2, 2], [0, 3, 7], [1, 3, 3], [1, 4, 5],
@@ -152,9 +159,26 @@ const definitions = {
       action('matrix-clear', 'Vaciar matriz', 'danger'),
     ],
   },
+  matrix: {
+    fields: [
+      field('second', 'Fila', 'number'),
+      field('index', 'Columna', 'number'),
+      field('value', 'Valor', 'number'),
+    ],
+    actions: [
+      action('matrix-set', 'Guardar valor'),
+      action('matrix-get', 'Consultar celda'),
+      action('matrix-row', 'Recorrer fila'),
+      action('matrix-column', 'Recorrer columna'),
+      action('matrix-transpose', 'Transponer'),
+      action('matrix-fill', 'Rellenar'),
+      action('matrix-clear', 'Limpiar', 'danger'),
+    ],
+  },
 };
 
 export function operationGroup(algorithm) {
+  if (algorithm.id === 'matriz') return 'matrix';
   if (algorithm.id === 'matriz-dispersa') return 'sparseMatrix';
   if (algorithm.id === 'arbol-enhebrado') return 'threadedTree';
   if (algorithm.id === 'array') return 'array';
@@ -2071,6 +2095,248 @@ const solveMazeWithTrace = initialMaze => {
 
 export const SPARSE_MATRIX_ROWS = 5;
 export const SPARSE_MATRIX_COLUMNS = 6;
+
+function executeDenseMatrixOperation({ actionId, fields, values, edges }) {
+  const before = normalizeDenseMatrixValues(values);
+  const copiedEdges = edges.map(edge => [...edge]);
+  const parseInteger = raw => {
+    if (raw === undefined || raw === null || String(raw).trim() === '') return null;
+    const parsed = Number(raw);
+    return Number.isInteger(parsed) ? parsed : null;
+  };
+  const row = parseInteger(fields.second);
+  const column = parseInteger(fields.index);
+  const value = parseInteger(fields.value);
+  const rowIsValid = validDenseMatrixCoordinate(row);
+  const columnIsValid = validDenseMatrixCoordinate(column);
+  const valueIsValid = Number.isInteger(value);
+  const positionOf = (currentRow = row, currentColumn = column) => (
+    validDenseMatrixCoordinate(currentRow) && validDenseMatrixCoordinate(currentColumn)
+      ? denseMatrixIndex(currentRow, currentColumn)
+      : 0
+  );
+  const matrixVariables = (currentRow = row, currentColumn = column, extras = []) => [
+    { name: 'fila', value: Number.isFinite(currentRow) ? currentRow : '—', role: 'index' },
+    { name: 'columna', value: Number.isFinite(currentColumn) ? currentColumn : '—', role: 'index' },
+    { name: 'índice lineal', value: validDenseMatrixCoordinate(currentRow) && validDenseMatrixCoordinate(currentColumn)
+      ? `${currentRow} × ${DENSE_MATRIX_SIZE} + ${currentColumn} = ${positionOf(currentRow, currentColumn)}`
+      : 'fuera de rango', role: 'position' },
+    ...extras,
+  ];
+  const frame = (currentValues, codeNeedle, message, currentRow = row, currentColumn = column, extras = [], options = {}) => ({
+    values: [...currentValues],
+    edges: copiedEdges,
+    position: positionOf(currentRow, currentColumn),
+    codeNeedle,
+    message,
+    variables: matrixVariables(currentRow, currentColumn, extras),
+    delayMs: 560,
+    ...options,
+  });
+  const finish = (ok, updated, message, frames, position = 0) => ({
+    ok,
+    values: updated,
+    edges: copiedEdges,
+    message,
+    step: position,
+    frames,
+  });
+  const invalidPosition = () => finish(false, before, `La fila y la columna deben estar entre 0 y ${DENSE_MATRIX_SIZE - 1}.`, [], 0);
+  const invalidRow = () => finish(false, before, `La fila debe estar entre 0 y ${DENSE_MATRIX_SIZE - 1}.`, [], 0);
+  const invalidColumn = () => finish(false, before, `La columna debe estar entre 0 y ${DENSE_MATRIX_SIZE - 1}.`, [], 0);
+
+  if (actionId === 'matrix-set') {
+    if (!rowIsValid || !columnIsValid) return invalidPosition();
+    if (!valueIsValid) return finish(false, before, 'Ingresa un valor entero para guardar.', [], 0);
+    const after = [...before];
+    const previous = after[positionOf()];
+    after[positionOf()] = value;
+    const frames = [
+      frame(before, 'boolean set(int row, int column, int value) {', `Set recibe (${row}, ${column}) y el valor ${value}.`, row, column, [
+        { name: 'valor', value, role: 'input' },
+      ]),
+      frame(before, 'if (!validPosition(row, column)) {', 'La posición pertenece a la matriz; la condición es falsa.', row, column, [
+        { name: 'posición válida', value: 'true', role: 'true' },
+      ]),
+      frame(before, 'boolean validPosition(int row, int column) {', 'Se comprueban ambos índices antes de acceder al arreglo.', row, column),
+      frame(before, 'return row >= 0 && row < SIZE', `fila = ${row} y columna = ${column} están dentro de 0..3.`, row, column, [
+        { name: 'resultado', value: 'true', role: 'true' },
+      ]),
+      frame(after, 'values[row][column] = value;', `${previous} se reemplaza por ${value} en la celda (${row}, ${column}).`, row, column, [
+        { name: 'valor anterior', value: previous, role: 'value' },
+        { name: 'valor nuevo', value, role: 'input' },
+      ]),
+      frame(after, 'return true;', `Celda (${row}, ${column}) actualizada: ${previous} → ${value}.`, row, column, [], { completed: true }),
+    ];
+    return finish(true, after, `Celda (${row}, ${column}) actualizada: ${previous} → ${value}.`, frames, positionOf());
+  }
+
+  if (actionId === 'matrix-get') {
+    if (!rowIsValid || !columnIsValid) return invalidPosition();
+    const found = before[positionOf()];
+    const frames = [
+      frame(before, 'Integer get(int row, int column) {', `Get consulta la celda (${row}, ${column}).`),
+      frame(before, 'if (!validPosition(row, column)) {', 'La posición es válida; no se retorna null.', row, column, [
+        { name: 'posición válida', value: 'true', role: 'true' },
+      ]),
+      frame(before, 'boolean validPosition(int row, int column) {', 'Se validan la fila y la columna.', row, column),
+      frame(before, 'return row >= 0 && row < SIZE', 'Los dos índices están dentro de la matriz.', row, column, [
+        { name: 'resultado', value: 'true', role: 'true' },
+      ]),
+      frame(before, 'return values[row][column];', `values[${row}][${column}] contiene ${found}.`, row, column, [
+        { name: 'retorno', value: found, role: 'value' },
+      ], { completed: true }),
+    ];
+    return finish(true, before, `La celda (${row}, ${column}) contiene ${found}.`, frames, positionOf());
+  }
+
+  if (actionId === 'matrix-row') {
+    if (!rowIsValid) return invalidRow();
+    const result = [];
+    const frames = [
+      frame(before, 'int[] readRow(int row) {', `Comienza el recorrido horizontal de la fila ${row}.`, row, 0),
+      frame(before, 'if (!validIndex(row)) {', `La fila ${row} es válida.`, row, 0, [
+        { name: 'índice válido', value: 'true', role: 'true' },
+      ]),
+      frame(before, 'boolean validIndex(int index) {', 'Se comprueba el índice antes de recorrer.', row, 0),
+      frame(before, 'return index >= 0 && index < SIZE;', `${row} está dentro de 0..3.`, row, 0, [
+        { name: 'resultado', value: 'true', role: 'true' },
+      ]),
+      frame(before, 'int[] result = new int[SIZE];', 'Se crea un arreglo de cuatro posiciones para el resultado.', row, 0, [
+        { name: 'result.length', value: DENSE_MATRIX_SIZE, role: 'size' },
+      ]),
+    ];
+    for (let currentColumn = 0; currentColumn < DENSE_MATRIX_SIZE; currentColumn++) {
+      result.push(before[denseMatrixIndex(row, currentColumn)]);
+      frames.push(
+        frame(before, 'for (int column = 0; column < SIZE; column++) {', `column vale ${currentColumn}; el ciclo continúa.`, row, currentColumn, [
+          { name: 'condición', value: 'true', role: 'true' },
+        ]),
+        frame(before, 'result[column] = values[row][column];', `Copia ${result.at(-1)} desde (${row}, ${currentColumn}).`, row, currentColumn, [
+          { name: 'resultado parcial', value: result.join(', '), role: 'value' },
+        ]),
+      );
+    }
+    frames.push(
+      frame(before, 'for (int column = 0; column < SIZE; column++) {', 'column vale 4; la condición es falsa y el ciclo termina.', row, DENSE_MATRIX_SIZE - 1, [
+        { name: 'column', value: DENSE_MATRIX_SIZE, role: 'index' },
+        { name: 'condición', value: 'false', role: 'false' },
+      ]),
+      frame(before, 'return result;', `Fila obtenida: [${result.join(', ')}].`, row, DENSE_MATRIX_SIZE - 1, [
+        { name: 'result', value: result.join(', '), role: 'value' },
+      ], { completed: true }),
+    );
+    return finish(true, before, `Fila ${row}: ${result.join(' → ')}`, frames, denseMatrixIndex(row, DENSE_MATRIX_SIZE - 1));
+  }
+
+  if (actionId === 'matrix-column') {
+    if (!columnIsValid) return invalidColumn();
+    const result = [];
+    const frames = [
+      frame(before, 'int[] readColumn(int column) {', `Comienza el recorrido vertical de la columna ${column}.`, 0, column),
+      frame(before, 'if (!validIndex(column)) {', `La columna ${column} es válida.`, 0, column, [
+        { name: 'índice válido', value: 'true', role: 'true' },
+      ]),
+      frame(before, 'boolean validIndex(int index) {', 'Se comprueba el índice antes de recorrer.', 0, column),
+      frame(before, 'return index >= 0 && index < SIZE;', `${column} está dentro de 0..3.`, 0, column, [
+        { name: 'resultado', value: 'true', role: 'true' },
+      ]),
+      frame(before, 'int[] result = new int[SIZE];', 'Se crea el arreglo que recibirá la columna.', 0, column, [
+        { name: 'result.length', value: DENSE_MATRIX_SIZE, role: 'size' },
+      ]),
+    ];
+    for (let currentRow = 0; currentRow < DENSE_MATRIX_SIZE; currentRow++) {
+      result.push(before[denseMatrixIndex(currentRow, column)]);
+      frames.push(
+        frame(before, 'for (int row = 0; row < SIZE; row++) {', `row vale ${currentRow}; el ciclo continúa.`, currentRow, column, [
+          { name: 'condición', value: 'true', role: 'true' },
+        ]),
+        frame(before, 'result[row] = values[row][column];', `Copia ${result.at(-1)} desde (${currentRow}, ${column}).`, currentRow, column, [
+          { name: 'resultado parcial', value: result.join(', '), role: 'value' },
+        ]),
+      );
+    }
+    frames.push(
+      frame(before, 'for (int row = 0; row < SIZE; row++) {', 'row vale 4; la condición es falsa y el ciclo termina.', DENSE_MATRIX_SIZE - 1, column, [
+        { name: 'row', value: DENSE_MATRIX_SIZE, role: 'index' },
+        { name: 'condición', value: 'false', role: 'false' },
+      ]),
+      frame(before, 'return result;', `Columna obtenida: [${result.join(', ')}].`, DENSE_MATRIX_SIZE - 1, column, [
+        { name: 'result', value: result.join(', '), role: 'value' },
+      ], { completed: true }),
+    );
+    return finish(true, before, `Columna ${column}: ${result.join(' → ')}`, frames, denseMatrixIndex(DENSE_MATRIX_SIZE - 1, column));
+  }
+
+  if (actionId === 'matrix-transpose') {
+    const working = [...before];
+    const frames = [
+      frame(working, 'void transpose() {', 'La transposición intercambiará cada celda sobre la diagonal con su reflejo.', 0, 0),
+    ];
+    for (let currentRow = 0; currentRow < DENSE_MATRIX_SIZE; currentRow++) {
+      frames.push(frame(working, 'for (int row = 0; row < SIZE; row++) {', `row vale ${currentRow}.`, currentRow, currentRow, [
+        { name: 'row', value: currentRow, role: 'index' },
+      ]));
+      for (let currentColumn = currentRow + 1; currentColumn < DENSE_MATRIX_SIZE; currentColumn++) {
+        const firstIndex = denseMatrixIndex(currentRow, currentColumn);
+        const secondIndex = denseMatrixIndex(currentColumn, currentRow);
+        const temporary = working[firstIndex];
+        frames.push(
+          frame(working, 'for (int column = row + 1; column < SIZE; column++) {', `Se intercambiarán (${currentRow}, ${currentColumn}) y (${currentColumn}, ${currentRow}).`, currentRow, currentColumn),
+          frame(working, 'int temporary = values[row][column];', `${temporary} se guarda en temporary.`, currentRow, currentColumn, [
+            { name: 'temporary', value: temporary, role: 'value' },
+          ]),
+        );
+        working[firstIndex] = working[secondIndex];
+        frames.push(frame(working, 'values[row][column] = values[column][row];', `${working[firstIndex]} pasa a (${currentRow}, ${currentColumn}).`, currentRow, currentColumn, [
+          { name: 'temporary', value: temporary, role: 'value' },
+        ]));
+        working[secondIndex] = temporary;
+        frames.push(frame(working, 'values[column][row] = temporary;', `${temporary} pasa a (${currentColumn}, ${currentRow}); el intercambio termina.`, currentColumn, currentRow, [
+          { name: 'temporary', value: temporary, role: 'value' },
+        ]));
+      }
+    }
+    frames.at(-1).completed = true;
+    frames.at(-1).message = 'La matriz transpuesta está completa.';
+    return finish(true, working, 'La matriz fue transpuesta sobre su diagonal principal.', frames, frames.at(-1).position);
+  }
+
+  if (actionId === 'matrix-fill' || actionId === 'matrix-clear') {
+    const fillValue = actionId === 'matrix-clear' ? 0 : value;
+    if (!Number.isInteger(fillValue)) return finish(false, before, 'Ingresa un valor entero para rellenar.', [], 0);
+    const working = [...before];
+    const frames = actionId === 'matrix-clear'
+      ? [
+          frame(working, 'void clear() {', 'Limpiar delega el trabajo al método fill.', 0, 0),
+          frame(working, 'fill(0);', 'Se llama a fill con el valor 0.', 0, 0, [
+            { name: 'value', value: 0, role: 'input' },
+          ]),
+          frame(working, 'void fill(int value) {', 'Entra al método que recorrerá todas las celdas.', 0, 0),
+        ]
+      : [frame(working, 'void fill(int value) {', `Fill recorrerá la matriz usando el valor ${fillValue}.`, 0, 0, [
+          { name: 'value', value: fillValue, role: 'input' },
+        ])];
+    for (let currentRow = 0; currentRow < DENSE_MATRIX_SIZE; currentRow++) {
+      frames.push(frame(working, 'for (int row = 0; row < SIZE; row++) {', `Comienza la fila ${currentRow}.`, currentRow, 0));
+      for (let currentColumn = 0; currentColumn < DENSE_MATRIX_SIZE; currentColumn++) {
+        frames.push(frame(working, 'for (int column = 0; column < SIZE; column++) {', `Se visita (${currentRow}, ${currentColumn}).`, currentRow, currentColumn));
+        working[denseMatrixIndex(currentRow, currentColumn)] = fillValue;
+        frames.push(frame(working, 'values[row][column] = value;', `La celda (${currentRow}, ${currentColumn}) recibe ${fillValue}.`, currentRow, currentColumn, [
+          { name: 'value', value: fillValue, role: 'input' },
+        ]));
+      }
+    }
+    frames.at(-1).completed = true;
+    const message = actionId === 'matrix-clear'
+      ? 'La matriz quedó limpia: todas sus celdas contienen 0.'
+      : `Todas las celdas ahora contienen ${fillValue}.`;
+    frames.at(-1).message = message;
+    return finish(true, working, message, frames, DENSE_MATRIX_CELL_COUNT - 1);
+  }
+
+  return null;
+}
 
 const sparseCellKey = cell => `${cell.row}:${cell.column}`;
 const sparseCellLabel = cell => cell ? `(${cell.row}, ${cell.column}) = ${cell.value}` : 'cabecera';
@@ -4034,6 +4300,7 @@ function executeAstOperation({ actionId, fields, values, edges }) {
 
 export function executeOperation({ algorithm, actionId, fields, values, edges, initialValues, initialEdges = DEFAULT_GRAPH_EDGES }) {
   const group = operationGroup(algorithm);
+  if (group === 'matrix') return executeDenseMatrixOperation({ actionId, fields, values, edges });
   if (group === 'sparseMatrix') return executeSparseMatrixOperation({ actionId, fields, values, edges });
   if (group === 'threadedTree') return executeThreadedTreeOperation({ actionId, fields, values, initialValues, edges });
   if (group === 'ast') return executeAstOperation({ actionId, fields, values, edges });

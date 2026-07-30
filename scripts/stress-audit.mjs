@@ -64,6 +64,13 @@ function baselineFields(algorithm, actionId, trial = 0) {
   if (actionId === 'edge-remove') Object.assign(fields, { value: 'A', second: 'B' });
   if (['bfs-run', 'dfs-run'].includes(actionId)) fields.value = String(first);
   if (actionId === 'shortest-path') Object.assign(fields, { value: String(algorithm.values[0]), second: String(algorithm.values.at(-1)), index: '' });
+  if (algorithm.id === 'matriz') {
+    Object.assign(fields, {
+      value: String(30 + trial),
+      second: String(trial % 4),
+      index: String((trial + 1) % 4),
+    });
+  }
   if (algorithm.id === 'matriz-dispersa') {
     const cell = algorithm.values[trial % algorithm.values.length] ?? { value: 1, row: 0, column: 0 };
     Object.assign(fields, {

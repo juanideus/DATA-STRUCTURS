@@ -89,6 +89,13 @@ function fieldsFor(algorithm, actionId, trial = 0) {
   if (actionId === 'edge-remove') Object.assign(samples, { value: 'A', second: 'B' });
   if (['bfs-run', 'dfs-run'].includes(actionId)) samples.value = String(first);
   if (actionId === 'shortest-path') Object.assign(samples, { value: String(algorithm.values[0]), second: String(algorithm.values.at(-1)), index: '' });
+  if (algorithm.id === 'matriz') {
+    Object.assign(samples, {
+      value: String(30 + trial),
+      second: String(trial % 4),
+      index: String((trial + 1) % 4),
+    });
+  }
   if (algorithm.id === 'matriz-dispersa') {
     const cell = algorithm.values[trial % algorithm.values.length];
     Object.assign(samples, {
@@ -138,7 +145,7 @@ function validQueens(queens) {
   )));
 }
 
-assert.equal(algorithms.length, 55, 'El catálogo debe contener 55 temas.');
+assert.equal(algorithms.length, 56, 'El catálogo debe contener 56 temas.');
 assert.equal(new Set(algorithms.map(algorithm => algorithm.id)).size, algorithms.length, 'El catálogo contiene identificadores duplicados.');
 assert.equal(new Set(algorithms.map(algorithm => algorithm.name)).size, algorithms.length, 'El catálogo contiene nombres duplicados.');
 assert.equal(Object.keys(educationalDescriptions).length, algorithms.length, 'La cantidad de descripciones no coincide con el catálogo.');
@@ -271,6 +278,40 @@ for (const algorithm of algorithms) {
 }
 
 assert.deepEqual(incompleteJavaSnippets, [], `Hay métodos Java utilizados pero no mostrados:\n${JSON.stringify(incompleteJavaSnippets, null, 2)}`);
+
+const denseMatrix = algorithms.find(item => item.id === 'matriz');
+assert.ok(denseMatrix, 'Falta la matriz densa.');
+assert.equal(operationGroup(denseMatrix), 'matrix', 'La matriz densa debe usar lógica independiente de la matriz poco poblada.');
+const denseSet = run(denseMatrix, 'matrix-set', { value: '42', second: '1', index: '2' });
+assert.equal(denseSet.ok, true, 'Matriz/guardar: una coordenada válida debe actualizarse.');
+assert.equal(denseSet.values[1 * 4 + 2], 42, 'Matriz/guardar: el valor no quedó en fila × 4 + columna.');
+assert.ok(denseSet.frames.some(frame => frame.codeNeedle === 'values[row][column] = value;'), 'Matriz/guardar: falta animar la asignación bidimensional.');
+assert.equal(run(denseMatrix, 'matrix-get', { value: '', second: '2', index: '3' }).message, 'La celda (2, 3) contiene 0.', 'Matriz/consultar: debe devolver la celda solicitada.');
+assert.match(run(denseMatrix, 'matrix-row', { value: '', second: '2', index: '' }).message, /4 → 6 → 9 → 0/, 'Matriz/fila: el recorrido horizontal es incorrecto.');
+assert.match(run(denseMatrix, 'matrix-column', { value: '', second: '', index: '1' }).message, /0 → 1 → 6 → 7/, 'Matriz/columna: el recorrido vertical es incorrecto.');
+const denseTransposed = run(denseMatrix, 'matrix-transpose', {});
+assert.deepEqual(
+  denseTransposed.values,
+  [3, 5, 4, 2, 0, 1, 6, 7, 7, 0, 9, 3, 2, 8, 0, 5],
+  'Matriz/transponer: las filas no se convirtieron correctamente en columnas.',
+);
+assert.ok(denseTransposed.frames.some(frame => frame.codeNeedle === 'int temporary = values[row][column];'), 'Matriz/transponer: falta mostrar el intercambio.');
+assert.deepEqual(run(denseMatrix, 'matrix-fill', { value: '8' }).values, new Array(16).fill(8), 'Matriz/rellenar: debe modificar las 16 celdas.');
+assert.deepEqual(run(denseMatrix, 'matrix-clear', {}).values, new Array(16).fill(0), 'Matriz/limpiar: debe conservar la dimensión y escribir ceros.');
+for (const invalidFields of [
+  { value: '5', second: '-1', index: '0' },
+  { value: '5', second: '0', index: '4' },
+  { value: '5.5', second: '0', index: '0' },
+  { value: '5', second: '', index: '0' },
+]) {
+  const rejected = run(denseMatrix, 'matrix-set', invalidFields);
+  assert.equal(rejected.ok, false, 'Matriz/guardar: debe rechazar coordenadas o valores inválidos.');
+  assert.deepEqual(rejected.values, denseMatrix.values, 'Matriz/guardar: un error no debe modificar la cuadrícula.');
+}
+const denseMatrixJava = getBeginnerJava(denseMatrix, 'matrix-transpose');
+assert.match(denseMatrixJava, /int\[\]\[\] values/, 'Matriz: el Java debe mostrar el arreglo bidimensional.');
+assert.match(denseMatrixJava, /column = row \+ 1/, 'Matriz/transponer: debe recorrer sólo sobre la diagonal.');
+assert.doesNotMatch(denseMatrixJava, /\bNode\b|AROW|ACOL/, 'Matriz: no debe reutilizar los nodos de la matriz poco poblada.');
 
 const sparseMatrix = algorithms.find(item => item.id === 'matriz-dispersa');
 assert.ok(sparseMatrix, 'Falta la matriz poco poblada.');

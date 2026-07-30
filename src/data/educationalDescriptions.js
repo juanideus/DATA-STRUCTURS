@@ -528,6 +528,16 @@ export const educationalDescriptions = {
     'La caja de una celda comienza en fila - fila % 3 y columna - columna % 3.'
   ),
 
+  matriz: guide(
+    'Una Matriz es una estructura bidimensional que organiza valores en filas y columnas. En Java puede representarse con un arreglo como int[4][4], donde cada celda se identifica mediante dos índices.',
+    'La matriz densa reserva espacio para todas sus posiciones, incluso cuando algunas contienen cero. values[fila][columna] permite acceder directamente a una celda en O(1). Para comprender su distribución lineal puede imaginarse el índice fila × cantidadDeColumnas + columna. Los recorridos usan un ciclo para una fila o columna y dos ciclos anidados para visitar toda la cuadrícula.',
+    'Guardar o actualizar una celda|Consultar por fila y columna|Recorrer una fila completa|Recorrer una columna completa|Transponer sobre la diagonal|Rellenar o limpiar todas las posiciones',
+    'Acceso directo O(1)|Representación natural de tablas|Recorridos predecibles|Excelente localidad de memoria|Fácil de usar con ciclos anidados',
+    'Reserva espacio para todas las celdas|Insertar una fila puede requerir copiar datos|Los índices empiezan en cero|Una matriz rectangular cambia dimensiones al transponerse',
+    'Imágenes digitales|Tableros de juegos|Datos científicos|Transformaciones geométricas|Programación dinámica y grafos',
+    'En una matriz 4×4, la celda [2][3] pertenece a la tercera fila y cuarta columna. Su posición lineal equivalente es 2 × 4 + 3 = 11.',
+    'Para transponer una matriz cuadrada no intercambies dos veces la misma pareja: recorre sólo column desde row + 1 y cambia [row][column] con [column][row].'
+  ),
   'matriz-dispersa': guide(
     'Una Matriz Poco Poblada o Matriz Dispersa contiene principalmente ceros. En vez de reservar una celda para cada posición, guarda únicamente los valores distintos de cero como nodos enlazados.',
     'La estructura mantiene un arreglo AROW con una cabecera circular por fila y un arreglo ACOL con una cabecera circular por columna. La cabecera de fila apunta al nodo de mayor columna y left avanza de derecha a izquierda; la cabecera de columna apunta al nodo de mayor fila y up avanza de abajo hacia arriba. El último nodo siempre vuelve a su cabecera. El mismo nodo pertenece a ambas listas y nunca se duplica.',

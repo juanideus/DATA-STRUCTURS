@@ -396,6 +396,12 @@ export const guideJavaExamples = {
     '}',
     'return false;'),
 
+  matriz: example('Recorrer una fila', 'La fila permanece fija mientras column avanza desde 0 hasta la última posición.',
+    'int row = 2;',
+    'for (int column = 0; column < values[row].length; column++) {',
+    '    int current = values[row][column];',
+    '    System.out.println(current);',
+    '}'),
   'matriz-dispersa': example('Enlazar una celda en dos listas circulares', 'El mismo nodo se conecta hacia la izquierda en AROW y hacia arriba en ACOL.',
     'class Node {',
     '    int value, row, column;',

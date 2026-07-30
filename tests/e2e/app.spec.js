@@ -42,7 +42,7 @@ test('abre un tema mediante un enlace compartible', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Sudoku Solver 9×9', level: 1 })).toBeVisible();
 });
 
-test('los 55 temas cargan su visualizador, controles y código sin errores', async ({ page }) => {
+test('los 56 temas cargan su visualizador, controles y código sin errores', async ({ page }) => {
   test.setTimeout(180_000);
   const pageErrors = [];
   const failedResponses = [];
@@ -110,6 +110,42 @@ test('el AST construye la asignación, anima su Java completo y recorre en preor
   await page.getByRole('button', { name: 'Construir AST', exact: true }).click();
   await expect(page.locator('.operation-message')).toHaveClass(/error/);
   await expect(page.locator('.tree-ast .tree-node')).toHaveCount(7);
+});
+
+test('la matriz densa sincroniza índices, recorridos y transposición con Java', async ({ page }) => {
+  await page.goto('/matriz');
+  await expect(page.getByRole('heading', { name: 'Matriz', level: 1 })).toBeVisible();
+  await expect(page.locator('.dense-matrix-cell')).toHaveCount(16);
+  await expect(page.locator('.code-panel pre')).toContainText('int[][] values');
+  await expect(page.locator('.code-panel pre')).toContainText('boolean set');
+
+  await page.getByRole('spinbutton', { name: 'Fila', exact: true }).fill('1');
+  await page.getByRole('spinbutton', { name: 'Columna', exact: true }).fill('2');
+  await page.getByRole('spinbutton', { name: 'Valor', exact: true }).fill('42');
+  await page.getByRole('button', { name: 'Guardar valor', exact: true }).click();
+  const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+  if (await pause.isVisible()) await pause.click();
+  for (let index = 0; index < 8; index++) {
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+  await expect(page.locator('[data-matrix-row="1"][data-matrix-column="2"]')).toContainText('42');
+  await expect(page.locator('.operation-message')).toContainText('Celda (1, 2) actualizada');
+
+  await page.getByRole('button', { name: 'Transponer', exact: true }).click();
+  if (await pause.isVisible()) await pause.click();
+  for (let index = 0; index < 35; index++) {
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+  await expect(page.locator('[data-matrix-row="0"][data-matrix-column="1"]')).toContainText('5');
+  await expect(page.locator('[data-matrix-row="2"][data-matrix-column="1"]')).toContainText('42');
+  await expect(page.locator('.operation-message')).toContainText('matriz transpuesta');
+
+  await page.getByRole('spinbutton', { name: 'Fila', exact: true }).fill('4');
+  await page.getByRole('spinbutton', { name: 'Columna', exact: true }).fill('0');
+  await page.getByRole('spinbutton', { name: 'Valor', exact: true }).fill('9');
+  await page.getByRole('button', { name: 'Guardar valor', exact: true }).click();
+  await expect(page.locator('.operation-message')).toHaveClass(/error/);
+  await expect(page.locator('.dense-matrix-cell')).toHaveCount(16);
 });
 
 test('rechaza datos extremos sin alterar ni romper las estructuras', async ({ page }) => {

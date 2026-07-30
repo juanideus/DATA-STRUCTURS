@@ -17,6 +17,7 @@ import {
 } from './logic/codeAnimation.js';
 import { DEFAULT_GRAPH_EDGES, DEFAULT_GRAPH_POSITIONS, executeOperation, getOperationDefinition, getThreadedTreeLinks, operationGroup, SPARSE_MATRIX_COLUMNS, SPARSE_MATRIX_ROWS } from './logic/operations.js';
 import { AST_EXAMPLES, astValuesFromSource } from './logic/ast.js';
+import { DENSE_MATRIX_SIZE, normalizeDenseMatrixValues } from './logic/denseMatrix.js';
 import { createRandomPathMap, DEFAULT_PATH_MAP } from './logic/pathfindingMap.js';
 
 const EducationalDescription = lazy(() => import('./components/EducationalDescription.jsx'));
@@ -151,6 +152,11 @@ function balancedLevelOrder(sortedValues) {
 function createRandomValues(algorithm) {
   const amount = algorithm.values.length;
 
+  if (algorithm.id === 'matriz') {
+    return Array.from({ length: DENSE_MATRIX_SIZE ** 2 }, () => (
+      Math.random() < .22 ? 0 : randomNumber(1, 20)
+    ));
+  }
   if (algorithm.id === 'matriz-dispersa') {
     const coordinates = [];
     const target = randomNumber(8, 12);
@@ -270,6 +276,39 @@ function CircularListVisual({ algorithm, step }) {
     </g>)}
     <text className="circle-caption" x={width/2} y="153" textAnchor="middle">{doubleCircular ? 'NEXT: ÚLTIMO → PRIMERO  ·  PREV: PRIMERO → ÚLTIMO' : 'NEXT: ÚLTIMO NODO → PRIMER NODO'}</text>
   </svg>
+  </div>;
+}
+
+function DenseMatrixVisual({ algorithm, step }) {
+  const values = normalizeDenseMatrixValues(algorithm.values);
+  return <div className="dense-matrix-scene" role="img" aria-label="Matriz densa de cuatro filas y cuatro columnas">
+    <div className="dense-matrix-heading">
+      <strong>int[4][4]</strong>
+      <span>índice lineal = fila × 4 + columna</span>
+    </div>
+    <div className="dense-matrix-grid">
+      <span className="matrix-corner">f\c</span>
+      {Array.from({ length: DENSE_MATRIX_SIZE }, (_, column) => (
+        <span className="matrix-axis column-axis" key={`column-${column}`}>c{column}</span>
+      ))}
+      {Array.from({ length: DENSE_MATRIX_SIZE }, (_, row) => <div className="matrix-row" key={`row-${row}`}>
+        <span className="matrix-axis row-axis">f{row}</span>
+        {Array.from({ length: DENSE_MATRIX_SIZE }, (_, column) => {
+          const index = row * DENSE_MATRIX_SIZE + column;
+          return <div
+            className={`dense-matrix-cell ${row === column ? 'diagonal' : ''} ${index === step ? 'active' : ''}`}
+            data-matrix-row={row}
+            data-matrix-column={column}
+            data-matrix-index={index}
+            key={`${row}-${column}`}
+          >
+            <strong>{values[index]}</strong>
+            <small>[{row}][{column}]</small>
+          </div>;
+        })}
+      </div>)}
+    </div>
+    <div className="dense-matrix-legend"><i/> diagonal principal</div>
   </div>;
 }
 
@@ -1309,6 +1348,7 @@ function SpecialVisual({ algorithm, step }) {
 }
 
 function Visualizer({ algorithm, step }) {
+  if (algorithm.type === 'matrix') return <DenseMatrixVisual algorithm={algorithm} step={step}/>;
   if (algorithm.type === 'sparse-matrix') return <SparseMatrixVisual algorithm={algorithm}/>;
   if (!algorithm.values.length) return <div className="empty-visual"><strong>∅</strong><span>Estructura vacía</span></div>;
   if (['dijkstra','a-star'].includes(algorithm.id)) return <PathMapVisual algorithm={algorithm}/>;
@@ -1552,6 +1592,8 @@ function App() {
         ? 'La cola usa nodos y dos referencias: front indica quién sale primero y rear dónde se agrega. Enqueue enlaza al final y Dequeue avanza front en O(1), sin desplazar todos los elementos.'
     : baseAlgorithm.id === 'matriz-dispersa'
       ? 'El código muestra AROW, ACOL y un único Node con left y up. AROW recorre de derecha a izquierda y ACOL de abajo hacia arriba hasta volver a sus cabeceras.'
+    : baseAlgorithm.id === 'matriz'
+      ? 'La matriz usa un arreglo bidimensional int[4][4]. Cada acceso comprueba fila y columna antes de usar values[fila][columna]. Los recorridos muestran los ciclos completos y la transposición intercambia únicamente las celdas situadas sobre la diagonal.'
       : baseAlgorithm.id === 'arbol-enhebrado'
         ? 'Las líneas sólidas son hijos reales. Las flechas discontinuas son hilos: LT lleva al predecesor y RT al sucesor inorden. El código comprueba los indicadores antes de seguir cada referencia.'
       : baseAlgorithm.id === 'ast'

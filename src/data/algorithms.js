@@ -1,3 +1,5 @@
+import { DEFAULT_DENSE_MATRIX_VALUES } from '../logic/denseMatrix.js';
+
 const item = (id, name, category, type, complexity, description, code, values) => ({
   id, name, category, type, complexity, description, code, values,
 });
@@ -77,6 +79,16 @@ export const algorithms = [
     0,0,0,0,8,0,0,7,9,
   ]),
 
+  item('matriz','Matriz','Otros','matrix','Acceso O(1) · Recorridos O(n) · Transponer O(n²)','Organiza valores en una cuadrícula densa de filas y columnas. Cada celda se identifica por dos índices y ocupa una posición fija.',`guardar(valor, fila, columna):
+  verificar 0 ≤ fila < 4
+  verificar 0 ≤ columna < 4
+  matriz[fila][columna] ← valor
+
+transponer():
+  para fila desde 0 hasta 3
+    para columna desde fila + 1 hasta 3
+      intercambiar matriz[fila][columna]
+                  con matriz[columna][fila]`,DEFAULT_DENSE_MATRIX_VALUES),
   item('matriz-dispersa','Matriz poco poblada','Otros','sparse-matrix','Insertar / eliminar O(F + C) · Buscar O(F)','Representa únicamente las celdas distintas de cero mediante listas circulares invertidas: AROW recorre de derecha a izquierda y ACOL de abajo hacia arriba.',`insertar(valor, fila, columna):\n  verificar que la posición no exista\n  crear un nodo con valor, fila y columna\n  enlazarlo en AROW[fila] mediante left\n  enlazarlo en ACOL[columna] mediante up\n  ambos recorridos vuelven a su cabecera`,[
     {value:8,row:0,column:1},
     {value:3,row:0,column:4},
