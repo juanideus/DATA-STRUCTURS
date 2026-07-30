@@ -810,4 +810,65 @@ for (const [actionId, fields] of arrayCases) {
   assert.deepEqual(frames.at(-1)?.values, result.values, `Array ${actionId}: código y animación terminan en estados distintos.`);
 }
 
+const sortingCases = [
+  { label: 'mezclado', values: [5, 1, 4, 2, 8, 0, 2] },
+  { label: 'ordenado', values: [-4, -1, 0, 3, 7, 12] },
+  { label: 'inverso', values: [9, 7, 5, 3, 1, -1] },
+  { label: 'repetidos', values: [4, 4, 2, 4, 2, 2, 4] },
+  { label: 'negativos', values: [-3, -12, 5, 0, -3, 8] },
+  { label: 'unitario', values: [42] },
+  { label: 'vacío', values: [] },
+];
+for (const algorithmId of ['quick-sort', 'merge-sort']) {
+  const sortAlgorithm = algorithms.find(item => item.id === algorithmId);
+  const java = getBeginnerJava(sortAlgorithm, 'sort');
+  assert.doesNotMatch(java, /bubbleSort|values\[i\]\s*>\s*values\[i\s*\+\s*1\]/, `${sortAlgorithm.name}: no debe reutilizar Bubble Sort.`);
+
+  for (const { label, values } of sortingCases) {
+    const result = run(sortAlgorithm, 'sort', {}, values);
+    const expected = [...values].sort((a, b) => a - b);
+    assert.deepEqual(result.values, expected, `${sortAlgorithm.name}/${label}: el resultado no quedó ordenado.`);
+    assert.deepEqual(result.frames.at(-1)?.values, expected, `${sortAlgorithm.name}/${label}: el último fotograma no coincide con el resultado.`);
+    assert.ok(
+      result.frames.every(frame => typeof frame.codeNeedle === 'string' && java.includes(frame.codeNeedle)),
+      `${sortAlgorithm.name}/${label}: un paso visual no corresponde a una línea del código mostrado.`,
+    );
+  }
+
+  const trace = run(sortAlgorithm, 'sort', {}, [5, 1, 4, 2, 8, 0, 2]).frames;
+  const synchronizedTrace = adaptFramesToCode(trace, java, true);
+  assert.ok(synchronizedTrace.every(frame => Number.isInteger(frame.codeLine)), `${sortAlgorithm.name}: faltan líneas de código sincronizadas.`);
+
+  if (algorithmId === 'quick-sort') {
+    assert.match(java, /int partition\(int low, int high\)/, 'Quick Sort: falta mostrar partition.');
+    assert.match(java, /int pivot = values\[high\]/, 'Quick Sort: falta seleccionar el pivote real.');
+    assert.match(java, /quickSort\(low, pivotIndex - 1\)/, 'Quick Sort: falta la recursión izquierda.');
+    assert.match(java, /quickSort\(pivotIndex \+ 1, high\)/, 'Quick Sort: falta la recursión derecha.');
+    for (const phase of ['pivot-selected', 'partition-compare', 'quick-swap-call', 'pivot-fixed', 'quick-recursion']) {
+      assert.ok(trace.some(frame => frame.sortPhase === phase), `Quick Sort: falta animar la fase ${phase}.`);
+    }
+    const conditions = trace
+      .flatMap(frame => frame.variables ?? [])
+      .filter(variable => variable.name === 'condición')
+      .map(variable => variable.value);
+    assert.ok(conditions.includes('true') && conditions.includes('false'), 'Quick Sort: las comparaciones deben mostrar resultados true y false.');
+    assert.ok(trace.some(frame => frame.sortFixedPositions?.length > 0), 'Quick Sort: no marca los pivotes en su posición definitiva.');
+  } else {
+    assert.match(java, /int\[\] help = new int\[size\]/, 'Merge Sort: falta crear el arreglo auxiliar.');
+    assert.match(java, /void mergeSort\(int left, int right, int\[\] help\)/, 'Merge Sort: falta mostrar la división recursiva.');
+    assert.match(java, /void merge\(int left, int middle, int right, int\[\] help\)/, 'Merge Sort: falta mostrar el método merge.');
+    for (const phase of ['merge-divide', 'merge-compare', 'merge-copy-left', 'merge-copy-right', 'merge-write']) {
+      assert.ok(trace.some(frame => frame.sortPhase === phase), `Merge Sort: falta animar la fase ${phase}.`);
+    }
+    assert.ok(
+      trace.some(frame => frame.sortAuxValues?.some(value => value !== undefined)),
+      'Merge Sort: el arreglo help nunca muestra los valores copiados.',
+    );
+    assert.ok(
+      trace.some(frame => frame.sortLeftRange && frame.sortRightRange),
+      'Merge Sort: no distingue visualmente las dos mitades.',
+    );
+  }
+}
+
 console.log(`AUDITORÍA OK: ${algorithms.length} temas, ${actionCount} acciones, ${executionCount} pruebas funcionales y ${actionIds.size} funciones distintas.`);

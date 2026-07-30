@@ -396,6 +396,13 @@ const basic = {
 
 const special = {
   ...linkedListJava,
+  'merge-sort:sort': `void sort() {
+    int[] help = new int[size];
+    mergeSort(0, size - 1, help);
+}`,
+  'quick-sort:sort': `void sort() {
+    quickSort(0, size - 1);
+}`,
   'dijkstra:shortest-path': `int[] dijkstra(int[] map, int rows, int columns,
                        int start, int goal) {
     int total = rows * columns;
@@ -938,10 +945,76 @@ const contextualHelpers = {
 }`,
   },
   'quick-sort': {
+    quickSort: `void quickSort(int low, int high) {
+    if (low >= high) {
+        return;
+    }
+
+    int pivotIndex = partition(low, high);
+    quickSort(low, pivotIndex - 1);
+    quickSort(pivotIndex + 1, high);
+}`,
+    partition: `int partition(int low, int high) {
+    int pivot = values[high];
+    int smaller = low - 1;
+
+    for (int current = low; current < high; current++) {
+        if (values[current] <= pivot) {
+            smaller++;
+            swap(smaller, current);
+        }
+    }
+
+    swap(smaller + 1, high);
+    return smaller + 1;
+}`,
     swap: `void swap(int first, int second) {
     int temporary = values[first];
     values[first] = values[second];
     values[second] = temporary;
+}`,
+  },
+  'merge-sort': {
+    mergeSort: `void mergeSort(int left, int right, int[] help) {
+    if (left >= right) {
+        return;
+    }
+
+    int middle = (left + right) / 2;
+    mergeSort(left, middle, help);
+    mergeSort(middle + 1, right, help);
+    merge(left, middle, right, help);
+}`,
+    merge: `void merge(int left, int middle, int right, int[] help) {
+    int i = left;
+    int j = middle + 1;
+    int k = left;
+
+    while (i <= middle && j <= right) {
+        if (values[i] <= values[j]) {
+            help[k] = values[i];
+            i++;
+        } else {
+            help[k] = values[j];
+            j++;
+        }
+        k++;
+    }
+
+    while (i <= middle) {
+        help[k] = values[i];
+        i++;
+        k++;
+    }
+    while (j <= right) {
+        help[k] = values[j];
+        j++;
+        k++;
+    }
+
+    for (int index = left; index <= right; index++) {
+        values[index] = help[index];
+    }
 }`,
   },
   'fibonacci-heap': {

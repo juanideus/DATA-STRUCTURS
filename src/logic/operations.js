@@ -1888,6 +1888,748 @@ function executeSparseMatrixOperation({ actionId, fields, values, edges }) {
   return fail('La operación de matriz todavía no está disponible.');
 }
 
+function sortFrameVariables(values, variables = {}) {
+  const roleFor = name => {
+    if (['low', 'high', 'left', 'middle', 'right', 'current', 'smaller', 'i', 'j', 'k', 'index'].includes(name)) return 'index';
+    if (name === 'condición') return variables[name] ? 'true' : 'false';
+    if (name === 'pivot') return 'input';
+    return 'value';
+  };
+  return [
+    { name: 'size', value: values.length, role: 'size' },
+    ...Object.entries(variables)
+      .filter(([, value]) => value !== undefined)
+      .map(([name, value]) => ({
+        name,
+        value: name === 'condición' ? (value ? 'true' : 'false') : value,
+        role: roleFor(name),
+      })),
+  ];
+}
+
+function executeQuickSort(values, edges) {
+  const working = [...values];
+  const frames = [];
+  const fixed = new Set();
+  const addFrame = ({
+    codeNeedle,
+    message,
+    phase,
+    position = 0,
+    range = null,
+    pivotIndex = null,
+    compareIndex = null,
+    swapPositions = [],
+    variables = {},
+    completed = false,
+    delayMs = 330,
+  }) => {
+    frames.push({
+      values: [...working],
+      position: Math.max(0, Math.min(Math.max(0, working.length - 1), position)),
+      codeNeedle,
+      message,
+      sortPhase: phase,
+      sortRange: range,
+      sortPivotIndex: pivotIndex,
+      sortCompareIndex: compareIndex,
+      sortSwapPositions: swapPositions,
+      sortFixedPositions: [...fixed],
+      variables: sortFrameVariables(working, variables),
+      delayMs,
+      completed,
+    });
+  };
+
+  addFrame({
+    codeNeedle: 'void sort() {',
+    message: 'Quick Sort prepara la llamada recursiva sobre todo el arreglo.',
+    phase: 'quick-start',
+    range: working.length ? [0, working.length - 1] : null,
+  });
+  addFrame({
+    codeNeedle: 'quickSort(0, size - 1);',
+    message: `Se ordenará el rango completo [0..${Math.max(0, working.length - 1)}].`,
+    phase: 'quick-call',
+    range: working.length ? [0, working.length - 1] : null,
+    variables: { low: 0, high: working.length - 1 },
+  });
+
+  const swapValues = (first, second, callNeedle, message, range, pivotIndex, variables) => {
+    addFrame({
+      codeNeedle: callNeedle,
+      message,
+      phase: 'quick-swap-call',
+      position: second,
+      range,
+      pivotIndex,
+      swapPositions: [first, second],
+      variables,
+    });
+    if (first === second) {
+      addFrame({
+        codeNeedle: 'int temporary = values[first];',
+        message: `Se guarda temporalmente ${working[first]}, aunque ambos índices sean ${first}.`,
+        phase: 'quick-swap-save',
+        position: first,
+        range,
+        pivotIndex,
+        swapPositions: [first],
+        variables,
+      });
+      addFrame({
+        codeNeedle: 'values[first] = values[second];',
+        message: `values[${first}] recibe el mismo valor porque first y second coinciden.`,
+        phase: 'quick-swap-first',
+        position: first,
+        range,
+        pivotIndex,
+        swapPositions: [first],
+        variables,
+      });
+      addFrame({
+        codeNeedle: 'values[second] = temporary;',
+        message: `El temporal vuelve a values[${second}]; el intercambio termina sin alterar el arreglo.`,
+        phase: 'quick-swap-complete',
+        position: first,
+        range,
+        pivotIndex,
+        swapPositions: [first],
+        variables,
+      });
+      return;
+    }
+    const temporary = working[first];
+    addFrame({
+      codeNeedle: 'int temporary = values[first];',
+      message: `Se guarda temporalmente ${temporary}, ubicado en el índice ${first}.`,
+      phase: 'quick-swap-save',
+      position: first,
+      range,
+      pivotIndex,
+      swapPositions: [first, second],
+      variables,
+    });
+    working[first] = working[second];
+    addFrame({
+      codeNeedle: 'values[first] = values[second];',
+      message: `${working[first]} pasa al índice ${first}.`,
+      phase: 'quick-swap-first',
+      position: first,
+      range,
+      pivotIndex,
+      swapPositions: [first, second],
+      variables,
+    });
+    working[second] = temporary;
+    addFrame({
+      codeNeedle: 'values[second] = temporary;',
+      message: `${temporary} pasa al índice ${second}; el intercambio termina.`,
+      phase: 'quick-swap-complete',
+      position: second,
+      range,
+      pivotIndex,
+      swapPositions: [first, second],
+      variables,
+    });
+  };
+
+  const quickSort = (low, high, depth) => {
+    addFrame({
+      codeNeedle: 'void quickSort(int low, int high) {',
+      message: `Llamada quickSort(${low}, ${high}) en profundidad ${depth}.`,
+      phase: 'quick-recursion',
+      position: Math.max(0, low),
+      range: low <= high ? [low, high] : null,
+      variables: { low, high, depth },
+    });
+    const baseCase = low >= high;
+    addFrame({
+      codeNeedle: 'if (low >= high) {',
+      message: baseCase
+        ? 'El rango tiene cero o un elemento: ya está ordenado.'
+        : 'El rango contiene varios elementos y debe particionarse.',
+      phase: 'quick-base',
+      position: Math.max(0, low),
+      range: low <= high ? [low, high] : null,
+      variables: { low, high, depth, condición: baseCase },
+    });
+    if (baseCase) {
+      if (low === high && low >= 0 && low < working.length) fixed.add(low);
+      addFrame({
+        codeNeedle: 'return;',
+        message: `La llamada quickSort(${low}, ${high}) regresa.`,
+        phase: 'quick-return',
+        position: Math.max(0, low),
+        range: low === high ? [low, high] : null,
+        variables: { low, high, depth },
+      });
+      return;
+    }
+
+    addFrame({
+      codeNeedle: 'int pivotIndex = partition(low, high);',
+      message: `Se particiona [${low}..${high}] usando inicialmente el último elemento como pivote.`,
+      phase: 'partition-call',
+      position: high,
+      range: [low, high],
+      pivotIndex: high,
+      variables: { low, high, depth },
+    });
+    addFrame({
+      codeNeedle: 'int partition(int low, int high) {',
+      message: `Comienza partition(${low}, ${high}).`,
+      phase: 'partition-start',
+      position: high,
+      range: [low, high],
+      pivotIndex: high,
+      variables: { low, high, depth },
+    });
+
+    const pivot = working[high];
+    let smaller = low - 1;
+    addFrame({
+      codeNeedle: 'int pivot = values[high];',
+      message: `${pivot} es el pivote porque está en el extremo derecho del rango.`,
+      phase: 'pivot-selected',
+      position: high,
+      range: [low, high],
+      pivotIndex: high,
+      variables: { low, high, pivot, smaller, depth },
+    });
+    addFrame({
+      codeNeedle: 'int smaller = low - 1;',
+      message: `smaller comienza en ${smaller}; todavía no hay valores menores o iguales al pivote.`,
+      phase: 'partition-boundary',
+      position: low,
+      range: [low, high],
+      pivotIndex: high,
+      variables: { low, high, pivot, smaller, depth },
+    });
+
+    for (let current = low; current < high; current++) {
+      addFrame({
+        codeNeedle: 'for (int current = low; current < high; current++) {',
+        message: `current visita el índice ${current}.`,
+        phase: 'partition-loop',
+        position: current,
+        range: [low, high],
+        pivotIndex: high,
+        compareIndex: current,
+        variables: { low, high, pivot, smaller, current, condición: true, depth },
+      });
+      const goesLeft = Number(working[current]) <= Number(pivot);
+      addFrame({
+        codeNeedle: 'if (values[current] <= pivot) {',
+        message: goesLeft
+          ? `${working[current]} ≤ ${pivot}: debe quedar a la izquierda del pivote.`
+          : `${working[current]} > ${pivot}: permanece en la zona derecha.`,
+        phase: 'partition-compare',
+        position: current,
+        range: [low, high],
+        pivotIndex: high,
+        compareIndex: current,
+        variables: { low, high, pivot, smaller, current, condición: goesLeft, depth },
+      });
+      if (!goesLeft) continue;
+
+      smaller++;
+      addFrame({
+        codeNeedle: 'smaller++;',
+        message: `La frontera de valores pequeños avanza al índice ${smaller}.`,
+        phase: 'partition-boundary',
+        position: smaller,
+        range: [low, high],
+        pivotIndex: high,
+        compareIndex: current,
+        variables: { low, high, pivot, smaller, current, depth },
+      });
+      swapValues(
+        smaller,
+        current,
+        'swap(smaller, current);',
+        `Se intercambian los índices ${smaller} y ${current} para ampliar la zona menor o igual al pivote.`,
+        [low, high],
+        high,
+        { low, high, pivot, smaller, current, depth },
+      );
+    }
+    addFrame({
+      codeNeedle: 'for (int current = low; current < high; current++) {',
+      message: `current llegó a high (${high}); termina el recorrido de partición.`,
+      phase: 'partition-loop-end',
+      position: high,
+      range: [low, high],
+      pivotIndex: high,
+      variables: { low, high, pivot, smaller, current: high, condición: false, depth },
+    });
+
+    const pivotTarget = smaller + 1;
+    swapValues(
+      pivotTarget,
+      high,
+      'swap(smaller + 1, high);',
+      `El pivote ${pivot} se mueve a su posición definitiva, índice ${pivotTarget}.`,
+      [low, high],
+      high,
+      { low, high, pivot, smaller, current: high, depth },
+    );
+    fixed.add(pivotTarget);
+    addFrame({
+      codeNeedle: 'return smaller + 1;',
+      message: `partition devuelve ${pivotTarget}; el pivote ya no volverá a moverse.`,
+      phase: 'pivot-fixed',
+      position: pivotTarget,
+      range: [low, high],
+      pivotIndex: pivotTarget,
+      variables: { low, high, pivot, smaller, pivotIndex: pivotTarget, depth },
+    });
+
+    addFrame({
+      codeNeedle: 'quickSort(low, pivotIndex - 1);',
+      message: `Se ordena recursivamente el lado izquierdo [${low}..${pivotTarget - 1}].`,
+      phase: 'quick-left-call',
+      position: low,
+      range: low <= pivotTarget - 1 ? [low, pivotTarget - 1] : null,
+      pivotIndex: pivotTarget,
+      variables: { low, high, pivotIndex: pivotTarget, depth },
+    });
+    quickSort(low, pivotTarget - 1, depth + 1);
+
+    addFrame({
+      codeNeedle: 'quickSort(pivotIndex + 1, high);',
+      message: `Se ordena recursivamente el lado derecho [${pivotTarget + 1}..${high}].`,
+      phase: 'quick-right-call',
+      position: Math.min(high, pivotTarget + 1),
+      range: pivotTarget + 1 <= high ? [pivotTarget + 1, high] : null,
+      pivotIndex: pivotTarget,
+      variables: { low, high, pivotIndex: pivotTarget, depth },
+    });
+    quickSort(pivotTarget + 1, high, depth + 1);
+  };
+
+  quickSort(0, working.length - 1, 0);
+  for (let index = 0; index < working.length; index++) fixed.add(index);
+  const message = 'Quick Sort terminó: cada partición colocó su pivote y las llamadas recursivas ordenaron ambos lados.';
+  addFrame({
+    codeNeedle: 'quickSort(0, size - 1);',
+    message,
+    phase: 'quick-complete',
+    position: 0,
+    range: working.length ? [0, working.length - 1] : null,
+    completed: true,
+    delayMs: 450,
+  });
+  return { ok: true, values: working, edges, message, step: 0, frames };
+}
+
+function executeMergeSort(values, edges) {
+  const working = [...values];
+  const help = new Array(working.length);
+  const frames = [];
+  const addFrame = ({
+    codeNeedle,
+    message,
+    phase,
+    position = 0,
+    range = null,
+    leftRange = null,
+    rightRange = null,
+    comparePositions = [],
+    writeIndex = null,
+    variables = {},
+    completed = false,
+    delayMs = 330,
+  }) => {
+    frames.push({
+      values: [...working],
+      position: Math.max(0, Math.min(Math.max(0, working.length - 1), position)),
+      codeNeedle,
+      message,
+      sortPhase: phase,
+      sortRange: range,
+      sortLeftRange: leftRange,
+      sortRightRange: rightRange,
+      sortComparePositions: comparePositions,
+      sortWriteIndex: writeIndex,
+      sortAuxValues: [...help],
+      variables: sortFrameVariables(working, variables),
+      delayMs,
+      completed,
+    });
+  };
+
+  addFrame({
+    codeNeedle: 'void sort() {',
+    message: 'Merge Sort prepara un arreglo auxiliar del mismo tamaño.',
+    phase: 'merge-start',
+    range: working.length ? [0, working.length - 1] : null,
+  });
+  addFrame({
+    codeNeedle: 'int[] help = new int[size];',
+    message: `help reserva ${working.length} posiciones para realizar las mezclas.`,
+    phase: 'merge-help',
+    range: working.length ? [0, working.length - 1] : null,
+  });
+  addFrame({
+    codeNeedle: 'mergeSort(0, size - 1, help);',
+    message: `Se inicia la división recursiva del rango [0..${Math.max(0, working.length - 1)}].`,
+    phase: 'merge-call',
+    range: working.length ? [0, working.length - 1] : null,
+    variables: { left: 0, right: working.length - 1 },
+  });
+
+  const mergeSort = (left, right, depth) => {
+    addFrame({
+      codeNeedle: 'void mergeSort(int left, int right, int[] help) {',
+      message: `Llamada mergeSort(${left}, ${right}) en profundidad ${depth}.`,
+      phase: 'merge-recursion',
+      position: Math.max(0, left),
+      range: left <= right ? [left, right] : null,
+      variables: { left, right, depth },
+    });
+    const baseCase = left >= right;
+    addFrame({
+      codeNeedle: 'if (left >= right) {',
+      message: baseCase
+        ? 'El rango tiene un solo elemento: ya está ordenado.'
+        : 'El rango tiene varios elementos y debe dividirse.',
+      phase: 'merge-base',
+      position: Math.max(0, left),
+      range: left <= right ? [left, right] : null,
+      variables: { left, right, depth, condición: baseCase },
+    });
+    if (baseCase) {
+      addFrame({
+        codeNeedle: 'return;',
+        message: `La llamada mergeSort(${left}, ${right}) regresa.`,
+        phase: 'merge-return',
+        position: Math.max(0, left),
+        range: left === right ? [left, right] : null,
+        variables: { left, right, depth },
+      });
+      return;
+    }
+
+    const middle = Math.floor((left + right) / 2);
+    const leftRange = [left, middle];
+    const rightRange = [middle + 1, right];
+    addFrame({
+      codeNeedle: 'int middle = (left + right) / 2;',
+      message: `El rango [${left}..${right}] se divide en [${left}..${middle}] y [${middle + 1}..${right}].`,
+      phase: 'merge-divide',
+      position: middle,
+      range: [left, right],
+      leftRange,
+      rightRange,
+      variables: { left, middle, right, depth },
+    });
+    addFrame({
+      codeNeedle: 'mergeSort(left, middle, help);',
+      message: `Primero se ordena la mitad izquierda [${left}..${middle}].`,
+      phase: 'merge-left-call',
+      position: left,
+      range: leftRange,
+      leftRange,
+      rightRange,
+      variables: { left, middle, right, depth },
+    });
+    mergeSort(left, middle, depth + 1);
+    addFrame({
+      codeNeedle: 'mergeSort(middle + 1, right, help);',
+      message: `Después se ordena la mitad derecha [${middle + 1}..${right}].`,
+      phase: 'merge-right-call',
+      position: middle + 1,
+      range: rightRange,
+      leftRange,
+      rightRange,
+      variables: { left, middle, right, depth },
+    });
+    mergeSort(middle + 1, right, depth + 1);
+    addFrame({
+      codeNeedle: 'merge(left, middle, right, help);',
+      message: `Ambas mitades ordenadas se mezclarán en [${left}..${right}].`,
+      phase: 'merge-call-halves',
+      position: left,
+      range: [left, right],
+      leftRange,
+      rightRange,
+      variables: { left, middle, right, depth },
+    });
+    addFrame({
+      codeNeedle: 'void merge(int left, int middle, int right, int[] help) {',
+      message: `Comienza merge(${left}, ${middle}, ${right}).`,
+      phase: 'merge-halves',
+      position: left,
+      range: [left, right],
+      leftRange,
+      rightRange,
+      variables: { left, middle, right, depth },
+    });
+
+    let i = left;
+    let j = middle + 1;
+    let k = left;
+    addFrame({
+      codeNeedle: 'int i = left;',
+      message: `i comienza al inicio de la mitad izquierda: ${i}.`,
+      phase: 'merge-pointers',
+      position: i,
+      range: [left, right],
+      leftRange,
+      rightRange,
+      variables: { left, middle, right, i, j, k, depth },
+    });
+    addFrame({
+      codeNeedle: 'int j = middle + 1;',
+      message: `j comienza al inicio de la mitad derecha: ${j}.`,
+      phase: 'merge-pointers',
+      position: j,
+      range: [left, right],
+      leftRange,
+      rightRange,
+      variables: { left, middle, right, i, j, k, depth },
+    });
+    addFrame({
+      codeNeedle: 'int k = left;',
+      message: `k indica la posición ${k} del arreglo auxiliar.`,
+      phase: 'merge-pointers',
+      position: k,
+      range: [left, right],
+      leftRange,
+      rightRange,
+      variables: { left, middle, right, i, j, k, depth },
+    });
+
+    while (i <= middle && j <= right) {
+      addFrame({
+        codeNeedle: 'while (i <= middle && j <= right) {',
+        message: `Las dos mitades conservan elementos: se comparan los índices ${i} y ${j}.`,
+        phase: 'merge-loop',
+        position: i,
+        range: [left, right],
+        leftRange,
+        rightRange,
+        comparePositions: [i, j],
+        variables: { left, middle, right, i, j, k, condición: true, depth },
+      });
+      const takeLeft = Number(working[i]) <= Number(working[j]);
+      addFrame({
+        codeNeedle: 'if (values[i] <= values[j]) {',
+        message: takeLeft
+          ? `${working[i]} ≤ ${working[j]}: se toma el elemento izquierdo.`
+          : `${working[i]} > ${working[j]}: se toma el elemento derecho.`,
+        phase: 'merge-compare',
+        position: takeLeft ? i : j,
+        range: [left, right],
+        leftRange,
+        rightRange,
+        comparePositions: [i, j],
+        writeIndex: k,
+        variables: { left, middle, right, i, j, k, condición: takeLeft, depth },
+      });
+      if (takeLeft) {
+        help[k] = working[i];
+        addFrame({
+          codeNeedle: 'help[k] = values[i];',
+          message: `${working[i]} se copia en help[${k}].`,
+          phase: 'merge-copy-left',
+          position: i,
+          range: [left, right],
+          leftRange,
+          rightRange,
+          comparePositions: [i, j],
+          writeIndex: k,
+          variables: { left, middle, right, i, j, k, depth },
+        });
+        i++;
+        addFrame({
+          codeNeedle: 'i++;',
+          message: `i avanza a ${i}.`,
+          phase: 'merge-pointer-move',
+          position: Math.min(i, middle),
+          range: [left, right],
+          leftRange,
+          rightRange,
+          variables: { left, middle, right, i, j, k, depth },
+        });
+      } else {
+        help[k] = working[j];
+        addFrame({
+          codeNeedle: 'help[k] = values[j];',
+          message: `${working[j]} se copia en help[${k}].`,
+          phase: 'merge-copy-right',
+          position: j,
+          range: [left, right],
+          leftRange,
+          rightRange,
+          comparePositions: [i, j],
+          writeIndex: k,
+          variables: { left, middle, right, i, j, k, depth },
+        });
+        j++;
+        addFrame({
+          codeNeedle: 'j++;',
+          message: `j avanza a ${j}.`,
+          phase: 'merge-pointer-move',
+          position: Math.min(j, right),
+          range: [left, right],
+          leftRange,
+          rightRange,
+          variables: { left, middle, right, i, j, k, depth },
+        });
+      }
+      k++;
+      addFrame({
+        codeNeedle: 'k++;',
+        message: `k avanza a la posición auxiliar ${k}.`,
+        phase: 'merge-pointer-move',
+        position: Math.min(k, right),
+        range: [left, right],
+        leftRange,
+        rightRange,
+        writeIndex: Math.min(k, right),
+        variables: { left, middle, right, i, j, k, depth },
+      });
+    }
+    addFrame({
+      codeNeedle: 'while (i <= middle && j <= right) {',
+      message: 'Una de las dos mitades se agotó; termina el ciclo de comparación.',
+      phase: 'merge-loop-end',
+      position: Math.min(i <= middle ? i : j, right),
+      range: [left, right],
+      leftRange,
+      rightRange,
+      variables: { left, middle, right, i, j, k, condición: false, depth },
+    });
+
+    while (i <= middle) {
+      addFrame({
+        codeNeedle: 'while (i <= middle) {',
+        message: `Queda ${working[i]} en la mitad izquierda.`,
+        phase: 'merge-left-rest',
+        position: i,
+        range: [left, right],
+        leftRange,
+        rightRange,
+        writeIndex: k,
+        variables: { left, middle, right, i, j, k, condición: true, depth },
+      });
+      help[k] = working[i];
+      addFrame({
+        codeNeedle: 'help[k] = values[i];',
+        message: `${working[i]} se copia en help[${k}].`,
+        phase: 'merge-copy-left',
+        position: i,
+        range: [left, right],
+        leftRange,
+        rightRange,
+        writeIndex: k,
+        variables: { left, middle, right, i, j, k, depth },
+      });
+      i++;
+      k++;
+    }
+    addFrame({
+      codeNeedle: 'while (i <= middle) {',
+      message: 'No quedan elementos en la mitad izquierda.',
+      phase: 'merge-left-rest-end',
+      position: Math.min(Math.max(left, i - 1), right),
+      range: [left, right],
+      leftRange,
+      rightRange,
+      variables: { left, middle, right, i, j, k, condición: false, depth },
+    });
+
+    while (j <= right) {
+      addFrame({
+        codeNeedle: 'while (j <= right) {',
+        message: `Queda ${working[j]} en la mitad derecha.`,
+        phase: 'merge-right-rest',
+        position: j,
+        range: [left, right],
+        leftRange,
+        rightRange,
+        writeIndex: k,
+        variables: { left, middle, right, i, j, k, condición: true, depth },
+      });
+      help[k] = working[j];
+      addFrame({
+        codeNeedle: 'help[k] = values[j];',
+        message: `${working[j]} se copia en help[${k}].`,
+        phase: 'merge-copy-right',
+        position: j,
+        range: [left, right],
+        leftRange,
+        rightRange,
+        writeIndex: k,
+        variables: { left, middle, right, i, j, k, depth },
+      });
+      j++;
+      k++;
+    }
+    addFrame({
+      codeNeedle: 'while (j <= right) {',
+      message: 'No quedan elementos en la mitad derecha.',
+      phase: 'merge-right-rest-end',
+      position: Math.min(Math.max(left, j - 1), right),
+      range: [left, right],
+      leftRange,
+      rightRange,
+      variables: { left, middle, right, i, j, k, condición: false, depth },
+    });
+
+    for (let index = left; index <= right; index++) {
+      addFrame({
+        codeNeedle: 'for (int index = left; index <= right; index++) {',
+        message: `Se escribe help[${index}] de vuelta en values[${index}].`,
+        phase: 'merge-write-loop',
+        position: index,
+        range: [left, right],
+        leftRange,
+        rightRange,
+        writeIndex: index,
+        variables: { left, middle, right, index, condición: true, depth },
+      });
+      working[index] = help[index];
+      addFrame({
+        codeNeedle: 'values[index] = help[index];',
+        message: `${working[index]} queda guardado en values[${index}].`,
+        phase: 'merge-write',
+        position: index,
+        range: [left, right],
+        leftRange,
+        rightRange,
+        writeIndex: index,
+        variables: { left, middle, right, index, depth },
+      });
+    }
+    addFrame({
+      codeNeedle: 'for (int index = left; index <= right; index++) {',
+      message: `La mezcla [${left}..${right}] quedó ordenada.`,
+      phase: 'merge-range-complete',
+      position: left,
+      range: [left, right],
+      leftRange,
+      rightRange,
+      variables: { left, middle, right, index: right + 1, condición: false, depth },
+    });
+  };
+
+  mergeSort(0, working.length - 1, 0);
+  const message = 'Merge Sort terminó: las mitades se dividieron recursivamente y se mezclaron en orden.';
+  addFrame({
+    codeNeedle: 'mergeSort(0, size - 1, help);',
+    message,
+    phase: 'merge-complete',
+    position: 0,
+    range: working.length ? [0, working.length - 1] : null,
+    completed: true,
+    delayMs: 450,
+  });
+  return { ok: true, values: working, edges, message, step: 0, frames };
+}
+
 function heapFrameVariables({
   heap,
   root,
@@ -2695,7 +3437,10 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       return done(next, `${actionId === 'bfs-run' ? 'BFS' : 'DFS'} desde ${startLabel}: ${order.join(' → ')}.`, start);
     }
     case 'shuffle': return done([...next].sort(()=>Math.random()-.5), 'Valores mezclados.', 0);
-    case 'sort': return done([...next].sort((a,b)=>Number(a)-Number(b)), 'Arreglo ordenado de menor a mayor.', 0);
+    case 'sort':
+      if (algorithm.id === 'quick-sort') return executeQuickSort(next, edges);
+      if (algorithm.id === 'merge-sort') return executeMergeSort(next, edges);
+      return done([...next].sort((a,b)=>Number(a)-Number(b)), 'Arreglo ordenado de menor a mayor.', 0);
     case 'calculate': {
       if (String(fields.value ?? '').trim() === '') return fail('Ingresa un entero entre 0 y 20.');
       const number = Number(fields.value);

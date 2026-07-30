@@ -511,6 +511,132 @@ function LinearVisual({ algorithm, step }) {
   </div>;
 }
 
+const indexInsideRange = (index, range) => (
+  Array.isArray(range) && index >= range[0] && index <= range[1]
+);
+
+function SortVisual({ algorithm, step }) {
+  const frame = algorithm.animationFrame;
+  const values = algorithm.values;
+  const isQuick = algorithm.id === 'quick-sort';
+  const phaseLabel = isQuick
+    ? {
+        'quick-start': 'Preparar Quick Sort',
+        'quick-call': 'Llamada inicial',
+        'quick-recursion': 'Llamada recursiva',
+        'quick-base': 'Evaluar caso base',
+        'partition-call': 'Particionar rango',
+        'partition-start': 'Comenzar partición',
+        'pivot-selected': 'Elegir pivote',
+        'partition-boundary': 'Mover frontera de menores',
+        'partition-loop': 'Recorrer la partición',
+        'partition-loop-end': 'Finalizar recorrido',
+        'partition-compare': 'Comparar con pivote',
+        'quick-swap-call': 'Intercambiar',
+        'quick-swap-save': 'Guardar valor temporal',
+        'quick-swap-first': 'Mover primer valor',
+        'quick-swap-complete': 'Intercambio completo',
+        'pivot-fixed': 'Pivote en posición definitiva',
+        'quick-left-call': 'Ordenar lado izquierdo',
+        'quick-right-call': 'Ordenar lado derecho',
+        'quick-return': 'Regresar de la llamada',
+        'quick-complete': 'Quick Sort terminado',
+      }[frame?.sortPhase] ?? 'PARTICIÓN POR PIVOTE'
+    : {
+        'merge-start': 'Preparar Merge Sort',
+        'merge-help': 'Crear arreglo auxiliar',
+        'merge-call': 'Llamada inicial',
+        'merge-recursion': 'Llamada recursiva',
+        'merge-base': 'Evaluar caso base',
+        'merge-return': 'Regresar de la llamada',
+        'merge-divide': 'Dividir en mitades',
+        'merge-left-call': 'Ordenar mitad izquierda',
+        'merge-right-call': 'Ordenar mitad derecha',
+        'merge-call-halves': 'Mezclar mitades',
+        'merge-halves': 'Comenzar mezcla',
+        'merge-pointers': 'Preparar punteros',
+        'merge-loop': 'Recorrer ambas mitades',
+        'merge-loop-end': 'Una mitad se agotó',
+        'merge-compare': 'Comparar mitades',
+        'merge-copy-left': 'Copiar desde izquierda',
+        'merge-copy-right': 'Copiar desde derecha',
+        'merge-pointer-move': 'Avanzar puntero',
+        'merge-left-rest': 'Copiar resto izquierdo',
+        'merge-left-rest-end': 'Finalizar mitad izquierda',
+        'merge-right-rest': 'Copiar resto derecho',
+        'merge-right-rest-end': 'Finalizar mitad derecha',
+        'merge-write-loop': 'Recorrer arreglo auxiliar',
+        'merge-write': 'Escribir resultado',
+        'merge-range-complete': 'Mezcla completa',
+        'merge-complete': 'Merge Sort terminado',
+      }[frame?.sortPhase] ?? 'DIVIDIR Y MEZCLAR';
+
+  const cellLabel = index => {
+    if (isQuick) {
+      if (index === frame?.sortPivotIndex) return 'PIVOTE';
+      if (index === frame?.sortCompareIndex) return 'current';
+      if (frame?.sortSwapPositions?.includes(index)) return 'SWAP';
+      if (frame?.sortFixedPositions?.includes(index)) return 'FIJO';
+    } else {
+      if (index === frame?.sortWriteIndex) return 'k';
+      if (frame?.sortComparePositions?.[0] === index) return 'i';
+      if (frame?.sortComparePositions?.[1] === index) return 'j';
+      if (indexInsideRange(index, frame?.sortLeftRange)) return 'IZQ.';
+      if (indexInsideRange(index, frame?.sortRightRange)) return 'DER.';
+    }
+    return `i=${index}`;
+  };
+
+  return <div className={`sort-visual ${isQuick ? 'quick-sort-visual' : 'merge-sort-visual'}`} role="img" aria-label={`Visualización real de ${algorithm.name}`}>
+    <div className="sort-phase-label">
+      <span>{isQuick ? 'QUICK SORT' : 'MERGE SORT'}</span>
+      <strong>{phaseLabel}</strong>
+      {frame?.sortRange && <small>Rango [{frame.sortRange[0]}..{frame.sortRange[1]}]</small>}
+    </div>
+    <div className="sort-array-row">
+      <em>values</em>
+      <div className="sort-cells">
+        {values.map((value, index) => {
+          const classes = [
+            'sort-cell',
+            indexInsideRange(index, frame?.sortRange) ? 'in-range' : '',
+            indexInsideRange(index, frame?.sortLeftRange) ? 'left-half' : '',
+            indexInsideRange(index, frame?.sortRightRange) ? 'right-half' : '',
+            index === frame?.sortPivotIndex ? 'pivot' : '',
+            index === frame?.sortCompareIndex || frame?.sortComparePositions?.includes(index) ? 'comparing' : '',
+            frame?.sortSwapPositions?.includes(index) ? 'swapping' : '',
+            frame?.sortFixedPositions?.includes(index) ? 'fixed' : '',
+            index === frame?.sortWriteIndex ? 'writing' : '',
+            index === step ? 'active' : '',
+          ].filter(Boolean).join(' ');
+          return <div className={classes} data-sort-index={index} key={`${index}-${value}`}>
+            <span>{value}</span>
+            <small>{cellLabel(index)}</small>
+          </div>;
+        })}
+      </div>
+    </div>
+    {!isQuick && <div className="sort-array-row auxiliary-row">
+      <em>help</em>
+      <div className="sort-cells">
+        {values.map((_, index) => <div
+          className={`sort-cell auxiliary ${index === frame?.sortWriteIndex ? 'writing' : ''}`}
+          data-aux-index={index}
+          key={`aux-${index}`}
+        >
+          <span>{frame?.sortAuxValues?.[index] ?? '·'}</span>
+          <small>{index}</small>
+        </div>)}
+      </div>
+    </div>}
+    <div className="sort-legend">
+      {isQuick
+        ? <><span><i className="pivot-sample"/> pivote</span><span><i className="compare-sample"/> comparación</span><span><i className="fixed-sample"/> posición final</span></>
+        : <><span><i className="left-sample"/> mitad izquierda</span><span><i className="right-sample"/> mitad derecha</span><span><i className="write-sample"/> escritura</span></>}
+    </div>
+  </div>;
+}
+
 const BINARY_POSITIONS = [
   [50,8],[28,30],[72,30],[16,54],[40,54],[60,54],[84,54],
   [7,81],[19,81],[32,81],[44,81],[56,81],[68,81],[81,81],[93,81],
@@ -1145,10 +1271,11 @@ function Visualizer({ algorithm, step }) {
   if (algorithm.type === 'sparse-matrix') return <SparseMatrixVisual algorithm={algorithm}/>;
   if (!algorithm.values.length) return <div className="empty-visual"><strong>∅</strong><span>Estructura vacía</span></div>;
   if (['dijkstra','a-star'].includes(algorithm.id)) return <PathMapVisual algorithm={algorithm}/>;
+  if (algorithm.type === 'sort') return <SortVisual algorithm={algorithm} step={step}/>;
   if (algorithm.id==='fenwick-tree') return <FenwickVisual algorithm={algorithm} step={step}/>;
   if (['tree','threaded-tree','heap','btree'].includes(algorithm.type)) return <TreeVisual algorithm={algorithm} step={step}/>;
   if (['graph','digraph','weighted'].includes(algorithm.type)) return <GraphVisual algorithm={algorithm} step={step}/>;
-  if (['array','stack','queue','linked','circular','sort','skip','union','cache'].includes(algorithm.type)) return <LinearVisual algorithm={algorithm} step={step}/>;
+  if (['array','stack','queue','linked','circular','skip','union','cache'].includes(algorithm.type)) return <LinearVisual algorithm={algorithm} step={step}/>;
   return <SpecialVisual algorithm={algorithm} step={step}/>;
 }
 

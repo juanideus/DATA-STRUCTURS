@@ -147,6 +147,72 @@ test('la línea Java, las variables y la animación avanzan juntas en distintas 
   }
 });
 
+test('Quick Sort y Merge Sort ejecutan sus algoritmos reales junto al código', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chromium', 'La lógica es idéntica y el catálogo móvil ya valida el visualizador.');
+  test.setTimeout(90_000);
+  const samples = [
+    {
+      id: 'quick-sort',
+      expected: [4, 10, 18, 21, 33, 47, 55],
+      codeParts: ['int partition(int low, int high)', 'int pivot = values[high]', 'quickSort(low, pivotIndex - 1)'],
+      phases: ['Elegir pivote', 'Comparar con pivote', 'Pivote en posición definitiva'],
+    },
+    {
+      id: 'merge-sort',
+      expected: [5, 8, 12, 19, 27, 38, 44],
+      codeParts: ['int[] help = new int[size]', 'void merge(int left, int middle, int right, int[] help)', 'values[index] = help[index]'],
+      phases: ['Dividir en mitades', 'Comparar mitades', 'Escribir resultado'],
+    },
+  ];
+
+  for (const sample of samples) {
+    await page.goto(`/${sample.id}`);
+    await page.getByRole('button', { name: 'Ordenar', exact: true }).click();
+    const java = await page.locator('.code-panel').textContent();
+    expect(java).not.toContain('bubbleSort');
+    for (const codePart of sample.codeParts) expect(java).toContain(codePart);
+
+    const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+    if (await pause.isVisible()) await pause.click();
+
+    const visitedPhases = new Set();
+    const visitedLines = new Set();
+    let sawPivotOrHalves = false;
+    let sawAuxiliaryValue = false;
+    let completed = false;
+    const next = page.getByRole('button', { name: 'Siguiente', exact: true });
+    for (let frame = 0; frame < 420; frame++) {
+      const currentPhase = (await page.locator('.sort-phase-label strong').textContent())?.trim();
+      visitedPhases.add(currentPhase);
+      visitedLines.add((await page.locator('.code-panel code.active').textContent())?.trim());
+      if (sample.id === 'quick-sort') {
+        sawPivotOrHalves ||= await page.locator('.sort-cell.pivot, .sort-cell.fixed').count() > 0;
+      } else {
+        sawPivotOrHalves ||= await page.locator('.sort-cell.left-half, .sort-cell.right-half').count() > 0;
+        const auxiliaryValues = await page.locator('.auxiliary-row .sort-cell span').allTextContents();
+        sawAuxiliaryValue ||= auxiliaryValues.some(value => value.trim() !== '·');
+      }
+      if (currentPhase === `${sample.id === 'quick-sort' ? 'Quick' : 'Merge'} Sort terminado`) {
+        completed = true;
+        break;
+      }
+      await next.click();
+    }
+
+    for (const phase of sample.phases) {
+      expect(visitedPhases.has(phase), `${sample.id}: no mostró la fase ${phase}`).toBe(true);
+    }
+    expect(visitedLines.size, `${sample.id}: el código no avanzó`).toBeGreaterThan(5);
+    expect(sawPivotOrHalves, `${sample.id}: faltan sus estados visuales propios`).toBe(true);
+    if (sample.id === 'merge-sort') expect(sawAuxiliaryValue, 'Merge Sort: help nunca recibió valores').toBe(true);
+    expect(completed, `${sample.id}: la reproducción no llegó al resultado final`).toBe(true);
+
+    const visibleValues = (await page.locator('.sort-array-row').first().locator('.sort-cell span').allTextContents())
+      .map(Number);
+    expect(visibleValues).toEqual(sample.expected);
+  }
+});
+
 test('Laberinto mueve el código entre isFree, isExit, recursión y backtracking', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === 'mobile-chromium', 'La traza es idéntica en ambos tamaños.');
   await page.goto('/laberinto');
