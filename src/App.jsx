@@ -255,9 +255,11 @@ function CircularListVisual({ algorithm, step }) {
     )}
 
     {values.length === 1
-      ? <path className="circle-return forward" d={`M ${firstCenter+nodeSize/2} 55 C ${firstCenter+62} 55, ${firstCenter+62} 118, ${firstCenter} 118 C ${firstCenter-35} 118, ${firstCenter-35} 93, ${firstCenter} 85`} markerEnd={`url(#${forwardMarker})`} />
-      : <path className="circle-return forward" d={`M ${lastCenter} 85 C ${lastCenter} 132, ${firstCenter} 132, ${firstCenter} 85`} markerEnd={`url(#${forwardMarker})`} />}
-    {doubleCircular && values.length > 1 && <path className="circle-return reverse" d={`M ${firstCenter} 26 C ${firstCenter} 5, ${lastCenter} 5, ${lastCenter} 26`} markerEnd={`url(#${reverseMarker})`} />}
+      ? <path className="circle-return forward singleton-loop" data-link-direction="next" d={`M ${firstCenter+nodeSize/2} 55 C ${firstCenter+62} 55, ${firstCenter+62} 118, ${firstCenter} 118 C ${firstCenter-35} 118, ${firstCenter-35} 93, ${firstCenter} 85`} markerEnd={`url(#${forwardMarker})`} />
+      : <path className="circle-return forward" data-link-direction="next" d={`M ${lastCenter} 85 C ${lastCenter} 132, ${firstCenter} 132, ${firstCenter} 85`} markerEnd={`url(#${forwardMarker})`} />}
+    {doubleCircular && (values.length === 1
+      ? <path className="circle-return reverse singleton-loop" data-link-direction="prev" d={`M ${firstCenter-nodeSize/2} 57 C ${firstCenter-62} 57, ${firstCenter-62} 5, ${firstCenter} 5 C ${firstCenter+35} 5, ${firstCenter+35} 17, ${firstCenter} 27`} markerEnd={`url(#${reverseMarker})`} />
+      : <path className="circle-return reverse" data-link-direction="prev" d={`M ${firstCenter} 26 C ${firstCenter} 5, ${lastCenter} 5, ${lastCenter} 26`} markerEnd={`url(#${reverseMarker})`} />)}
 
     {values.map((value,index) => <g className={`circle-node ${index===step%values.length?'active':''}`} key={`${value}-${index}`}>
       <rect x={center(index)-nodeSize/2} y="27" width={nodeSize} height={nodeSize} rx="7" />

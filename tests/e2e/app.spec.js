@@ -329,6 +329,26 @@ test('ejecuta y restablece una operación de lista enlazada', async ({ page }) =
   await expect(page.locator('.operation-message')).toContainText('restablecida');
 });
 
+test('lista circular doble conserva next y prev cuando queda un solo nodo', async ({ page }) => {
+  await page.goto('/lista-circular-doble');
+  await page.getByLabel('Velocidad').selectOption('2');
+  await expect(page.locator('.circle-node')).toHaveCount(4);
+
+  for (let remaining = 3; remaining >= 1; remaining--) {
+    await page.getByRole('button', { name: 'Eliminar final', exact: true }).click();
+    if (remaining === 1) {
+      await expect(page.locator('.circle-node')).toHaveCount(1, { timeout: 15_000 });
+    }
+  }
+
+  const nextLoop = page.locator('.singleton-loop[data-link-direction="next"]');
+  const previousLoop = page.locator('.singleton-loop[data-link-direction="prev"]');
+  await expect(nextLoop).toHaveCount(1);
+  await expect(previousLoop).toHaveCount(1);
+  await expect(nextLoop).toHaveClass(/forward/);
+  await expect(previousLoop).toHaveClass(/reverse/);
+});
+
 test('sincroniza el recorrido BST con la línea Java y las variables', async ({ page }) => {
   await page.goto('/bst');
   await page.getByLabel('Valor').fill('1');
