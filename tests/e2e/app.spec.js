@@ -115,7 +115,7 @@ test('la línea Java, las variables y la animación avanzan juntas en distintas 
   test.setTimeout(120_000);
   const cases = [
     { id: 'array', fields: { Valor: '99' }, action: 'Agregar inicio' },
-    { id: 'bfs', fields: { 'Origen / vértice': 'A' }, action: 'Recorrer BFS' },
+    { id: 'bfs', fields: { 'Origen / vértice': 'A' }, action: 'Ejecutar BFS' },
     { id: 'hanoi', fields: {}, action: 'Resolver' },
     { id: 'n-reinas', fields: { Tamaño: '8' }, action: 'Resolver' },
   ];
@@ -372,6 +372,47 @@ test('sincroniza el recorrido BST con la línea Java y las variables', async ({ 
 
   expect([...visitedNodes]).toEqual(expect.arrayContaining(['8', '3', '1']));
   expect(activeLines.size).toBeGreaterThan(3);
+});
+
+test('los grafos muestran Java completo y Prim/Kruskal ejecutan su algoritmo', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chromium', 'El código y la traza son idénticos en ambos tamaños.');
+  test.setTimeout(90_000);
+
+  await page.goto('/grafo');
+  await page.getByLabel('Origen / vértice').fill('G');
+  await page.getByRole('button', { name: 'Agregar vértice', exact: true }).click();
+  const addVertexJava = await page.locator('.code-panel pre').textContent();
+  expect(addVertexJava).toContain('class Graph');
+  expect(addVertexJava).toContain('String[] vertexNames');
+  expect(addVertexJava).toContain('int[][] weights');
+  expect(addVertexJava).toContain('boolean addVertex(String name)');
+  expect(addVertexJava).toContain('int indexOfVertex(String name)');
+
+  await page.goto('/grafo-dirigido');
+  await page.getByLabel('Origen / vértice').fill('A');
+  await page.getByLabel('Destino').fill('F');
+  await page.getByLabel('Peso').fill('4');
+  await page.getByRole('button', { name: 'Agregar arista', exact: true }).click();
+  const directedJava = await page.locator('.code-panel pre').textContent();
+  expect(directedJava).toContain('final boolean directed = true');
+  expect(directedJava).toContain('if (!directed)');
+
+  for (const sample of [
+    { id: 'prim', action: 'Ejecutar Prim', method: 'void prim(String startName)', cost: 15 },
+    { id: 'kruskal', action: 'Ejecutar Kruskal', method: 'void kruskal()', cost: 16 },
+  ]) {
+    await page.goto(`/${sample.id}`);
+    await page.getByLabel('Velocidad').selectOption('2');
+    await page.getByRole('button', { name: sample.action, exact: true }).click();
+    const java = await page.locator('.code-panel pre').textContent();
+    expect(java).toContain(sample.method);
+    expect(java).not.toContain('void breadthFirst');
+    expect(java).not.toContain('void depthFirst');
+    await expect(page.locator('.operation-message')).toContainText(`costo total ${sample.cost}`, { timeout: 35_000 });
+    await expect(page.locator('.graph-operation-status')).toContainText('5');
+    await expect(page.locator('.graph-operation-status')).toContainText(String(sample.cost));
+    await expect(page.locator('.graph-canvas .visited-edge')).toHaveCount(5);
+  }
 });
 
 test('árbol binario inserta recursivamente sin utilizar Queue', async ({ page }, testInfo) => {

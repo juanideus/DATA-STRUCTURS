@@ -1,4 +1,5 @@
 import { operationGroup } from '../logic/operations.js';
+import { getGraphJava } from './graphJava.js';
 import { linkedListJava } from './linkedListJava.js';
 import { getSparseMatrixJava } from './sparseMatrixJava.js';
 import { getTreeJava } from './treeJava.js';
@@ -1258,9 +1259,12 @@ export function getBeginnerJava(algorithm, actionId) {
   const sparseMatrixSource = algorithm.id === 'matriz-dispersa'
     ? getSparseMatrixJava(actionId)
     : null;
-  const treeSource = sparseMatrixSource ? null : getTreeJava(algorithm.id, actionId);
+  const graphSource = sparseMatrixSource ? null : getGraphJava(algorithm.id, actionId);
+  const treeSource = sparseMatrixSource || graphSource ? null : getTreeJava(algorithm.id, actionId);
   if (sparseMatrixSource) {
     source = sparseMatrixSource;
+  } else if (graphSource) {
+    source = graphSource;
   } else if (treeSource) {
     source = treeSource;
   } else if (algorithm.id === 'array') {

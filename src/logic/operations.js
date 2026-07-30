@@ -180,6 +180,21 @@ export function operationGroup(algorithm) {
 export function getOperationDefinition(algorithm) {
   const group = operationGroup(algorithm);
   const definition = definitions[group];
+  if (group === 'graph') {
+    const editingActions = definition.actions.slice(0, 4);
+    if (algorithm.id === 'dfs') {
+      return { ...definition, actions: [...editingActions, action('dfs-run', 'Ejecutar DFS')] };
+    }
+    if (algorithm.id === 'bfs') {
+      return { ...definition, actions: [...editingActions, action('bfs-run', 'Ejecutar BFS')] };
+    }
+    if (algorithm.id === 'prim') {
+      return { ...definition, actions: [...editingActions, action('prim-run', 'Ejecutar Prim')] };
+    }
+    if (algorithm.id === 'kruskal') {
+      return { ...definition, actions: [...editingActions, action('kruskal-run', 'Ejecutar Kruskal')] };
+    }
+  }
   if (group !== 'shortestPath') return definition;
   return {
     ...definition,
@@ -850,38 +865,573 @@ function occupiedTreeValue(values, index) {
   return index >= 0 && index < values.length && values[index] !== undefined && values[index] !== null;
 }
 
-const graphTraversal = (values, edges, start, depthFirst, directed) => {
+function graphTraversalTrace({ algorithm, values, edges, start, depthFirst }) {
+  const directed = algorithm.type === 'digraph';
+  const mode = depthFirst ? 'dfs' : 'bfs';
   const adjacency = Array.from({ length: values.length }, () => []);
-  edges.forEach(([from, to]) => {
+  edges.forEach((edge, edgeIndex) => {
+    const [from, to] = edge;
     if (from >= values.length || to >= values.length) return;
-    adjacency[from].push(to);
-    if (!directed) adjacency[to].push(from);
+    adjacency[from].push({ vertex: to, edge: [from, to], edgeIndex });
+    if (!directed) adjacency[to].push({ vertex: from, edge: [to, from], edgeIndex });
   });
+  const frames = [];
   const visited = new Set();
-  const result = [];
-  if (depthFirst) {
-    const visit = vertex => {
-      if (visited.has(vertex)) return;
-      visited.add(vertex);
-      result.push(values[vertex]);
-      adjacency[vertex].forEach(visit);
-    };
-    visit(start);
-  } else {
-    const pending = [start];
+  const order = [];
+  const visitedEdges = [];
+  const addFrame = ({
+    codeNeedle,
+    message,
+    current = start,
+    frontier = [],
+    relaxedEdge = null,
+    variables = [],
+    completed = false,
+    delayMs = 300,
+  }) => {
+    frames.push({
+      values: [...values],
+      edges: edges.map(edge => [...edge]),
+      position: Math.max(0, current),
+      codeNeedle,
+      message,
+      completed,
+      delayMs,
+      graphState: {
+        mode,
+        current,
+        order: [...order],
+        frontier: [...frontier],
+        visitedEdges: visitedEdges.map(edge => [...edge]),
+        relaxedEdge,
+      },
+      variables: [
+        { name: 'inicio', value: values[start], role: 'input' },
+        { name: 'vértice actual', value: values[current] ?? '—', role: 'value' },
+        { name: 'visitados', value: order.map(index => values[index]).join(' → ') || '∅', role: 'value' },
+        ...variables,
+      ],
+    });
+  };
+
+  addFrame({
+    codeNeedle: depthFirst
+      ? 'void depthFirst(String startName) {'
+      : 'void breadthFirst(String startName) {',
+    message: `${mode.toUpperCase()} comienza desde el vértice ${values[start]}.`,
+  });
+  addFrame({
+    codeNeedle: 'int start = indexOfVertex(startName);',
+    message: `${values[start]} corresponde al índice ${start}.`,
+    variables: [{ name: 'start', value: start, role: 'index' }],
+  });
+  addFrame({
+    codeNeedle: 'if (start == -1) {',
+    message: 'start es válido, por lo tanto el recorrido puede continuar.',
+    variables: [{ name: 'condición', value: 'false', role: 'false' }],
+  });
+
+  if (!depthFirst) {
+    const queue = [start];
+    let front = 0;
     visited.add(start);
-    while (pending.length) {
-      const vertex = pending.shift();
-      result.push(values[vertex]);
-      adjacency[vertex].forEach(next => {
-        if (visited.has(next)) return;
+    addFrame({
+      codeNeedle: 'int[] queue = new int[vertexCount];',
+      message: `Se crea una cola con capacidad para ${values.length} vértices.`,
+      frontier: [...queue],
+      variables: [{ name: 'front', value: front, role: 'index' }, { name: 'end', value: queue.length, role: 'size' }],
+    });
+    addFrame({
+      codeNeedle: 'queue[end] = start;',
+      message: `${values[start]} entra primero en la cola.`,
+      frontier: [...queue],
+      variables: [{ name: 'front', value: front, role: 'index' }, { name: 'end', value: queue.length - 1, role: 'index' }],
+    });
+    addFrame({
+      codeNeedle: 'visited[start] = true;',
+      message: `${values[start]} se marca para no volver a encolarlo.`,
+      frontier: [...queue],
+    });
+
+    while (front < queue.length) {
+      const current = queue[front];
+      addFrame({
+        codeNeedle: 'while (front < end) {',
+        message: `front (${front}) es menor que end (${queue.length}); la cola aún contiene elementos.`,
+        current,
+        frontier: queue.slice(front),
+        variables: [{ name: 'front', value: front, role: 'index' }, { name: 'end', value: queue.length, role: 'size' }, { name: 'condición', value: 'true', role: 'true' }],
+      });
+      addFrame({
+        codeNeedle: 'int vertex = queue[front];',
+        message: `${values[current]} está al frente de la cola.`,
+        current,
+        frontier: queue.slice(front),
+        variables: [{ name: 'front', value: front, role: 'index' }, { name: 'vertex', value: current, role: 'index' }],
+      });
+      front++;
+      if (!visited.has(current)) visited.add(current);
+      order.push(current);
+      addFrame({
+        codeNeedle: 'front++;',
+        message: `front avanza a ${front}.`,
+        current,
+        frontier: queue.slice(front),
+        variables: [{ name: 'front', value: front, role: 'index' }, { name: 'end', value: queue.length, role: 'size' }],
+      });
+      addFrame({
+        codeNeedle: 'System.out.println(vertexNames[vertex]);',
+        message: `BFS visita ${values[current]}.`,
+        current,
+        frontier: queue.slice(front),
+      });
+
+      for (let next = 0; next < values.length; next++) {
+        const connection = adjacency[current].find(item => item.vertex === next);
+        const canVisit = Boolean(connection) && !visited.has(next);
+        addFrame({
+          codeNeedle: 'for (int next = 0; next < vertexCount; next++) {',
+          message: `Se revisa si ${values[current]} conecta con ${values[next]}.`,
+          current,
+          frontier: queue.slice(front),
+          relaxedEdge: connection?.edge ?? null,
+          variables: [{ name: 'next', value: next, role: 'index' }],
+        });
+        addFrame({
+          codeNeedle: 'boolean hasEdge = weights[vertex][next] != NO_EDGE;',
+          message: connection
+            ? `Sí existe una arista entre ${values[current]} y ${values[next]}.`
+            : `No existe una arista entre ${values[current]} y ${values[next]}.`,
+          current,
+          frontier: queue.slice(front),
+          relaxedEdge: connection?.edge ?? null,
+          variables: [{ name: 'hasEdge', value: String(Boolean(connection)), role: connection ? 'true' : 'false' }],
+        });
+        addFrame({
+          codeNeedle: 'if (hasEdge && !visited[next]) {',
+          message: canVisit
+            ? `${values[next]} tiene arista y todavía no fue visitado.`
+            : `${values[next]} no se encola porque falta la arista o ya fue descubierto.`,
+          current,
+          frontier: queue.slice(front),
+          relaxedEdge: connection?.edge ?? null,
+          variables: [{ name: 'condición', value: String(canVisit), role: canVisit ? 'true' : 'false' }, { name: 'next', value: next, role: 'index' }],
+        });
+        if (!canVisit) continue;
+
         visited.add(next);
-        pending.push(next);
+        visitedEdges.push(connection.edge);
+        addFrame({
+          codeNeedle: 'visited[next] = true;',
+          message: `${values[next]} queda marcado antes de entrar en la cola.`,
+          current: next,
+          frontier: queue.slice(front),
+          relaxedEdge: connection.edge,
+        });
+        queue.push(next);
+        addFrame({
+          codeNeedle: 'queue[end] = next;',
+          message: `${values[next]} se guarda en queue[${queue.length - 1}].`,
+          current: next,
+          frontier: queue.slice(front),
+          relaxedEdge: connection.edge,
+          variables: [{ name: 'end', value: queue.length - 1, role: 'index' }],
+        });
+        addFrame({
+          codeNeedle: 'end++;',
+          message: `end avanza a ${queue.length}.`,
+          current: next,
+          frontier: queue.slice(front),
+          variables: [{ name: 'end', value: queue.length, role: 'size' }],
+        });
+      }
+    }
+    addFrame({
+      codeNeedle: 'while (front < end) {',
+      message: 'front alcanzó a end; la cola quedó vacía y BFS termina.',
+      current: order.at(-1) ?? start,
+      frontier: [],
+      variables: [{ name: 'front', value: front, role: 'index' }, { name: 'end', value: queue.length, role: 'size' }, { name: 'condición', value: 'false', role: 'false' }],
+      completed: true,
+      delayMs: 420,
+    });
+  } else {
+    addFrame({
+      codeNeedle: 'boolean[] visited = new boolean[vertexCount];',
+      message: `Se crea visited con ${values.length} posiciones inicialmente falsas.`,
+    });
+    addFrame({
+      codeNeedle: 'depthFirstFrom(start, visited);',
+      message: `Comienza la primera llamada recursiva con ${values[start]}.`,
+      frontier: [start],
+    });
+
+    const visit = (current, stack) => {
+      addFrame({
+        codeNeedle: 'void depthFirstFrom(int vertex, boolean[] visited) {',
+        message: `Entra depthFirstFrom(${values[current]}) con una pila de ${stack.length} llamadas.`,
+        current,
+        frontier: [...stack],
+        variables: [{ name: 'profundidad', value: stack.length - 1, role: 'index' }],
+      });
+      visited.add(current);
+      order.push(current);
+      addFrame({
+        codeNeedle: 'visited[vertex] = true;',
+        message: `${values[current]} queda marcado como visitado.`,
+        current,
+        frontier: [...stack],
+      });
+      addFrame({
+        codeNeedle: 'System.out.println(vertexNames[vertex]);',
+        message: `DFS visita ${values[current]}.`,
+        current,
+        frontier: [...stack],
+      });
+
+      for (let next = 0; next < values.length; next++) {
+        const connection = adjacency[current].find(item => item.vertex === next);
+        const canVisit = Boolean(connection) && !visited.has(next);
+        addFrame({
+          codeNeedle: 'for (int next = 0; next < vertexCount; next++) {',
+          message: `Desde ${values[current]} se revisa el índice ${next}.`,
+          current,
+          frontier: [...stack],
+          relaxedEdge: connection?.edge ?? null,
+          variables: [{ name: 'next', value: next, role: 'index' }],
+        });
+        addFrame({
+          codeNeedle: 'boolean hasEdge = weights[vertex][next] != NO_EDGE;',
+          message: connection
+            ? `${values[current]} sí conecta con ${values[next]}.`
+            : `${values[current]} no conecta con ${values[next]}.`,
+          current,
+          frontier: [...stack],
+          relaxedEdge: connection?.edge ?? null,
+          variables: [{ name: 'hasEdge', value: String(Boolean(connection)), role: connection ? 'true' : 'false' }],
+        });
+        addFrame({
+          codeNeedle: 'if (hasEdge && !visited[next]) {',
+          message: canVisit
+            ? `${values[next]} no fue visitado: DFS profundiza por esa arista.`
+            : `La llamada hacia ${values[next]} se omite.`,
+          current,
+          frontier: [...stack],
+          relaxedEdge: connection?.edge ?? null,
+          variables: [{ name: 'condición', value: String(canVisit), role: canVisit ? 'true' : 'false' }],
+        });
+        if (!canVisit) continue;
+
+        visitedEdges.push(connection.edge);
+        addFrame({
+          codeNeedle: 'depthFirstFrom(next, visited);',
+          message: `Se llama recursivamente a depthFirstFrom(${values[next]}).`,
+          current: next,
+          frontier: [...stack, next],
+          relaxedEdge: connection.edge,
+        });
+        visit(next, [...stack, next]);
+      }
+    };
+    visit(start, [start]);
+    addFrame({
+      codeNeedle: 'depthFirstFrom(start, visited);',
+      message: 'Todas las llamadas recursivas regresaron; DFS terminó.',
+      current: order.at(-1) ?? start,
+      frontier: [],
+      completed: true,
+      delayMs: 420,
+    });
+  }
+
+  const labels = order.map(index => values[index]);
+  return {
+    ok: true,
+    values: [...values],
+    edges: edges.map(edge => [...edge]),
+    message: `${mode.toUpperCase()} desde ${values[start]}: ${labels.join(' → ')}.`,
+    step: start,
+    frames,
+  };
+}
+
+function minimumSpanningTreeTrace({ algorithm, values, edges, start = 0 }) {
+  const mode = algorithm.id === 'kruskal' ? 'kruskal' : 'prim';
+  const frames = [];
+  const selectedEdges = [];
+  const treeVertices = new Set();
+  let totalCost = 0;
+  const addFrame = ({
+    codeNeedle,
+    message,
+    current = start,
+    relaxedEdge = null,
+    variables = [],
+    completed = false,
+    delayMs = 340,
+  }) => {
+    frames.push({
+      values: [...values],
+      edges: edges.map(edge => [...edge]),
+      position: Math.max(0, current),
+      codeNeedle,
+      message,
+      completed,
+      delayMs,
+      graphState: {
+        mode,
+        current,
+        visitedEdges: selectedEdges.map(edge => [edge[0], edge[1]]),
+        relaxedEdge,
+        treeVertices: [...treeVertices],
+        totalCost,
+      },
+      variables: [
+        { name: 'aristas elegidas', value: selectedEdges.length, role: 'size' },
+        { name: 'costo total', value: totalCost, role: 'value' },
+        ...variables,
+      ],
+    });
+  };
+
+  if (mode === 'prim') {
+    const size = values.length;
+    const matrix = Array.from({ length: size }, () => Array(size).fill(Infinity));
+    edges.forEach(([from, to, weight]) => {
+      if (from >= size || to >= size) return;
+      matrix[from][to] = Number(weight);
+      matrix[to][from] = Number(weight);
+    });
+    const inTree = Array(size).fill(false);
+    const bestWeight = Array(size).fill(Infinity);
+    const parent = Array(size).fill(-1);
+    bestWeight[start] = 0;
+
+    addFrame({
+      codeNeedle: 'void prim(String startName) {',
+      message: `Prim comenzará desde ${values[start]}.`,
+      variables: [{ name: 'start', value: start, role: 'index' }],
+    });
+    addFrame({
+      codeNeedle: 'boolean[] inTree = new boolean[vertexCount];',
+      message: 'Se crea inTree para distinguir los vértices que ya pertenecen al árbol.',
+    });
+    addFrame({
+      codeNeedle: 'bestWeight[start] = 0;',
+      message: `El costo inicial de ${values[start]} se establece en 0.`,
+      current: start,
+    });
+
+    for (let added = 0; added < size; added++) {
+      let current = -1;
+      addFrame({
+        codeNeedle: 'for (int added = 0; added < vertexCount; added++) {',
+        message: `Prim elegirá el vértice ${added + 1} de ${size}.`,
+        current: Math.max(0, current),
+        variables: [{ name: 'added', value: added, role: 'index' }],
+      });
+      for (let vertex = 0; vertex < size; vertex++) {
+        const better = !inTree[vertex] && (
+          current === -1 || bestWeight[vertex] < bestWeight[current]
+        );
+        addFrame({
+          codeNeedle: 'if (!inTree[vertex]',
+          message: better
+            ? `${values[vertex]} es el mejor candidato disponible hasta ahora.`
+            : `${values[vertex]} no mejora al candidato actual.`,
+          current: vertex,
+          variables: [
+            { name: 'vertex', value: vertex, role: 'index' },
+            { name: 'bestWeight', value: Number.isFinite(bestWeight[vertex]) ? bestWeight[vertex] : '∞', role: 'value' },
+            { name: 'condición', value: String(better), role: better ? 'true' : 'false' },
+          ],
+        });
+        if (better) current = vertex;
+      }
+      if (current === -1 || !Number.isFinite(bestWeight[current])) {
+        const message = 'Prim se detuvo: el grafo no es conexo y no posee un árbol de expansión que incluya todos sus vértices.';
+        addFrame({
+          codeNeedle: 'if (current == -1 || bestWeight[current] == NO_EDGE) {',
+          message,
+          current: Math.max(0, current),
+          completed: true,
+        });
+        return { ok: false, values: [...values], edges: edges.map(edge => [...edge]), message, step: 0, frames };
+      }
+
+      inTree[current] = true;
+      treeVertices.add(current);
+      addFrame({
+        codeNeedle: 'inTree[current] = true;',
+        message: `${values[current]} entra definitivamente al árbol.`,
+        current,
+      });
+      if (parent[current] !== -1) {
+        const selected = [parent[current], current, matrix[parent[current]][current]];
+        selectedEdges.push(selected);
+        totalCost += selected[2];
+        addFrame({
+          codeNeedle: 'System.out.println(vertexNames[parent[current]]',
+          message: `Se elige ${values[selected[0]]} — ${values[selected[1]]} con peso ${selected[2]}.`,
+          current,
+          relaxedEdge: [selected[0], selected[1]],
+        });
+      }
+
+      for (let next = 0; next < size; next++) {
+        const weight = matrix[current][next];
+        const improves = !inTree[next] && weight < bestWeight[next];
+        const candidateEdge = Number.isFinite(weight) ? [current, next] : null;
+        addFrame({
+          codeNeedle: 'if (!inTree[next] && weight < bestWeight[next]) {',
+          message: improves
+            ? `La arista hacia ${values[next]} mejora su conexión a peso ${weight}.`
+            : `${values[next]} conserva su mejor conexión anterior.`,
+          current,
+          relaxedEdge: candidateEdge,
+          variables: [
+            { name: 'next', value: next, role: 'index' },
+            { name: 'weight', value: Number.isFinite(weight) ? weight : '∞', role: 'value' },
+            { name: 'condición', value: String(improves), role: improves ? 'true' : 'false' },
+          ],
+        });
+        if (!improves) continue;
+        bestWeight[next] = weight;
+        parent[next] = current;
+        addFrame({
+          codeNeedle: 'bestWeight[next] = weight;',
+          message: `bestWeight[${next}] ahora vale ${weight}.`,
+          current: next,
+          relaxedEdge: candidateEdge,
+        });
+        addFrame({
+          codeNeedle: 'parent[next] = current;',
+          message: `${values[current]} queda como posible padre de ${values[next]}.`,
+          current: next,
+          relaxedEdge: candidateEdge,
+        });
+      }
+    }
+  } else {
+    const sortedEdges = edges
+      .filter(([from, to]) => from < values.length && to < values.length && from !== to)
+      .map(edge => [...edge])
+      .sort((first, second) => Number(first[2]) - Number(second[2]));
+    const parent = Array.from({ length: values.length }, (_, index) => index);
+    const rank = Array(values.length).fill(0);
+    const find = vertex => {
+      if (parent[vertex] !== vertex) parent[vertex] = find(parent[vertex]);
+      return parent[vertex];
+    };
+    const union = (firstRoot, secondRoot) => {
+      if (rank[firstRoot] < rank[secondRoot]) parent[firstRoot] = secondRoot;
+      else if (rank[firstRoot] > rank[secondRoot]) parent[secondRoot] = firstRoot;
+      else {
+        parent[secondRoot] = firstRoot;
+        rank[firstRoot]++;
+      }
+    };
+
+    addFrame({
+      codeNeedle: 'void kruskal() {',
+      message: 'Kruskal reunirá y ordenará todas las aristas por su peso.',
+    });
+    addFrame({
+      codeNeedle: 'int[] parent = new int[vertexCount];',
+      message: 'Se prepara Union-Find para detectar ciclos.',
+    });
+    for (let vertex = 0; vertex < values.length; vertex++) {
+      treeVertices.add(vertex);
+      addFrame({
+        codeNeedle: 'parent[vertex] = vertex;',
+        message: `${values[vertex]} comienza como representante de su propio conjunto.`,
+        current: vertex,
+        variables: [{ name: 'vertex', value: vertex, role: 'index' }],
       });
     }
+
+    for (let edgeIndex = 0; edgeIndex < sortedEdges.length && selectedEdges.length < values.length - 1; edgeIndex++) {
+      const [from, to, weight] = sortedEdges[edgeIndex];
+      addFrame({
+        codeNeedle: 'for (int edge = 0; edge < edgeCount && selected < vertexCount - 1; edge++) {',
+        message: `Se considera ${values[from]} — ${values[to]} con peso ${weight}.`,
+        current: from,
+        relaxedEdge: [from, to],
+        variables: [{ name: 'edge', value: edgeIndex, role: 'index' }],
+      });
+      const firstRoot = find(from);
+      addFrame({
+        codeNeedle: 'int firstRoot = find(parent, from[edge]);',
+        message: `La raíz del conjunto de ${values[from]} es ${values[firstRoot]}.`,
+        current: from,
+        relaxedEdge: [from, to],
+      });
+      const secondRoot = find(to);
+      addFrame({
+        codeNeedle: 'int secondRoot = find(parent, to[edge]);',
+        message: `La raíz del conjunto de ${values[to]} es ${values[secondRoot]}.`,
+        current: to,
+        relaxedEdge: [from, to],
+      });
+      const joinsDifferentTrees = firstRoot !== secondRoot;
+      addFrame({
+        codeNeedle: 'if (firstRoot != secondRoot) {',
+        message: joinsDifferentTrees
+          ? 'Las raíces son distintas: la arista no forma un ciclo.'
+          : 'Ambos vértices ya están conectados: la arista formaría un ciclo.',
+        current: to,
+        relaxedEdge: [from, to],
+        variables: [{ name: 'condición', value: String(joinsDifferentTrees), role: joinsDifferentTrees ? 'true' : 'false' }],
+      });
+      if (!joinsDifferentTrees) continue;
+
+      union(firstRoot, secondRoot);
+      addFrame({
+        codeNeedle: 'union(parent, rank, firstRoot, secondRoot);',
+        message: `Se unen los conjuntos de ${values[from]} y ${values[to]}.`,
+        current: to,
+        relaxedEdge: [from, to],
+      });
+      selectedEdges.push([from, to, Number(weight)]);
+      totalCost += Number(weight);
+      addFrame({
+        codeNeedle: 'System.out.println(vertexNames[from[edge]]',
+        message: `La arista ${values[from]} — ${values[to]} entra al árbol.`,
+        current: to,
+        relaxedEdge: [from, to],
+      });
+    }
+    if (selectedEdges.length !== Math.max(0, values.length - 1)) {
+      const message = 'Kruskal se detuvo: el grafo no es conexo.';
+      addFrame({
+        codeNeedle: 'for (int edge = 0; edge < edgeCount && selected < vertexCount - 1; edge++) {',
+        message,
+        current: 0,
+        completed: true,
+      });
+      return { ok: false, values: [...values], edges: edges.map(edge => [...edge]), message, step: 0, frames };
+    }
   }
-  return result;
-};
+
+  const message = `${algorithm.name} completó el árbol de expansión mínima con costo total ${totalCost}.`;
+  addFrame({
+    codeNeedle: mode === 'prim'
+      ? 'for (int added = 0; added < vertexCount; added++) {'
+      : 'for (int edge = 0; edge < edgeCount && selected < vertexCount - 1; edge++) {',
+    message,
+    current: selectedEdges.at(-1)?.[1] ?? start,
+    completed: true,
+    delayMs: 460,
+  });
+  return {
+    ok: true,
+    values: [...values],
+    edges: edges.map(edge => [...edge]),
+    message,
+    step: start,
+    frames,
+  };
+}
 
 const pathFromParents = (parents, start, goal) => {
   const path = [];
@@ -3433,8 +3983,22 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       const startLabel = String(fields.value ?? '').trim().toUpperCase() || String(next[0] ?? '');
       const start = next.findIndex(item => String(item).toUpperCase() === startLabel);
       if (start < 0) return fail(`El vértice ${startLabel || '(vacío)'} no existe.`);
-      const order = graphTraversal(next, edges, start, actionId === 'dfs-run', algorithm.type === 'digraph');
-      return done(next, `${actionId === 'bfs-run' ? 'BFS' : 'DFS'} desde ${startLabel}: ${order.join(' → ')}.`, start);
+      return graphTraversalTrace({
+        algorithm,
+        values: next,
+        edges,
+        start,
+        depthFirst: actionId === 'dfs-run',
+      });
+    }
+    case 'prim-run': {
+      const startLabel = String(fields.value ?? '').trim().toUpperCase() || String(next[0] ?? '');
+      const start = next.findIndex(item => String(item).toUpperCase() === startLabel);
+      if (start < 0) return fail(`El vértice ${startLabel || '(vacío)'} no existe.`);
+      return minimumSpanningTreeTrace({ algorithm, values: next, edges, start });
+    }
+    case 'kruskal-run': {
+      return minimumSpanningTreeTrace({ algorithm, values: next, edges, start: 0 });
     }
     case 'shuffle': return done([...next].sort(()=>Math.random()-.5), 'Valores mezclados.', 0);
     case 'sort':

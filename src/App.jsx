@@ -1126,6 +1126,9 @@ function GraphVisual({ algorithm, step }) {
   const directed = algorithm.type === 'digraph';
   const arrowMarker = `graph-arrow-${algorithm.id}`;
   const graphState = algorithm.animationFrame?.graphState;
+  const isPathfindingState = ['dijkstra', 'astar'].includes(graphState?.mode);
+  const isTraversalState = ['bfs', 'dfs'].includes(graphState?.mode);
+  const isSpanningTreeState = ['prim', 'kruskal'].includes(graphState?.mode);
   const edgeMatches = (edge, candidate) => candidate && (
     (edge[0] === candidate[0] && edge[1] === candidate[1]) ||
     (!directed && edge[0] === candidate[1] && edge[1] === candidate[0])
@@ -1151,14 +1154,32 @@ function GraphVisual({ algorithm, step }) {
   </svg>{nodes.slice(0,algorithm.values.length).map(([x,y],i) => {
     const isCurrent = graphState ? i === graphState.current : i === step % algorithm.values.length;
     const isPath = graphState?.path?.includes(i);
-    const stateClass = isPath ? 'path-node' : graphState?.closed?.includes(i) ? 'closed-node' : graphState?.open?.includes(i) ? 'open-node' : '';
-    const metric = graphState ? (graphState.mode === 'astar' ? `f=${graphState.scores[i]}` : `d=${graphState.distances[i]}`) : null;
+    const wasVisited = graphState?.order?.includes(i) || graphState?.treeVertices?.includes(i);
+    const stateClass = isPath ? 'path-node'
+      : isPathfindingState && graphState?.closed?.includes(i) ? 'closed-node'
+        : isPathfindingState && graphState?.open?.includes(i) ? 'open-node'
+          : wasVisited ? 'closed-node' : '';
+    const metric = isPathfindingState
+      ? graphState.mode === 'astar'
+        ? `f=${graphState.scores[i]}`
+        : `d=${graphState.distances[i]}`
+      : null;
     return <div className={`graph-node node-${i} ${i === 0 ? 'origin-node' : ''} ${isCurrent ? 'active' : ''} ${stateClass}`} style={{left:`${x}%`,top:`${y}%`}} key={i}><span>{algorithm.values[i]}</span><small>{metric ?? design.nodeMeta?.[i] ?? `v${i}`}</small></div>;
   })}
-  {graphState && <div className="pathfinding-status">
+  {isPathfindingState && <div className="pathfinding-status">
     <span><i className="open-dot"/>Abiertos: <b>{labelsFor(graphState.open)}</b></span>
     <span><i className="closed-dot"/>Cerrados: <b>{labelsFor(graphState.closed)}</b></span>
     {graphState.mode === 'astar' && <em>f = g + h</em>}
+  </div>}
+  {isTraversalState && <div className="pathfinding-status graph-operation-status">
+    <span><i className="closed-dot"/>Visitados: <b>{labelsFor(graphState.order)}</b></span>
+    <span><i className="open-dot"/>Pendientes: <b>{labelsFor(graphState.frontier)}</b></span>
+    <em>{graphState.mode.toUpperCase()}</em>
+  </div>}
+  {isSpanningTreeState && <div className="pathfinding-status graph-operation-status">
+    <span><i className="closed-dot"/>Aristas elegidas: <b>{graphState.visitedEdges?.length ?? 0}</b></span>
+    <span><i className="open-dot"/>Costo: <b>{graphState.totalCost ?? 0}</b></span>
+    <em>{graphState.mode.toUpperCase()}</em>
   </div>}
   </div>;
 }

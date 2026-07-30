@@ -726,6 +726,77 @@ const bfsResult = run(graph, 'bfs-run', { value: 'A', second: '', index: '' });
 const dfsResult = run(graph, 'dfs-run', { value: 'A', second: '', index: '' });
 assert.match(bfsResult.message, /A → B → D → C → E → F/, 'Grafo: BFS no respeta niveles y aristas.');
 assert.match(dfsResult.message, /A → B → C → E → D → F/, 'Grafo: DFS no recorre en profundidad.');
+assert.deepEqual(
+  bfsResult.frames.at(-1).graphState.order.map(index => graph.values[index]),
+  ['A', 'B', 'D', 'C', 'E', 'F'],
+  'Grafo/BFS: la animación no termina con el mismo orden que el algoritmo.',
+);
+assert.deepEqual(
+  dfsResult.frames.at(-1).graphState.order.map(index => graph.values[index]),
+  ['A', 'B', 'C', 'E', 'D', 'F'],
+  'Grafo/DFS: la animación no termina con el mismo orden que el algoritmo.',
+);
+
+const editableGraphIds = ['grafo', 'grafo-dirigido', 'dfs', 'bfs', 'prim', 'kruskal'];
+for (const graphId of editableGraphIds) {
+  const graphAlgorithm = algorithms.find(item => item.id === graphId);
+  for (const action of getOperationDefinition(graphAlgorithm).actions) {
+    const java = getBeginnerJava(graphAlgorithm, action.id);
+    assert.match(java, /class Graph \{/, `${graphId}/${action.id}: falta mostrar la clase Graph completa.`);
+    assert.match(java, /String\[\] vertexNames/, `${graphId}/${action.id}: falta mostrar dónde se guardan los vértices.`);
+    assert.match(java, /int\[\]\[\] weights/, `${graphId}/${action.id}: falta mostrar dónde se guardan las aristas.`);
+    assert.match(java, /int vertexCount = 0;/, `${graphId}/${action.id}: falta declarar vertexCount.`);
+    assert.match(java, /Graph\(\)/, `${graphId}/${action.id}: falta inicializar la matriz del grafo.`);
+    assert.match(java, /Start of the selected operation/, `${graphId}/${action.id}: falta delimitar la operación animada.`);
+    assert.match(java, /End of the selected operation/, `${graphId}/${action.id}: falta cerrar la operación animada.`);
+  }
+}
+
+const graphAddVertexJava = getBeginnerJava(graph, 'vertex-add');
+assert.match(graphAddVertexJava, /boolean addVertex\(String name\)/, 'Grafo/insertar vértice: falta el método completo.');
+assert.match(graphAddVertexJava, /int indexOfVertex\(String name\)/, 'Grafo/insertar vértice: falta mostrar la validación de duplicados.');
+assert.match(graphAddVertexJava, /vertexNames\[vertexCount\] = name\.trim\(\)\.toUpperCase\(\)/, 'Grafo/insertar vértice: falta almacenar la etiqueta.');
+assert.match(graphAddVertexJava, /vertexCount\+\+;/, 'Grafo/insertar vértice: falta aumentar el tamaño.');
+
+const graphRemoveVertexJava = getBeginnerJava(graph, 'vertex-remove');
+assert.match(graphRemoveVertexJava, /vertexNames\[index\] = vertexNames\[index \+ 1\]/, 'Grafo/eliminar vértice: falta desplazar las etiquetas.');
+assert.match(graphRemoveVertexJava, /weights\[row\]\[column\] = weights\[row \+ 1\]\[column\]/, 'Grafo/eliminar vértice: falta desplazar las filas.');
+assert.match(graphRemoveVertexJava, /weights\[row\]\[column\] = weights\[row\]\[column \+ 1\]/, 'Grafo/eliminar vértice: falta desplazar las columnas.');
+
+const directedGraph = algorithms.find(item => item.id === 'grafo-dirigido');
+const directedEdgeJava = getBeginnerJava(directedGraph, 'edge-add');
+const undirectedEdgeJava = getBeginnerJava(graph, 'edge-add');
+assert.match(directedEdgeJava, /final boolean directed = true;/, 'Grafo dirigido: el Java debe conservar la dirección.');
+assert.match(undirectedEdgeJava, /final boolean directed = false;/, 'Grafo no dirigido: el Java debe crear el enlace inverso.');
+assert.match(directedEdgeJava, /if \(!directed\) \{\s*weights\[to\]\[from\] = weight;/s, 'Agregar arista: el enlace inverso debe depender de directed.');
+
+const dfsAlgorithm = algorithms.find(item => item.id === 'dfs');
+const dfsJava = getBeginnerJava(dfsAlgorithm, 'dfs-run');
+assert.match(dfsJava, /void depthFirst\(String startName\)/, 'DFS: falta el método público que recibe el inicio.');
+assert.match(dfsJava, /boolean\[\] visited = new boolean\[vertexCount\]/, 'DFS: falta crear visited.');
+assert.match(dfsJava, /void depthFirstFrom\(int vertex, boolean\[\] visited\)/, 'DFS: falta mostrar el método recursivo auxiliar.');
+
+const bfsAlgorithm = algorithms.find(item => item.id === 'bfs');
+const bfsJava = getBeginnerJava(bfsAlgorithm, 'bfs-run');
+assert.match(bfsJava, /int\[\] queue = new int\[vertexCount\]/, 'BFS: falta mostrar la cola.');
+assert.match(bfsJava, /while \(front < end\)/, 'BFS: falta recorrer la cola completa.');
+
+for (const [algorithmId, actionId, expectedCost] of [
+  ['prim', 'prim-run', 14],
+  ['kruskal', 'kruskal-run', 14],
+]) {
+  const spanningAlgorithm = algorithms.find(item => item.id === algorithmId);
+  const actions = getOperationDefinition(spanningAlgorithm).actions.map(item => item.id);
+  assert.ok(actions.includes(actionId), `${spanningAlgorithm.name}: falta su botón de ejecución propio.`);
+  assert.ok(!actions.includes('bfs-run') && !actions.includes('dfs-run'), `${spanningAlgorithm.name}: no debe sustituirse por BFS o DFS.`);
+  const java = getBeginnerJava(spanningAlgorithm, actionId);
+  assert.match(java, algorithmId === 'prim' ? /void prim\(String startName\)/ : /void kruskal\(\)/, `${spanningAlgorithm.name}: falta el algoritmo Java completo.`);
+  const result = run(spanningAlgorithm, actionId, { value: 'A', second: '', index: '' });
+  assert.equal(result.ok, true, `${spanningAlgorithm.name}: no construye el árbol de expansión mínima.`);
+  assert.equal(result.frames.at(-1).graphState.visitedEdges.length, spanningAlgorithm.values.length - 1, `${spanningAlgorithm.name}: debe elegir V - 1 aristas.`);
+  assert.equal(result.frames.at(-1).graphState.totalCost, expectedCost, `${spanningAlgorithm.name}: el costo mínimo calculado es incorrecto.`);
+  assert.ok(result.frames.every(frame => java.includes(frame.codeNeedle)), `${spanningAlgorithm.name}: un paso no corresponde al Java mostrado.`);
+}
 
 for (const algorithmId of ['dijkstra', 'a-star']) {
   const pathAlgorithm = algorithms.find(item => item.id === algorithmId);
