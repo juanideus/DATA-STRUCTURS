@@ -528,6 +528,26 @@ export const educationalDescriptions = {
     'La caja de una celda comienza en fila - fila % 3 y columna - columna % 3.'
   ),
 
+  polinomios: guide(
+    'Un polinomio de una variable puede representarse como una lista enlazada donde cada nodo contiene COEF, EXP y LINK: el coeficiente, el exponente y el enlace al siguiente término.',
+    'Los nodos se mantienen ordenados por exponente de mayor a menor. Los coeficientes iguales a cero no se almacenan y dos términos con el mismo exponente se agrupan en un único nodo. Para sumar A y B se usan dos referencias, p y q. Si sus exponentes son iguales se suman coeficientes y avanzan ambas; si uno es mayor, se copia ese término y avanza solamente su referencia. Finalmente se copian los términos restantes.',
+    'Insertar un término en orden|Agrupar exponentes repetidos|Eliminar un término por exponente|Sumar dos polinomios|Construir la lista resultado C|Descartar coeficientes cero',
+    'Ahorra espacio en polinomios dispersos|La suma ordenada es lineal|Hace visible cada término|No reserva posiciones para exponentes ausentes|Permite grados muy altos',
+    'Buscar un exponente requiere recorrido lineal|Cada nodo necesita un enlace|La multiplicación requiere combinar muchos términos|Debe conservarse el orden|Los exponentes negativos no pertenecen a este modelo',
+    'Álgebra simbólica|Manipulación de expresiones|Polinomios dispersos de grado alto|Sistemas de cálculo|Enseñanza de listas enlazadas',
+    'A = 3x^14 + 2x^8 + 1 se guarda como [3|14|LINK] → [2|8|LINK] → [1|0|NULL]. El exponente 0 representa la constante.',
+    'Durante la suma observa p y q: una referencia no avanza hasta que su término haya sido copiado o agrupado en C.'
+  ),
+  'listas-generalizadas': guide(
+    'Una lista generalizada es una secuencia finita cuyos elementos pueden ser átomos o nuevas listas. Se escribe entre paréntesis y sus elementos se separan con comas.',
+    'Cada nodo usa tres zonas: tag, data/dlink/ref y link. tag 0 indica un átomo y la segunda zona guarda data; tag 1 indica una sublista y la segunda zona es dlink; tag 2 identifica un nodo de encabezamiento y guarda el contador ref. link siempre conduce al siguiente elemento del mismo nivel. Head devuelve el primer elemento y Tail representa desde el segundo elemento en adelante.',
+    'Construir desde notación con paréntesis|Obtener Head|Obtener Tail|Calcular longitud del primer nivel|Calcular profundidad recursivamente|Compartir y liberar referencias',
+    'Representa estructuras anidadas|Puede compartir sublistas sin duplicarlas|Admite listas vacías y recursivas|Los recorridos se expresan naturalmente con recursión|Distingue enlaces horizontales y verticales',
+    'Su dibujo es más complejo que una lista simple|Los ciclos no se liberan correctamente sólo con referencia contada|Copiar requiere decidir si preservar el uso compartido|Una profundidad grande consume pila|Cada nodo necesita un tag',
+    'Representación de expresiones|Lenguajes como Lisp y Prolog|Árboles sintácticos|Datos jerárquicos|Polinomios de varias variables',
+    'Para A = ((a,b),((c,d),e)), la raíz tiene longitud 2. Ambos elementos son sublistas y la mayor cantidad de paréntesis anidados produce profundidad 3.',
+    'No confundas longitud con cantidad total de átomos: length cuenta únicamente los elementos del nivel 1; depth busca el anidamiento máximo.'
+  ),
   matriz: guide(
     'Una Matriz es una estructura bidimensional que organiza valores en filas y columnas. En Java puede representarse con un arreglo como int[4][4], donde cada celda se identifica mediante dos índices.',
     'La matriz densa reserva espacio para todas sus posiciones, incluso cuando algunas contienen cero. values[fila][columna] permite acceder directamente a una celda en O(1). Para comprender su distribución lineal puede imaginarse el índice fila × cantidadDeColumnas + columna. Los recorridos usan un ciclo para una fila o columna y dos ciclos anidados para visitar toda la cuadrícula.',

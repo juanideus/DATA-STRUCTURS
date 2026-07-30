@@ -7,6 +7,19 @@ import {
   normalizeDenseMatrixValues,
   validDenseMatrixCoordinate,
 } from './denseMatrix.js';
+import {
+  generalizedItemToString,
+  generalizedListDepth,
+  generalizedListToString,
+  parseGeneralizedList,
+} from './generalizedList.js';
+import {
+  addPolynomials,
+  combinePolynomialValues,
+  formatPolynomial,
+  insertPolynomialTerm,
+  polynomialTerms,
+} from './polynomial.js';
 
 export const DEFAULT_GRAPH_EDGES = [
   [0, 1, 4], [1, 2, 2], [0, 3, 7], [1, 3, 3], [1, 4, 5],
@@ -175,9 +188,37 @@ const definitions = {
       action('matrix-clear', 'Limpiar', 'danger'),
     ],
   },
+  polynomial: {
+    fields: [
+      field('value', 'Coeficiente', 'number'),
+      field('index', 'Exponente', 'number'),
+    ],
+    actions: [
+      action('poly-insert-a', 'Insertar / agrupar en A'),
+      action('poly-insert-b', 'Insertar / agrupar en B'),
+      action('poly-remove-a', 'Eliminar de A', 'danger'),
+      action('poly-remove-b', 'Eliminar de B', 'danger'),
+      action('poly-add', 'Sumar A + B'),
+      action('poly-clear-result', 'Limpiar C', 'danger'),
+    ],
+  },
+  generalizedList: {
+    fields: [field('value', 'Lista generalizada')],
+    actions: [
+      action('glist-build', 'Construir lista'),
+      action('glist-head', 'Obtener Head'),
+      action('glist-tail', 'Obtener Tail'),
+      action('glist-length', 'Calcular longitud'),
+      action('glist-depth', 'Calcular profundidad'),
+      action('glist-share', 'Compartir raíz'),
+      action('glist-release', 'Liberar referencia', 'danger'),
+    ],
+  },
 };
 
 export function operationGroup(algorithm) {
+  if (algorithm.id === 'polinomios') return 'polynomial';
+  if (algorithm.id === 'listas-generalizadas') return 'generalizedList';
   if (algorithm.id === 'matriz') return 'matrix';
   if (algorithm.id === 'matriz-dispersa') return 'sparseMatrix';
   if (algorithm.id === 'arbol-enhebrado') return 'threadedTree';
@@ -2095,6 +2136,541 @@ const solveMazeWithTrace = initialMaze => {
 
 export const SPARSE_MATRIX_ROWS = 5;
 export const SPARSE_MATRIX_COLUMNS = 6;
+
+function executePolynomialOperation({ actionId, fields, values, edges }) {
+  const beforeValues = values.map(term => ({ ...term }));
+  const A = polynomialTerms(beforeValues, 'A');
+  const B = polynomialTerms(beforeValues, 'B');
+  const C = polynomialTerms(beforeValues, 'C');
+  const copiedEdges = edges.map(edge => [...edge]);
+  const parseInteger = raw => {
+    if (raw === undefined || raw === null || String(raw).trim() === '') return null;
+    const parsed = Number(raw);
+    return Number.isInteger(parsed) ? parsed : null;
+  };
+  const coefficient = parseInteger(fields.value);
+  const exponent = parseInteger(fields.index);
+  const stateValues = (nextA = A, nextB = B, nextC = C) => combinePolynomialValues(nextA, nextB, nextC);
+  const frame = ({
+    nextA = A,
+    nextB = B,
+    nextC = C,
+    codeNeedle,
+    message,
+    pIndex = null,
+    qIndex = null,
+    activePolynomial = null,
+    activeIndex = null,
+    phase = 'idle',
+    completed = false,
+    extras = [],
+  }) => ({
+    values: stateValues(nextA, nextB, nextC),
+    edges: copiedEdges,
+    position: Math.max(0, activeIndex ?? pIndex ?? qIndex ?? 0),
+    codeNeedle,
+    message,
+    delayMs: 620,
+    completed,
+    polynomialState: {
+      pIndex,
+      qIndex,
+      activePolynomial,
+      activeIndex,
+      phase,
+      resultCount: nextC.length,
+    },
+    variables: [
+      { name: 'p', value: pIndex === null ? '—' : A[pIndex] ? `${A[pIndex].coefficient}x^${A[pIndex].exponent}` : 'null', role: 'position' },
+      { name: 'q', value: qIndex === null ? '—' : B[qIndex] ? `${B[qIndex].coefficient}x^${B[qIndex].exponent}` : 'null', role: 'position' },
+      { name: 'términos en C', value: nextC.length, role: 'size' },
+      ...extras,
+    ],
+  });
+  const finish = (ok, updated, message, frames, step = 0) => ({
+    ok,
+    values: updated,
+    edges: copiedEdges,
+    message,
+    step,
+    frames,
+  });
+
+  if (['poly-insert-a', 'poly-insert-b'].includes(actionId)) {
+    if (coefficient === null || exponent === null || exponent < 0) {
+      return finish(false, beforeValues, 'Ingresa un coeficiente entero y un exponente entero mayor o igual que 0.', []);
+    }
+    const targetName = actionId.endsWith('a') ? 'A' : 'B';
+    const source = targetName === 'A' ? A : B;
+    const wrapper = targetName === 'A' ? 'void insertInA(int coefficient, int exponent) {' : 'void insertInB(int coefficient, int exponent) {';
+    const assignment = targetName === 'A'
+      ? 'A = insertOrdered(A, coefficient, exponent);'
+      : 'B = insertOrdered(B, coefficient, exponent);';
+    const frames = [
+      frame({ codeNeedle: wrapper, message: `Se insertará ${coefficient}x^${exponent} en ${targetName}.`, activePolynomial: targetName, extras: [
+        { name: 'coefficient', value: coefficient, role: 'input' },
+        { name: 'exponent', value: exponent, role: 'input' },
+      ] }),
+      frame({ codeNeedle: assignment, message: `Se llama a insertOrdered con la cabeza de ${targetName}.`, activePolynomial: targetName }),
+      frame({ codeNeedle: 'if (coefficient == 0) {', message: coefficient === 0
+        ? 'El coeficiente es 0: el término no debe almacenarse.'
+        : 'El coeficiente es distinto de 0 y puede formar un término.', activePolynomial: targetName, extras: [
+        { name: 'condición', value: String(coefficient === 0), role: coefficient === 0 ? 'true' : 'false' },
+      ] }),
+    ];
+    let currentIndex = 0;
+    while (currentIndex < source.length && source[currentIndex].exponent > exponent) {
+      frames.push(frame({
+        codeNeedle: 'while (current != null && current.exponent > exponent) {',
+        message: `Exp(${source[currentIndex].exponent}) es mayor que ${exponent}; previous y current avanzan.`,
+        activePolynomial: targetName,
+        activeIndex: currentIndex,
+        phase: 'scan',
+        extras: [{ name: 'current.exp', value: source[currentIndex].exponent, role: 'value' }],
+      }));
+      frames.push(
+        frame({ codeNeedle: 'previous = current;', message: `previous queda en el término de exponente ${source[currentIndex].exponent}.`, activePolynomial: targetName, activeIndex: currentIndex }),
+        frame({ codeNeedle: 'current = current.next;', message: 'current avanza mediante LINK.', activePolynomial: targetName, activeIndex: Math.min(currentIndex + 1, Math.max(0, source.length - 1)) }),
+      );
+      currentIndex++;
+    }
+    const sameExponent = source[currentIndex]?.exponent === exponent;
+    frames.push(frame({
+      codeNeedle: 'if (current != null && current.exponent == exponent) {',
+      message: sameExponent
+        ? `Ya existe el exponente ${exponent}; se agruparán los coeficientes.`
+        : `No existe otro término con exponente ${exponent}; se creará un nodo.`,
+      activePolynomial: targetName,
+      activeIndex: Math.min(currentIndex, Math.max(0, source.length - 1)),
+      extras: [{ name: 'condición', value: String(sameExponent), role: sameExponent ? 'true' : 'false' }],
+    }));
+    const updatedTarget = insertPolynomialTerm(source, coefficient, exponent);
+    if (sameExponent) {
+      const grouped = source[currentIndex].coefficient + coefficient;
+      frames.push(frame({
+        codeNeedle: 'current.coefficient += coefficient;',
+        message: `${source[currentIndex].coefficient} + ${coefficient} = ${grouped}.`,
+        activePolynomial: targetName,
+        activeIndex: currentIndex,
+        extras: [{ name: 'coeficiente agrupado', value: grouped, role: 'value' }],
+      }));
+      frames.push(frame({
+        codeNeedle: 'if (current.coefficient == 0) {',
+        message: grouped === 0
+          ? 'La suma dio 0; el nodo se elimina porque los coeficientes cero no se guardan.'
+          : 'El coeficiente final no es cero; el nodo permanece.',
+        activePolynomial: targetName,
+        activeIndex: Math.min(currentIndex, Math.max(0, updatedTarget.length - 1)),
+        extras: [{ name: 'condición', value: String(grouped === 0), role: grouped === 0 ? 'true' : 'false' }],
+      }));
+    } else if (coefficient !== 0) {
+      frames.push(
+        frame({ codeNeedle: 'Node newNode = new Node(coefficient, exponent);', message: `Se crea el nodo [${coefficient} | ${exponent} | LINK].`, activePolynomial: targetName, activeIndex: currentIndex, phase: 'create' }),
+        frame({ codeNeedle: 'newNode.next = current;', message: 'LINK del nuevo nodo apunta al término menor que sigue.', activePolynomial: targetName, activeIndex: currentIndex, phase: 'link' }),
+        frame({ codeNeedle: currentIndex === 0 ? 'return newNode;' : 'previous.next = newNode;', message: currentIndex === 0
+          ? `El nuevo nodo se convierte en la cabeza de ${targetName}.`
+          : 'LINK de previous se conecta con el nuevo nodo.', activePolynomial: targetName, activeIndex: currentIndex, phase: 'link' }),
+      );
+    }
+    const nextA = targetName === 'A' ? updatedTarget : A;
+    const nextB = targetName === 'B' ? updatedTarget : B;
+    const updated = stateValues(nextA, nextB, []);
+    const finalMessage = coefficient === 0
+      ? 'El término no se almacenó porque su coeficiente es 0.'
+      : `${targetName} = ${formatPolynomial(updatedTarget)}. C se limpió porque cambió un operando.`;
+    frames.push(frame({
+      nextA,
+      nextB,
+      nextC: [],
+      codeNeedle: 'C = null;',
+      message: finalMessage,
+      activePolynomial: targetName,
+      activeIndex: Math.max(0, updatedTarget.findIndex(term => term.exponent === exponent)),
+      completed: true,
+    }));
+    return finish(true, updated, finalMessage, frames);
+  }
+
+  if (['poly-remove-a', 'poly-remove-b'].includes(actionId)) {
+    if (exponent === null || exponent < 0) {
+      return finish(false, beforeValues, 'Ingresa el exponente entero que quieres eliminar.', []);
+    }
+    const targetName = actionId.endsWith('a') ? 'A' : 'B';
+    const source = targetName === 'A' ? A : B;
+    const foundIndex = source.findIndex(term => term.exponent === exponent);
+    const wrapper = targetName === 'A' ? 'void removeFromA(int exponent) {' : 'void removeFromB(int exponent) {';
+    const assignment = targetName === 'A'
+      ? 'A = removeExponent(A, exponent);'
+      : 'B = removeExponent(B, exponent);';
+    const frames = [
+      frame({ codeNeedle: wrapper, message: `Se buscará x^${exponent} en ${targetName}.`, activePolynomial: targetName }),
+      frame({ codeNeedle: assignment, message: 'Entra al método removeExponent.', activePolynomial: targetName }),
+    ];
+    source.forEach((term, index) => {
+      if (foundIndex >= 0 && index > foundIndex) return;
+      frames.push(frame({
+        codeNeedle: 'while (current != null && current.exponent != exponent) {',
+        message: term.exponent === exponent
+          ? `Exp(${term.exponent}) coincide: el ciclo termina.`
+          : `Exp(${term.exponent}) no coincide: se sigue por LINK.`,
+        activePolynomial: targetName,
+        activeIndex: index,
+        phase: 'scan',
+      }));
+    });
+    if (foundIndex < 0) {
+      frames.push(frame({ codeNeedle: 'if (current == null) {', message: `El exponente ${exponent} no existe en ${targetName}.`, activePolynomial: targetName, completed: true }));
+      return finish(false, beforeValues, `No existe un término x^${exponent} en ${targetName}.`, frames);
+    }
+    const updatedTarget = source.filter((_, index) => index !== foundIndex);
+    frames.push(frame({
+      nextA: targetName === 'A' ? updatedTarget : A,
+      nextB: targetName === 'B' ? updatedTarget : B,
+      nextC: [],
+      codeNeedle: foundIndex === 0 ? 'return current.next;' : 'previous.next = current.next;',
+      message: foundIndex === 0 ? 'La cabeza avanza al segundo término.' : 'previous salta el nodo eliminado.',
+      activePolynomial: targetName,
+      activeIndex: Math.max(0, foundIndex - 1),
+      phase: 'remove',
+    }));
+    const nextA = targetName === 'A' ? updatedTarget : A;
+    const nextB = targetName === 'B' ? updatedTarget : B;
+    const finalMessage = `Se eliminó x^${exponent} de ${targetName}. C se limpió.`;
+    frames.push(frame({ nextA, nextB, nextC: [], codeNeedle: 'C = null;', message: finalMessage, activePolynomial: targetName, completed: true }));
+    return finish(true, stateValues(nextA, nextB, []), finalMessage, frames);
+  }
+
+  if (actionId === 'poly-add') {
+    const result = [];
+    let p = 0;
+    let q = 0;
+    const frames = [
+      frame({ codeNeedle: 'void sumPolynomials() {', message: 'Comienza la suma de A y B.', pIndex: 0, qIndex: 0 }),
+      frame({ codeNeedle: 'C = add(A, B);', message: 'Se llama al método que mezcla ambas listas ordenadas.', pIndex: 0, qIndex: 0 }),
+      frame({ codeNeedle: 'Node p = first;', message: 'p apunta al primer término de A.', pIndex: 0, qIndex: 0 }),
+      frame({ codeNeedle: 'Node q = second;', message: 'q apunta al primer término de B.', pIndex: 0, qIndex: 0 }),
+    ];
+    const append = (term, codeNeedle, message, activePolynomial) => {
+      result.push({ coefficient: term.coefficient, exponent: term.exponent });
+      frames.push(
+        frame({ nextC: result, codeNeedle, message, pIndex: p, qIndex: q, activePolynomial, activeIndex: activePolynomial === 'A' ? p : q, phase: 'append' }),
+        frame({ nextC: result, codeNeedle: 'end = end.next;', message: 'end avanza al último nodo creado en C.', pIndex: p, qIndex: q, activePolynomial: 'C', activeIndex: result.length - 1 }),
+      );
+    };
+    while (p < A.length && q < B.length) {
+      frames.push(frame({
+        nextC: result,
+        codeNeedle: 'while (p != null && q != null) {',
+        message: `Se comparan Exp(p)=${A[p].exponent} y Exp(q)=${B[q].exponent}.`,
+        pIndex: p,
+        qIndex: q,
+        phase: 'compare',
+      }));
+      if (A[p].exponent === B[q].exponent) {
+        const sum = A[p].coefficient + B[q].coefficient;
+        frames.push(
+          frame({ nextC: result, codeNeedle: 'if (p.exponent == q.exponent) {', message: 'Los exponentes son iguales; ambos términos serán considerados.', pIndex: p, qIndex: q, phase: 'equal' }),
+          frame({ nextC: result, codeNeedle: 'int coefficient = p.coefficient + q.coefficient;', message: `${A[p].coefficient} + ${B[q].coefficient} = ${sum}.`, pIndex: p, qIndex: q, extras: [{ name: 'coefficient', value: sum, role: 'value' }] }),
+        );
+        if (sum !== 0) append({ coefficient: sum, exponent: A[p].exponent }, 'end.next = new Node(coefficient, p.exponent);', `C recibe ${sum}x^${A[p].exponent}.`, 'C');
+        frames.push(
+          frame({ nextC: result, codeNeedle: 'p = p.next;', message: 'p avanza porque su término ya fue considerado.', pIndex: p + 1, qIndex: q }),
+          frame({ nextC: result, codeNeedle: 'q = q.next;', message: 'q también avanza.', pIndex: p + 1, qIndex: q + 1 }),
+        );
+        p++;
+        q++;
+      } else if (A[p].exponent > B[q].exponent) {
+        frames.push(frame({ nextC: result, codeNeedle: '} else if (p.exponent > q.exponent) {', message: 'Exp(p) es mayor: se copia p y q espera.', pIndex: p, qIndex: q, phase: 'p-greater' }));
+        append(A[p], 'end.next = new Node(p.coefficient, p.exponent);', `C recibe ${A[p].coefficient}x^${A[p].exponent}.`, 'A');
+        frames.push(frame({ nextC: result, codeNeedle: 'p = p.next;', message: 'Sólo p avanza.', pIndex: p + 1, qIndex: q }));
+        p++;
+      } else {
+        frames.push(frame({ nextC: result, codeNeedle: '} else {', message: 'Exp(q) es mayor: se copia q y p espera.', pIndex: p, qIndex: q, phase: 'q-greater' }));
+        append(B[q], 'end.next = new Node(q.coefficient, q.exponent);', `C recibe ${B[q].coefficient}x^${B[q].exponent}.`, 'B');
+        frames.push(frame({ nextC: result, codeNeedle: 'q = q.next;', message: 'Sólo q avanza.', pIndex: p, qIndex: q + 1 }));
+        q++;
+      }
+    }
+    while (p < A.length) {
+      frames.push(frame({ nextC: result, codeNeedle: 'while (p != null) {', message: 'B terminó; se copian los términos restantes de A.', pIndex: p, qIndex: q, phase: 'remaining' }));
+      append(A[p], 'end.next = new Node(p.coefficient, p.exponent);', `C recibe ${A[p].coefficient}x^${A[p].exponent}.`, 'A');
+      frames.push(frame({ nextC: result, codeNeedle: 'p = p.next;', message: 'p avanza al siguiente término restante.', pIndex: p + 1, qIndex: q }));
+      p++;
+    }
+    while (q < B.length) {
+      frames.push(frame({ nextC: result, codeNeedle: 'while (q != null) {', message: 'A terminó; se copian los términos restantes de B.', pIndex: p, qIndex: q, phase: 'remaining' }));
+      append(B[q], 'end.next = new Node(q.coefficient, q.exponent);', `C recibe ${B[q].coefficient}x^${B[q].exponent}.`, 'B');
+      frames.push(frame({ nextC: result, codeNeedle: 'q = q.next;', message: 'q avanza al siguiente término restante.', pIndex: p, qIndex: q + 1 }));
+      q++;
+    }
+    const finalMessage = `C = ${formatPolynomial(result)}.`;
+    frames.push(
+      frame({ nextC: result, codeNeedle: 'return dummy.next;', message: 'El método devuelve el primer nodo real de C.', pIndex: p, qIndex: q }),
+      frame({ nextC: result, codeNeedle: 'C = add(A, B);', message: finalMessage, pIndex: p, qIndex: q, activePolynomial: 'C', completed: true }),
+    );
+    return finish(true, stateValues(A, B, result), finalMessage, frames);
+  }
+
+  if (actionId === 'poly-clear-result') {
+    const updated = stateValues(A, B, []);
+    const frames = [
+      frame({ codeNeedle: 'void clearResult() {', message: 'Se limpiará únicamente el resultado C.', activePolynomial: 'C' }),
+      frame({ nextC: [], codeNeedle: 'C = null;', message: 'C queda en null; A y B no cambian.', activePolynomial: 'C', completed: true }),
+    ];
+    return finish(true, updated, 'El resultado C quedó vacío.', frames);
+  }
+
+  return null;
+}
+
+function executeGeneralizedListOperation({ actionId, fields, values, edges }) {
+  const before = structuredClone(values);
+  const root = before[0] ?? null;
+  const copiedEdges = edges.map(edge => [...edge]);
+  const cloneValues = nextRoot => nextRoot ? [structuredClone(nextRoot)] : [];
+  const frame = ({
+    nextRoot = root,
+    codeNeedle,
+    message,
+    activePaths = [],
+    phase = 'idle',
+    completed = false,
+    extras = [],
+  }) => ({
+    values: cloneValues(nextRoot),
+    edges: copiedEdges,
+    position: 0,
+    codeNeedle,
+    message,
+    delayMs: 650,
+    completed,
+    generalizedListState: { activePaths, phase },
+    variables: [
+      { name: 'ref raíz', value: nextRoot?.refs ?? 0, role: 'size' },
+      { name: 'longitud nivel 1', value: nextRoot?.items?.length ?? 0, role: 'size' },
+      { name: 'profundidad', value: generalizedListDepth(nextRoot), role: 'value' },
+      ...extras,
+    ],
+  });
+  const finish = (ok, updated, message, frames) => ({
+    ok,
+    values: updated,
+    edges: copiedEdges,
+    message,
+    step: 0,
+    frames,
+  });
+
+  if (actionId === 'glist-build') {
+    let parsed;
+    try {
+      parsed = parseGeneralizedList(fields.value);
+    } catch (error) {
+      return finish(false, before, error.message, []);
+    }
+    const nextRoot = parsed.root;
+    const frames = [
+      frame({ nextRoot, codeNeedle: 'Node build(String text) {', message: `Comienza el análisis de ${parsed.source}.`, phase: 'build' }),
+      frame({ nextRoot, codeNeedle: 'source = text;', message: 'source guarda la notación con paréntesis y comas.', phase: 'build', extras: [
+        { name: 'source', value: parsed.source, role: 'input' },
+      ] }),
+      frame({ nextRoot, codeNeedle: 'position = 0;', message: 'El lector comienza en el primer carácter.', phase: 'build' }),
+      frame({ nextRoot, codeNeedle: 'root = parseList();', message: 'parseList construirá el encabezamiento y sus elementos.', activePaths: ['root.header'], phase: 'build' }),
+    ];
+    parsed.events.forEach(event => {
+      frames.push(frame({
+        nextRoot,
+        codeNeedle: event.codeNeedle,
+        message: event.kind === 'encabezamiento'
+          ? 'Se crea un nodo tag 2 con contador de referencias igual a 1.'
+          : event.kind === 'átomo'
+            ? `Se crea un nodo tag 0 que almacena el átomo ${event.value}.`
+            : event.kind === 'sublista'
+              ? 'Se crea un nodo tag 1 cuyo dlink apunta a una sublista.'
+              : `${event.value} conecta el elemento dentro de su mismo nivel.`,
+        activePaths: [event.path],
+        phase: event.kind,
+        extras: [
+          { name: 'tag', value: event.kind === 'átomo' ? 0 : event.kind === 'sublista' ? 1 : event.kind === 'encabezamiento' ? 2 : 'link', role: 'value' },
+        ],
+      }));
+    });
+    frames.push(
+      frame({ nextRoot, codeNeedle: 'if (position != source.length()) {', message: 'No queda contenido inesperado después del último paréntesis.', phase: 'validate', extras: [
+        { name: 'condición', value: 'false', role: 'false' },
+      ] }),
+      frame({ nextRoot, codeNeedle: 'return root;', message: `A = ${generalizedListToString(nextRoot)} quedó construida.`, activePaths: ['root.header'], phase: 'complete', completed: true }),
+    );
+    return finish(true, [nextRoot], `A = ${generalizedListToString(nextRoot)} quedó construida.`, frames);
+  }
+
+  if (actionId === 'glist-head') {
+    if (!root?.items?.length) return finish(false, before, 'La lista está vacía y no tiene Head.', []);
+    const head = root.items[0];
+    const result = generalizedItemToString(head);
+    const frames = [
+      frame({ codeNeedle: 'Node head() {', message: 'Head consulta el primer elemento del nivel 1.', activePaths: ['root.header'] }),
+      frame({ codeNeedle: 'if (root == null || root.link == null) {', message: 'La raíz y su primer LINK existen; la condición es falsa.', activePaths: ['root.header'], extras: [
+        { name: 'condición', value: 'false', role: 'false' },
+      ] }),
+      frame({ codeNeedle: 'return root.link;', message: `Head(A) = ${result}.`, activePaths: ['root.0'], phase: 'head', completed: true, extras: [
+        { name: 'Head(A)', value: result, role: 'value' },
+      ] }),
+    ];
+    return finish(true, before, `Head(A) = ${result}.`, frames);
+  }
+
+  if (actionId === 'glist-tail') {
+    if (!root?.items?.length) return finish(false, before, 'La lista está vacía y no tiene Tail.', []);
+    const tailItems = root.items.slice(1);
+    const result = `(${tailItems.map(generalizedItemToString).join(',')})`;
+    const activePaths = tailItems.map((_, index) => `root.${index + 1}`);
+    const frames = [
+      frame({ codeNeedle: 'Node tail() {', message: 'Tail comienza después del primer elemento.', activePaths: ['root.header'] }),
+      frame({ codeNeedle: 'if (root == null || root.link == null) {', message: 'La lista contiene al menos un elemento.', activePaths: ['root.0'], extras: [
+        { name: 'condición', value: 'false', role: 'false' },
+      ] }),
+      frame({ codeNeedle: 'return root.link.link;', message: `Tail(A) = ${result}.`, activePaths, phase: 'tail', completed: true, extras: [
+        { name: 'Tail(A)', value: result, role: 'value' },
+      ] }),
+    ];
+    return finish(true, before, `Tail(A) = ${result}.`, frames);
+  }
+
+  if (actionId === 'glist-length') {
+    if (!root) return finish(false, before, 'Primero construye una lista generalizada.', []);
+    let count = 0;
+    const frames = [
+      frame({ codeNeedle: 'int length() {', message: 'La longitud cuenta sólo los elementos del nivel 1.', activePaths: ['root.header'] }),
+      frame({ codeNeedle: 'int count = 0;', message: 'count comienza en 0.', extras: [{ name: 'count', value: 0, role: 'size' }] }),
+      frame({ codeNeedle: 'Node current = root == null ? null : root.link;', message: 'current apunta al primer elemento.', activePaths: root.items.length ? ['root.0'] : [] }),
+    ];
+    root.items.forEach((_, index) => {
+      frames.push(
+        frame({ codeNeedle: 'while (current != null) {', message: `current existe en la posición ${index}; el ciclo continúa.`, activePaths: [`root.${index}`], phase: 'length', extras: [
+          { name: 'count', value: count, role: 'size' },
+          { name: 'condición', value: 'true', role: 'true' },
+        ] }),
+        frame({ codeNeedle: 'count++;', message: `count aumenta a ${count + 1}.`, activePaths: [`root.${index}`], phase: 'length', extras: [
+          { name: 'count', value: ++count, role: 'size' },
+        ] }),
+        frame({ codeNeedle: 'current = current.link;', message: 'current avanza por LINK dentro del mismo nivel.', activePaths: index + 1 < root.items.length ? [`root.${index + 1}`] : [], phase: 'length' }),
+      );
+    });
+    frames.push(
+      frame({ codeNeedle: 'while (current != null) {', message: 'current es null; el ciclo termina.', extras: [
+        { name: 'condición', value: 'false', role: 'false' },
+        { name: 'count', value: count, role: 'size' },
+      ] }),
+      frame({ codeNeedle: 'return count;', message: `Length(A) = ${count}.`, activePaths: root.items.map((_, index) => `root.${index}`), phase: 'complete', completed: true, extras: [
+        { name: 'Length(A)', value: count, role: 'value' },
+      ] }),
+    );
+    return finish(true, before, `Length(A) = ${count}.`, frames);
+  }
+
+  if (actionId === 'glist-depth') {
+    if (!root) return finish(false, before, 'Primero construye una lista generalizada.', []);
+    const frames = [
+      frame({ codeNeedle: 'int depth() {', message: 'Depth buscará el mayor número de listas anidadas.', activePaths: ['root.header'] }),
+      frame({ codeNeedle: 'if (root == null) {', message: 'root existe; la profundidad no es 0.', activePaths: ['root.header'], extras: [
+        { name: 'condición', value: 'false', role: 'false' },
+      ] }),
+      frame({ codeNeedle: 'return depthOf(root);', message: 'Comienza la función recursiva desde el encabezamiento A.', activePaths: ['root.header'] }),
+    ];
+    const visit = (list, path, level) => {
+      let maximum = 1;
+      frames.push(
+        frame({ codeNeedle: 'int depthOf(Node header) {', message: `Entra a depthOf en el nivel ${level}.`, activePaths: [`${path}.header`], phase: 'depth', extras: [
+          { name: 'nivel', value: level, role: 'index' },
+        ] }),
+        frame({ codeNeedle: 'int maximum = 1;', message: 'Una lista aporta un par de paréntesis como mínimo.', activePaths: [`${path}.header`], extras: [
+          { name: 'maximum', value: maximum, role: 'value' },
+        ] }),
+      );
+      list.items.forEach((item, index) => {
+        const itemPath = `${path}.${index}`;
+        frames.push(
+          frame({ codeNeedle: 'while (current != null) {', message: 'current apunta a otro elemento del nivel actual.', activePaths: [itemPath], phase: 'depth' }),
+          frame({ codeNeedle: 'if (current.tag == SUBLIST) {', message: item.kind === 'sublist'
+            ? 'tag es 1: se debe entrar recursivamente por dlink.'
+            : 'tag es 0: el elemento es un átomo.', activePaths: [itemPath], phase: 'depth', extras: [
+            { name: 'tag', value: item.kind === 'sublist' ? 1 : 0, role: 'value' },
+            { name: 'condición', value: String(item.kind === 'sublist'), role: item.kind === 'sublist' ? 'true' : 'false' },
+          ] }),
+        );
+        if (item.kind === 'sublist') {
+          const childDepth = visit(item.list, `${itemPath}.list`, level + 1);
+          maximum = Math.max(maximum, 1 + childDepth);
+          frames.push(frame({
+            codeNeedle: 'maximum = Math.max(maximum, 1 + depthOf(current.dlink));',
+            message: `La sublista produce profundidad ${1 + childDepth}; maximum queda en ${maximum}.`,
+            activePaths: [itemPath, `${itemPath}.list.header`],
+            phase: 'depth',
+            extras: [{ name: 'maximum', value: maximum, role: 'value' }],
+          }));
+        }
+        frames.push(frame({ codeNeedle: 'current = current.link;', message: 'current avanza al siguiente elemento del mismo nivel.', activePaths: [itemPath], phase: 'depth' }));
+      });
+      frames.push(frame({ codeNeedle: 'return maximum;', message: `Este nivel devuelve ${maximum}.`, activePaths: [`${path}.header`], phase: 'depth', extras: [
+        { name: 'return', value: maximum, role: 'value' },
+      ] }));
+      return maximum;
+    };
+    const depth = visit(root, 'root', 1);
+    frames.push(frame({ codeNeedle: 'return depthOf(root);', message: `Depth(A) = ${depth}.`, activePaths: ['root.header'], phase: 'complete', completed: true, extras: [
+      { name: 'Depth(A)', value: depth, role: 'value' },
+    ] }));
+    return finish(true, before, `Depth(A) = ${depth}.`, frames);
+  }
+
+  if (actionId === 'glist-share') {
+    if (!root) return finish(false, before, 'Primero construye una lista generalizada.', []);
+    if (root.refs >= 5) return finish(false, before, 'La demostración admite hasta cinco referencias externas.', []);
+    const nextRoot = structuredClone(root);
+    nextRoot.refs++;
+    nextRoot.aliases = [...(nextRoot.aliases ?? ['A']), `R${nextRoot.refs}`];
+    const frames = [
+      frame({ codeNeedle: 'void shareRoot() {', message: 'Se creará otra referencia externa a la misma lista.', activePaths: ['root.header'], phase: 'reference' }),
+      frame({ codeNeedle: 'if (root != null) {', message: 'root existe; el contador puede incrementarse.', activePaths: ['root.header'], extras: [
+        { name: 'condición', value: 'true', role: 'true' },
+      ] }),
+      frame({ nextRoot, codeNeedle: 'root.ref++;', message: `El encabezamiento ahora registra ${nextRoot.refs} referencias.`, activePaths: ['root.header'], phase: 'reference', completed: true, extras: [
+        { name: 'root.ref', value: nextRoot.refs, role: 'size' },
+      ] }),
+    ];
+    return finish(true, [nextRoot], `La raíz ahora tiene ${nextRoot.refs} referencias compartidas.`, frames);
+  }
+
+  if (actionId === 'glist-release') {
+    if (!root) return finish(false, before, 'La lista ya no tiene referencias.', []);
+    const nextRoot = structuredClone(root);
+    nextRoot.refs--;
+    nextRoot.aliases = (nextRoot.aliases ?? ['A']).slice(0, Math.max(0, nextRoot.refs));
+    const frames = [
+      frame({ codeNeedle: 'void releaseRoot() {', message: 'Se eliminará una referencia externa, no necesariamente toda la lista.', activePaths: ['root.header'], phase: 'reference' }),
+      frame({ codeNeedle: 'if (root == null) {', message: 'root existe; se puede disminuir su contador.', activePaths: ['root.header'], extras: [
+        { name: 'condición', value: 'false', role: 'false' },
+      ] }),
+      frame({ nextRoot, codeNeedle: 'root.ref--;', message: `ref disminuye a ${nextRoot.refs}.`, activePaths: ['root.header'], phase: 'reference', extras: [
+        { name: 'root.ref', value: nextRoot.refs, role: 'size' },
+      ] }),
+      frame({ nextRoot, codeNeedle: 'if (root.ref == 0) {', message: nextRoot.refs === 0
+        ? 'El contador llegó a 0: ya no queda ningún acceso a la lista.'
+        : 'Aún existen referencias; la estructura debe conservarse.', activePaths: ['root.header'], phase: 'reference', extras: [
+        { name: 'condición', value: String(nextRoot.refs === 0), role: nextRoot.refs === 0 ? 'true' : 'false' },
+      ] }),
+    ];
+    if (nextRoot.refs === 0) {
+      frames.push(frame({ nextRoot: null, codeNeedle: 'root = null;', message: 'root queda en null y la lista puede liberarse de forma segura.', phase: 'complete', completed: true }));
+      return finish(true, [], 'La última referencia fue liberada; la lista quedó vacía.', frames);
+    }
+    frames.at(-1).completed = true;
+    return finish(true, [nextRoot], `Quedan ${nextRoot.refs} referencias; la lista se conserva.`, frames);
+  }
+
+  return null;
+}
 
 function executeDenseMatrixOperation({ actionId, fields, values, edges }) {
   const before = normalizeDenseMatrixValues(values);
@@ -4300,6 +4876,8 @@ function executeAstOperation({ actionId, fields, values, edges }) {
 
 export function executeOperation({ algorithm, actionId, fields, values, edges, initialValues, initialEdges = DEFAULT_GRAPH_EDGES }) {
   const group = operationGroup(algorithm);
+  if (group === 'polynomial') return executePolynomialOperation({ actionId, fields, values, edges });
+  if (group === 'generalizedList') return executeGeneralizedListOperation({ actionId, fields, values, edges });
   if (group === 'matrix') return executeDenseMatrixOperation({ actionId, fields, values, edges });
   if (group === 'sparseMatrix') return executeSparseMatrixOperation({ actionId, fields, values, edges });
   if (group === 'threadedTree') return executeThreadedTreeOperation({ actionId, fields, values, initialValues, edges });

@@ -42,7 +42,7 @@ test('abre un tema mediante un enlace compartible', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Sudoku Solver 9×9', level: 1 })).toBeVisible();
 });
 
-test('los 56 temas cargan su visualizador, controles y código sin errores', async ({ page }) => {
+test('los 58 temas cargan su visualizador, controles y código sin errores', async ({ page }) => {
   test.setTimeout(180_000);
   const pageErrors = [];
   const failedResponses = [];
@@ -146,6 +146,77 @@ test('la matriz densa sincroniza índices, recorridos y transposición con Java'
   await page.getByRole('button', { name: 'Guardar valor', exact: true }).click();
   await expect(page.locator('.operation-message')).toHaveClass(/error/);
   await expect(page.locator('.dense-matrix-cell')).toHaveCount(16);
+});
+
+test('los polinomios suman A y B avanzando p y q sobre nodos COEF EXP LINK', async ({ page }) => {
+  await page.goto('/polinomios');
+  await expect(page.getByRole('heading', { name: 'Polinomios con listas', level: 1 })).toBeVisible();
+  await expect(page.locator('[data-polynomial="A"]')).toHaveCount(3);
+  await expect(page.locator('[data-polynomial="B"]')).toHaveCount(3);
+  await expect(page.locator('[data-polynomial="C"]')).toHaveCount(0);
+  await expect(page.locator('.code-panel pre')).toContainText('int coefficient');
+  await expect(page.locator('.code-panel pre')).toContainText('int exponent');
+  await expect(page.locator('.code-panel pre')).toContainText('Node next');
+
+  await page.getByRole('button', { name: 'Sumar A + B', exact: true }).click();
+  const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+  if (await pause.isVisible()) await pause.click();
+  const visitedLines = new Set();
+  for (let index = 0; index < 38; index++) {
+    visitedLines.add((await page.locator('.code-panel code.active').textContent())?.trim());
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+  expect(visitedLines.size).toBeGreaterThan(8);
+  await expect(page.locator('[data-polynomial="C"]')).toHaveCount(5);
+  await expect(page.locator('.polynomial-c .polynomial-expression')).toContainText('11x^14 − 3x^10 + 2x^8 + 10x^6 + 1');
+  await expect(page.locator('.operation-message')).toContainText('C = 11x^14 − 3x^10 + 2x^8 + 10x^6 + 1');
+
+  await page.getByRole('spinbutton', { name: 'Coeficiente', exact: true }).fill('-2');
+  await page.getByRole('spinbutton', { name: 'Exponente', exact: true }).fill('8');
+  await page.getByRole('button', { name: 'Insertar / agrupar en A', exact: true }).click();
+  if (await pause.isVisible()) await pause.click();
+  for (let index = 0; index < 14; index++) {
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+  await expect(page.locator('[data-polynomial="A"][data-exponent="8"]')).toHaveCount(0);
+  await expect(page.locator('[data-polynomial="C"]')).toHaveCount(0);
+});
+
+test('la lista generalizada distingue tag, dlink, link y referencias compartidas', async ({ page }) => {
+  await page.goto('/listas-generalizadas');
+  await expect(page.getByRole('heading', { name: 'Listas generalizadas', level: 1 })).toBeVisible();
+  await expect(page.locator('.code-panel pre')).toContainText('int tag');
+  await expect(page.locator('.code-panel pre')).toContainText('Node dlink');
+  await expect(page.locator('.code-panel pre')).toContainText('int ref');
+  await expect(page.locator('.code-panel pre')).toContainText('Node link');
+
+  await page.getByRole('textbox', { name: 'Lista generalizada', exact: true }).fill('((a,b),((c,d),e))');
+  await page.getByRole('button', { name: 'Construir lista', exact: true }).click();
+  const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+  if (await pause.isVisible()) await pause.click();
+  for (let index = 0; index < 34; index++) {
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+  await expect(page.locator('.generalized-node.tag-0')).toHaveCount(5);
+  await expect(page.locator('.generalized-node.tag-1')).toHaveCount(3);
+  await expect(page.locator('.generalized-node.tag-2')).toHaveCount(4);
+  await expect(page.locator('.generalized-edge.dlink')).toHaveCount(3);
+
+  await page.getByRole('button', { name: 'Obtener Head', exact: true }).click();
+  if (await pause.isVisible()) await pause.click();
+  for (let index = 0; index < 5; index++) await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  await expect(page.locator('.operation-message')).toContainText('Head(A) = (a,b)');
+
+  await page.getByRole('button', { name: 'Calcular profundidad', exact: true }).click();
+  if (await pause.isVisible()) await pause.click();
+  for (let index = 0; index < 60; index++) await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  await expect(page.locator('.operation-message')).toContainText('Depth(A) = 3');
+
+  await page.getByRole('button', { name: 'Compartir raíz', exact: true }).click();
+  if (await pause.isVisible()) await pause.click();
+  for (let index = 0; index < 5; index++) await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  await expect(page.locator('[data-generalized-path="root.header"]')).toContainText('2');
+  await expect(page.locator('.generalized-aliases')).toContainText('R2');
 });
 
 test('rechaza datos extremos sin alterar ni romper las estructuras', async ({ page }) => {

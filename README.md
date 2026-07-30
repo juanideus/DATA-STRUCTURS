@@ -69,6 +69,8 @@ DSA Lab fue creado para:
 - Reproductor con pasos anterior/siguiente, pausa y reproducción automática.
 - Velocidades de reproducción `0.5×`, `1×` y `2×`.
 - Mensajes que explican qué está ocurriendo durante la operación.
+- Polinomios enlazados con términos ordenados por exponente, agrupación de exponentes repetidos y suma visual mediante punteros.
+- Listas generalizadas con átomos, sublistas, niveles, referencias compartidas y enlaces `link`/`dlink`.
 - Matriz poco poblada con cabeceras AROW y ACOL, nodos compartidos y recorridos circulares invertidos.
 
 ### Código sincronizado
@@ -121,7 +123,7 @@ Cada tema incluye una guía con:
 
 ## Catálogo de contenidos
 
-La versión actual contiene **56 temas**, agrupados en siete categorías.
+La versión actual contiene **58 temas**, agrupados en siete categorías.
 
 ### 1. Estructuras lineales — 9 temas
 
@@ -192,13 +194,15 @@ La versión actual contiene **56 temas**, agrupados en siete categorías.
 50. Laberinto
 51. Sudoku Solver 9×9
 
-### 7. Otros — 5 temas
+### 7. Otros — 7 temas
 
 52. Matriz
-53. Matriz poco poblada
-54. Union-Find
-55. LRU Cache
-56. Bloom Filter
+53. Polinomios con listas
+54. Listas generalizadas
+55. Matriz poco poblada
+56. Union-Find
+57. LRU Cache
+58. Bloom Filter
 
 ## Cómo funciona la experiencia
 
@@ -341,13 +345,15 @@ DSA/
 │   │   ├── OperationsPanel.jsx        # Campos y botones de operaciones
 │   │   └── VariablesPanel.jsx         # Variables de la ejecución en tiempo real
 │   ├── data/
-│   │   ├── algorithms.js              # Catálogo de 56 temas
+│   │   ├── algorithms.js              # Catálogo de 58 temas
 │   │   ├── astJava.js                 # Parser AST y operaciones completas en Java
 │   │   ├── denseMatrixJava.js         # Operaciones de matriz densa en Java
 │   │   ├── beginnerJava.js            # Código Java por operación
 │   │   ├── educationalDescriptions.js # Contenido educativo detallado
+│   │   ├── generalizedListJava.js      # Lista generalizada completa en Java
 │   │   ├── graphDesigns.js             # Topologías visuales de los grafos
 │   │   ├── linkedListJava.js           # Listas enlazadas completas en Java
+│   │   ├── polynomialJava.js           # Polinomios enlazados completos en Java
 │   │   ├── guideJavaExamples.js        # Ejemplos Java de las guías
 │   │   ├── treeJava.js                 # Operaciones completas de árboles en Java
 │   │   └── sparseMatrixJava.js         # Matriz circular AROW/ACOL completa en Java
@@ -355,7 +361,9 @@ DSA/
 │   │   ├── codeAnimation.js            # Sincronización entre código y animaciones
 │   │   ├── ast.js                      # Parser y disposición visual del AST
 │   │   ├── denseMatrix.js              # Dimensión, índices y transposición de matriz
+│   │   ├── generalizedList.js           # Parser y modelo de listas generalizadas
 │   │   ├── operations.js               # Implementación de las acciones interactivas
+│   │   ├── polynomial.js                # Modelo y operaciones de polinomios
 │   │   └── pathfindingMap.js           # Mapas para Dijkstra y A*
 ├── .gitignore                         # Archivos excluidos del repositorio
 ├── LICENSE                            # Licencia MIT
@@ -384,7 +392,7 @@ npm run audit
 
 comprueba automáticamente, entre otros puntos:
 
-- Que existan los 56 temas esperados.
+- Que existan los 58 temas esperados.
 - Que cada tema tenga descripción educativa suficiente.
 - Que cada tema incluya un ejemplo Java.
 - Que todas las acciones devuelvan valores, aristas y mensajes válidos.
@@ -404,14 +412,16 @@ comprueba automáticamente, entre otros puntos:
 - Que Merkle combine hashes por parejas y el árbol de expresión respete precedencia.
 - Que el AST distinga sentencias, identificadores, operadores y literales, respete precedencia y sincronice su recorrido recursivo.
 - Que la matriz densa acceda mediante fila y columna, recorra sus dos ejes y transponga sin repetir intercambios.
+- Que los polinomios mantengan exponentes descendentes, agrupen términos repetidos, eliminen coeficientes cero y sumen con punteros sincronizados.
+- Que las listas generalizadas distingan átomos, sublistas y cabeceras, calculen longitud y profundidad y mantengan referencias compartidas.
 - Que la matriz poco poblada inserte un único nodo en AROW y ACOL, recorra ambas listas en orden invertido y cierre sus enlaces circulares.
 
-La auditoría actual cubre **56 temas, 257 acciones, 2570 pruebas funcionales y 70 funciones distintas**. La capa de estrés añade **13 187 comprobaciones** —9827 entradas extremas y 3360 operaciones encadenadas—, para un total de **15 757 pruebas de lógica**. Además, los **257 códigos Java visibles** se compilan realmente con `javac`.
+La auditoría actual cubre **58 temas, 270 acciones, 2700 pruebas funcionales y 83 funciones distintas**. La capa de estrés añade **13 800 comprobaciones** —10 320 entradas extremas y 3480 operaciones encadenadas—, para un total de **16 500 pruebas de lógica**. Además, los **270 códigos Java visibles** se compilan realmente con `javac`.
 
 Además, Playwright verifica los recorridos críticos en Chromium de escritorio y móvil:
 
 - Enlaces compartibles como `/avl` y `/sudoku`.
-- Carga directa de los 56 temas, sus visualizadores, controles y paneles de código.
+- Carga directa de los 58 temas, sus visualizadores, controles y paneles de código.
 - Rechazo seguro de índices negativos, coordenadas fuera de rango, valores enormes y texto potencialmente peligroso.
 - Avance sincronizado de animación, línea Java, explicación y variables en arreglos, grafos, Hanoi y N-Reinas.
 - Persistencia del tema, velocidad y formato de código.

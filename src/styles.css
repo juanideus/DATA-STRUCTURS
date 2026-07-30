@@ -1481,6 +1481,38 @@ body{background:var(--paper)}
 }
 
 /* Matriz poco poblada: un mismo nodo participa en AROW y ACOL. */
+.polynomial-visual{position:relative;z-index:2;width:min(850px,98%);height:292px;padding-top:14px;display:flex;flex-direction:column;gap:7px}
+.polynomial-node-schema{position:absolute;right:2px;top:-13px;display:grid;grid-template-columns:repeat(3,34px);border:1px solid #c5a26a;border-radius:4px;background:#fffaf0;color:#72552b;font-family:'DM Mono',monospace;font-size:6px;text-align:center}
+.polynomial-node-schema span{padding:3px 2px}.polynomial-node-schema span+span{border-left:1px solid #d9c49d}
+.polynomial-row{position:relative;display:grid;grid-template-columns:50px minmax(0,1fr);grid-template-rows:22px 54px;align-items:center;min-height:76px;border-bottom:1px solid #ddd9cf}
+.polynomial-name{grid-row:1/3;display:flex;flex-direction:column;align-items:center}.polynomial-name strong{font-family:'DM Mono',monospace;font-size:18px;color:#27364c}.polynomial-name small{font-size:6px;color:#899199;letter-spacing:.08em}
+.polynomial-expression{grid-column:2;padding:2px 8px 0;color:#3f4b57;font-family:'DM Mono',monospace;font-size:9px;line-height:1.35}
+.polynomial-chain{grid-column:2;display:flex;align-items:center;min-width:0;overflow-x:auto;overflow-y:hidden;padding:3px 4px 17px;scrollbar-width:thin}
+.polynomial-term-wrap{position:relative;display:flex;align-items:center;flex:0 0 auto}
+.polynomial-node{position:relative;display:grid;grid-template-columns:34px 30px 25px;width:89px;height:34px;border:1.5px solid #bd744f;border-radius:3px;background:#fbfaf7;color:#34414c;font-family:'DM Mono',monospace;font-size:10px;text-align:center;transition:.2s}
+.polynomial-node>span{display:grid;place-items:center}.polynomial-node>span+span{border-left:1px solid #d3a68d}
+.polynomial-node:after{content:'➜';position:absolute;left:89px;top:6px;width:24px;color:#bd744f;font-size:15px}
+.polynomial-term-wrap:not(:last-of-type){margin-right:25px}
+.polynomial-link-dot{color:#bd744f;font-size:8px}.polynomial-node.pointer-active{border-color:#2c7c78;box-shadow:0 0 0 4px rgba(44,124,120,.12)}.polynomial-node.operation-active{background:#fff0e9;border-color:var(--orange)}
+.polynomial-pointer{position:absolute;left:38px;bottom:-18px;display:grid;place-items:center;width:18px;height:16px;border-radius:8px;background:#2c7c78;color:#fff;font-family:'DM Mono',monospace;font-size:9px;font-style:normal}
+.polynomial-null{flex:0 0 auto;margin-left:24px;color:#8e969d;font-family:'DM Mono',monospace;font-size:8px}.polynomial-chain>.polynomial-null:before{content:'⌟ ';color:#bd744f;font-size:15px}
+.polynomial-rule{position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);white-space:nowrap;color:#7d858d;font-family:'DM Mono',monospace;font-size:7px}
+.polynomial-c .polynomial-name strong{color:#a84e35}.polynomial-c .polynomial-node{border-color:#a84e35}.polynomial-c .polynomial-node:after,.polynomial-c .polynomial-link-dot{color:#a84e35}
+
+.generalized-list-visual{position:relative;z-index:2;width:min(820px,98%);height:310px}
+.generalized-list-visual>svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.generalized-caption{position:absolute;left:50%;top:-2px;z-index:5;transform:translateX(-50%);display:flex;align-items:center;gap:10px;white-space:nowrap;font-family:'DM Mono',monospace}
+.generalized-caption strong{font-size:9px;color:#27364c}.generalized-caption span{font-size:7px;color:#7e8790}
+.generalized-edge{stroke:#71818c;stroke-width:1.2;vector-effect:non-scaling-stroke}.generalized-edge.dlink{stroke:#3b8d82;stroke-dasharray:3 2}.generalized-edge.null{stroke:#a1a8ae;stroke-width:1}.generalized-edge.active{stroke:var(--orange);stroke-width:2}
+.generalized-edge.link+marker path{fill:#71818c}.generalized-list-visual marker#glist-link-arrow path{fill:#71818c}.generalized-list-visual marker#glist-dlink-arrow path{fill:#3b8d82}
+.generalized-node{position:absolute;z-index:2;transform:translate(-50%,-50%);display:grid;grid-template-columns:22px 28px 19px;width:69px;height:30px;border:1.5px solid #71818c;border-radius:3px;background:#fbfaf7;color:#33404a;font-family:'DM Mono',monospace;font-size:9px;text-align:center;box-shadow:0 4px 9px rgba(39,54,76,.09);transition:.2s}
+.generalized-node>span{display:grid;place-items:center}.generalized-node>span+span{border-left:1px solid #bac2c8}.generalized-node>span:last-of-type{color:#71818c;font-size:7px}
+.generalized-node.tag-0{border-color:#b8764f}.generalized-node.tag-0>span:first-child{background:#f9e7dc;color:#8a4528}.generalized-node.tag-1{border-color:#3b8d82}.generalized-node.tag-1>span:first-child{background:#e0f0ed;color:#236c63}.generalized-node.tag-2{border-color:#a57937;background:#fff9eb}.generalized-node.tag-2>span:first-child{background:#f0d9ae;color:#694913}
+.generalized-node small{position:absolute;left:50%;top:-13px;transform:translateX(-50%);font-size:6px;color:#8a642c;letter-spacing:.08em}
+.generalized-node.active{transform:translate(-50%,-50%) scale(1.1);border-color:var(--orange);background:#fff0e9;box-shadow:0 0 0 5px rgba(217,96,67,.13)}
+.generalized-null{position:absolute;z-index:2;transform:translate(-50%,-50%);color:#7f8991;font-size:15px}.generalized-aliases{position:absolute;z-index:3;transform:translateY(-50%);display:flex;flex-direction:column;align-items:flex-end;gap:1px;color:#27364c;font-family:'DM Mono',monospace;font-size:7px;font-weight:700}
+.generalized-legend{position:absolute;left:50%;bottom:0;transform:translateX(-50%);display:flex;gap:15px;white-space:nowrap;color:#707a83;font-family:'DM Mono',monospace;font-size:6.5px}.generalized-legend span{display:flex;align-items:center;gap:4px}.generalized-legend i{width:9px;height:9px;border-radius:2px}.generalized-legend .tag0{background:#f2c6ad}.generalized-legend .tag1{background:#9fd2ca}.generalized-legend .tag2{background:#e4c58d}
+
 .dense-matrix-scene{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:12px;color:#27364c}
 .dense-matrix-heading{display:flex;align-items:center;gap:12px;font-family:'DM Mono',monospace}
 .dense-matrix-heading strong{padding:5px 9px;border-radius:6px;background:#27364c;color:#fff;font-size:10px}
@@ -1529,6 +1561,8 @@ body{background:var(--paper)}
 .sparse-node-legend .down-legend{fill:#405f84}
 
 @media(max-width:780px){
+  .polynomial-row{grid-template-columns:38px minmax(300px,1fr)}.polynomial-expression{font-size:8px}.polynomial-visual{width:100%;overflow-x:auto}.polynomial-node-schema{display:none}.polynomial-rule{display:none}
+  .generalized-list-visual{width:100%;height:285px}.generalized-caption span{display:none}.generalized-node{grid-template-columns:18px 23px 16px;width:57px;height:27px;font-size:8px}.generalized-legend{gap:6px;font-size:5.5px}
   .dense-matrix-grid{grid-template-columns:24px repeat(4,50px);grid-template-rows:22px repeat(4,46px);gap:4px}
   .dense-matrix-cell strong{font-size:12px}
   .dense-matrix-heading{flex-direction:column;gap:5px}

@@ -64,6 +64,13 @@ function baselineFields(algorithm, actionId, trial = 0) {
   if (actionId === 'edge-remove') Object.assign(fields, { value: 'A', second: 'B' });
   if (['bfs-run', 'dfs-run'].includes(actionId)) fields.value = String(first);
   if (actionId === 'shortest-path') Object.assign(fields, { value: String(algorithm.values[0]), second: String(algorithm.values.at(-1)), index: '' });
+  if (algorithm.id === 'polinomios') {
+    Object.assign(fields, {
+      value: String(2 + trial),
+      index: String(actionId === 'poly-remove-a' ? 14 : actionId === 'poly-remove-b' ? 10 : 12 - (trial % 6)),
+    });
+  }
+  if (algorithm.id === 'listas-generalizadas') fields.value = '((a,b),((c,d),e))';
   if (algorithm.id === 'matriz') {
     Object.assign(fields, {
       value: String(30 + trial),

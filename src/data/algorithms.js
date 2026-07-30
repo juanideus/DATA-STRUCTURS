@@ -1,4 +1,6 @@
 import { DEFAULT_DENSE_MATRIX_VALUES } from '../logic/denseMatrix.js';
+import { DEFAULT_GENERALIZED_LIST_VALUES } from '../logic/generalizedList.js';
+import { DEFAULT_POLYNOMIAL_VALUES } from '../logic/polynomial.js';
 
 const item = (id, name, category, type, complexity, description, code, values) => ({
   id, name, category, type, complexity, description, code, values,
@@ -89,6 +91,22 @@ transponer():
     para columna desde fila + 1 hasta 3
       intercambiar matriz[fila][columna]
                   con matriz[columna][fila]`,DEFAULT_DENSE_MATRIX_VALUES),
+  item('polinomios','Polinomios con listas','Otros','polynomial','Insertar O(t) · Sumar O(tA + tB)','Representa polinomios de una variable mediante nodos COEF, EXP y LINK ordenados por exponente descendente, sin términos de coeficiente cero.',`sumar(A, B):
+  p ← primer término de A
+  q ← primer término de B
+  mientras p y q existan
+    si exp(p) = exp(q): agrupar coeficientes y avanzar ambos
+    si exp(p) > exp(q): copiar p y avanzar p
+    si exp(p) < exp(q): copiar q y avanzar q
+  copiar los términos restantes`,DEFAULT_POLYNOMIAL_VALUES),
+  item('listas-generalizadas','Listas generalizadas','Otros','generalized-list','Recorrer O(n) · Profundidad O(n)','Secuencia recursiva cuyos elementos pueden ser átomos o sublistas. Cada nodo usa tag, data/dlink/ref y link para indicar su función.',`profundidad(lista):
+  máximo ← 1
+  actual ← primer elemento
+  mientras actual exista
+    si tag(actual) = SUBLIST
+      máximo ← max(máximo, 1 + profundidad(actual.dlink))
+    actual ← actual.link
+  retornar máximo`,DEFAULT_GENERALIZED_LIST_VALUES),
   item('matriz-dispersa','Matriz poco poblada','Otros','sparse-matrix','Insertar / eliminar O(F + C) · Buscar O(F)','Representa únicamente las celdas distintas de cero mediante listas circulares invertidas: AROW recorre de derecha a izquierda y ACOL de abajo hacia arriba.',`insertar(valor, fila, columna):\n  verificar que la posición no exista\n  crear un nodo con valor, fila y columna\n  enlazarlo en AROW[fila] mediante left\n  enlazarlo en ACOL[columna] mediante up\n  ambos recorridos vuelven a su cabecera`,[
     {value:8,row:0,column:1},
     {value:3,row:0,column:4},

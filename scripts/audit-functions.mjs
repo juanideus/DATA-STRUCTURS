@@ -89,6 +89,13 @@ function fieldsFor(algorithm, actionId, trial = 0) {
   if (actionId === 'edge-remove') Object.assign(samples, { value: 'A', second: 'B' });
   if (['bfs-run', 'dfs-run'].includes(actionId)) samples.value = String(first);
   if (actionId === 'shortest-path') Object.assign(samples, { value: String(algorithm.values[0]), second: String(algorithm.values.at(-1)), index: '' });
+  if (algorithm.id === 'polinomios') {
+    Object.assign(samples, {
+      value: String(2 + trial),
+      index: String(actionId === 'poly-remove-a' ? 14 : actionId === 'poly-remove-b' ? 10 : 12 - (trial % 6)),
+    });
+  }
+  if (algorithm.id === 'listas-generalizadas') samples.value = '((a,b),((c,d),e))';
   if (algorithm.id === 'matriz') {
     Object.assign(samples, {
       value: String(30 + trial),
@@ -145,7 +152,7 @@ function validQueens(queens) {
   )));
 }
 
-assert.equal(algorithms.length, 56, 'El catálogo debe contener 56 temas.');
+assert.equal(algorithms.length, 58, 'El catálogo debe contener 58 temas.');
 assert.equal(new Set(algorithms.map(algorithm => algorithm.id)).size, algorithms.length, 'El catálogo contiene identificadores duplicados.');
 assert.equal(new Set(algorithms.map(algorithm => algorithm.name)).size, algorithms.length, 'El catálogo contiene nombres duplicados.');
 assert.equal(Object.keys(educationalDescriptions).length, algorithms.length, 'La cantidad de descripciones no coincide con el catálogo.');
@@ -278,6 +285,69 @@ for (const algorithm of algorithms) {
 }
 
 assert.deepEqual(incompleteJavaSnippets, [], `Hay métodos Java utilizados pero no mostrados:\n${JSON.stringify(incompleteJavaSnippets, null, 2)}`);
+
+const polynomial = algorithms.find(item => item.id === 'polinomios');
+assert.ok(polynomial, 'Falta el visualizador de polinomios.');
+assert.equal(operationGroup(polynomial), 'polynomial', 'Polinomios debe usar operaciones propias.');
+const polynomialSum = run(polynomial, 'poly-add', {});
+assert.deepEqual(
+  polynomialSum.values.filter(term => term.polynomial === 'C'),
+  [
+    { polynomial: 'C', coefficient: 11, exponent: 14 },
+    { polynomial: 'C', coefficient: -3, exponent: 10 },
+    { polynomial: 'C', coefficient: 2, exponent: 8 },
+    { polynomial: 'C', coefficient: 10, exponent: 6 },
+    { polynomial: 'C', coefficient: 1, exponent: 0 },
+  ],
+  'Polinomios: A + B no coincide con el ejemplo del PDF.',
+);
+assert.ok(polynomialSum.frames.some(frame => frame.polynomialState?.phase === 'equal'), 'Polinomios: falta animar Exp(p) = Exp(q).');
+assert.ok(polynomialSum.frames.some(frame => frame.polynomialState?.phase === 'p-greater'), 'Polinomios: falta animar Exp(p) > Exp(q).');
+assert.ok(polynomialSum.frames.some(frame => frame.polynomialState?.phase === 'q-greater'), 'Polinomios: falta animar Exp(p) < Exp(q).');
+assert.ok(polynomialSum.frames.some(frame => frame.codeNeedle === 'p = p.next;'), 'Polinomios: p nunca avanza en el código.');
+assert.ok(polynomialSum.frames.some(frame => frame.codeNeedle === 'q = q.next;'), 'Polinomios: q nunca avanza en el código.');
+const groupedPolynomial = run(polynomial, 'poly-insert-a', { value: '-2', index: '8' });
+assert.ok(!groupedPolynomial.values.some(term => term.polynomial === 'A' && term.exponent === 8), 'Polinomios: un coeficiente agrupado a 0 debe eliminarse.');
+const orderedPolynomial = run(polynomial, 'poly-insert-a', { value: '4', index: '12' });
+assert.deepEqual(
+  orderedPolynomial.values.filter(term => term.polynomial === 'A').map(term => term.exponent),
+  [14, 12, 8, 0],
+  'Polinomios: los exponentes deben permanecer ordenados de mayor a menor.',
+);
+assert.equal(run(polynomial, 'poly-insert-b', { value: '0', index: '5' }).values.some(term => term.exponent === 5), false, 'Polinomios: no se deben almacenar coeficientes 0.');
+assert.equal(run(polynomial, 'poly-insert-a', { value: '2', index: '-1' }).ok, false, 'Polinomios: debe rechazar exponentes negativos.');
+const polynomialJava = getBeginnerJava(polynomial, 'poly-add');
+assert.match(polynomialJava, /int coefficient;/, 'Polinomios: Node debe mostrar COEF.');
+assert.match(polynomialJava, /int exponent;/, 'Polinomios: Node debe mostrar EXP.');
+assert.match(polynomialJava, /Node next;/, 'Polinomios: Node debe mostrar LINK.');
+assert.match(polynomialJava, /while \(p != null && q != null\)/, 'Polinomios: la suma debe recorrer ambas listas.');
+
+const generalizedList = algorithms.find(item => item.id === 'listas-generalizadas');
+assert.ok(generalizedList, 'Falta el visualizador de listas generalizadas.');
+assert.equal(operationGroup(generalizedList), 'generalizedList', 'La lista generalizada debe usar operaciones propias.');
+const generalizedBuilt = run(generalizedList, 'glist-build', { value: '((a,b),((c,d),e))' });
+assert.equal(generalizedBuilt.ok, true, 'Lista generalizada: el ejemplo del PDF debe construirse.');
+assert.equal(generalizedBuilt.values[0].items.length, 2, 'Lista generalizada: la raíz debe tener longitud 2.');
+assert.equal(generalizedBuilt.values[0].items[0].kind, 'sublist', 'Lista generalizada: el primer elemento debe ser sublista.');
+assert.ok(generalizedBuilt.frames.some(frame => frame.variables.some(variable => variable.name === 'tag' && variable.value === 0)), 'Lista generalizada: falta mostrar tag 0.');
+assert.ok(generalizedBuilt.frames.some(frame => frame.variables.some(variable => variable.name === 'tag' && variable.value === 1)), 'Lista generalizada: falta mostrar tag 1.');
+assert.ok(generalizedBuilt.frames.some(frame => frame.variables.some(variable => variable.name === 'tag' && variable.value === 2)), 'Lista generalizada: falta mostrar tag 2.');
+assert.match(run(generalizedList, 'glist-head', {}, generalizedBuilt.values).message, /Head\(A\) = \(a,b\)/, 'Lista generalizada: Head es incorrecto.');
+assert.match(run(generalizedList, 'glist-tail', {}, generalizedBuilt.values).message, /Tail\(A\) = \(\(\(c,d\),e\)\)/, 'Lista generalizada: Tail es incorrecto.');
+assert.match(run(generalizedList, 'glist-length', {}, generalizedBuilt.values).message, /Length\(A\) = 2/, 'Lista generalizada: length debe contar sólo el nivel 1.');
+assert.match(run(generalizedList, 'glist-depth', {}, generalizedBuilt.values).message, /Depth\(A\) = 3/, 'Lista generalizada: depth debe contar el anidamiento máximo.');
+const sharedGeneralized = run(generalizedList, 'glist-share', {}, generalizedBuilt.values);
+assert.equal(sharedGeneralized.values[0].refs, 2, 'Lista generalizada: compartir debe incrementar ref.');
+assert.equal(run(generalizedList, 'glist-release', {}, sharedGeneralized.values).values[0].refs, 1, 'Lista generalizada: liberar debe disminuir ref.');
+assert.deepEqual(run(generalizedList, 'glist-release', {}, generalizedBuilt.values).values, [], 'Lista generalizada: ref 0 debe liberar la raíz.');
+for (const invalidSource of ['', '(a,b', '(A,b)', '(a,,b)', '(((((a)))))']) {
+  assert.equal(run(generalizedList, 'glist-build', { value: invalidSource }, generalizedBuilt.values).ok, false, `Lista generalizada: debe rechazar "${invalidSource}".`);
+}
+const generalizedJava = getBeginnerJava(generalizedList, 'glist-build');
+assert.match(generalizedJava, /int tag;/, 'Lista generalizada: falta tag.');
+assert.match(generalizedJava, /Node dlink;/, 'Lista generalizada: falta dlink.');
+assert.match(generalizedJava, /int ref;/, 'Lista generalizada: falta ref.');
+assert.match(generalizedJava, /Node link;/, 'Lista generalizada: falta link.');
 
 const denseMatrix = algorithms.find(item => item.id === 'matriz');
 assert.ok(denseMatrix, 'Falta la matriz densa.');

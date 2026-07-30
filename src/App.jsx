@@ -18,7 +18,9 @@ import {
 import { DEFAULT_GRAPH_EDGES, DEFAULT_GRAPH_POSITIONS, executeOperation, getOperationDefinition, getThreadedTreeLinks, operationGroup, SPARSE_MATRIX_COLUMNS, SPARSE_MATRIX_ROWS } from './logic/operations.js';
 import { AST_EXAMPLES, astValuesFromSource } from './logic/ast.js';
 import { DENSE_MATRIX_SIZE, normalizeDenseMatrixValues } from './logic/denseMatrix.js';
+import { GENERALIZED_LIST_EXAMPLES, generalizedListToString, generalizedListValuesFromSource } from './logic/generalizedList.js';
 import { createRandomPathMap, DEFAULT_PATH_MAP } from './logic/pathfindingMap.js';
+import { formatPolynomial, polynomialTerms } from './logic/polynomial.js';
 
 const EducationalDescription = lazy(() => import('./components/EducationalDescription.jsx'));
 
@@ -156,6 +158,20 @@ function createRandomValues(algorithm) {
     return Array.from({ length: DENSE_MATRIX_SIZE ** 2 }, () => (
       Math.random() < .22 ? 0 : randomNumber(1, 20)
     ));
+  }
+  if (algorithm.id === 'polinomios') {
+    const createTerms = polynomial => {
+      const exponents = randomUniqueNumbers(randomNumber(3, 5), 0, 15).sort((a, b) => b - a);
+      return exponents.map(exponent => ({
+        polynomial,
+        coefficient: randomNumber(1, 9) * (Math.random() < .3 ? -1 : 1),
+        exponent,
+      }));
+    };
+    return [...createTerms('A'), ...createTerms('B')];
+  }
+  if (algorithm.id === 'listas-generalizadas') {
+    return generalizedListValuesFromSource(GENERALIZED_LIST_EXAMPLES[randomNumber(0, GENERALIZED_LIST_EXAMPLES.length - 1)]);
   }
   if (algorithm.id === 'matriz-dispersa') {
     const coordinates = [];
@@ -309,6 +325,130 @@ function DenseMatrixVisual({ algorithm, step }) {
       </div>)}
     </div>
     <div className="dense-matrix-legend"><i/> diagonal principal</div>
+  </div>;
+}
+
+function PolynomialVisual({ algorithm }) {
+  const state = algorithm.animationFrame?.polynomialState ?? {};
+  const rows = ['A', 'B', 'C'];
+  return <div className="polynomial-visual" role="img" aria-label="Polinomios A, B y C representados mediante listas enlazadas">
+    <div className="polynomial-node-schema"><span>COEF</span><span>EXP</span><span>LINK</span></div>
+    {rows.map(polynomial => {
+      const terms = polynomialTerms(algorithm.values, polynomial);
+      return <div className={`polynomial-row polynomial-${polynomial.toLowerCase()}`} key={polynomial}>
+        <div className="polynomial-name">
+          <strong>{polynomial}</strong>
+          <small>{polynomial === 'C' ? 'RESULTADO' : 'OPERANDO'}</small>
+        </div>
+        <div className="polynomial-expression">{polynomial} = {formatPolynomial(terms)}</div>
+        <div className="polynomial-chain">
+          {terms.length === 0 && <span className="polynomial-null">NULL</span>}
+          {terms.map((term, index) => {
+            const pointerActive = (polynomial === 'A' && state.pIndex === index)
+              || (polynomial === 'B' && state.qIndex === index);
+            const operationActive = state.activePolynomial === polynomial
+              && (state.activeIndex === null || state.activeIndex === undefined || state.activeIndex === index);
+            return <div className="polynomial-term-wrap" key={`${polynomial}-${term.exponent}`}>
+              <div
+                className={`polynomial-node ${pointerActive ? 'pointer-active' : ''} ${operationActive ? 'operation-active' : ''}`}
+                data-polynomial={polynomial}
+                data-exponent={term.exponent}
+              >
+                <span>{term.coefficient}</span>
+                <span>{term.exponent}</span>
+                <span className="polynomial-link-dot">●</span>
+              </div>
+              {polynomial === 'A' && state.pIndex === index && <i className="polynomial-pointer">p</i>}
+              {polynomial === 'B' && state.qIndex === index && <i className="polynomial-pointer">q</i>}
+            </div>;
+          })}
+          {terms.length > 0 && <span className="polynomial-null">NULL</span>}
+        </div>
+      </div>;
+    })}
+    <div className="polynomial-rule">Exponentes descendentes · sin coeficientes 0 · exponentes iguales se agrupan</div>
+  </div>;
+}
+
+function generalizedListLayout(root) {
+  const nodes = [];
+  const edges = [];
+  const visit = (list, path, startX, y) => {
+    const headerPath = `${path}.header`;
+    nodes.push({ path: headerPath, tag: 2, value: list.refs, x: startX, y, header: true });
+    const gap = Math.min(13, 68 / Math.max(1, list.items.length));
+    let previousPath = headerPath;
+    let previousX = startX;
+    list.items.forEach((item, index) => {
+      const itemPath = `${path}.${index}`;
+      const x = startX + 13 + index * gap;
+      nodes.push({
+        path: itemPath,
+        tag: item.kind === 'atom' ? 0 : 1,
+        value: item.kind === 'atom' ? item.value : '↓',
+        x,
+        y,
+      });
+      edges.push({ from: previousPath, to: itemPath, fromX: previousX, fromY: y, toX: x, toY: y, kind: 'link' });
+      previousPath = itemPath;
+      previousX = x;
+      if (item.kind === 'sublist') {
+        const childStart = Math.max(5, Math.min(82, x - 6));
+        const childHeader = `${itemPath}.list.header`;
+        edges.push({ from: itemPath, to: childHeader, fromX: x, fromY: y, toX: childStart, toY: y + 24, kind: 'dlink' });
+        visit(item.list, `${itemPath}.list`, childStart, y + 24);
+      }
+    });
+    if (list.items.length) {
+      edges.push({ from: previousPath, to: `${path}.null`, fromX: previousX, fromY: y, toX: Math.min(97, previousX + 9), toY: y, kind: 'null' });
+    }
+  };
+  visit(root, 'root', 7, 12);
+  return { nodes, edges };
+}
+
+function GeneralizedListVisual({ algorithm }) {
+  const root = algorithm.values[0];
+  if (!root) return <div className="empty-visual"><strong>()</strong><span>Lista generalizada sin referencias</span></div>;
+  const { nodes, edges } = generalizedListLayout(root);
+  const activePaths = new Set(algorithm.animationFrame?.generalizedListState?.activePaths ?? []);
+  return <div className="generalized-list-visual" role="img" aria-label={`Lista generalizada A igual a ${generalizedListToString(root)}`}>
+    <div className="generalized-caption">
+      <strong>A = {generalizedListToString(root)}</strong>
+      <span>Longitud {root.items.length} · referencias {root.refs}</span>
+    </div>
+    <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <marker id="glist-link-arrow" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 Z"/></marker>
+        <marker id="glist-dlink-arrow" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 Z"/></marker>
+      </defs>
+      {edges.map(edge => <line
+        key={`${edge.from}-${edge.to}`}
+        className={`generalized-edge ${edge.kind} ${activePaths.has(edge.from) || activePaths.has(edge.to) ? 'active' : ''}`}
+        x1={edge.fromX + 3.7}
+        y1={edge.fromY}
+        x2={edge.toX - (edge.kind === 'dlink' ? 0 : 3.7)}
+        y2={edge.toY}
+        markerEnd={edge.kind === 'null' ? undefined : edge.kind === 'dlink' ? 'url(#glist-dlink-arrow)' : 'url(#glist-link-arrow)'}
+      />)}
+    </svg>
+    <div className="generalized-aliases" style={{ left: '0.5%', top: '12%' }}>
+      {(root.aliases?.length ? root.aliases : ['A']).map(alias => <span key={alias}>{alias} →</span>)}
+    </div>
+    {nodes.map(node => <div
+      className={`generalized-node tag-${node.tag} ${activePaths.has(node.path) ? 'active' : ''}`}
+      data-generalized-path={node.path}
+      data-tag={node.tag}
+      style={{ left: `${node.x}%`, top: `${node.y}%` }}
+      key={node.path}
+    >
+      <span>{node.tag}</span>
+      <span>{node.value}</span>
+      <span>●</span>
+      {node.header && <small>REF</small>}
+    </div>)}
+    {edges.filter(edge => edge.kind === 'null').map(edge => <span className="generalized-null" style={{ left: `${edge.toX}%`, top: `${edge.toY}%` }} key={edge.to}>⌟</span>)}
+    <div className="generalized-legend"><span><i className="tag0"/>0 átomo</span><span><i className="tag1"/>1 sublista · dlink ↓</span><span><i className="tag2"/>2 encabezamiento · ref</span></div>
   </div>;
 }
 
@@ -1348,6 +1488,8 @@ function SpecialVisual({ algorithm, step }) {
 }
 
 function Visualizer({ algorithm, step }) {
+  if (algorithm.type === 'polynomial') return <PolynomialVisual algorithm={algorithm}/>;
+  if (algorithm.type === 'generalized-list') return <GeneralizedListVisual algorithm={algorithm}/>;
   if (algorithm.type === 'matrix') return <DenseMatrixVisual algorithm={algorithm} step={step}/>;
   if (algorithm.type === 'sparse-matrix') return <SparseMatrixVisual algorithm={algorithm}/>;
   if (!algorithm.values.length) return <div className="empty-visual"><strong>∅</strong><span>Estructura vacía</span></div>;
@@ -1594,6 +1736,10 @@ function App() {
       ? 'El código muestra AROW, ACOL y un único Node con left y up. AROW recorre de derecha a izquierda y ACOL de abajo hacia arriba hasta volver a sus cabeceras.'
     : baseAlgorithm.id === 'matriz'
       ? 'La matriz usa un arreglo bidimensional int[4][4]. Cada acceso comprueba fila y columna antes de usar values[fila][columna]. Los recorridos muestran los ciclos completos y la transposición intercambia únicamente las celdas situadas sobre la diagonal.'
+    : baseAlgorithm.id === 'polinomios'
+      ? 'Cada término es un Node con coefficient, exponent y next. A, B y C permanecen ordenados de mayor a menor exponente. Durante la suma, p y q comparan exponentes: avanza uno o ambos exactamente como muestra la lista.'
+    : baseAlgorithm.id === 'listas-generalizadas'
+      ? 'El código usa un único Node con tag 0 para átomos, tag 1 para sublistas y tag 2 para encabezamientos. link avanza en el mismo nivel, dlink baja a una sublista y ref protege las listas compartidas.'
       : baseAlgorithm.id === 'arbol-enhebrado'
         ? 'Las líneas sólidas son hijos reales. Las flechas discontinuas son hilos: LT lleva al predecesor y RT al sucesor inorden. El código comprueba los indicadores antes de seguir cada referencia.'
       : baseAlgorithm.id === 'ast'
