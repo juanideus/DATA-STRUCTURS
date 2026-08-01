@@ -42,7 +42,22 @@ test('abre un tema mediante un enlace compartible', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Sudoku Solver 9×9', level: 1 })).toBeVisible();
 });
 
-test('los 58 temas cargan su visualizador, controles y código sin errores', async ({ page }) => {
+test('la sección de complejidad explica la teoría con gráficos y sin laboratorio ni código', async ({ page }) => {
+  await page.goto('/complejidad-algoritmica');
+  await expect(page.getByRole('heading', { name: 'Complejidad algorítmica', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '¿Qué es la complejidad algorítmica?', level: 2 })).toBeVisible();
+  await expect(page.locator('.complexity-static-chart .curve')).toHaveCount(6);
+  await expect(page.locator('.complexity-order-table [role="row"]')).toHaveCount(7);
+  await expect(page.locator('.complexity-notation-card')).toContainText('O(g(n))');
+  await expect(page.locator('.complexity-notation-card')).toContainText('Ω(g(n))');
+  await expect(page.locator('.complexity-notation-card')).toContainText('Θ(g(n))');
+  await expect(page.locator('.visual-panel')).toHaveCount(0);
+  await expect(page.locator('.code-panel')).toHaveCount(0);
+  await expect(page.locator('.operations-panel')).toHaveCount(0);
+  await expect(page.locator('.player')).toHaveCount(0);
+});
+
+test('los 59 temas cargan su contenido correspondiente sin errores', async ({ page }) => {
   test.setTimeout(180_000);
   const pageErrors = [];
   const failedResponses = [];
@@ -54,10 +69,19 @@ test('los 58 temas cargan su visualizador, controles y código sin errores', asy
   for (const algorithm of algorithms) {
     await page.goto(`/${algorithm.id}`);
     await expect(page.getByRole('heading', { name: algorithm.name, level: 1 })).toBeVisible();
-    await expect(page.locator(`[data-visualizer="${algorithm.id}"]`)).toBeVisible();
+    if (algorithm.type === 'complexity') {
+      await expect(page.locator('[data-complexity-lesson]')).toBeVisible();
+      await expect(page.locator('.visual-panel')).toHaveCount(0);
+      await expect(page.locator('.code-panel')).toHaveCount(0);
+      await expect(page.locator('.operation-actions')).toHaveCount(0);
+    } else {
+      await expect(page.locator(`[data-visualizer="${algorithm.id}"]`)).toBeVisible();
+    }
     await expect(page.locator('.operation-actions button')).toHaveCount(getOperationDefinition(algorithm).actions.length);
 
-    if (['dijkstra', 'a-star'].includes(algorithm.id)) {
+    if (algorithm.type === 'complexity') {
+      await expect(page.locator('.code-panel')).toHaveCount(0);
+    } else if (['dijkstra', 'a-star'].includes(algorithm.id)) {
       await expect(page.locator('.code-panel')).toHaveCount(0);
     } else {
       await expect(page.locator('.code-panel code')).not.toHaveCount(0);

@@ -7,6 +7,12 @@ const item = (id, name, category, type, complexity, description, code, values) =
 });
 
 export const algorithms = [
+  item('complejidad-algoritmica','Complejidad algorítmica','Fundamentos','complexity','Análisis temporal y espacial','Estudia cómo crecen el tiempo y la memoria de un algoritmo cuando aumenta el tamaño n de la entrada, sin depender de un computador específico.',`analizar(algoritmo, n):
+  elegir la operación activa
+  contar cuántas veces se ejecuta
+  obtener T(n) en mejor, promedio y peor caso
+  conservar el término que más crece
+  expresar el orden con O, Ω o Θ`,[8]),
   item('array','Array','Estructuras lineales','array','Acceso O(1) · Búsqueda O(n)','Colección contigua indexada. Ofrece acceso directo y es la base de muchas otras estructuras.',`buscar(A, objetivo):\n  para i ← 0 hasta longitud(A)-1\n    si A[i] = objetivo: retornar i\n  retornar -1`,[12,7,19,4,15,9]),
   item('pila','Pila (Stack)','Estructuras lineales','stack','Push / Pop O(1)','Estructura LIFO: el último elemento en entrar es el primero en salir.',`push(x): datos.agregar(x)\npop():\n  si vacía: error\n  retornar datos.eliminarÚltimo()`,[10,25,8,16]),
   item('cola','Cola (Queue)','Estructuras lineales','queue','Enqueue / Dequeue O(1)','Estructura FIFO: atiende los elementos en el mismo orden en que llegaron.',`enqueue(x): cola.agregarFinal(x)\ndequeue():\n  si vacía: error\n  retornar cola.eliminarInicio()`,[14,6,21,3,11]),
@@ -127,6 +133,7 @@ transponer():
 export const categories = [...new Set(algorithms.map((algorithm) => algorithm.category))];
 
 export const categoryLabels = {
+  Fundamentos: 'Cómo medir un algoritmo',
   'Estructuras lineales': 'Fundamentos secuenciales',
   'Árboles': 'Jerarquías y búsqueda',
   Hashing: 'Acceso por clave',

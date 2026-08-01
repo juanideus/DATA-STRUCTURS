@@ -279,6 +279,7 @@ for (const algorithm of algorithms) {
 // Secuencias deterministas: mezclan éxitos y errores sobre el mismo estado.
 for (const algorithm of algorithms) {
   const actions = getOperationDefinition(algorithm).actions;
+  if (actions.length === 0) continue;
   let values = clone(algorithm.values);
   let edges = defaultEdges();
   for (let index = 0; index < 60; index++) {

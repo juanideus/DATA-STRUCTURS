@@ -12,6 +12,16 @@ const guide = (definition, how, operations, strengths, limits, uses, example, ti
 });
 
 export const educationalDescriptions = {
+  'complejidad-algoritmica': guide(
+    'La complejidad algorítmica describe cuánto trabajo y cuánta memoria necesita un algoritmo cuando crece el tamaño n de su entrada. No intenta adivinar segundos exactos: construye un modelo independiente del computador, del lenguaje y de pequeñas diferencias de implementación.',
+    'Primero se define qué representa n: elementos de un arreglo, vértices y aristas de un grafo, filas de una matriz u otra medida pertinente. Después se elige una operación activa, como una comparación, asignación o acceso, y se cuenta cuántas veces ocurre en el mejor, promedio y peor caso. La función T(n) resultante se simplifica conservando el término dominante. O expresa una cota superior, Ω una cota inferior y Θ un crecimiento ajustado por arriba y por abajo. El mismo análisis puede realizarse para memoria adicional y obtener la complejidad espacial.',
+    'Definir correctamente el tamaño n de la entrada|Elegir una operación activa representativa|Contar instrucciones en secuencias, condiciones y ciclos|Distinguir mejor, promedio y peor caso|Simplificar T(n) eliminando constantes y términos menores|Usar O, Ω y Θ con su significado correcto|Comparar tiempo y espacio como recursos diferentes',
+    'Permite comparar algoritmos sin depender del hardware|Predice qué solución seguirá siendo viable al crecer n|Ayuda a descubrir ciclos o llamadas recursivas costosas|Orienta la elección de estructuras de datos|Explica por qué una mejora algorítmica suele superar una optimización pequeña',
+    'No entrega el tiempo exacto de ejecución|Las constantes y la memoria caché todavía importan para entradas pequeñas|El caso promedio necesita conocer o suponer una distribución de entradas|Dos algoritmos con el mismo orden pueden rendir distinto|Big O por sí sola no representa siempre una cota ajustada|Debe declararse con claridad qué operación y qué tamaño se están midiendo',
+    'Elegir entre búsqueda lineal y binaria|Comparar algoritmos de ordenamiento|Analizar recorridos de árboles y grafos|Estimar el costo de ciclos anidados|Evaluar recursividad y backtracking|Decidir si cambiar tiempo por memoria',
+    'Si duplicar n duplica aproximadamente el trabajo, el crecimiento es lineal. Si lo cuadruplica, suele ser cuadrático. Si sólo agrega una operación porque el problema se divide a la mitad, es logarítmico.',
+    'Para una expresión como T(n) = 4n² + 3n + 8, el término n² domina cuando n crece: se clasifica como Θ(n²). O(n²) también es cierto como cota superior, pero Θ comunica que el orden es ajustado.'
+  ),
   array: guide(
     'Un Array es una colección de elementos del mismo tipo almacenados en posiciones consecutivas. Cada posición tiene un índice y, en Java, el primer índice siempre es 0.',
     'Java reserva un bloque continuo de memoria y calcula la dirección de cada elemento usando su índice. Por eso leer o actualizar una posición conocida es inmediato. Su tamaño se fija al crearlo; insertar en medio exige desplazar los elementos siguientes.',

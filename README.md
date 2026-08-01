@@ -69,6 +69,7 @@ DSA Lab fue creado para:
 - Reproductor con pasos anterior/siguiente, pausa y reproducción automática.
 - Velocidades de reproducción `0.5×`, `1×` y `2×`.
 - Mensajes que explican qué está ocurriendo durante la operación.
+- Sección teórica de complejidad algorítmica con notación O, Ω y Θ, casos, reglas de conteo, tabla comparativa y gráfico de crecimiento, sin código ni controles interactivos.
 - Polinomios enlazados con términos ordenados por exponente, agrupación de exponentes repetidos y suma visual mediante punteros.
 - Listas generalizadas con átomos, sublistas, niveles, referencias compartidas y enlaces `link`/`dlink`.
 - Matriz poco poblada con cabeceras AROW y ACOL, nodos compartidos y recorridos circulares invertidos.
@@ -123,7 +124,11 @@ Cada tema incluye una guía con:
 
 ## Catálogo de contenidos
 
-La versión actual contiene **58 temas**, agrupados en siete categorías.
+La versión actual contiene **59 temas**, agrupados en ocho categorías.
+
+### 0. Fundamentos — 1 tema
+
+- Complejidad algorítmica
 
 ### 1. Estructuras lineales — 9 temas
 
@@ -345,7 +350,7 @@ DSA/
 │   │   ├── OperationsPanel.jsx        # Campos y botones de operaciones
 │   │   └── VariablesPanel.jsx         # Variables de la ejecución en tiempo real
 │   ├── data/
-│   │   ├── algorithms.js              # Catálogo de 58 temas
+│   │   ├── algorithms.js              # Catálogo de 59 temas
 │   │   ├── astJava.js                 # Parser AST y operaciones completas en Java
 │   │   ├── denseMatrixJava.js         # Operaciones de matriz densa en Java
 │   │   ├── beginnerJava.js            # Código Java por operación
@@ -360,6 +365,7 @@ DSA/
 │   ├── logic/
 │   │   ├── codeAnimation.js            # Sincronización entre código y animaciones
 │   │   ├── ast.js                      # Parser y disposición visual del AST
+│   │   ├── complexity.js               # Órdenes y valores para los gráficos teóricos
 │   │   ├── denseMatrix.js              # Dimensión, índices y transposición de matriz
 │   │   ├── generalizedList.js           # Parser y modelo de listas generalizadas
 │   │   ├── operations.js               # Implementación de las acciones interactivas
@@ -392,9 +398,9 @@ npm run audit
 
 comprueba automáticamente, entre otros puntos:
 
-- Que existan los 58 temas esperados.
+- Que existan los 59 temas esperados.
 - Que cada tema tenga descripción educativa suficiente.
-- Que cada tema incluya un ejemplo Java.
+- Que cada sección práctica incluya un ejemplo Java; complejidad algorítmica es deliberadamente teórica y no muestra código.
 - Que todas las acciones devuelvan valores, aristas y mensajes válidos.
 - Que exista código Java para cada operación disponible.
 - Que el Sudoku produzca una solución `9×9` válida.
@@ -416,12 +422,13 @@ comprueba automáticamente, entre otros puntos:
 - Que las listas generalizadas distingan átomos, sublistas y cabeceras, calculen longitud y profundidad y mantengan referencias compartidas.
 - Que la matriz poco poblada inserte un único nodo en AROW y ACOL, recorra ambas listas en orden invertido y cierre sus enlaces circulares.
 
-La auditoría actual cubre **58 temas, 270 acciones, 2700 pruebas funcionales y 83 funciones distintas**. La capa de estrés añade **13 800 comprobaciones** —10 320 entradas extremas y 3480 operaciones encadenadas—, para un total de **16 500 pruebas de lógica**. Además, los **270 códigos Java visibles** se compilan realmente con `javac`.
+La auditoría actual cubre **59 temas, 270 acciones, 2700 pruebas funcionales y 83 funciones distintas**. La capa de estrés añade **13 800 comprobaciones** —10 320 entradas extremas y 3480 operaciones encadenadas—, para un total de **16 500 pruebas de lógica**. Además, los **270 códigos Java visibles** se compilan realmente con `javac`.
 
 Además, Playwright verifica los recorridos críticos en Chromium de escritorio y móvil:
 
 - Enlaces compartibles como `/avl` y `/sudoku`.
-- Carga directa de los 58 temas, sus visualizadores, controles y paneles de código.
+- Carga directa de los 59 temas y del tipo de contenido que corresponde a cada uno.
+- Sección teórica de complejidad sin visualizador interactivo, operaciones, reproductor ni panel de código.
 - Rechazo seguro de índices negativos, coordenadas fuera de rango, valores enormes y texto potencialmente peligroso.
 - Avance sincronizado de animación, línea Java, explicación y variables en arreglos, grafos, Hanoi y N-Reinas.
 - Persistencia del tema, velocidad y formato de código.

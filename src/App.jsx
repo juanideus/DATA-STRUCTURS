@@ -18,6 +18,7 @@ import {
 import { DEFAULT_GRAPH_EDGES, DEFAULT_GRAPH_POSITIONS, executeOperation, getOperationDefinition, getThreadedTreeLinks, operationGroup, SPARSE_MATRIX_COLUMNS, SPARSE_MATRIX_ROWS } from './logic/operations.js';
 import { AST_EXAMPLES, astValuesFromSource } from './logic/ast.js';
 import { DENSE_MATRIX_SIZE, normalizeDenseMatrixValues } from './logic/denseMatrix.js';
+import { COMPLEXITY_ORDERS, complexityValue } from './logic/complexity.js';
 import { GENERALIZED_LIST_EXAMPLES, generalizedListToString, generalizedListValuesFromSource } from './logic/generalizedList.js';
 import { createRandomPathMap, DEFAULT_PATH_MAP } from './logic/pathfindingMap.js';
 import { formatPolynomial, polynomialTerms } from './logic/polynomial.js';
@@ -326,6 +327,142 @@ function DenseMatrixVisual({ algorithm, step }) {
     </div>
     <div className="dense-matrix-legend"><i/> diagonal principal</div>
   </div>;
+}
+
+function ComplexityLesson() {
+  const chartSizes = Array.from({ length: 10 }, (_, index) => index + 1);
+  const chartPath = order => chartSizes.map((size, index) => {
+    const x = 8 + index * 9.2;
+    const value = complexityValue(order, size);
+    const y = 91 - (Math.log10(value + 1) / Math.log10(1025)) * 78;
+    return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
+  }).join(' ');
+  const orderRows = [
+    ['O(1)', 'Constante', 'Acceder a una posición conocida', 'No cambia'],
+    ['O(log n)', 'Logarítmica', 'Búsqueda binaria', 'Aumenta muy poco'],
+    ['O(n)', 'Lineal', 'Recorrer una lista', 'Se duplica'],
+    ['O(n log n)', 'Lineal-logarítmica', 'Merge Sort', 'Algo más del doble'],
+    ['O(n²)', 'Cuadrática', 'Dos ciclos completos', 'Se cuadruplica'],
+    ['O(2ⁿ)', 'Exponencial', 'Explorar subconjuntos', 'Se eleva drásticamente'],
+  ];
+
+  return <section className="complexity-lesson" data-complexity-lesson>
+    <article className="complexity-intro-card">
+      <span className="lesson-kicker">01 · IDEA CENTRAL</span>
+      <h2>¿Qué es la complejidad algorítmica?</h2>
+      <p>Es una forma de describir cómo aumenta el trabajo de un algoritmo cuando crece su entrada. En vez de medir segundos —que dependen del computador— se cuentan operaciones significativas y se expresa su crecimiento como una función de <b>n</b>.</p>
+      <div className="complexity-foundations">
+        <div><strong>n</strong><span>Tamaño del problema</span><p>Puede ser la cantidad de datos, vértices, filas o caracteres.</p></div>
+        <div><strong>T(n)</strong><span>Tiempo</span><p>Cantidad de operaciones activas realizadas.</p></div>
+        <div><strong>S(n)</strong><span>Espacio</span><p>Memoria adicional que necesita la solución.</p></div>
+      </div>
+    </article>
+
+    <div className="complexity-theory-grid">
+      <article>
+        <span className="lesson-kicker">02 · ANÁLISIS A PRIORI</span>
+        <h3>Cómo analizar un algoritmo</h3>
+        <ol>
+          <li><b>Define n.</b> Explica exactamente qué parte de la entrada crece.</li>
+          <li><b>Elige la operación activa.</b> Una comparación, visita, asignación o acceso representativo.</li>
+          <li><b>Cuenta repeticiones.</b> Obtén una función T(n), no un tiempo del reloj.</li>
+          <li><b>Separa los casos.</b> Mejor, promedio y peor escenario pueden ser distintos.</li>
+          <li><b>Conserva el término dominante.</b> Clasifica el orden de crecimiento.</li>
+        </ol>
+      </article>
+      <article>
+        <span className="lesson-kicker">03 · CASOS</span>
+        <h3>La misma entrada puede exigir trabajos distintos</h3>
+        <div className="complexity-case-stack">
+          <p><b>Mejor caso</b><span>La entrada más favorable requiere el mínimo trabajo.</span></p>
+          <p><b>Caso promedio</b><span>Trabajo esperado bajo una distribución de entradas declarada.</span></p>
+          <p><b>Peor caso</b><span>Máximo trabajo posible para cualquier entrada de tamaño n.</span></p>
+        </div>
+      </article>
+    </div>
+
+    <article className="complexity-chart-card">
+      <div>
+        <span className="lesson-kicker">04 · ÓRDENES DE CRECIMIENTO</span>
+        <h3>Qué ocurre cuando n aumenta</h3>
+        <p>El gráfico usa una escala vertical logarítmica para que las seis curvas sean legibles. Una curva más empinada significa que el costo crece con mayor rapidez.</p>
+      </div>
+      <div className="complexity-static-chart">
+        <svg viewBox="0 0 100 100" role="img" aria-label="Gráfico de órdenes de crecimiento desde O de 1 hasta O de 2 elevado a n">
+          <path className="axis" d="M8 8 V91 H96"/>
+          {[25, 50, 75].map(value => <path className="guide" d={`M8 ${value} H96`} key={value}/>)}
+          {COMPLEXITY_ORDERS.map(order => <path className="curve" d={chartPath(order.id)} style={{ stroke: order.color }} key={order.id}/>)}
+          <text x="92" y="98">n</text><text x="1" y="11">trabajo</text>
+        </svg>
+        <div className="complexity-chart-legend">{COMPLEXITY_ORDERS.map(order => <span key={order.id}><i style={{ background: order.color }}/>{order.label}</span>)}</div>
+      </div>
+    </article>
+
+    <article className="complexity-order-table-card">
+      <span className="lesson-kicker">05 · TABLA DE REFERENCIA</span>
+      <h3>De más escalable a menos escalable</h3>
+      <div className="complexity-order-table" role="table" aria-label="Comparación de órdenes de complejidad">
+        <div className="table-head" role="row"><b>Orden</b><b>Nombre</b><b>Ejemplo</b><b>Al duplicar n</b></div>
+        {orderRows.map(row => <div role="row" key={row[0]}>{row.map((cell, index) => <span role="cell" key={cell}>{index === 0 ? <strong>{cell}</strong> : cell}</span>)}</div>)}
+      </div>
+    </article>
+
+    <div className="complexity-theory-grid">
+      <article>
+        <span className="lesson-kicker">06 · REGLAS DE CONTEO</span>
+        <h3>Cómo nace T(n)</h3>
+        <ul>
+          <li>Las instrucciones consecutivas se <b>suman</b>.</li>
+          <li>En una decisión se analiza cada rama y suele conservarse la más costosa para el peor caso.</li>
+          <li>Un ciclo aporta sus iteraciones multiplicadas por el costo de su cuerpo.</li>
+          <li>Los ciclos anidados completos suelen <b>multiplicar</b> sus tamaños.</li>
+          <li>La recursividad se describe mediante una recurrencia que incluye sus llamadas y trabajo local.</li>
+        </ul>
+      </article>
+      <article className="complexity-simplify-card">
+        <span className="lesson-kicker">07 · SIMPLIFICAR</span>
+        <h3>Importa lo que domina al crecer</h3>
+        <div><span>T(n)</span><strong>4n² + 3n + 8</strong></div>
+        <p>Se ignoran el factor constante, el término lineal y la constante porque <b>n²</b> termina creciendo más que todos ellos.</p>
+        <div className="complexity-result"><span>Orden ajustado</span><strong>Θ(n²)</strong></div>
+      </article>
+    </div>
+
+    <article className="complexity-notation-card">
+      <span className="lesson-kicker">08 · NOTACIÓN ASINTÓTICA</span>
+      <h3>O, Ω y Θ no significan exactamente lo mismo</h3>
+      <div>
+        <p><strong>O(g(n))</strong><b>Cota superior</b><span>Desde cierto n, el crecimiento no supera un múltiplo constante de g(n).</span></p>
+        <p><strong>Ω(g(n))</strong><b>Cota inferior</b><span>Desde cierto n, el crecimiento es al menos un múltiplo constante de g(n).</span></p>
+        <p><strong>Θ(g(n))</strong><b>Cota ajustada</b><span>g(n) limita el crecimiento simultáneamente por arriba y por abajo.</span></p>
+      </div>
+      <aside><b>Definición formal de O</b><span>Existen constantes positivas c y n₀ tales que 0 ≤ f(n) ≤ c·g(n) para todo n ≥ n₀.</span></aside>
+    </article>
+
+    <div className="complexity-theory-grid">
+      <article>
+        <span className="lesson-kicker">09 · TIEMPO Y ESPACIO</span>
+        <h3>Son análisis separados</h3>
+        <p>Una solución puede ahorrar tiempo usando memoria auxiliar o ahorrar memoria repitiendo trabajo. Siempre debe indicarse si la complejidad mencionada es temporal o espacial y si el espacio incluye la propia entrada.</p>
+      </article>
+      <article>
+        <span className="lesson-kicker">10 · ERRORES FRECUENTES</span>
+        <h3>Antes de concluir, revisa</h3>
+        <ul>
+          <li>No confundir Big O con segundos exactos.</li>
+          <li>No afirmar que O siempre representa el peor caso.</li>
+          <li>No olvidar definir n y la operación contada.</li>
+          <li>No sumar complejidades de ciclos que realmente están anidados.</li>
+          <li>No comparar algoritmos usando tamaños de entrada distintos.</li>
+        </ul>
+      </article>
+    </div>
+
+    <article className="complexity-summary-card">
+      <span className="lesson-kicker">IDEA PARA RECORDAR</span>
+      <p>La pregunta no es solamente “¿funciona?”, sino <b>“¿seguirá funcionando bien cuando los datos crezcan?”</b>. La complejidad algorítmica permite responderla antes de ejecutar el programa.</p>
+    </article>
+  </section>;
 }
 
 function PolynomialVisual({ algorithm }) {
@@ -1709,7 +1846,7 @@ function App() {
   const [copied, setCopied] = useState(false);
   const codePanelRef = useRef(null);
   const baseAlgorithm = algorithms.find(a=>a.id===selectedId) || algorithms[0];
-  const [activeOperation, setActiveOperation] = useState(() => getOperationDefinition(startingAlgorithm).actions[0].id);
+  const [activeOperation, setActiveOperation] = useState(() => getOperationDefinition(startingAlgorithm).actions[0]?.id ?? null);
   const [operationFrames, setOperationFrames] = useState([]);
   const [activeCodeLine, setActiveCodeLine] = useState(null);
   const [demoValues, setDemoValues] = useState(() => [...startingAlgorithm.values]);
@@ -1745,7 +1882,9 @@ function App() {
       : baseAlgorithm.id === 'ast'
         ? 'El analizador lee una asignación Java con descenso recursivo. parseExpression procesa + y -, parseTerm respeta la prioridad de * y /, y parseFactor reconoce paréntesis, identificadores y números. Cada nodo que aparece corresponde a la línea iluminada.'
       : 'El código usa variables, arreglos, ciclos, condiciones y métodos pequeños. Cada línea iluminada corresponde al cambio mostrado en la estructura.';
-  const displayedCode = codeMode === 'java' ? getBeginnerJava(baseAlgorithm, activeOperation) : baseAlgorithm.code;
+  const displayedCode = baseAlgorithm.type === 'complexity'
+    ? ''
+    : codeMode === 'java' ? getBeginnerJava(baseAlgorithm, activeOperation) : baseAlgorithm.code;
   const codeLines = displayedCode.split('\n');
   const totalSteps = operationFrames.length || Math.max(algorithm.values.length, codeLines.length);
   const currentAnimationFrame = operationFrames[step] ?? null;
@@ -1816,7 +1955,7 @@ function App() {
     setDemoEdges(edgesForAlgorithm(nextAlgorithm));
     setDemoPositions(positionsForAlgorithm(nextAlgorithm));
     setDemoMap(DEFAULT_PATH_MAP);
-    setActiveOperation(getOperationDefinition(nextAlgorithm).actions[0].id);
+    setActiveOperation(getOperationDefinition(nextAlgorithm).actions[0]?.id ?? null);
     setOperationFrames([]);
     setActiveCodeLine(null);
     setOperationMessage('Usa los controles para modificar la estructura y observar el resultado.');
@@ -1978,10 +2117,11 @@ function App() {
       {showWelcome ? <Welcome onStart={()=>openAlgorithm(selectedId)} startName={baseAlgorithm.name}/> : <>
 
       {!sidebarCollapsed && <section className="hero">
-        <div><div className="eyebrow"><span>{algorithm.category}</span><i>Práctica interactiva</i></div><h1>{algorithm.name}</h1><p>{algorithm.description}</p></div>
-        <div className="complexity-card"><small>Complejidad</small><strong>{algorithm.complexity}</strong><div><Gauge size={16}/><span>Análisis asintótico</span></div></div>
+        <div><div className="eyebrow"><span>{algorithm.category}</span><i>{algorithm.type === 'complexity' ? 'Guía teórica' : 'Práctica interactiva'}</i></div><h1>{algorithm.name}</h1><p>{algorithm.description}</p></div>
+        <div className="complexity-card"><small>{algorithm.type === 'complexity' ? 'Contenido' : 'Complejidad'}</small><strong>{algorithm.complexity}</strong><div><Gauge size={16}/><span>{algorithm.type === 'complexity' ? 'Fundamentos y gráficos' : 'Análisis asintótico'}</span></div></div>
       </section>}
 
+      {algorithm.type === 'complexity' ? <ComplexityLesson/> : <>
       <section className={`lab-grid ${hideCodePanel ? 'visual-only' : ''}`}>
         <article className="panel visual-panel">
           <div className="panel-head"><div><span className="panel-index">01</span><h2>Visualización</h2></div><div className="panel-head-actions"><button onClick={createNewExample} title="Generar datos nuevos"><Shuffle size={15}/> Nuevo ejemplo</button><button onClick={resetDemo} title="Volver a los datos originales"><RotateCcw size={15}/> Restablecer</button></div></div>
@@ -2013,6 +2153,7 @@ function App() {
       </section>
 
       <Suspense fallback={<DescriptionFallback/>}><EducationalDescription algorithm={algorithm}/></Suspense>
+      </>}
 
       <section className="learning-strip"><div><BookOpen size={18}/><span><b>{categoryLabels[algorithm.category]}</b> · {algorithm.name}</span></div></section>
       <footer className="algorithm-nav"><button onClick={()=>selectRelative(-1)}><ArrowLeft size={16}/><span><small>Anterior</small>{algorithms[(selectedIndex-1+algorithms.length)%algorithms.length].name}</span></button><button onClick={()=>selectRelative(1)}><span><small>Siguiente</small>{algorithms[(selectedIndex+1)%algorithms.length].name}</span><ArrowRight size={16}/></button></footer>

@@ -152,11 +152,11 @@ function validQueens(queens) {
   )));
 }
 
-assert.equal(algorithms.length, 58, 'El catálogo debe contener 58 temas.');
+assert.equal(algorithms.length, 59, 'El catálogo debe contener 59 temas.');
 assert.equal(new Set(algorithms.map(algorithm => algorithm.id)).size, algorithms.length, 'El catálogo contiene identificadores duplicados.');
 assert.equal(new Set(algorithms.map(algorithm => algorithm.name)).size, algorithms.length, 'El catálogo contiene nombres duplicados.');
 assert.equal(Object.keys(educationalDescriptions).length, algorithms.length, 'La cantidad de descripciones no coincide con el catálogo.');
-assert.equal(Object.keys(guideJavaExamples).length, algorithms.length, 'La cantidad de ejemplos Java no coincide con el catálogo.');
+assert.equal(Object.keys(guideJavaExamples).length, algorithms.length - 1, 'Todas las secciones prácticas deben incluir ejemplo Java; la guía teórica de complejidad no muestra código.');
 
 let actionCount = 0;
 let executionCount = 0;
@@ -177,6 +177,11 @@ for (const algorithm of algorithms) {
   assert.ok([description.operations, description.strengths, description.limits, description.uses].every(list => list.length >= 4), `${algorithm.id}: la guía debe incluir al menos cuatro puntos por sección.`);
   assert.ok([description.operations, description.strengths, description.limits, description.uses].flat().every(item => item.trim().length >= 3), `${algorithm.id}: una lista educativa contiene un punto vacío o incompleto.`);
   assert.ok(!mojibake.test(Object.values(description).flat().join(' ')), `${algorithm.id}: la descripción contiene texto mal codificado.`);
+  if (algorithm.type === 'complexity') {
+    assert.equal(guideExample, undefined, `${algorithm.id}: la sección teórica no debe mostrar un ejemplo Java.`);
+    assert.deepEqual(getOperationDefinition(algorithm), { fields: [], actions: [] }, `${algorithm.id}: la sección teórica no debe exponer operaciones interactivas.`);
+    continue;
+  }
   assert.ok(guideExample?.title && guideExample?.explanation, `${algorithm.id}: falta presentar el ejemplo Java.`);
   assert.ok(guideExample.code.split('\n').length >= 3, `${algorithm.id}: el ejemplo Java es demasiado corto.`);
   assert.ok(!mojibake.test(`${guideExample.title} ${guideExample.explanation} ${guideExample.code}`), `${algorithm.id}: el ejemplo Java contiene texto mal codificado.`);
