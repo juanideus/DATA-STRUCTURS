@@ -23,9 +23,9 @@
     "check": "npm run audit && npm run audit:java && npm run audit:stress && npm run test:e2e"
   },
   "dependencies": {
-    "lucide-react": "1.24.0",
-    "react": "19.2.7",
-    "react-dom": "19.2.7"
+    "lucide-react": "1.27.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@playwright/test": "1.62.0",
