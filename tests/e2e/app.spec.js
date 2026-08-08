@@ -57,7 +57,21 @@ test('la sección de complejidad explica la teoría con gráficos y sin laborato
   await expect(page.locator('.player')).toHaveCount(0);
 });
 
-test('los 59 temas cargan su contenido correspondiente sin errores', async ({ page }) => {
+test('fundamentos explica qué son las estructuras de datos sin convertirlo en un laboratorio', async ({ page }) => {
+  await page.goto('/estructuras-de-datos');
+  await expect(page.locator('[data-algorithm-id="estructuras-de-datos"]')).toHaveText('01Estructuras de datos');
+  await expect(page.getByRole('heading', { name: '¿Qué son las estructuras de datos?', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '¿Qué es una estructura de datos?', level: 2 })).toBeVisible();
+  await expect(page.locator('[data-data-structures-lesson]')).toContainText('Tipo de Dato Abstracto (TDA)');
+  await expect(page.locator('.data-family-grid > div')).toHaveCount(4);
+  await expect(page.locator('.data-operation-table [role="row"]')).toHaveCount(7);
+  await expect(page.locator('.visual-panel')).toHaveCount(0);
+  await expect(page.locator('.code-panel')).toHaveCount(0);
+  await expect(page.locator('.operations-panel')).toHaveCount(0);
+  await expect(page.locator('.player')).toHaveCount(0);
+});
+
+test('los 60 temas cargan su contenido correspondiente sin errores', async ({ page }) => {
   test.setTimeout(180_000);
   const pageErrors = [];
   const failedResponses = [];
@@ -69,8 +83,8 @@ test('los 59 temas cargan su contenido correspondiente sin errores', async ({ pa
   for (const algorithm of algorithms) {
     await page.goto(`/${algorithm.id}`);
     await expect(page.getByRole('heading', { name: algorithm.name, level: 1 })).toBeVisible();
-    if (algorithm.type === 'complexity') {
-      await expect(page.locator('[data-complexity-lesson]')).toBeVisible();
+    if (['theory', 'complexity'].includes(algorithm.type)) {
+      await expect(page.locator(algorithm.type === 'complexity' ? '[data-complexity-lesson]' : '[data-data-structures-lesson]')).toBeVisible();
       await expect(page.locator('.visual-panel')).toHaveCount(0);
       await expect(page.locator('.code-panel')).toHaveCount(0);
       await expect(page.locator('.operation-actions')).toHaveCount(0);
@@ -79,7 +93,7 @@ test('los 59 temas cargan su contenido correspondiente sin errores', async ({ pa
     }
     await expect(page.locator('.operation-actions button')).toHaveCount(getOperationDefinition(algorithm).actions.length);
 
-    if (algorithm.type === 'complexity') {
+    if (['theory', 'complexity'].includes(algorithm.type)) {
       await expect(page.locator('.code-panel')).toHaveCount(0);
     } else if (['dijkstra', 'a-star'].includes(algorithm.id)) {
       await expect(page.locator('.code-panel')).toHaveCount(0);

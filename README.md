@@ -124,10 +124,11 @@ Cada tema incluye una guía con:
 
 ## Catálogo de contenidos
 
-La versión actual contiene **59 temas**, agrupados en ocho categorías.
+La versión actual contiene **60 temas**, agrupados en ocho categorías.
 
-### 0. Fundamentos — 1 tema
+### 0. Fundamentos — 2 temas
 
+- ¿Qué son las estructuras de datos?
 - Complejidad algorítmica
 
 ### 1. Estructuras lineales — 9 temas
@@ -350,7 +351,7 @@ DSA/
 │   │   ├── OperationsPanel.jsx        # Campos y botones de operaciones
 │   │   └── VariablesPanel.jsx         # Variables de la ejecución en tiempo real
 │   ├── data/
-│   │   ├── algorithms.js              # Catálogo de 59 temas
+│   │   ├── algorithms.js              # Catálogo de 60 temas
 │   │   ├── astJava.js                 # Parser AST y operaciones completas en Java
 │   │   ├── denseMatrixJava.js         # Operaciones de matriz densa en Java
 │   │   ├── beginnerJava.js            # Código Java por operación
@@ -398,9 +399,9 @@ npm run audit
 
 comprueba automáticamente, entre otros puntos:
 
-- Que existan los 59 temas esperados.
+- Que existan los 60 temas esperados.
 - Que cada tema tenga descripción educativa suficiente.
-- Que cada sección práctica incluya un ejemplo Java; complejidad algorítmica es deliberadamente teórica y no muestra código.
+- Que cada sección práctica incluya un ejemplo Java; las guías de fundamentos son deliberadamente teóricas y no muestran código.
 - Que todas las acciones devuelvan valores, aristas y mensajes válidos.
 - Que exista código Java para cada operación disponible.
 - Que el Sudoku produzca una solución `9×9` válida.
@@ -422,13 +423,13 @@ comprueba automáticamente, entre otros puntos:
 - Que las listas generalizadas distingan átomos, sublistas y cabeceras, calculen longitud y profundidad y mantengan referencias compartidas.
 - Que la matriz poco poblada inserte un único nodo en AROW y ACOL, recorra ambas listas en orden invertido y cierre sus enlaces circulares.
 
-La auditoría actual cubre **59 temas, 270 acciones, 2700 pruebas funcionales y 83 funciones distintas**. La capa de estrés añade **13 800 comprobaciones** —10 320 entradas extremas y 3480 operaciones encadenadas—, para un total de **16 500 pruebas de lógica**. Además, los **270 códigos Java visibles** se compilan realmente con `javac`.
+La auditoría actual cubre **60 temas, 270 acciones, 2700 pruebas funcionales y 83 funciones distintas**. La capa de estrés añade **13 800 comprobaciones** —10 320 entradas extremas y 3480 operaciones encadenadas—, para un total de **16 500 pruebas de lógica**. Además, los **270 códigos Java visibles** se compilan realmente con `javac`.
 
 Además, Playwright verifica los recorridos críticos en Chromium de escritorio y móvil:
 
 - Enlaces compartibles como `/avl` y `/sudoku`.
-- Carga directa de los 59 temas y del tipo de contenido que corresponde a cada uno.
-- Sección teórica de complejidad sin visualizador interactivo, operaciones, reproductor ni panel de código.
+- Carga directa de los 60 temas y del tipo de contenido que corresponde a cada uno.
+- Secciones teóricas de estructuras de datos y complejidad sin visualizador interactivo, operaciones, reproductor ni panel de código.
 - Rechazo seguro de índices negativos, coordenadas fuera de rango, valores enormes y texto potencialmente peligroso.
 - Avance sincronizado de animación, línea Java, explicación y variables en arreglos, grafos, Hanoi y N-Reinas.
 - Persistencia del tema, velocidad y formato de código.

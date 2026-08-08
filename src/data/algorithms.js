@@ -2,11 +2,15 @@ import { DEFAULT_DENSE_MATRIX_VALUES } from '../logic/denseMatrix.js';
 import { DEFAULT_GENERALIZED_LIST_VALUES } from '../logic/generalizedList.js';
 import { DEFAULT_POLYNOMIAL_VALUES } from '../logic/polynomial.js';
 
-const item = (id, name, category, type, complexity, description, code, values) => ({
-  id, name, category, type, complexity, description, code, values,
+const item = (id, name, category, type, complexity, description, code, values, navName = null) => ({
+  id, name, category, type, complexity, description, code, values, navName,
 });
 
 export const algorithms = [
+  item('estructuras-de-datos','¿Qué son las estructuras de datos?','Fundamentos','theory','Conceptos, clasificación y elección','Explica cómo se organizan los datos para almacenarlos, encontrarlos y modificarlos eficientemente, y cómo elegir una estructura según el problema que se quiere resolver.',`estudiar(problema):
+  identificar los datos y las operaciones necesarias
+  comparar acceso, búsqueda, inserción y eliminación
+  elegir la estructura que ofrezca el mejor equilibrio`,['datos','reglas','operaciones'],'Estructuras de datos'),
   item('complejidad-algoritmica','Complejidad algorítmica','Fundamentos','complexity','Análisis temporal y espacial','Estudia cómo crecen el tiempo y la memoria de un algoritmo cuando aumenta el tamaño n de la entrada, sin depender de un computador específico.',`analizar(algoritmo, n):
   elegir la operación activa
   contar cuántas veces se ejecuta
@@ -133,7 +137,7 @@ transponer():
 export const categories = [...new Set(algorithms.map((algorithm) => algorithm.category))];
 
 export const categoryLabels = {
-  Fundamentos: 'Cómo medir un algoritmo',
+  Fundamentos: 'Bases para organizar y analizar datos',
   'Estructuras lineales': 'Fundamentos secuenciales',
   'Árboles': 'Jerarquías y búsqueda',
   Hashing: 'Acceso por clave',

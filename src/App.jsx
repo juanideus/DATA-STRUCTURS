@@ -465,6 +465,131 @@ function ComplexityLesson() {
   </section>;
 }
 
+function DataStructuresLesson() {
+  const operations = [
+    ['Acceso', 'Llegar a un dato conocido', 'Array mediante índice'],
+    ['Búsqueda', 'Encontrar un dato que cumple una condición', 'Hash por clave o recorrido'],
+    ['Inserción', 'Agregar información sin romper las reglas', 'Nuevo nodo en una lista'],
+    ['Actualización', 'Modificar un dato existente', 'Cambiar el valor de una posición'],
+    ['Eliminación', 'Retirar un dato y reorganizar lo necesario', 'Desenlazar un nodo'],
+    ['Recorrido', 'Visitar sistemáticamente los elementos', 'Inorden en un árbol'],
+  ];
+  const families = [
+    { name: 'Lineales', examples: 'Array · Lista · Stack · Queue', text: 'Los elementos siguen una secuencia. Cada dato, salvo los extremos, tiene un anterior y un siguiente lógico.' },
+    { name: 'Jerárquicas', examples: 'Árbol · Heap · Trie', text: 'Organizan relaciones de padre e hijos. Son útiles para niveles, prioridades, búsqueda y prefijos.' },
+    { name: 'Redes', examples: 'Grafos', text: 'Representan entidades conectadas sin exigir una única jerarquía: rutas, dependencias, amistades o enlaces.' },
+    { name: 'Por clave', examples: 'Hash · Map · Set', text: 'Transforman una clave para ubicar datos rápidamente y comprobar pertenencia.' },
+  ];
+
+  return <section className="complexity-lesson data-structures-lesson" data-data-structures-lesson>
+    <article className="complexity-intro-card">
+      <span className="lesson-kicker">01 · IDEA CENTRAL</span>
+      <h2>¿Qué es una estructura de datos?</h2>
+      <p>Es una forma de <b>guardar, organizar y relacionar datos</b> para poder trabajar con ellos de manera clara y eficiente. No cambia lo que significan los datos: define dónde se encuentran, cómo se conectan y qué reglas deben respetarse al modificarlos.</p>
+      <div className="complexity-foundations data-foundations">
+        <div><strong>Datos</strong><span>Qué almacenamos</span><p>Números, textos, objetos, registros o relaciones.</p></div>
+        <div><strong>Organización</strong><span>Cómo los ubicamos</span><p>Posiciones, índices, enlaces, claves o niveles.</p></div>
+        <div><strong>Operaciones</strong><span>Qué necesitamos hacer</span><p>Buscar, insertar, eliminar, actualizar y recorrer.</p></div>
+      </div>
+    </article>
+
+    <div className="complexity-theory-grid">
+      <article>
+        <span className="lesson-kicker">02 · POR QUÉ EXISTEN</span>
+        <h3>Organizar bien evita trabajo innecesario</h3>
+        <p>Imagina miles de fichas sin ordenar dentro de una caja. La información existe, pero encontrar una ficha puede exigir revisarlas todas. Una estructura agrega un orden o una forma de acceso que facilita las operaciones importantes.</p>
+        <p>Por eso un mismo conjunto de datos puede comportarse de manera muy distinta en un Array, una lista, un árbol o una tabla hash.</p>
+      </article>
+      <article>
+        <span className="lesson-kicker">03 · TDA Y ESTRUCTURA</span>
+        <h3>Qué debe hacer frente a cómo se construye</h3>
+        <div className="data-concept-pair">
+          <p><b>Tipo de Dato Abstracto (TDA)</b><span>Describe el comportamiento y las operaciones disponibles. Una pila promete push, pop y peek siguiendo LIFO.</span></p>
+          <p><b>Estructura de datos</b><span>Es la organización concreta que hace posible ese comportamiento. La pila puede implementarse con un Array o con nodos enlazados.</span></p>
+        </div>
+      </article>
+    </div>
+
+    <article className="data-families-card">
+      <span className="lesson-kicker">04 · FAMILIAS PRINCIPALES</span>
+      <h3>No todos los datos se relacionan de la misma forma</h3>
+      <div className="data-family-grid">
+        {families.map((family, index) => <div key={family.name}>
+          <i>{String(index + 1).padStart(2, '0')}</i>
+          <strong>{family.name}</strong>
+          <small>{family.examples}</small>
+          <p>{family.text}</p>
+        </div>)}
+      </div>
+    </article>
+
+    <article className="complexity-order-table-card">
+      <span className="lesson-kicker">05 · OPERACIONES BÁSICAS</span>
+      <h3>Las preguntas que debe responder una estructura</h3>
+      <div className="complexity-order-table data-operation-table" role="table" aria-label="Operaciones básicas de las estructuras de datos">
+        <div className="table-head" role="row"><b>Operación</b><b>Pregunta</b><b>Ejemplo</b></div>
+        {operations.map(row => <div role="row" key={row[0]}>{row.map((cell, index) => <span role="cell" key={cell}>{index === 0 ? <strong>{cell}</strong> : cell}</span>)}</div>)}
+      </div>
+    </article>
+
+    <div className="complexity-theory-grid">
+      <article>
+        <span className="lesson-kicker">06 · CÓMO ELEGIR</span>
+        <h3>Primero comprende el problema</h3>
+        <ol>
+          <li><b>Define los datos.</b> Qué representan y cuánto pueden crecer.</li>
+          <li><b>Prioriza operaciones.</b> No es igual buscar mucho que insertar mucho.</li>
+          <li><b>Decide si importa el orden.</b> Natural, ordenado, por prioridad o sin orden.</li>
+          <li><b>Estudia sus costos.</b> Tiempo de las operaciones y memoria adicional.</li>
+          <li><b>Considera los límites.</b> Tamaño fijo, duplicados, concurrencia o persistencia.</li>
+        </ol>
+      </article>
+      <article>
+        <span className="lesson-kicker">07 · INTERCAMBIOS</span>
+        <h3>Ganar en una operación puede costar en otra</h3>
+        <ul>
+          <li>Un Array permite acceso directo, pero insertar al inicio desplaza elementos.</li>
+          <li>Una lista enlazada inserta sin desplazar, pero no ofrece acceso directo por índice.</li>
+          <li>Hashing busca muy rápido, pero no mantiene naturalmente los datos ordenados.</li>
+          <li>Un árbol balanceado conserva orden, aunque debe mantener enlaces y balance.</li>
+          <li>Un grafo representa conexiones generales, pero sus recorridos necesitan memoria auxiliar.</li>
+        </ul>
+      </article>
+    </div>
+
+    <article className="data-map-card">
+      <span className="lesson-kicker">08 · MAPA DE DSA LAB</span>
+      <h3>Una estructura para cada necesidad</h3>
+      <div className="data-map-grid">
+        <p><b>Posiciones conocidas</b><span>Array y matriz</span></p>
+        <p><b>Secuencias flexibles</b><span>Listas con nexo</span></p>
+        <p><b>Orden de atención</b><span>Stack, Queue y Deque</span></p>
+        <p><b>Jerarquía y búsqueda</b><span>Árboles y heaps</span></p>
+        <p><b>Acceso mediante clave</b><span>Hashing</span></p>
+        <p><b>Relaciones y rutas</b><span>Grafos</span></p>
+      </div>
+    </article>
+
+    <div className="complexity-theory-grid">
+      <article>
+        <span className="lesson-kicker">09 · EJEMPLO COTIDIANO</span>
+        <h3>Una biblioteca usa varias estructuras</h3>
+        <p>Los libros pueden ordenarse en estantes, localizarse mediante una ficha por código y los préstamos pendientes atenderse en una cola. Los datos siguen siendo libros y personas, pero cada tarea necesita una organización diferente.</p>
+      </article>
+      <article>
+        <span className="lesson-kicker">10 · ERROR FRECUENTE</span>
+        <h3>No existe una estructura universalmente mejor</h3>
+        <p>La estructura correcta no es la más compleja ni la más rápida en una única prueba. Es la que ofrece el mejor equilibrio para las operaciones, el tamaño y las reglas del problema real.</p>
+      </article>
+    </div>
+
+    <article className="complexity-summary-card">
+      <span className="lesson-kicker">IDEA PARA RECORDAR</span>
+      <p>Los algoritmos indican <b>qué pasos realizar</b>; las estructuras de datos determinan <b>cómo se organiza la información</b> sobre la que trabajan. Ambas decisiones se necesitan para construir una solución correcta y eficiente.</p>
+    </article>
+  </section>;
+}
+
 function PolynomialVisual({ algorithm }) {
   const state = algorithm.animationFrame?.polynomialState ?? {};
   const rows = ['A', 'B', 'C'];
@@ -1662,7 +1787,7 @@ function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setM
     <nav>
       {categories.map(category => { const list = filtered.filter(a=>a.category===category); if (!list.length) return null; return <div className="nav-group" key={category}>
         <div className="nav-heading"><span>{category}</span><em>{String(list.length).padStart(2,'0')}</em></div>
-        {list.map((a) => <button data-algorithm-id={a.id} className={selected===a.id?'selected':''} onClick={()=>{onSelect(a.id);setMobileOpen(false)}} key={a.id}><span>{String(algorithms.indexOf(a)+1).padStart(2,'0')}</span>{a.name}</button>)}
+        {list.map((a) => <button data-algorithm-id={a.id} className={selected===a.id?'selected':''} onClick={()=>{onSelect(a.id);setMobileOpen(false)}} key={a.id}><span>{String(algorithms.indexOf(a)+1).padStart(2,'0')}</span>{a.navName ?? a.name}</button>)}
       </div>})}
     </nav>
     <div className="sidebar-foot">
@@ -1859,6 +1984,7 @@ function App() {
     () => ({ ...baseAlgorithm, values: demoValues, edges: demoEdges, positions: demoPositions, map: demoMap }),
     [baseAlgorithm, demoValues, demoEdges, demoPositions, demoMap],
   );
+  const isTheoryPage = ['theory', 'complexity'].includes(baseAlgorithm.type);
   const hideCodePanel = ['dijkstra','a-star'].includes(baseAlgorithm.id);
   const selectedIndex = algorithms.findIndex(item => item.id === baseAlgorithm.id);
   const operationDefinition = getOperationDefinition(baseAlgorithm);
@@ -1882,7 +2008,7 @@ function App() {
       : baseAlgorithm.id === 'ast'
         ? 'El analizador lee una asignación Java con descenso recursivo. parseExpression procesa + y -, parseTerm respeta la prioridad de * y /, y parseFactor reconoce paréntesis, identificadores y números. Cada nodo que aparece corresponde a la línea iluminada.'
       : 'El código usa variables, arreglos, ciclos, condiciones y métodos pequeños. Cada línea iluminada corresponde al cambio mostrado en la estructura.';
-  const displayedCode = baseAlgorithm.type === 'complexity'
+  const displayedCode = isTheoryPage
     ? ''
     : codeMode === 'java' ? getBeginnerJava(baseAlgorithm, activeOperation) : baseAlgorithm.code;
   const codeLines = displayedCode.split('\n');
@@ -2117,11 +2243,11 @@ function App() {
       {showWelcome ? <Welcome onStart={()=>openAlgorithm(selectedId)} startName={baseAlgorithm.name}/> : <>
 
       {!sidebarCollapsed && <section className="hero">
-        <div><div className="eyebrow"><span>{algorithm.category}</span><i>{algorithm.type === 'complexity' ? 'Guía teórica' : 'Práctica interactiva'}</i></div><h1>{algorithm.name}</h1><p>{algorithm.description}</p></div>
-        <div className="complexity-card"><small>{algorithm.type === 'complexity' ? 'Contenido' : 'Complejidad'}</small><strong>{algorithm.complexity}</strong><div><Gauge size={16}/><span>{algorithm.type === 'complexity' ? 'Fundamentos y gráficos' : 'Análisis asintótico'}</span></div></div>
+        <div><div className="eyebrow"><span>{algorithm.category}</span><i>{isTheoryPage ? 'Guía teórica' : 'Práctica interactiva'}</i></div><h1>{algorithm.name}</h1><p>{algorithm.description}</p></div>
+        <div className="complexity-card"><small>{isTheoryPage ? 'Contenido' : 'Complejidad'}</small><strong>{algorithm.complexity}</strong><div><Gauge size={16}/><span>{isTheoryPage ? algorithm.type === 'complexity' ? 'Fundamentos y gráficos' : 'Conceptos fundamentales' : 'Análisis asintótico'}</span></div></div>
       </section>}
 
-      {algorithm.type === 'complexity' ? <ComplexityLesson/> : <>
+      {isTheoryPage ? algorithm.type === 'complexity' ? <ComplexityLesson/> : <DataStructuresLesson/> : <>
       <section className={`lab-grid ${hideCodePanel ? 'visual-only' : ''}`}>
         <article className="panel visual-panel">
           <div className="panel-head"><div><span className="panel-index">01</span><h2>Visualización</h2></div><div className="panel-head-actions"><button onClick={createNewExample} title="Generar datos nuevos"><Shuffle size={15}/> Nuevo ejemplo</button><button onClick={resetDemo} title="Volver a los datos originales"><RotateCcw size={15}/> Restablecer</button></div></div>

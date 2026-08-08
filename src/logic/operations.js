@@ -32,6 +32,10 @@ const field = (id, label, type = 'text') => ({ id, label, type });
 const action = (id, label, tone = 'default') => ({ id, label, tone });
 
 const definitions = {
+  theory: {
+    fields: [],
+    actions: [],
+  },
   complexity: {
     fields: [],
     actions: [],
@@ -221,6 +225,7 @@ const definitions = {
 };
 
 export function operationGroup(algorithm) {
+  if (algorithm.type === 'theory') return 'theory';
   if (algorithm.id === 'complejidad-algoritmica') return 'complexity';
   if (algorithm.id === 'polinomios') return 'polynomial';
   if (algorithm.id === 'listas-generalizadas') return 'generalizedList';
