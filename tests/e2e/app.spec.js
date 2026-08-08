@@ -881,16 +881,13 @@ test('la matriz poco poblada es circular y se recorre en el sentido enseñado', 
   await expect(page.locator('.operation-message')).toContainText('4 ← 8 ← 7 ← 2', { timeout: 15000 });
 });
 
-test('permite copiar un reporte sin usar GitHub', async ({ page, context }) => {
-  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+test('muestra informar problema como una función próximamente', async ({ page }) => {
   await page.getByRole('button', { name: 'Informar un problema' }).click();
-  await page.getByLabel('Resumen corto').fill('Prueba del reporte');
-  await page.getByLabel('Cuéntanos qué ocurrió').fill('Descripción para verificar la copia.');
-  await page.getByRole('button', { name: 'Copiar reporte' }).click();
-
-  const clipboard = await page.evaluate(() => navigator.clipboard.readText());
-  expect(clipboard).toContain('Prueba del reporte');
-  expect(clipboard).toContain('Descripción para verificar la copia.');
+  await expect(page.getByRole('heading', { name: 'Próximamente' })).toBeVisible();
+  await expect(page.locator('.bug-modal-preview')).toHaveAttribute('inert', '');
+  await expect(page.locator('.bug-modal-preview')).toHaveCSS('filter', 'blur(5px)');
+  await page.getByRole('button', { name: 'Entendido' }).click();
+  await expect(page.locator('.bug-modal')).toHaveCount(0);
 });
 
 test('no produce desbordamiento horizontal en móvil', async ({ page }, testInfo) => {

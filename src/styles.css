@@ -642,6 +642,15 @@ body{background:
 .bug-form-actions p svg{flex:0 0 auto;color:var(--green)}
 .bug-form-actions button{height:41px;padding:0 14px;border:1px solid #cbc7bd;border-radius:9px;background:#fff;color:var(--ink);font-size:11px;font-weight:800;cursor:pointer}
 .bug-form-actions button[type='submit']{border-color:var(--orange);display:flex;align-items:center;gap:7px;background:var(--orange);color:#fff}
+.bug-modal-disabled{position:relative;overflow:hidden}
+.bug-modal-preview{filter:blur(5px);opacity:.52;transform:scale(1.015);pointer-events:none;user-select:none}
+.bug-coming-soon{position:absolute;inset:0;z-index:4;padding:24px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:rgba(245,247,249,.48);backdrop-filter:blur(2px)}
+.bug-coming-soon>span{display:flex;align-items:center;gap:7px;color:var(--orange);font-family:'DM Mono',monospace;font-size:9px;font-weight:750;letter-spacing:.1em}
+.bug-coming-soon h2{margin:10px 0 8px;color:var(--ink);font-size:clamp(30px,5vw,44px);letter-spacing:-.045em}
+.bug-coming-soon p{max-width:380px;margin:0;color:#56645f;font-size:13px;line-height:1.65}
+.bug-coming-soon button{height:41px;margin-top:20px;padding:0 19px;border:1px solid #bf5037;border-radius:8px;background:var(--orange);color:#fff;font-size:11px;font-weight:800;cursor:pointer;box-shadow:0 6px 16px rgba(63,33,24,.16)}
+.bug-coming-soon button:hover{filter:brightness(.96)}
+.bug-coming-soon button:focus-visible{outline:3px solid rgba(239,90,54,.25);outline-offset:3px}
 @keyframes bugModalIn{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
 @media(max-width:600px){
   .bug-fab{right:15px;bottom:15px;width:46px;height:46px;padding:0;justify-content:center}

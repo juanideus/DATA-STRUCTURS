@@ -120,7 +120,7 @@ Cada tema incluye una guía con:
 - Diseño adaptable para escritorio, tablet y móvil.
 - Favicon y marca visual de DSA Lab.
 - Crédito de autor visible en el menú lateral.
-- Formulario integrado para preparar reportes de errores en GitHub.
+- Vista previa desenfocada del futuro sistema de reportes directos.
 
 ## Catálogo de contenidos
 
@@ -486,7 +486,9 @@ Vite debe compilar los recursos usando esa ruta base. En ese caso, configura `ba
 
 ## Reporte de errores
 
-La aplicación incluye un botón con icono de insecto para informar problemas. El formulario solicita:
+La aplicación incluye un botón con icono de insecto para informar problemas. Actualmente abre una vista previa desenfocada con el aviso **Próximamente**, porque el envío directo todavía no dispone de un servicio receptor.
+
+El formulario previsto solicitará:
 
 - Resumen corto.
 - Tipo de problema.
@@ -494,17 +496,7 @@ La aplicación incluye un botón con icono de insecto para informar problemas. E
 - Pasos para reproducirlo.
 - Sección afectada.
 
-Al continuar, se abre un borrador de Issue en:
-
-[GitHub Issues · DATA-STRUCTURS](https://github.com/juanideus/DATA-STRUCTURS/issues/new)
-
-El usuario puede revisar el contenido antes de publicarlo. Para crear el Issue es necesario iniciar sesión en GitHub.
-
-Si el alumno no tiene una cuenta, el mismo formulario permite usar **Copiar reporte** y compartir el contenido mediante correo, chat u otro canal.
-
-También puedes abrir directamente la sección general de problemas:
-
-[Ver problemas existentes](https://github.com/juanideus/DATA-STRUCTURS/issues)
+Los campos permanecen bloqueados hasta incorporar el backend que recibirá y almacenará los reportes sin depender de GitHub.
 
 ## Navegación y preferencias
 

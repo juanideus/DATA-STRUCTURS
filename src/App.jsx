@@ -1935,8 +1935,9 @@ function BugReporter({ section }) {
   return <>
     <button className="bug-fab" onClick={()=>setOpen(true)} aria-label="Informar un problema"><Bug size={20}/><span>Informar problema</span></button>
     {open && <div className="bug-modal-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)setOpen(false)}}>
-      <section className="bug-modal" role="dialog" aria-modal="true" aria-labelledby="bug-dialog-title">
-        <header><div className="bug-modal-icon"><Bug size={20}/></div><div><span>Ayúdanos a mejorar</span><h2 id="bug-dialog-title">¿Encontraste algo extraño?</h2></div><button type="button" onClick={()=>setOpen(false)} aria-label="Cerrar reporte"><X size={18}/></button></header>
+      <section className="bug-modal bug-modal-disabled" role="dialog" aria-modal="true" aria-labelledby="bug-coming-soon-title">
+        <div className="bug-modal-preview" inert={true} aria-hidden="true">
+        <header><div className="bug-modal-icon"><Bug size={20}/></div><div><span>Ayúdanos a mejorar</span><h2>¿Encontraste algo extraño?</h2></div><button type="button" tabIndex="-1"><X size={18}/></button></header>
         <p className="bug-intro">Cuéntanos qué pasó y cómo podemos repetirlo. Con esos datos será mucho más fácil encontrar y corregir el problema.</p>
         <div className="bug-section-label"><small>Estabas viendo</small><strong>{section}</strong></div>
         <form onSubmit={submit}>
@@ -1947,6 +1948,13 @@ function BugReporter({ section }) {
           {copyStatus && <p className="bug-copy-status" role="status">{copyStatus}</p>}
           <div className="bug-form-actions"><p><ExternalLink size={13}/> Usa GitHub o copia el reporte para compartirlo sin una cuenta.</p><button type="button" onClick={()=>setOpen(false)}>Ahora no</button><button className="copy-report" type="button" onClick={copyReport}><ClipboardCopy size={15}/> Copiar reporte</button><button type="submit">Revisar en GitHub <ExternalLink size={15}/></button></div>
         </form>
+        </div>
+        <div className="bug-coming-soon">
+          <span><Bug size={15}/> INFORMAR PROBLEMA</span>
+          <h2 id="bug-coming-soon-title">Próximamente</h2>
+          <p>Estamos preparando una forma directa y sencilla de enviar tus reportes desde DSA Lab.</p>
+          <button type="button" onClick={()=>setOpen(false)}>Entendido</button>
+        </div>
       </section>
     </div>}
   </>;
