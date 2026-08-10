@@ -6,12 +6,14 @@ import App from './App.jsx';
 import AppErrorBoundary from './components/AppErrorBoundary.jsx';
 import './styles.css';
 
+const isLocalEnvironment = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AppErrorBoundary>
       <App />
-      <Analytics />
-      <SpeedInsights />
+      {!isLocalEnvironment && <Analytics />}
+      {!isLocalEnvironment && <SpeedInsights />}
     </AppErrorBoundary>
   </React.StrictMode>,
 );
