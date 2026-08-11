@@ -108,7 +108,7 @@ test('el modo desafío predice operaciones y conserva el progreso local', async 
   await expect(page.getByRole('button', { name: 'Modo desafío', exact: true })).toBeVisible();
 });
 
-test('los 61 temas cargan su contenido correspondiente sin errores', async ({ page }) => {
+test('los 73 temas cargan su contenido correspondiente sin errores', async ({ page }) => {
   test.setTimeout(180_000);
   const pageErrors = [];
   const failedResponses = [];
@@ -120,10 +120,10 @@ test('los 61 temas cargan su contenido correspondiente sin errores', async ({ pa
   for (const algorithm of algorithms) {
     await page.goto(`/${algorithm.id}`);
     await expect(page.getByRole('heading', { name: algorithm.name, level: 1 })).toBeVisible();
-    if (['theory', 'complexity', 'oop'].includes(algorithm.type)) {
+    if (['theory', 'complexity', 'oop', 'foundation'].includes(algorithm.type)) {
       const lessonSelector = algorithm.type === 'complexity'
         ? '[data-complexity-lesson]'
-        : algorithm.type === 'oop' ? '[data-oop-lesson]' : '[data-data-structures-lesson]';
+        : algorithm.type === 'oop' ? '[data-oop-lesson]' : algorithm.type === 'foundation' ? `[data-foundation-lesson="${algorithm.id}"]` : '[data-data-structures-lesson]';
       await expect(page.locator(lessonSelector)).toBeVisible();
       await expect(page.locator('.visual-panel')).toHaveCount(0);
       await expect(page.locator('.code-panel')).toHaveCount(0);
@@ -134,7 +134,7 @@ test('los 61 temas cargan su contenido correspondiente sin errores', async ({ pa
     }
     await expect(page.locator('.operation-actions button')).toHaveCount(getOperationDefinition(algorithm).actions.length);
 
-    if (['theory', 'complexity', 'oop'].includes(algorithm.type)) {
+    if (['theory', 'complexity', 'oop', 'foundation'].includes(algorithm.type)) {
       await expect(page.locator('.code-panel')).toHaveCount(0);
     } else if (['dijkstra', 'a-star'].includes(algorithm.id)) {
       await expect(page.locator('.code-panel')).toHaveCount(0);

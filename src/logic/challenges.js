@@ -1,7 +1,7 @@
 import { algorithms } from '../data/algorithms.js';
 import { DEFAULT_GRAPH_EDGES, executeOperation, getOperationDefinition, operationGroup } from './operations.js';
 
-const THEORY_TYPES = new Set(['theory', 'complexity', 'oop']);
+const THEORY_TYPES = new Set(['theory', 'complexity', 'oop', 'foundation']);
 const SPECIALIZED_CHALLENGE_IDS = new Set(['array', 'pila', 'cola', 'bst', 'avl']);
 
 export const CHALLENGE_ALGORITHM_IDS = Object.freeze(

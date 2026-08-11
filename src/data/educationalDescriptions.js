@@ -1,3 +1,5 @@
+import { foundationLessons } from './foundationLessons.js';
+
 const split = value => value.split('|');
 
 const guide = (definition, how, operations, strengths, limits, uses, example, tip) => ({
@@ -629,6 +631,8 @@ export const educationalDescriptions = {
     '“Posiblemente presente” no es una confirmación: verifica en la fuente real cuando necesites certeza.'
   ),
 };
+
+for (const lesson of foundationLessons) educationalDescriptions[lesson.id] = lesson.guide;
 
 export function getEducationalDescription(id) {
   return educationalDescriptions[id] ?? null;

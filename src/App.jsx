@@ -8,6 +8,7 @@ import { getBeginnerJava } from './data/beginnerJava.js';
 import { getGraphDesign, graphEdgesFor, graphPositionsFor } from './data/graphDesigns.js';
 import OperationsPanel from './components/OperationsPanel.jsx';
 import ChallengePanel from './components/ChallengePanel.jsx';
+import FoundationLesson from './components/FoundationLesson.jsx';
 import VariablesPanel from './components/VariablesPanel.jsx';
 import {
   adaptFramesToCode,
@@ -2280,7 +2281,7 @@ function App() {
     () => ({ ...baseAlgorithm, values: demoValues, edges: demoEdges, positions: demoPositions, map: demoMap }),
     [baseAlgorithm, demoValues, demoEdges, demoPositions, demoMap],
   );
-  const isTheoryPage = ['theory', 'complexity', 'oop'].includes(baseAlgorithm.type);
+  const isTheoryPage = ['theory', 'complexity', 'oop', 'foundation'].includes(baseAlgorithm.type);
   const hideCodePanel = ['dijkstra','a-star'].includes(baseAlgorithm.id);
   const selectedIndex = algorithms.findIndex(item => item.id === baseAlgorithm.id);
   const operationDefinition = getOperationDefinition(baseAlgorithm);
@@ -2564,7 +2565,7 @@ function App() {
         <div className="complexity-card"><small>{isTheoryPage ? 'Contenido' : 'Complejidad'}</small><strong>{algorithm.complexity}</strong><div><Gauge size={16}/><span>{isTheoryPage ? algorithm.type === 'complexity' ? 'Fundamentos y gráficos' : 'Conceptos fundamentales' : 'Análisis asintótico'}</span></div></div>
       </section>}
 
-      {isTheoryPage ? algorithm.type === 'complexity' ? <ComplexityLesson/> : algorithm.type === 'oop' ? <OopLesson/> : <DataStructuresLesson/> : <>
+      {isTheoryPage ? algorithm.type === 'complexity' ? <ComplexityLesson/> : algorithm.type === 'oop' ? <OopLesson/> : algorithm.type === 'foundation' ? <FoundationLesson algorithm={algorithm}/> : <DataStructuresLesson/> : <>
       <section className={`lab-grid ${hideCodePanel ? 'visual-only' : ''}`}>
         <article className="panel visual-panel">
           <div className="panel-head"><div><span className="panel-index">01</span><h2>Visualización</h2></div><div className="panel-head-actions">{supportsChallenges(baseAlgorithm) && <button className={`challenge-toggle ${challengeMode ? 'active' : ''}`} onClick={toggleChallengeMode} title={challengeMode ? 'Salir del modo desafío' : 'Practicar con una predicción'} aria-label={challengeMode ? 'Salir del modo desafío' : 'Modo desafío'} aria-pressed={challengeMode}><Brain size={15}/>{challengeMode ? 'Salir' : 'Desafío'}</button>}<button onClick={createNewExample} title="Generar datos nuevos"><Shuffle size={15}/> Nuevo ejemplo</button><button onClick={resetDemo} title="Volver a los datos originales"><RotateCcw size={15}/> Restablecer</button></div></div>
