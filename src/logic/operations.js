@@ -40,6 +40,10 @@ const definitions = {
     fields: [],
     actions: [],
   },
+  oop: {
+    fields: [],
+    actions: [],
+  },
   array: {
     fields: [field('value', 'Valor', 'number'), field('index', 'Índice', 'number')],
     actions: [action('add-start', 'Agregar inicio'), action('add-end', 'Agregar final'), action('add-index', 'Agregar en índice'), action('set-index', 'Actualizar índice'), action('remove-start', 'Eliminar inicio', 'danger'), action('remove-end', 'Eliminar final', 'danger'), action('remove-index', 'Eliminar índice', 'danger')],
@@ -227,6 +231,7 @@ const definitions = {
 export function operationGroup(algorithm) {
   if (algorithm.type === 'theory') return 'theory';
   if (algorithm.id === 'complejidad-algoritmica') return 'complexity';
+  if (algorithm.type === 'oop') return 'oop';
   if (algorithm.id === 'polinomios') return 'polynomial';
   if (algorithm.id === 'listas-generalizadas') return 'generalizedList';
   if (algorithm.id === 'matriz') return 'matrix';

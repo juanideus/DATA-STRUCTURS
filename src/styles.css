@@ -74,6 +74,33 @@ body{background:
   .lab-grid{grid-template-columns:1fr}
   .code-panel pre{height:370px;min-height:370px}
 }
+
+/* Modo desafío guiado */
+.panel-head-actions .challenge-toggle{border-color:#c7d2df;background:#f4f7fb;color:#365879}
+.panel-head-actions .challenge-toggle:hover{border-color:#7893ae;color:#274a6b;background:#edf3f9}
+.panel-head-actions .challenge-toggle.active{border-color:#365f87;background:#365f87;color:#fff;box-shadow:0 5px 12px rgba(40,76,111,.16)}
+.challenge-panel{padding:17px 18px 16px;border-top:1px solid var(--line);background:linear-gradient(150deg,#f7f9fc 0%,#f4f6f8 56%,#f8f6f1 100%)}
+.challenge-header{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px}
+.challenge-title{display:flex;align-items:center;gap:10px;min-width:0}
+.challenge-title>span{width:36px;height:36px;display:grid;place-items:center;flex:0 0 auto;border-radius:10px;background:#365f87;color:#fff;box-shadow:0 6px 14px rgba(43,76,107,.17)}
+.challenge-title small{display:block;margin-bottom:2px;font:600 9px/1.2 'DM Mono',monospace;letter-spacing:.09em;text-transform:uppercase;color:#66798b}
+.challenge-title h3{margin:0;font-size:15px;line-height:1.2;color:var(--ink)}
+.challenge-progress{display:flex;align-items:center;gap:7px;flex:0 0 auto;padding:7px 9px;border:1px solid #d4dce5;border-radius:9px;background:rgba(255,255,255,.78);color:#5b6d7d;font:600 10px/1 'DM Mono',monospace}
+.challenge-progress svg{color:#b47d28}.challenge-progress strong{font-size:12px;color:#314d68}.challenge-progress span{padding-left:7px;border-left:1px solid #d9dfe6}
+.challenge-question{display:flex;align-items:flex-start;gap:9px;padding:12px 13px;border:1px solid #d7dee5;border-radius:9px;background:#fff}
+.challenge-question svg{margin-top:2px;flex:0 0 auto;color:#365f87}.challenge-question p{margin:0;font-size:14px;line-height:1.55;font-weight:600;color:#2d3944}
+.challenge-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}
+.challenge-options button{min-height:43px;padding:9px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid #cfd7df;border-radius:8px;background:#fff;color:#374651;font-size:12px;text-align:left;transition:border-color .18s ease,background .18s ease,transform .18s ease}
+.challenge-options button:hover:not(:disabled){border-color:#6d89a4;background:#f5f8fb;transform:translateY(-1px)}
+.challenge-options button.selected{border-color:#5d7893}.challenge-options button.correct-answer{border-color:#5f876f;background:#edf6f0;color:#315b41}.challenge-options button.wrong-answer{border-color:#b46b60;background:#fbf0ee;color:#7b4038}
+.challenge-options button:disabled{cursor:default;opacity:1}.challenge-options button svg{flex:0 0 auto}
+.challenge-hint-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:11px}.challenge-hint-row>span{font-size:10px;color:#77828c}
+.challenge-hint-button,.challenge-actions button{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid #ccd5de;border-radius:7px;background:#fff;color:#4c6173;font-size:11px;font-weight:600}
+.challenge-hint-button{padding:7px 10px}.challenge-hint-button svg{color:#b47d28}.challenge-hint-button:disabled{background:#f4f2eb;color:#776b57}
+.challenge-hint{display:flex;align-items:flex-start;gap:8px;margin:10px 0 0;padding:9px 11px;border-left:3px solid #c18a34;border-radius:0 7px 7px 0;background:#fff8e9;color:#695633;font-size:12px;line-height:1.5}.challenge-hint svg{margin-top:1px;flex:0 0 auto;color:#b47d28}
+.challenge-feedback{display:flex;align-items:flex-start;gap:9px;margin-top:11px;padding:10px 11px;border-radius:8px}.challenge-feedback>svg{margin-top:1px;flex:0 0 auto}.challenge-feedback strong{display:block;margin-bottom:2px;font-size:12px}.challenge-feedback p{margin:0;font-size:11px;line-height:1.5}.challenge-feedback.success{border:1px solid #bfd4c6;background:#edf6f0;color:#315b41}.challenge-feedback.error{border:1px solid #e0c2bd;background:#fbf0ee;color:#754038}
+.challenge-actions{display:flex;align-items:center;gap:8px;margin-top:11px}.challenge-actions button{padding:8px 11px}.challenge-actions .challenge-verify{border-color:#365f87;background:#365f87;color:#fff}.challenge-actions .challenge-verify:hover:not(:disabled){background:#294e71}.challenge-actions button:disabled{cursor:not-allowed;opacity:.58}
+@media(max-width:760px){.challenge-panel{padding:14px 12px}.challenge-options{grid-template-columns:1fr}.challenge-header{align-items:flex-start}.challenge-progress span{display:none}.challenge-question p{font-size:13px}.challenge-hint-row{align-items:flex-start;flex-direction:column}.challenge-actions{align-items:stretch;flex-direction:column}.challenge-actions button{width:100%}}
 @media(max-width:780px){
   .mobile-menu-button{width:38px;height:38px;margin-top:14px;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);box-shadow:0 5px 14px rgba(35,49,43,.08)}
   .mobile-menu-button svg{width:19px}
@@ -1511,9 +1538,20 @@ body{background:var(--paper)}
 .data-operation-table>div{grid-template-columns:130px minmax(280px,1.2fr) minmax(220px,.8fr)}
 .data-map-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:18px}.data-map-grid p{margin:0;padding:15px 17px;border:1px solid #d7dee7;border-radius:10px;background:#fff}.data-map-grid b,.data-map-grid span{display:block}.data-map-grid b{font-size:13px}.data-map-grid span{margin-top:5px;color:#68778a;font-size:12px}
 
-@media(max-width:1050px){.data-family-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* Guía de POO: ejemplos legibles y bloques conceptuales sin convertirla en otro laboratorio. */
+.oop-lesson code{font-family:'DM Mono',monospace}.oop-intro-card>p+p{margin-top:10px}.oop-foundations strong{font-family:inherit;font-size:20px}
+.oop-analogy{margin-top:16px;padding:15px 17px;border-left:4px solid #607f97;border-radius:9px;background:#fff}.oop-analogy b,.oop-analogy span{display:block}.oop-analogy span{margin-top:5px;color:#667589;font-size:12px;line-height:1.6}
+.oop-object-example>p{margin:0 0 14px}.oop-object-example>p code{padding:2px 5px;border-radius:4px;background:#e8edf2;color:#344c63;font-size:12px}
+.oop-lesson article{min-width:0}.oop-code{width:100%;max-width:100%;box-sizing:border-box;margin:16px 0 12px;padding:17px 19px;overflow:auto;border:1px solid #34475b;border-radius:11px;background:#243344;color:#e8eef5;font:12px/1.7 'DM Mono',monospace;tab-size:4}.oop-code code{white-space:pre}.oop-process-card,.oop-pillars-card,.oop-comparison-card,.oop-complete-example,.oop-mistakes-card,.oop-checklist-card{padding:27px 30px}
+.oop-process{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin-top:18px}.oop-process>div{padding:17px;border:1px solid #d7dee7;border-radius:11px;background:#fff}.oop-process i{display:grid;place-items:center;width:27px;height:27px;border-radius:50%;background:#334b62;color:#fff;font:normal 10px 'DM Mono',monospace}.oop-process b,.oop-process span{display:block}.oop-process b{margin-top:13px;font-size:13px}.oop-process span{margin-top:6px;color:#68778a;font-size:12px;line-height:1.55}
+.oop-pillar-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px}.oop-pillar-grid>div{position:relative;min-height:165px;padding:18px;border:1px solid #d7dee7;border-radius:11px;background:#fff}.oop-pillar-grid i{color:#b55c40;font:normal 10px 'DM Mono',monospace}.oop-pillar-grid strong{display:block;margin-top:24px;color:#2d4158;font-size:17px}.oop-pillar-grid p{margin:9px 0 0;font-size:12px;line-height:1.6}
+.oop-access-table>div{grid-template-columns:140px minmax(210px,.8fr) minmax(300px,1.2fr)}.oop-comparison-card .data-concept-pair{grid-template-columns:repeat(2,minmax(0,1fr))}.oop-comparison-card .data-concept-pair p{display:flex;flex-direction:column}.oop-comparison-card .data-concept-pair code{display:block;margin-top:9px;padding:7px 9px;border-radius:6px;background:#edf1f5;color:#40556b;font-size:11px}
+.oop-complete-example>p{max-width:850px;margin:0}.oop-example-notes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.oop-example-notes p{margin:0;padding:13px 15px;border:1px solid #d7dee7;border-radius:9px;background:#fff}.oop-example-notes b,.oop-example-notes span{display:block}.oop-example-notes span{margin-top:4px;font-size:12px}
+.oop-mistake-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:18px}.oop-mistake-grid p{margin:0;padding:15px 17px;border:1px solid #e0d8d2;border-radius:10px;background:#fff}.oop-mistake-grid b,.oop-mistake-grid span{display:block}.oop-mistake-grid span{margin-top:5px;font-size:12px;line-height:1.55}.oop-checklist-card ol{margin:17px 0 0;padding-left:22px}.oop-checklist-card li+li{margin-top:8px}
+
+@media(max-width:1050px){.data-family-grid,.oop-process,.oop-pillar-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.oop-mistake-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:900px){.complexity-chart-card{grid-template-columns:1fr}.complexity-order-table{overflow-x:auto}.complexity-order-table>div{min-width:700px}.data-map-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:680px){.complexity-lesson h2{font-size:23px}.complexity-lesson h3{font-size:18px}.complexity-intro-card,.complexity-chart-card,.complexity-order-table-card,.complexity-notation-card,.data-families-card,.data-map-card{padding:21px}.complexity-foundations,.complexity-theory-grid,.complexity-notation-card>div,.data-family-grid,.data-map-grid{grid-template-columns:1fr}.complexity-static-chart svg{height:210px}.complexity-notation-card aside{align-items:flex-start;flex-direction:column;gap:6px}.data-family-grid>div{min-height:0}}
+@media(max-width:680px){.complexity-lesson h2{font-size:23px}.complexity-lesson h3{font-size:18px}.complexity-intro-card,.complexity-chart-card,.complexity-order-table-card,.complexity-notation-card,.data-families-card,.data-map-card,.oop-process-card,.oop-pillars-card,.oop-comparison-card,.oop-complete-example,.oop-mistakes-card,.oop-checklist-card{padding:21px}.complexity-foundations,.complexity-theory-grid,.complexity-notation-card>div,.data-family-grid,.data-map-grid,.oop-process,.oop-pillar-grid,.oop-example-notes,.oop-mistake-grid,.oop-comparison-card .data-concept-pair{grid-template-columns:1fr}.complexity-static-chart svg{height:210px}.complexity-notation-card aside{align-items:flex-start;flex-direction:column;gap:6px}.data-family-grid>div,.oop-pillar-grid>div{min-height:0}.oop-code{padding:14px;font-size:11px}}
 
 /* Matriz poco poblada: un mismo nodo participa en AROW y ACOL. */
 .polynomial-visual{position:relative;z-index:2;width:min(850px,98%);height:292px;padding-top:14px;display:flex;flex-direction:column;gap:7px}

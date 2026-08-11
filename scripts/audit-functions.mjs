@@ -152,11 +152,11 @@ function validQueens(queens) {
   )));
 }
 
-assert.equal(algorithms.length, 60, 'El catálogo debe contener 60 temas.');
+assert.equal(algorithms.length, 61, 'El catálogo debe contener 61 temas.');
 assert.equal(new Set(algorithms.map(algorithm => algorithm.id)).size, algorithms.length, 'El catálogo contiene identificadores duplicados.');
 assert.equal(new Set(algorithms.map(algorithm => algorithm.name)).size, algorithms.length, 'El catálogo contiene nombres duplicados.');
 assert.equal(Object.keys(educationalDescriptions).length, algorithms.length, 'La cantidad de descripciones no coincide con el catálogo.');
-assert.equal(Object.keys(guideJavaExamples).length, algorithms.length - 2, 'Todas las secciones prácticas deben incluir ejemplo Java; las dos guías teóricas no muestran código.');
+assert.equal(Object.keys(guideJavaExamples).length, algorithms.length - 3, 'Todas las secciones prácticas deben incluir ejemplo Java; las tres guías teóricas no muestran código.');
 
 let actionCount = 0;
 let executionCount = 0;
@@ -177,7 +177,7 @@ for (const algorithm of algorithms) {
   assert.ok([description.operations, description.strengths, description.limits, description.uses].every(list => list.length >= 4), `${algorithm.id}: la guía debe incluir al menos cuatro puntos por sección.`);
   assert.ok([description.operations, description.strengths, description.limits, description.uses].flat().every(item => item.trim().length >= 3), `${algorithm.id}: una lista educativa contiene un punto vacío o incompleto.`);
   assert.ok(!mojibake.test(Object.values(description).flat().join(' ')), `${algorithm.id}: la descripción contiene texto mal codificado.`);
-  if (['theory', 'complexity'].includes(algorithm.type)) {
+  if (['theory', 'complexity', 'oop'].includes(algorithm.type)) {
     assert.equal(guideExample, undefined, `${algorithm.id}: la sección teórica no debe mostrar un ejemplo Java.`);
     assert.deepEqual(getOperationDefinition(algorithm), { fields: [], actions: [] }, `${algorithm.id}: la sección teórica no debe exponer operaciones interactivas.`);
     continue;

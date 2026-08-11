@@ -71,7 +71,44 @@ test('fundamentos explica qué son las estructuras de datos sin convertirlo en u
   await expect(page.locator('.player')).toHaveCount(0);
 });
 
-test('los 60 temas cargan su contenido correspondiente sin errores', async ({ page }) => {
+test('el modo desafío predice operaciones y conserva el progreso local', async ({ page }) => {
+  await page.evaluate(() => window.localStorage.removeItem('dsa-challenge-progress-v1'));
+
+  for (const algorithmId of ['array', 'pila', 'cola', 'bst', 'avl']) {
+    await page.goto(`/${algorithmId}`);
+    const toggle = page.getByRole('button', { name: 'Modo desafío', exact: true });
+    await expect(toggle).toBeVisible();
+    await toggle.click();
+    await expect(page.getByRole('heading', { name: 'Predice antes de ejecutar' })).toBeVisible();
+    await expect(page.locator('.challenge-options button')).toHaveCount(3);
+    await expect(page.locator('.operations-panel')).toHaveCount(0);
+
+    if (algorithmId === 'array') {
+      await page.getByRole('button', { name: 'Necesito una pista' }).click();
+      await expect(page.locator('.challenge-hint')).toBeVisible();
+    }
+
+    await page.locator('.challenge-options button').first().click();
+    await expect(page.locator('.challenge-feedback')).toBeVisible();
+    await expect(page.locator('.challenge-options .correct-answer')).toHaveCount(1);
+    await page.getByRole('button', { name: 'Comprobar con la animación' }).click();
+    await expect(page.getByRole('button', { name: 'Animación iniciada' })).toBeVisible();
+  }
+
+  const progress = await page.evaluate(() => JSON.parse(window.localStorage.getItem('dsa-challenge-progress-v1')));
+  expect(progress.attempts).toBe(5);
+  expect(progress.hints).toBe(1);
+  expect(Object.keys(progress.byAlgorithm).sort()).toEqual(['array', 'avl', 'bst', 'cola', 'pila']);
+
+  await page.goto('/array');
+  await page.getByRole('button', { name: 'Modo desafío', exact: true }).click();
+  await expect(page.locator('.challenge-progress')).toContainText('/5');
+
+  await page.goto('/dijkstra');
+  await expect(page.getByRole('button', { name: 'Modo desafío', exact: true })).toBeVisible();
+});
+
+test('los 61 temas cargan su contenido correspondiente sin errores', async ({ page }) => {
   test.setTimeout(180_000);
   const pageErrors = [];
   const failedResponses = [];
@@ -83,17 +120,21 @@ test('los 60 temas cargan su contenido correspondiente sin errores', async ({ pa
   for (const algorithm of algorithms) {
     await page.goto(`/${algorithm.id}`);
     await expect(page.getByRole('heading', { name: algorithm.name, level: 1 })).toBeVisible();
-    if (['theory', 'complexity'].includes(algorithm.type)) {
-      await expect(page.locator(algorithm.type === 'complexity' ? '[data-complexity-lesson]' : '[data-data-structures-lesson]')).toBeVisible();
+    if (['theory', 'complexity', 'oop'].includes(algorithm.type)) {
+      const lessonSelector = algorithm.type === 'complexity'
+        ? '[data-complexity-lesson]'
+        : algorithm.type === 'oop' ? '[data-oop-lesson]' : '[data-data-structures-lesson]';
+      await expect(page.locator(lessonSelector)).toBeVisible();
       await expect(page.locator('.visual-panel')).toHaveCount(0);
       await expect(page.locator('.code-panel')).toHaveCount(0);
       await expect(page.locator('.operation-actions')).toHaveCount(0);
     } else {
       await expect(page.locator(`[data-visualizer="${algorithm.id}"]`)).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Modo desafío', exact: true })).toBeVisible();
     }
     await expect(page.locator('.operation-actions button')).toHaveCount(getOperationDefinition(algorithm).actions.length);
 
-    if (['theory', 'complexity'].includes(algorithm.type)) {
+    if (['theory', 'complexity', 'oop'].includes(algorithm.type)) {
       await expect(page.locator('.code-panel')).toHaveCount(0);
     } else if (['dijkstra', 'a-star'].includes(algorithm.id)) {
       await expect(page.locator('.code-panel')).toHaveCount(0);

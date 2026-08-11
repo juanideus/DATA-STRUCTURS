@@ -17,6 +17,11 @@ export const algorithms = [
   obtener T(n) en mejor, promedio y peor caso
   conservar el término que más crece
   expresar el orden con O, Ω o Θ`,[8]),
+  item('programacion-orientada-objetos','Programación Orientada a Objetos','Fundamentos','oop','Clases · Objetos · Encapsulación · Herencia · Polimorfismo','Aprende a modelar problemas mediante objetos que reúnen estado y comportamiento. La guía explica POO desde cero, con ejemplos Java, decisiones de diseño y errores frecuentes.',`modelar(problema):
+  identificar objetos y responsabilidades
+  definir atributos privados y métodos públicos
+  proteger las reglas de cada objeto
+  conectar objetos mediante composición e interfaces`,['clase','objeto','método'],'POO'),
   item('array','Array','Estructuras lineales','array','Acceso O(1) · Búsqueda O(n)','Colección contigua indexada. Ofrece acceso directo y es la base de muchas otras estructuras.',`buscar(A, objetivo):\n  para i ← 0 hasta longitud(A)-1\n    si A[i] = objetivo: retornar i\n  retornar -1`,[12,7,19,4,15,9]),
   item('pila','Pila (Stack)','Estructuras lineales','stack','Push / Pop O(1)','Estructura LIFO: el último elemento en entrar es el primero en salir.',`push(x): datos.agregar(x)\npop():\n  si vacía: error\n  retornar datos.eliminarÚltimo()`,[10,25,8,16]),
   item('cola','Cola (Queue)','Estructuras lineales','queue','Enqueue / Dequeue O(1)','Estructura FIFO: atiende los elementos en el mismo orden en que llegaron.',`enqueue(x): cola.agregarFinal(x)\ndequeue():\n  si vacía: error\n  retornar cola.eliminarInicio()`,[14,6,21,3,11]),

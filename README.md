@@ -82,6 +82,15 @@ DSA Lab fue creado para:
 - Ejemplos deliberadamente sencillos, con variables, ciclos, condiciones, arreglos y métodos pequeños.
 - Botón para copiar el código mostrado.
 
+### Modo desafío guiado
+
+- Preguntas de predicción construidas a partir del estado real de la estructura.
+- Disponible en los 58 laboratorios prácticos; cada desafío utiliza una operación real del tema y el estado actual del visualizador.
+- Tres respuestas posibles, pista opcional y explicación posterior al intento.
+- Botón para comprobar la predicción ejecutando la operación en el visualizador.
+- Progreso local con intentos, aciertos, porcentaje y uso de pistas, sin cuentas ni base de datos.
+- Preguntas especializadas para Array, Pila, Cola, Binary Search Tree y AVL, junto con predicciones de estado generadas para el resto de estructuras y algoritmos.
+
 ### Contenido educativo
 
 Cada tema incluye una guía con:
@@ -124,12 +133,13 @@ Cada tema incluye una guía con:
 
 ## Catálogo de contenidos
 
-La versión actual contiene **60 temas**, agrupados en ocho categorías.
+La versión actual contiene **61 temas**, agrupados en ocho categorías.
 
-### 0. Fundamentos — 2 temas
+### 0. Fundamentos — 3 temas
 
 - ¿Qué son las estructuras de datos?
 - Complejidad algorítmica
+- Programación Orientada a Objetos (POO)
 
 ### 1. Estructuras lineales — 9 temas
 
@@ -308,10 +318,11 @@ npm run preview
 | `npm run build` | Genera la versión optimizada dentro de `dist/` |
 | `npm run preview` | Sirve localmente la compilación de producción |
 | `npm run audit` | Ejecuta la auditoría funcional y educativa del catálogo |
-| `npm run audit:java` | Compila con `javac` los 257 códigos Java visibles |
+| `npm run audit:challenges` | Genera desafíos y compara sus predicciones con las operaciones reales |
+| `npm run audit:java` | Compila con `javac` los 270 códigos Java visibles |
 | `npm run audit:stress` | Prueba entradas extremas y secuencias largas de operaciones |
 | `npm run test:e2e` | Ejecuta pruebas reales de navegador en escritorio y móvil |
-| `npm run check` | Ejecuta las auditorías funcional, Java y de estrés, además de las pruebas E2E |
+| `npm run check` | Ejecuta las auditorías funcional, de desafíos, Java y de estrés, además de las pruebas E2E |
 
 Flujo recomendado antes de subir cambios:
 
@@ -351,7 +362,7 @@ DSA/
 │   │   ├── OperationsPanel.jsx        # Campos y botones de operaciones
 │   │   └── VariablesPanel.jsx         # Variables de la ejecución en tiempo real
 │   ├── data/
-│   │   ├── algorithms.js              # Catálogo de 60 temas
+│   │   ├── algorithms.js              # Catálogo de 61 temas
 │   │   ├── astJava.js                 # Parser AST y operaciones completas en Java
 │   │   ├── denseMatrixJava.js         # Operaciones de matriz densa en Java
 │   │   ├── beginnerJava.js            # Código Java por operación
@@ -386,6 +397,7 @@ DSA/
 - `src/components/OperationsPanel.jsx` construye los controles según el tipo de estructura.
 - `src/components/EducationalDescription.jsx` presenta la documentación extendida.
 - `scripts/audit-functions.mjs` verifica que el catálogo y las operaciones mantengan contratos válidos.
+- `scripts/audit-challenges.mjs` genera preguntas y verifica sus resultados con el mismo motor de operaciones utilizado por la interfaz.
 - `scripts/compile-java-audit.mjs` envuelve y compila cada fragmento educativo con `javac`.
 - `scripts/stress-audit.mjs` somete todas las acciones a datos vacíos, negativos, decimales, enormes, texto, Unicode y secuencias de uso prolongadas.
 
@@ -399,7 +411,7 @@ npm run audit
 
 comprueba automáticamente, entre otros puntos:
 
-- Que existan los 60 temas esperados.
+- Que existan los 61 temas esperados.
 - Que cada tema tenga descripción educativa suficiente.
 - Que cada sección práctica incluya un ejemplo Java; las guías de fundamentos son deliberadamente teóricas y no muestran código.
 - Que todas las acciones devuelvan valores, aristas y mensajes válidos.
@@ -423,13 +435,13 @@ comprueba automáticamente, entre otros puntos:
 - Que las listas generalizadas distingan átomos, sublistas y cabeceras, calculen longitud y profundidad y mantengan referencias compartidas.
 - Que la matriz poco poblada inserte un único nodo en AROW y ACOL, recorra ambas listas en orden invertido y cierre sus enlaces circulares.
 
-La auditoría actual cubre **60 temas, 270 acciones, 2700 pruebas funcionales y 83 funciones distintas**. La capa de estrés añade **13 800 comprobaciones** —10 320 entradas extremas y 3480 operaciones encadenadas—, para un total de **16 500 pruebas de lógica**. Además, los **270 códigos Java visibles** se compilan realmente con `javac`.
+La auditoría actual cubre **61 temas, 270 acciones, 2700 pruebas funcionales y 83 funciones distintas**. También valida desafíos generados desde el estado real de los **58 laboratorios prácticos**. La capa de estrés añade **13 800 comprobaciones** —10 320 entradas extremas y 3480 operaciones encadenadas—, para un total de **16 500 pruebas de lógica**. Además, los **270 códigos Java visibles** se compilan realmente con `javac`.
 
 Además, Playwright verifica los recorridos críticos en Chromium de escritorio y móvil:
 
 - Enlaces compartibles como `/avl` y `/sudoku`.
-- Carga directa de los 60 temas y del tipo de contenido que corresponde a cada uno.
-- Secciones teóricas de estructuras de datos y complejidad sin visualizador interactivo, operaciones, reproductor ni panel de código.
+- Carga directa de los 61 temas y del tipo de contenido que corresponde a cada uno.
+- Secciones teóricas de estructuras de datos, complejidad y POO sin visualizador interactivo, operaciones, reproductor ni panel de código.
 - Rechazo seguro de índices negativos, coordenadas fuera de rango, valores enormes y texto potencialmente peligroso.
 - Avance sincronizado de animación, línea Java, explicación y variables en arreglos, grafos, Hanoi y N-Reinas.
 - Persistencia del tema, velocidad y formato de código.
@@ -574,8 +586,8 @@ Posibles mejoras futuras:
 
 - Añadir más descripciones guiadas y ejercicios.
 - Permitir que el usuario escriba conjuntos de datos completos.
-- Guardar sesiones de práctica localmente.
-- Incorporar desafíos con diferentes niveles.
+- Incorporar niveles de dificultad al modo desafío disponible en todos los laboratorios prácticos.
+- Crear un panel general de progreso y temas dominados.
 - Añadir pruebas unitarias y pruebas visuales automatizadas.
 - Mejorar la navegación por teclado y lectores de pantalla.
 - Agregar internacionalización.

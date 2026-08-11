@@ -32,6 +32,16 @@ export const educationalDescriptions = {
     'Si duplicar n duplica aproximadamente el trabajo, el crecimiento es lineal. Si lo cuadruplica, suele ser cuadrático. Si sólo agrega una operación porque el problema se divide a la mitad, es logarítmico.',
     'Para una expresión como T(n) = 4n² + 3n + 8, el término n² domina cuando n crece: se clasifica como Θ(n²). O(n²) también es cierto como cota superior, pero Θ comunica que el orden es ajustado.'
   ),
+  'programacion-orientada-objetos': guide(
+    'La Programación Orientada a Objetos es una forma de diseñar software mediante objetos que reúnen estado, comportamiento e identidad. Una clase define el modelo común y cada objeto es una instancia concreta con sus propios valores.',
+    'El diseño comienza identificando responsabilidades. Los atributos privados conservan el estado; los constructores crean instancias válidas; y los métodos públicos forman el contrato con el resto del programa. La encapsulación protege reglas, la abstracción oculta detalles, la herencia especializa relaciones reales y el polimorfismo permite usar implementaciones diferentes mediante un mismo contrato. Interfaces y composición ayudan a conectar objetos sin crear dependencias innecesarias.',
+    'Definir clases con una responsabilidad clara|Crear objetos mediante constructores|Proteger atributos con encapsulación|Expresar comportamiento mediante métodos|Modelar capacidades mediante interfaces|Relacionar objetos usando composición|Especializar clases mediante herencia|Reemplazar comportamientos mediante polimorfismo',
+    'Organiza programas grandes en unidades comprensibles|Protege las reglas internas de cada objeto|Facilita reutilizar contratos y comportamientos|Permite reemplazar implementaciones con menor impacto|Acerca el código al lenguaje del problema',
+    'Crear demasiadas clases agrega complejidad innecesaria|La herencia mal aplicada produce acoplamiento|Exponer todos los atributos rompe la encapsulación|Un objeto con demasiadas responsabilidades es difícil de mantener|POO no reemplaza el análisis de algoritmos ni estructuras',
+    'Modelar estudiantes, cuentas y productos|Construir interfaces gráficas|Separar servicios de una aplicación|Implementar estructuras de datos encapsuladas|Representar entidades y reglas de un dominio|Crear sistemas extensibles mediante interfaces',
+    'Una clase Cuenta es el plano; cada cuenta bancaria creada es un objeto distinto. Todas saben depositar y retirar, pero cada una conserva su propio titular y saldo.',
+    'Antes de crear una clase, completa la frase «esta clase es responsable de...». Si la respuesta contiene muchas tareas no relacionadas, probablemente conviene dividirla.'
+  ),
   array: guide(
     'Un Array es una colección de elementos del mismo tipo almacenados en posiciones consecutivas. Cada posición tiene un índice y, en Java, el primer índice siempre es 0.',
     'Java reserva un bloque continuo de memoria y calcula la dirección de cada elemento usando su índice. Por eso leer o actualizar una posición conocida es inmediato. Su tamaño se fija al crearlo; insertar en medio exige desplazar los elementos siguientes.',

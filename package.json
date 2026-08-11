@@ -17,10 +17,11 @@
     "build": "vite build",
     "preview": "vite preview",
     "audit": "node scripts/audit-functions.mjs",
+    "audit:challenges": "node scripts/audit-challenges.mjs",
     "audit:java": "node scripts/compile-java-audit.mjs",
     "audit:stress": "node scripts/stress-audit.mjs",
     "test:e2e": "node scripts/run-e2e.mjs",
-    "check": "npm run audit && npm run audit:java && npm run audit:stress && npm run test:e2e"
+    "check": "npm run audit && npm run audit:challenges && npm run audit:java && npm run audit:stress && npm run test:e2e"
   },
   "dependencies": {
     "@vercel/analytics": "2.0.1",
