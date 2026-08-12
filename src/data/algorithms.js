@@ -1,7 +1,7 @@
 import { DEFAULT_DENSE_MATRIX_VALUES } from '../logic/denseMatrix.js';
 import { DEFAULT_GENERALIZED_LIST_VALUES } from '../logic/generalizedList.js';
 import { DEFAULT_POLYNOMIAL_VALUES } from '../logic/polynomial.js';
-import { foundationLessonCatalog } from './foundationLessons.js';
+import { foundationLessonCatalog } from './foundationCatalog.js';
 
 const item = (id, name, category, type, complexity, description, code, values, navName = null) => ({
   id, name, category, type, complexity, description, code, values, navName,
@@ -150,6 +150,10 @@ export const categories = [
 export const navigationAlgorithms = categories.flatMap(category => (
   algorithms.filter(algorithm => algorithm.category === category)
 ));
+
+export const algorithmsById = new Map(algorithms.map(algorithm => [algorithm.id, algorithm]));
+export const algorithmIndexes = new Map(algorithms.map((algorithm, index) => [algorithm.id, index]));
+export const navigationIndexes = new Map(navigationAlgorithms.map((algorithm, index) => [algorithm.id, index]));
 
 export const categoryLabels = {
   Fundamentos: 'Bases para organizar y analizar datos',

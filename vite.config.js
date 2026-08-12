@@ -5,5 +5,18 @@ export default defineConfig({
   plugins: [react()],
   build: {
     target: 'es2020',
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: 'vendor',
+              test: /node_modules[\\/]/,
+              priority: 20,
+            },
+          ],
+        },
+      },
+    },
   },
 });

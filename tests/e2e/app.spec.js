@@ -342,7 +342,7 @@ test('rechaza datos extremos sin alterar ni romper las estructuras', async ({ pa
 
   await page.goto('/expression-tree');
   const initialScriptCount = await page.locator('script').count();
-  await page.getByLabel('Expresión').fill('<script>alert(1)</script>');
+  await page.getByRole('textbox', { name: 'Expresión', exact: true }).fill('<script>alert(1)</script>');
   await page.getByRole('button', { name: 'Construir' }).click();
   await expect(page.locator('.operation-message')).toHaveClass(/error/);
   await expect(page.locator('script')).toHaveCount(initialScriptCount);

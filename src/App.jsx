@@ -1,14 +1,11 @@
-import { lazy, memo, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, BookOpen, Boxes, Brain, Bug, ChevronDown, CircleHelp, ClipboardCopy, ExternalLink, Gauge,
   MapPin, Menu, PanelLeftClose, PanelLeftOpen, Pause, Play, RotateCcw, Search, Shuffle, Sparkles, X,
 } from 'lucide-react';
-import { algorithms, categories, categoryLabels, navigationAlgorithms } from './data/algorithms.js';
-import { getBeginnerJava } from './data/beginnerJava.js';
+import { algorithmIndexes, algorithms, algorithmsById, categories, categoryLabels, navigationIndexes } from './data/algorithms.js';
 import { getGraphDesign, graphEdgesFor, graphPositionsFor } from './data/graphDesigns.js';
 import OperationsPanel from './components/OperationsPanel.jsx';
-import ChallengePanel from './components/ChallengePanel.jsx';
-import FoundationLesson from './components/FoundationLesson.jsx';
 import VariablesPanel from './components/VariablesPanel.jsx';
 import {
   adaptFramesToCode,
@@ -24,9 +21,10 @@ import { COMPLEXITY_ORDERS, complexityValue } from './logic/complexity.js';
 import { GENERALIZED_LIST_EXAMPLES, generalizedListToString, generalizedListValuesFromSource } from './logic/generalizedList.js';
 import { createRandomPathMap, DEFAULT_PATH_MAP } from './logic/pathfindingMap.js';
 import { formatPolynomial, polynomialTerms } from './logic/polynomial.js';
-import { supportsChallenges } from './logic/challenges.js';
 
 const EducationalDescription = lazy(() => import('./components/EducationalDescription.jsx'));
+const FoundationLesson = lazy(() => import('./components/FoundationLesson.jsx'));
+const ChallengePanel = lazy(() => import('./components/ChallengePanel.jsx'));
 
 const SUDOKU_START = [
   5,3,0,0,7,0,0,0,0, 6,0,0,1,9,5,0,0,0, 0,9,8,0,0,0,0,6,0,
@@ -2074,7 +2072,7 @@ function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setM
     <nav>
       {categories.map(category => { const list = filtered.filter(a=>a.category===category); if (!list.length) return null; return <div className="nav-group" key={category}>
         <div className="nav-heading"><span>{category}</span><em>{String(list.length).padStart(2,'0')}</em></div>
-        {list.map((a) => <button data-algorithm-id={a.id} className={selected===a.id?'selected':''} onClick={()=>{onSelect(a.id);setMobileOpen(false)}} key={a.id}><span>{String(navigationAlgorithms.indexOf(a)+1).padStart(2,'0')}</span>{a.navName ?? a.name}</button>)}
+        {list.map((a) => <button data-algorithm-id={a.id} className={selected===a.id?'selected':''} onClick={()=>{onSelect(a.id);setMobileOpen(false)}} key={a.id}><span>{String((navigationIndexes.get(a.id) ?? 0)+1).padStart(2,'0')}</span>{a.navName ?? a.name}</button>)}
       </div>})}
     </nav>
     <div className="sidebar-foot">
@@ -2083,6 +2081,8 @@ function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setM
     </div>
   </aside>;
 }
+
+const MemoizedSidebar = memo(Sidebar);
 
 function OpeningIntro({ onDone }) {
   const [leaving, setLeaving] = useState(false);
@@ -2249,7 +2249,7 @@ function BugReporter({ section }) {
 
 function App() {
   const [startingId] = useState(initialAlgorithmId);
-  const startingAlgorithm = algorithms.find(item => item.id === startingId) ?? algorithms[0];
+  const startingAlgorithm = algorithmsById.get(startingId) ?? algorithms[0];
   const [showOpeningIntro, setShowOpeningIntro] = useState(() => readPreference(STORAGE_KEYS.introSeen, 'false') !== 'true');
   const [selectedId, setSelectedId] = useState(startingAlgorithm.id);
   const [showWelcome, setShowWelcome] = useState(() => algorithmIdFromLocation() === null);
@@ -2265,7 +2265,7 @@ function App() {
   const [codeMode, setCodeMode] = useState(() => readPreference(STORAGE_KEYS.codeMode, 'java') === 'pseudo' ? 'pseudo' : 'java');
   const [copied, setCopied] = useState(false);
   const codePanelRef = useRef(null);
-  const baseAlgorithm = algorithms.find(a=>a.id===selectedId) || algorithms[0];
+  const baseAlgorithm = algorithmsById.get(selectedId) ?? algorithms[0];
   const [activeOperation, setActiveOperation] = useState(() => getOperationDefinition(startingAlgorithm).actions[0]?.id ?? null);
   const [operationFrames, setOperationFrames] = useState([]);
   const [activeCodeLine, setActiveCodeLine] = useState(null);
@@ -2277,13 +2277,14 @@ function App() {
   const [operationStatus, setOperationStatus] = useState('idle');
   const [challengeMode, setChallengeMode] = useState(false);
   const [challengeScenarioKey, setChallengeScenarioKey] = useState(0);
+  const [javaCodeFactory, setJavaCodeFactory] = useState(null);
   const algorithm = useMemo(
     () => ({ ...baseAlgorithm, values: demoValues, edges: demoEdges, positions: demoPositions, map: demoMap }),
     [baseAlgorithm, demoValues, demoEdges, demoPositions, demoMap],
   );
   const isTheoryPage = ['theory', 'complexity', 'oop', 'foundation'].includes(baseAlgorithm.type);
   const hideCodePanel = ['dijkstra','a-star'].includes(baseAlgorithm.id);
-  const selectedIndex = algorithms.findIndex(item => item.id === baseAlgorithm.id);
+  const selectedIndex = algorithmIndexes.get(baseAlgorithm.id) ?? 0;
   const operationDefinition = getOperationDefinition(baseAlgorithm);
   const activeOperationLabel = operationDefinition.actions.find(item=>item.id===activeOperation)?.label ?? 'Operación';
   const javaOverview = operationGroup(baseAlgorithm) === 'list'
@@ -2307,7 +2308,9 @@ function App() {
       : 'El código usa variables, arreglos, ciclos, condiciones y métodos pequeños. Cada línea iluminada corresponde al cambio mostrado en la estructura.';
   const displayedCode = isTheoryPage
     ? ''
-    : codeMode === 'java' ? getBeginnerJava(baseAlgorithm, activeOperation) : baseAlgorithm.code;
+    : codeMode === 'java'
+      ? javaCodeFactory?.(baseAlgorithm, activeOperation) ?? '// Cargando código Java…'
+      : baseAlgorithm.code;
   const codeLines = displayedCode.split('\n');
   const totalSteps = operationFrames.length || Math.max(algorithm.values.length, codeLines.length);
   const currentAnimationFrame = operationFrames[step] ?? null;
@@ -2331,6 +2334,14 @@ function App() {
   useEffect(() => {
     document.title = showWelcome ? 'DSA Lab — Algoritmos visuales' : `${baseAlgorithm.name} — DSA Lab`;
   }, [baseAlgorithm.name, showWelcome]);
+  useEffect(() => {
+    if (isTheoryPage || javaCodeFactory) return;
+    let active = true;
+    import('./data/beginnerJava.js').then(module => {
+      if (active) setJavaCodeFactory(() => module.getBeginnerJava);
+    });
+    return () => { active = false; };
+  }, [isTheoryPage, javaCodeFactory]);
 
   const applyFrame = (frame, frameIndex) => {
     if (!frame) return;
@@ -2371,8 +2382,8 @@ function App() {
     if (target === null) return;
     panel.scrollTo({ top: target, behavior: isFastPathfindingTrace ? 'auto' : 'smooth' });
   },[activeCodeLine,step,displayedCode,playing,baseAlgorithm.id]);
-  const loadAlgorithm = id => {
-    const nextAlgorithm = algorithms.find(item => item.id === id) ?? algorithms[0];
+  const loadAlgorithm = useCallback(id => {
+    const nextAlgorithm = algorithmsById.get(id) ?? algorithms[0];
     setSelectedId(nextAlgorithm.id);
     setDemoValues([...nextAlgorithm.values]);
     setDemoEdges(edgesForAlgorithm(nextAlgorithm));
@@ -2387,27 +2398,28 @@ function App() {
     setStep(0);
     setPlaying(false);
     setCopied(false);
-  };
+  }, []);
   const selectRelative = (delta) => {
-    const index = algorithms.findIndex(item=>item.id===algorithm.id);
+    const index = algorithmIndexes.get(algorithm.id) ?? 0;
     openAlgorithm(algorithms[(index+delta+algorithms.length)%algorithms.length].id);
   };
-  const updateRoute = id => {
+  const updateRoute = useCallback(id => {
     const nextUrl = id
       ? `/${encodeURIComponent(id)}${window.location.search}`
       : `/${window.location.search}`;
     window.history.pushState({ dsaLab: id ?? 'welcome' }, '', nextUrl);
-  };
-  const openAlgorithm = (id, updateHistory = true) => {
+  }, []);
+  const openAlgorithm = useCallback((id, updateHistory = true) => {
     loadAlgorithm(id);
     setShowWelcome(false);
     if (updateHistory && algorithmIdFromLocation() !== id) updateRoute(id);
-  };
-  const openWelcome = (updateHistory = true) => {
+  }, [loadAlgorithm, updateRoute]);
+  const openWelcome = useCallback((updateHistory = true) => {
     setShowWelcome(true);
     setPlaying(false);
     if (updateHistory && (algorithmIdFromLocation() !== null || window.location.hash)) updateRoute(null);
-  };
+  }, [updateRoute]);
+  const toggleSidebar = useCallback(() => setSidebarCollapsed(value => !value), []);
   useEffect(() => {
     const syncRoute = () => {
       const routedId = algorithmIdFromLocation();
@@ -2457,12 +2469,21 @@ function App() {
     setStep(0);
     setPlaying(false);
   };
+  const loadJavaCodeFactory = async () => {
+    if (javaCodeFactory) return javaCodeFactory;
+    const module = await import('./data/beginnerJava.js');
+    setJavaCodeFactory(() => module.getBeginnerJava);
+    return module.getBeginnerJava;
+  };
   const copyCode = async () => {
-    await navigator.clipboard.writeText(displayedCode);
+    const code = codeMode === 'java'
+      ? (await loadJavaCodeFactory())(baseAlgorithm, activeOperation)
+      : displayedCode;
+    await navigator.clipboard.writeText(code);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1400);
   };
-  const handleOperation = (actionId, fields) => {
+  const handleOperation = async (actionId, fields) => {
     setActiveOperation(actionId);
     if (actionId === 'reset' && ['dijkstra','a-star'].includes(baseAlgorithm.id)) {
       setDemoPositions(DEFAULT_GRAPH_POSITIONS.map(position=>[...position]));
@@ -2470,7 +2491,9 @@ function App() {
     } else if (actionId === 'reset' && usesNodeGraph(baseAlgorithm)) {
       setDemoPositions(positionsForAlgorithm(baseAlgorithm));
     }
-    const codeForAnimation = codeMode === 'java' ? getBeginnerJava(baseAlgorithm, actionId) : baseAlgorithm.code;
+    const codeForAnimation = codeMode === 'java'
+      ? (await loadJavaCodeFactory())(baseAlgorithm, actionId)
+      : baseAlgorithm.code;
     const pendingFinalFrame = operationStatus === 'success' ? operationFrames.at(-1) : null;
     const previousValues = copyVisualValues(pendingFinalFrame?.values ?? demoValues);
     const previousEdges = (pendingFinalFrame?.edges ?? demoEdges).map(edge => [...edge]);
@@ -2553,7 +2576,7 @@ function App() {
 
   return <div className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
     {showOpeningIntro && <OpeningIntro onDone={finishOpeningIntro}/>}
-    <Sidebar selected={showWelcome ? null : selectedId} onSelect={openAlgorithm} onHome={openWelcome} query={query} setQuery={setQuery} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} collapsed={sidebarCollapsed} onToggle={()=>setSidebarCollapsed(value=>!value)}/>
+    <MemoizedSidebar selected={showWelcome ? null : selectedId} onSelect={openAlgorithm} onHome={openWelcome} query={query} setQuery={setQuery} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} collapsed={sidebarCollapsed} onToggle={toggleSidebar}/>
     {sidebarCollapsed && <button className="sidebar-reveal-button" onClick={()=>setSidebarCollapsed(false)} aria-label="Mostrar menú lateral" title="Mostrar menú lateral"><PanelLeftOpen size={20}/><span>Mostrar menú</span></button>}
     <main className="workspace">
       <button className="menu-button mobile-menu-button" onClick={()=>setMobileOpen(true)} aria-label="Abrir menú"><Menu/></button>
@@ -2565,13 +2588,13 @@ function App() {
         <div className="complexity-card"><small>{isTheoryPage ? 'Contenido' : 'Complejidad'}</small><strong>{algorithm.complexity}</strong><div><Gauge size={16}/><span>{isTheoryPage ? algorithm.type === 'complexity' ? 'Fundamentos y gráficos' : 'Conceptos fundamentales' : 'Análisis asintótico'}</span></div></div>
       </section>}
 
-      {isTheoryPage ? algorithm.type === 'complexity' ? <ComplexityLesson/> : algorithm.type === 'oop' ? <OopLesson/> : algorithm.type === 'foundation' ? <FoundationLesson algorithm={algorithm}/> : <DataStructuresLesson/> : <>
+      {isTheoryPage ? algorithm.type === 'complexity' ? <ComplexityLesson/> : algorithm.type === 'oop' ? <OopLesson/> : algorithm.type === 'foundation' ? <Suspense fallback={<DescriptionFallback/>}><FoundationLesson algorithm={algorithm}/></Suspense> : <DataStructuresLesson/> : <>
       <section className={`lab-grid ${hideCodePanel ? 'visual-only' : ''}`}>
         <article className="panel visual-panel">
-          <div className="panel-head"><div><span className="panel-index">01</span><h2>Visualización</h2></div><div className="panel-head-actions">{supportsChallenges(baseAlgorithm) && <button className={`challenge-toggle ${challengeMode ? 'active' : ''}`} onClick={toggleChallengeMode} title={challengeMode ? 'Salir del modo desafío' : 'Practicar con una predicción'} aria-label={challengeMode ? 'Salir del modo desafío' : 'Modo desafío'} aria-pressed={challengeMode}><Brain size={15}/>{challengeMode ? 'Salir' : 'Desafío'}</button>}<button onClick={createNewExample} title="Generar datos nuevos"><Shuffle size={15}/> Nuevo ejemplo</button><button onClick={resetDemo} title="Volver a los datos originales"><RotateCcw size={15}/> Restablecer</button></div></div>
+          <div className="panel-head"><div><span className="panel-index">01</span><h2>Visualización</h2></div><div className="panel-head-actions">{operationDefinition.actions.length > 0 && <button className={`challenge-toggle ${challengeMode ? 'active' : ''}`} onClick={toggleChallengeMode} title={challengeMode ? 'Salir del modo desafío' : 'Practicar con una predicción'} aria-label={challengeMode ? 'Salir del modo desafío' : 'Modo desafío'} aria-pressed={challengeMode}><Brain size={15}/>{challengeMode ? 'Salir' : 'Desafío'}</button>}<button onClick={createNewExample} title="Generar datos nuevos"><Shuffle size={15}/> Nuevo ejemplo</button><button onClick={resetDemo} title="Volver a los datos originales"><RotateCcw size={15}/> Restablecer</button></div></div>
           <div className="canvas-grid" data-visualizer={algorithm.id}><MemoizedVisualizer algorithm={visualAlgorithm} step={operationFrames.length ? currentAnimationFrame?.position ?? step : step}/><div className={`step-badge ${currentAnimationFrame?.iteration != null ? 'loop-step' : ''}`}>{currentAnimationFrame?.loopExit ? <>Fin <b>bucle</b></> : currentAnimationFrame?.iteration != null ? <>Iteración <b>{Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)}/{currentAnimationFrame.totalIterations}</b></> : <>Paso <b>{String(step+1).padStart(2,'0')}</b></>}</div></div>
           {challengeMode
-            ? <ChallengePanel algorithm={algorithm} values={demoValues} playing={playing} scenarioKey={challengeScenarioKey} onVerify={handleOperation}/>
+            ? <Suspense fallback={<section className="challenge-panel" aria-label="Cargando desafío"/>}><ChallengePanel algorithm={algorithm} values={demoValues} playing={playing} scenarioKey={challengeScenarioKey} onVerify={handleOperation}/></Suspense>
             : <OperationsPanel algorithm={baseAlgorithm} message={operationMessage} status={operationStatus} activeOperation={activeOperation} onAction={handleOperation}/>}
           {hideCodePanel && <VariablesPanel frame={currentAnimationFrame} algorithm={algorithm} step={step} playing={playing}/>}
           <div className="player"><button onClick={()=>goToStep(step-1)} aria-label="Anterior"><ArrowLeft size={17}/></button><button className="play" onClick={togglePlayback}>{playing?<Pause size={18}/>:<Play size={18}/>}<span>{playing?'Pausar':'Reproducir'}</span></button><button onClick={()=>goToStep(step+1)} aria-label="Siguiente"><ArrowRight size={17}/></button><div className="timeline"><span style={{width:`${((step+1)/totalSteps)*100}%`}}/></div><label><span>Velocidad</span><select value={speed} onChange={e=>setSpeed(Number(e.target.value))}><option value="0.5">0.5×</option><option value="1">1×</option><option value="2">2×</option></select><ChevronDown size={13}/></label></div>

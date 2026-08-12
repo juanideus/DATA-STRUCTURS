@@ -471,16 +471,4 @@ assert resultado == 2 : "índice incorrecto";`),
   }),
 ];
 
-export const foundationLessonCatalog = foundationLessons.map(item => ({
-  id: item.id,
-  name: item.name,
-  navName: item.navName,
-  category: 'Fundamentos',
-  type: 'foundation',
-  complexity: item.scope,
-  description: item.summary,
-  code: item.pseudocode,
-  values: item.values,
-}));
-
 export const foundationLessonsById = Object.fromEntries(foundationLessons.map(item => [item.id, item]));
