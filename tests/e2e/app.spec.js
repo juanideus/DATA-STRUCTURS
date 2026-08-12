@@ -953,6 +953,60 @@ test('muestra informar problema como una función próximamente', async ({ page 
   await expect(page.locator('.bug-modal')).toHaveCount(0);
 });
 
+test('permite completar una prueba conceptual de diez preguntas por sección', async ({ page }) => {
+  await page.goto('/array');
+  await page.getByRole('button', { name: 'Realizar prueba' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Prueba de Array' });
+  await expect(dialog).toContainText('10 preguntas');
+  await expect(dialog).toContainText('bloqueada durante 45 minutos');
+  await page.getByRole('button', { name: 'Comenzar prueba' }).click();
+  await expect(page.getByRole('button', { name: 'Cerrar prueba' })).toHaveCount(0);
+
+  for (let question = 0; question < 10; question += 1) {
+    await dialog.getByRole('radio').first().check();
+    await dialog.getByRole('button', { name: question === 9 ? 'Entregar prueba' : 'Siguiente pregunta' }).click();
+  }
+
+  await expect(dialog.getByText('Prueba finalizada')).toBeVisible();
+  const history = await page.evaluate(() => JSON.parse(localStorage.getItem('dsa-section-test-results-v1') ?? '[]'));
+  expect(history.at(-1)).toMatchObject({ algorithmId: 'array', status: 'completed', total: 10 });
+});
+
+test('anula y registra como copia una prueba si la página pierde visibilidad', async ({ page }) => {
+  await page.goto('/avl');
+  await page.getByRole('button', { name: 'Realizar prueba' }).click();
+  await page.getByRole('button', { name: 'Comenzar prueba' }).click();
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+
+  const dialog = page.getByRole('dialog', { name: 'Prueba de Árbol AVL' });
+  await expect(dialog.getByRole('heading', { name: 'Prueba cancelada por copia' })).toBeVisible();
+  await expect(dialog).toContainText('Se cambió de pestaña');
+  const history = await page.evaluate(() => JSON.parse(localStorage.getItem('dsa-section-test-results-v1') ?? '[]'));
+  expect(history.at(-1)).toMatchObject({ algorithmId: 'avl', status: 'cancelled-copy', reason: 'hidden' });
+  expect(history.at(-1).lockedUntil - Date.now()).toBeGreaterThan(44 * 60 * 1000);
+  expect(history.at(-1).lockedUntil - Date.now()).toBeLessThanOrEqual(45 * 60 * 1000);
+  await page.getByRole('button', { name: 'Entendido' }).click();
+  const lockedButton = page.getByRole('button', { name: /Bloqueada · 45 min/ });
+  await expect(lockedButton).toBeDisabled();
+  await page.reload();
+  await expect(page.getByRole('button', { name: /Bloqueada · 45 min/ })).toBeDisabled();
+});
+
+test('registra como copia si se abandona la página durante una prueba', async ({ page }) => {
+  await page.goto('/array');
+  await page.getByRole('button', { name: 'Realizar prueba' }).click();
+  await page.getByRole('button', { name: 'Comenzar prueba' }).click();
+  await page.goto('/pila');
+
+  const history = await page.evaluate(() => JSON.parse(localStorage.getItem('dsa-section-test-results-v1') ?? '[]'));
+  expect(history.at(-1)).toMatchObject({ algorithmId: 'array', status: 'cancelled-copy', reason: 'unload' });
+  await page.goto('/array');
+  await expect(page.getByRole('button', { name: /Bloqueada · 45 min/ })).toBeDisabled();
+});
+
 test('no produce desbordamiento horizontal en móvil', async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith('mobile'), 'Comprobación específica para móvil.');
   await page.goto('/sudoku');
