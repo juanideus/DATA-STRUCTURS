@@ -3,10 +3,15 @@ import { createSectionTest, gradeSectionTest } from '../src/logic/sectionTests.j
 
 const failures = [];
 let questionCount = 0;
+const questionCombinations = new Set();
+const visualTypes = new Set();
 
 for (const algorithm of algorithms) {
   const sectionTest = createSectionTest(algorithm);
   questionCount += sectionTest.questions.length;
+  questionCombinations.add(sectionTest.questions.map(question => question.id).join('|'));
+  const visualQuestions = sectionTest.questions.filter(question => question.visual);
+  visualQuestions.forEach(question => visualTypes.add(question.visual.type));
 
   if (sectionTest.questions.length !== 10) {
     failures.push(`${algorithm.id}: genera ${sectionTest.questions.length} preguntas en vez de 10.`);
@@ -14,6 +19,7 @@ for (const algorithm of algorithms) {
   if (new Set(sectionTest.questions.map(question => question.prompt)).size !== sectionTest.questions.length) {
     failures.push(`${algorithm.id}: contiene preguntas repetidas.`);
   }
+  if (visualQuestions.length !== 1) failures.push(`${algorithm.id}: debe incluir exactamente una pregunta visual.`);
 
   for (const question of sectionTest.questions) {
     if (question.choices.length < 3) failures.push(`${algorithm.id}/${question.id}: tiene menos de 3 alternativas.`);
@@ -32,10 +38,15 @@ for (const algorithm of algorithms) {
   }
 }
 
+if (questionCombinations.size < algorithms.length * 0.75) {
+  failures.push(`solo existen ${questionCombinations.size} combinaciones de preguntas para ${algorithms.length} temas.`);
+}
+if (visualTypes.size < 20) failures.push(`solo existen ${visualTypes.size} tipos de diagramas conceptuales.`);
+
 if (failures.length) {
   console.error(`AUDITORÍA DE PRUEBAS POR SECCIÓN FALLÓ (${failures.length} errores):`);
   failures.forEach(failure => console.error(`- ${failure}`));
   process.exit(1);
 }
 
-console.log(`PRUEBAS POR SECCIÓN OK: ${algorithms.length} temas y ${questionCount} preguntas conceptuales verificadas.`);
+console.log(`PRUEBAS POR SECCIÓN OK: ${algorithms.length} temas, ${questionCount} preguntas, ${questionCombinations.size} combinaciones y ${visualTypes.size} diagramas verificados.`);
