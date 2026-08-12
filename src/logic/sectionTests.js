@@ -3,6 +3,7 @@ import { getOperationDefinition, operationGroup } from './operations.js';
 
 const TEST_LENGTH = 10;
 const THEORY_GROUPS = new Set(['theory', 'complexity', 'oop', 'foundation']);
+const NON_MATERIAL_ACTIONS = new Set(['reset', 'shuffle']);
 
 const PROFILE_DEFAULT = {
   visual: 'concept', visualCaption: 'Conceptos conectados', principle: 'organiza información para resolver un problema',
@@ -38,7 +39,7 @@ const GROUP_PROFILES = {
   sudoku: { visual: 'sudoku', visualCaption: 'Filas, columnas y bloques imponen restricciones', principle: 'prueba números válidos y deshace elecciones', invariant: 'no se repite un número en fila, columna ni bloque 3×3', useCase: 'resolver problemas de satisfacción de restricciones', analogy: 'completar un rompecabezas sin repetir símbolos' },
   matrix: { visual: 'matrix', visualCaption: 'Cada celda usa fila y columna', principle: 'organiza valores en dos dimensiones', invariant: 'cada acceso requiere una fila y una columna válidas', useCase: 'tableros, imágenes y cálculos numéricos', analogy: 'una hoja de cálculo' },
   sparseMatrix: { visual: 'sparse-matrix', visualCaption: 'Solo se almacenan las celdas no nulas', principle: 'enlaza únicamente valores distintos de cero', invariant: 'cada nodo pertenece a su fila y a su columna', useCase: 'matrices grandes con pocos datos', analogy: 'anotar solo los asientos ocupados de un estadio' },
-  polynomial: { visual: 'polynomial', visualCaption: 'Cada nodo guarda coeficiente y exponente', principle: 'mantiene términos ordenados por exponente', invariant: 'términos del mismo exponente pueden combinarse', useCase: 'sumar y manipular expresiones algebraicas', analogy: 'fichas ordenadas por potencia' },
+  polynomial: { visual: 'polynomial', visualCaption: 'Cada nodo guarda coeficiente y exponente', principle: 'mantiene términos ordenados por exponente', invariant: 'términos del mismo exponente pueden combinarse', useCase: 'sumar y manipular expresiones algebraicas', analogy: 'tarjetas ordenadas por potencia' },
   generalizedList: { visual: 'generalized-list', visualCaption: 'Un elemento puede contener otra lista', principle: 'combina átomos y sublistas recursivamente', invariant: 'el tag indica si el nodo es átomo o sublista', useCase: 'representar datos anidados', analogy: 'carpetas que contienen archivos y carpetas' },
   union: { visual: 'union', visualCaption: 'Cada conjunto comparte un representante', principle: 'agrupa elementos en componentes disjuntos', invariant: 'cada elemento llega a una única raíz representante', useCase: 'detectar componentes y ciclos', analogy: 'equipos identificados por un capitán' },
   cache: { visual: 'cache', visualCaption: 'El menos usado recientemente sale primero', principle: 'conserva los datos usados más recientemente', invariant: 'al superar la capacidad se elimina el menos reciente', useCase: 'acelerar accesos repetidos', analogy: 'un escritorio pequeño con lo último utilizado' },
@@ -70,6 +71,22 @@ const hash = value => [...String(value)].reduce((total, character) => ((total * 
 const rotate = (values, seed) => { const offset = values.length ? hash(seed) % values.length : 0; return [...values.slice(offset), ...values.slice(0, offset)]; };
 const unique = values => [...new Set(values.filter(value => value !== undefined && value !== null && String(value).trim()))];
 
+function materialActionsFor(algorithm) {
+  const group = operationGroup(algorithm);
+  const actions = getOperationDefinition(algorithm).actions.filter(action => !NON_MATERIAL_ACTIONS.has(action.id));
+  if (group === 'sort') return actions.filter(action => action.id === 'sort');
+  if (group === 'shortestPath') return actions.filter(action => action.id === 'shortest-path');
+  return actions;
+}
+
+function materialActionLabel(action, algorithm) {
+  if (action.id === 'sort') return `Ordenar los elementos mediante ${algorithm.name}`;
+  if (action.id === 'shortest-path') return `Calcular una ruta de costo mínimo mediante ${algorithm.name}`;
+  if (action.id === 'solve') return `Resolver el problema respetando sus restricciones`;
+  if (action.id === 'step-solution') return `Explorar la solución paso a paso`;
+  return action.label;
+}
+
 function choices(correct, distractors, seed) {
   const values = unique([correct, ...distractors]).slice(0, 4);
   let fallback = 1;
@@ -85,33 +102,40 @@ function questionPool(algorithm) {
   const profile = profileFor(algorithm);
   const others = algorithms.filter(item => item.id !== algorithm.id);
   const peers = others.filter(item => item.category === algorithm.category);
+  const groupPeers = others.filter(item => operationGroup(item) === group);
   const outsiders = others.filter(item => item.category !== algorithm.category);
   const otherProfiles = others.map(profileFor);
-  const actions = THEORY_GROUPS.has(group) ? [] : getOperationDefinition(algorithm).actions;
-  const ownActionLabels = actions.map(action => action.label);
-  const foreignActions = unique(outsiders.flatMap(item => getOperationDefinition(item).actions.map(action => action.label))).filter(label => !ownActionLabels.includes(label));
+  const actions = THEORY_GROUPS.has(group) ? [] : materialActionsFor(algorithm);
+  const ownActionLabels = actions.map(action => materialActionLabel(action, algorithm));
+  const foreignActions = unique(outsiders.flatMap(item => materialActionsFor(item)
+    .map(action => materialActionLabel(action, item)))).filter(label => !ownActionLabels.includes(label));
   const conceptParts = unique(algorithm.complexity.split(/·|\||,/).map(value => value.trim()));
   const foreignConcepts = unique(others.flatMap(item => item.complexity.split(/·|\||,/).map(value => value.trim()))).filter(value => !conceptParts.includes(value));
   const visualDistractors = peers.filter(item => profileFor(item).visual !== profile.visual).map(item => item.name);
+  const comparisonTarget = groupPeers.find(item => profileFor(item).principle !== profile.principle)
+    ?? peers.find(item => profileFor(item).principle !== profile.principle)
+    ?? others[0];
+  const comparisonProfile = profileFor(comparisonTarget);
   const pool = [
     { id: 'visual-recognition', visual: { type: profile.visual, caption: profile.visualCaption }, prompt: 'Observa el diagrama. ¿Qué tema representa mejor esta organización?', explanation: `El diagrama representa ${algorithm.name}: ${profile.visualCaption.toLowerCase()}.`, choices: choices(algorithm.name, [...visualDistractors, ...outsiders.map(item => item.name)], `${algorithm.id}-visual`) },
     { id: 'principle', prompt: `¿Cuál es la idea central de «${algorithm.name}»?`, explanation: `${algorithm.name} ${profile.principle}.`, choices: choices(profile.principle, otherProfiles.map(item => item.principle), `${algorithm.id}-principle`) },
-    { id: 'invariant', prompt: `Mientras funciona «${algorithm.name}», ¿qué regla debe mantenerse?`, explanation: `La regla esencial es que ${profile.invariant}.`, choices: choices(profile.invariant, otherProfiles.map(item => item.invariant), `${algorithm.id}-invariant`) },
-    { id: 'scenario', prompt: `Necesitas ${profile.useCase}. ¿Qué tema elegirías?`, explanation: `${algorithm.name} es apropiado para ${profile.useCase}.`, choices: choices(algorithm.name, rotate(outsiders, algorithm.id).map(item => item.name), `${algorithm.id}-scenario`) },
+    { id: 'invariant', prompt: `Durante cualquier operación válida de «${algorithm.name}», ¿qué propiedad debe conservarse?`, explanation: `La propiedad esencial es que ${profile.invariant}.`, choices: choices(profile.invariant, otherProfiles.map(item => item.invariant), `${algorithm.id}-invariant`) },
+    { id: 'scenario', prompt: `¿Qué estructura o algoritmo elegirías para ${profile.useCase}?`, explanation: `${algorithm.name} está diseñado para ${profile.useCase}.`, choices: choices(algorithm.name, rotate(outsiders, algorithm.id).map(item => item.name), `${algorithm.id}-scenario`) },
     { id: 'analogy', prompt: `¿Qué analogía ayuda a comprender «${algorithm.name}»?`, explanation: `Puede imaginarse como ${profile.analogy}.`, choices: choices(profile.analogy, otherProfiles.map(item => item.analogy), `${algorithm.id}-analogy`) },
-    { id: 'definition', prompt: `Un estudiante afirma: «${algorithm.description}». ¿De qué tema habla?`, explanation: `La definición corresponde a ${algorithm.name}.`, choices: choices(algorithm.name, rotate(others, `${algorithm.id}-definition`).map(item => item.name), `${algorithm.id}-definition`) },
-    { id: 'complexity', prompt: `¿Qué información de complejidad o contenido corresponde a «${algorithm.name}»?`, explanation: `La ficha de la sección indica ${algorithm.complexity}.`, choices: choices(algorithm.complexity, others.map(item => item.complexity), `${algorithm.id}-complexity`) },
-    { id: 'code', prompt: `¿Qué paso de pseudocódigo pertenece a «${algorithm.name}»?`, explanation: `Su representación incluye «${firstCodeLine(algorithm)}».`, choices: choices(firstCodeLine(algorithm), others.map(firstCodeLine), `${algorithm.id}-code`) },
-    { id: 'category', prompt: `¿En qué familia de DSA Lab se estudia «${algorithm.name}»?`, explanation: `${algorithm.name} pertenece a ${algorithm.category}.`, choices: choices(algorithm.category, outsiders.map(item => item.category), `${algorithm.id}-category`) },
-    { id: 'peer', prompt: `¿Qué tema comparte familia con «${algorithm.name}»?`, explanation: `${peers[0].name} también pertenece a ${algorithm.category}.`, choices: choices(peers[0].name, outsiders.map(item => item.name), `${algorithm.id}-peer`) },
-    { id: 'outsider', prompt: `¿Cuál tema NO pertenece a la familia ${algorithm.category}?`, explanation: `${outsiders[0].name} pertenece a ${outsiders[0].category}.`, choices: choices(outsiders[0].name, peers.map(item => item.name), `${algorithm.id}-outsider`) },
-    { id: 'concept', prompt: `¿Qué concepto aparece directamente en la ficha de «${algorithm.name}»?`, explanation: `La ficha incluye «${conceptParts[0]}».`, choices: choices(conceptParts[0], foreignConcepts, `${algorithm.id}-concept`) },
-    { id: 'misconception', prompt: `¿Cuál afirmación describe una regla de otro tema y NO la principal de «${algorithm.name}»?`, explanation: `«${otherProfiles[0].invariant}» no es la regla principal de ${algorithm.name}.`, choices: choices(otherProfiles[0].invariant, [profile.invariant, profile.principle], `${algorithm.id}-misconception`) },
+    { id: 'definition', prompt: `¿Qué estructura o algoritmo coincide con esta definición? «${algorithm.description}»`, explanation: `La definición corresponde a ${algorithm.name}.`, choices: choices(algorithm.name, rotate(others, `${algorithm.id}-definition`).map(item => item.name), `${algorithm.id}-definition`) },
+    { id: 'complexity', prompt: `¿Qué complejidad o conjunto de conceptos corresponde a «${algorithm.name}»?`, explanation: `Para ${algorithm.name}, la respuesta correcta es ${algorithm.complexity}.`, choices: choices(algorithm.complexity, others.map(item => item.complexity), `${algorithm.id}-complexity`) },
+    { id: 'code', prompt: `¿Qué paso de pseudocódigo es coherente con «${algorithm.name}»?`, explanation: `Un paso propio del procedimiento es «${firstCodeLine(algorithm)}».`, choices: choices(firstCodeLine(algorithm), others.map(firstCodeLine), `${algorithm.id}-code`) },
+    { id: 'concept', prompt: `¿Qué concepto es necesario para comprender «${algorithm.name}»?`, explanation: `Uno de sus conceptos fundamentales es «${conceptParts[0]}».`, choices: choices(conceptParts[0], foreignConcepts, `${algorithm.id}-concept`) },
+    { id: 'misconception', prompt: `¿Cuál afirmación NO describe correctamente a «${algorithm.name}»?`, explanation: `«${comparisonProfile.invariant}» corresponde a ${comparisonTarget.name}, no a ${algorithm.name}.`, choices: choices(comparisonProfile.invariant, [profile.invariant, profile.principle], `${algorithm.id}-misconception`) },
+    { id: 'comparison', prompt: `¿Qué propiedad diferencia a «${algorithm.name}» de «${comparisonTarget.name}»?`, explanation: `${algorithm.name} se distingue porque ${profile.invariant}.`, choices: choices(profile.invariant, [comparisonProfile.invariant, comparisonProfile.principle, profile.analogy], `${algorithm.id}-comparison`) },
+    { id: 'broken-invariant', prompt: `¿Qué consecuencia tiene romper la propiedad «${profile.invariant}»?`, explanation: `${algorithm.name} dejaría de garantizar su comportamiento correcto hasta restaurar esa propiedad.`, choices: choices('La estructura o el algoritmo deja de garantizar su comportamiento correcto', ['La complejidad se vuelve siempre O(1)', 'Los datos se ordenan automáticamente', 'No ocurre ningún cambio lógico'], `${algorithm.id}-broken-invariant`) },
   ];
   if (actions.length) {
-    pool.push({ id: 'operation', prompt: `¿Qué acción está disponible específicamente en el laboratorio de «${algorithm.name}»?`, explanation: `El panel permite ejecutar «${actions[0].label}».`, choices: choices(actions[0].label, foreignActions, `${algorithm.id}-operation`) });
-    pool.push({ id: 'operation-pair', prompt: `¿Qué segunda operación puedes practicar en «${algorithm.name}»?`, explanation: `También puedes usar «${actions[1].label}».`, choices: choices(actions[1].label, foreignActions, `${algorithm.id}-operation-pair`) });
-    pool.push({ id: 'invalid-operation', prompt: `¿Qué operación NO aparece en el panel de «${algorithm.name}»?`, explanation: `«${foreignActions[0]}» corresponde a otra estructura.`, choices: choices(foreignActions[0], ownActionLabels, `${algorithm.id}-invalid-operation`) });
+    const firstAction = materialActionLabel(actions[0], algorithm);
+    const secondAction = actions[1] ? materialActionLabel(actions[1], algorithm) : null;
+    pool.push({ id: 'operation', prompt: `¿Qué operación es válida para «${algorithm.name}»?`, explanation: `«${firstAction}» forma parte de las operaciones definidas para ${algorithm.name}.`, choices: choices(firstAction, foreignActions, `${algorithm.id}-operation`) });
+    if (secondAction) pool.push({ id: 'operation-pair', prompt: `¿Cuál es otra operación propia de «${algorithm.name}»?`, explanation: `«${secondAction}» también corresponde a ${algorithm.name}.`, choices: choices(secondAction, foreignActions, `${algorithm.id}-operation-pair`) });
+    pool.push({ id: 'invalid-operation', prompt: `¿Qué operación NO es característica de «${algorithm.name}»?`, explanation: `«${foreignActions[0]}» pertenece a otra estructura o algoritmo.`, choices: choices(foreignActions[0], ownActionLabels, `${algorithm.id}-invalid-operation`) });
   }
   return pool;
 }

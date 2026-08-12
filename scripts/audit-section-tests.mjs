@@ -5,6 +5,7 @@ const failures = [];
 let questionCount = 0;
 const questionCombinations = new Set();
 const visualTypes = new Set();
+const forbiddenInterfaceTerms = /DSA Lab|panel|página|sección|laboratorio|visualizador|ficha|catálogo/i;
 
 for (const algorithm of algorithms) {
   const sectionTest = createSectionTest(algorithm);
@@ -25,6 +26,10 @@ for (const algorithm of algorithms) {
     if (question.choices.length < 3) failures.push(`${algorithm.id}/${question.id}: tiene menos de 3 alternativas.`);
     if (question.choices.filter(choice => choice.correct).length !== 1) {
       failures.push(`${algorithm.id}/${question.id}: debe tener exactamente una respuesta correcta.`);
+    }
+    const assessedText = [question.prompt, question.explanation, ...question.choices.map(choice => choice.label)].join(' ');
+    if (forbiddenInterfaceTerms.test(assessedText)) {
+      failures.push(`${algorithm.id}/${question.id}: evalúa información de la interfaz en vez de materia.`);
     }
   }
 
