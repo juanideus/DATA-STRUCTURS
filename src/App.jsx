@@ -6,6 +6,7 @@ import {
 import { algorithmIndexes, algorithms, algorithmsById, categories, categoryLabels, navigationIndexes } from './data/algorithms.js';
 import { getGraphDesign, graphEdgesFor, graphPositionsFor } from './data/graphDesigns.js';
 import OperationsPanel from './components/OperationsPanel.jsx';
+import SectionTestModal from './components/SectionTestModal.jsx';
 import VariablesPanel from './components/VariablesPanel.jsx';
 import {
   adaptFramesToCode,
@@ -21,6 +22,7 @@ import { COMPLEXITY_ORDERS, complexityValue } from './logic/complexity.js';
 import { GENERALIZED_LIST_EXAMPLES, generalizedListToString, generalizedListValuesFromSource } from './logic/generalizedList.js';
 import { createRandomPathMap, DEFAULT_PATH_MAP } from './logic/pathfindingMap.js';
 import { formatPolynomial, polynomialTerms } from './logic/polynomial.js';
+import { getSectionTestLockedUntil } from './logic/sectionTests.js';
 
 const EducationalDescription = lazy(() => import('./components/EducationalDescription.jsx'));
 const FoundationLesson = lazy(() => import('./components/FoundationLesson.jsx'));
@@ -2278,6 +2280,10 @@ function App() {
   const [challengeMode, setChallengeMode] = useState(false);
   const [challengeScenarioKey, setChallengeScenarioKey] = useState(0);
   const [javaCodeFactory, setJavaCodeFactory] = useState(null);
+  const [sectionTest, setSectionTest] = useState(null);
+  const [sectionTestActive, setSectionTestActive] = useState(false);
+  const [sectionTestViolation, setSectionTestViolation] = useState(null);
+  const [sectionTestClock, setSectionTestClock] = useState(Date.now());
   const algorithm = useMemo(
     () => ({ ...baseAlgorithm, values: demoValues, edges: demoEdges, positions: demoPositions, map: demoMap }),
     [baseAlgorithm, demoValues, demoEdges, demoPositions, demoMap],
@@ -2314,6 +2320,9 @@ function App() {
   const codeLines = displayedCode.split('\n');
   const totalSteps = operationFrames.length || Math.max(algorithm.values.length, codeLines.length);
   const currentAnimationFrame = operationFrames[step] ?? null;
+  const sectionTestLockedUntil = getSectionTestLockedUntil(baseAlgorithm.id, sectionTestClock);
+  const sectionTestRemainingMs = Math.max(0, sectionTestLockedUntil - sectionTestClock);
+  const sectionTestRemainingMinutes = Math.ceil(sectionTestRemainingMs / 60000);
   const visualAlgorithm = useMemo(
     () => ({ ...algorithm, animationFrame: currentAnimationFrame }),
     [algorithm, currentAnimationFrame],
@@ -2342,6 +2351,11 @@ function App() {
     });
     return () => { active = false; };
   }, [isTheoryPage, javaCodeFactory]);
+  useEffect(() => {
+    if (!sectionTestLockedUntil) return undefined;
+    const timer = window.setInterval(() => setSectionTestClock(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [sectionTestLockedUntil]);
 
   const applyFrame = (frame, frameIndex) => {
     if (!frame) return;
@@ -2409,19 +2423,26 @@ function App() {
       : `/${window.location.search}`;
     window.history.pushState({ dsaLab: id ?? 'welcome' }, '', nextUrl);
   }, []);
+  const registerTestViolation = useCallback(reason => {
+    if (!sectionTestActive) return;
+    setSectionTestViolation({ reason, time: Date.now() });
+  }, [sectionTestActive]);
   const openAlgorithm = useCallback((id, updateHistory = true) => {
+    registerTestViolation('navigation');
     loadAlgorithm(id);
     setShowWelcome(false);
     if (updateHistory && algorithmIdFromLocation() !== id) updateRoute(id);
-  }, [loadAlgorithm, updateRoute]);
+  }, [loadAlgorithm, registerTestViolation, updateRoute]);
   const openWelcome = useCallback((updateHistory = true) => {
+    registerTestViolation('navigation');
     setShowWelcome(true);
     setPlaying(false);
     if (updateHistory && (algorithmIdFromLocation() !== null || window.location.hash)) updateRoute(null);
-  }, [updateRoute]);
+  }, [registerTestViolation, updateRoute]);
   const toggleSidebar = useCallback(() => setSidebarCollapsed(value => !value), []);
   useEffect(() => {
     const syncRoute = () => {
+      registerTestViolation('history');
       const routedId = algorithmIdFromLocation();
       if (routedId) openAlgorithm(routedId, false);
       else openWelcome(false);
@@ -2437,7 +2458,7 @@ function App() {
     return () => {
       window.removeEventListener('popstate', syncRoute);
     };
-  }, []);
+  }, [openAlgorithm, openWelcome, registerTestViolation]);
   const resetDemo = () => {
     setDemoValues([...baseAlgorithm.values]);
     setDemoEdges(edgesForAlgorithm(baseAlgorithm));
@@ -2573,6 +2594,17 @@ function App() {
     }
     setChallengeMode(willOpen);
   };
+  const startSectionTest = () => {
+    if (getSectionTestLockedUntil(baseAlgorithm.id) > Date.now()) return;
+    setPlaying(false);
+    setSectionTestViolation(null);
+    setSectionTest({ algorithm: baseAlgorithm });
+  };
+  const closeSectionTest = () => {
+    setSectionTest(null);
+    setSectionTestActive(false);
+    setSectionTestViolation(null);
+  };
 
   return <div className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
     {showOpeningIntro && <OpeningIntro onDone={finishOpeningIntro}/>}
@@ -2587,6 +2619,13 @@ function App() {
         <div><div className="eyebrow"><span>{algorithm.category}</span><i>{isTheoryPage ? 'Guía teórica' : 'Práctica interactiva'}</i></div><h1>{algorithm.name}</h1><p>{algorithm.description}</p></div>
         <div className="complexity-card"><small>{isTheoryPage ? 'Contenido' : 'Complejidad'}</small><strong>{algorithm.complexity}</strong><div><Gauge size={16}/><span>{isTheoryPage ? algorithm.type === 'complexity' ? 'Fundamentos y gráficos' : 'Conceptos fundamentales' : 'Análisis asintótico'}</span></div></div>
       </section>}
+
+      <div className="section-test-entry">
+        <div><ClipboardCopy size={18}/><span><strong>Comprueba lo aprendido</strong><small>Prueba conceptual de 10 preguntas</small></span></div>
+        <button onClick={startSectionTest} disabled={sectionTestRemainingMs > 0} title={sectionTestRemainingMs > 0 ? `Disponible en ${sectionTestRemainingMinutes} minutos` : 'Iniciar prueba conceptual'}>
+          {sectionTestRemainingMs > 0 ? `Bloqueada · ${sectionTestRemainingMinutes} min` : 'Realizar prueba'}
+        </button>
+      </div>
 
       {isTheoryPage ? algorithm.type === 'complexity' ? <ComplexityLesson/> : algorithm.type === 'oop' ? <OopLesson/> : algorithm.type === 'foundation' ? <Suspense fallback={<DescriptionFallback/>}><FoundationLesson algorithm={algorithm}/></Suspense> : <DataStructuresLesson/> : <>
       <section className={`lab-grid ${hideCodePanel ? 'visual-only' : ''}`}>
@@ -2629,6 +2668,13 @@ function App() {
       </>}
     </main>
     <BugReporter section={showWelcome ? 'Bienvenida' : algorithm.name}/>
+    {sectionTest && <SectionTestModal
+      algorithm={sectionTest.algorithm}
+      externalViolation={sectionTestViolation?.reason ?? null}
+      onClose={closeSectionTest}
+      onActiveChange={setSectionTestActive}
+      onLockout={() => setSectionTestClock(Date.now())}
+    />}
     {mobileOpen && <button className="scrim" onClick={()=>setMobileOpen(false)} aria-label="Cerrar menú"/>}
   </div>;
 }
