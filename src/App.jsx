@@ -3,7 +3,7 @@ import {
   ArrowLeft, ArrowRight, BookOpen, Boxes, Brain, Bug, ChevronDown, CircleHelp, ClipboardCopy, ExternalLink, Gauge,
   MapPin, Menu, PanelLeftClose, PanelLeftOpen, Pause, Play, RotateCcw, Search, Shuffle, Sparkles, X,
 } from 'lucide-react';
-import { algorithms, categories, categoryLabels } from './data/algorithms.js';
+import { algorithms, categories, categoryLabels, navigationAlgorithms } from './data/algorithms.js';
 import { getBeginnerJava } from './data/beginnerJava.js';
 import { getGraphDesign, graphEdgesFor, graphPositionsFor } from './data/graphDesigns.js';
 import OperationsPanel from './components/OperationsPanel.jsx';
@@ -2074,7 +2074,7 @@ function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setM
     <nav>
       {categories.map(category => { const list = filtered.filter(a=>a.category===category); if (!list.length) return null; return <div className="nav-group" key={category}>
         <div className="nav-heading"><span>{category}</span><em>{String(list.length).padStart(2,'0')}</em></div>
-        {list.map((a) => <button data-algorithm-id={a.id} className={selected===a.id?'selected':''} onClick={()=>{onSelect(a.id);setMobileOpen(false)}} key={a.id}><span>{String(algorithms.indexOf(a)+1).padStart(2,'0')}</span>{a.navName ?? a.name}</button>)}
+        {list.map((a) => <button data-algorithm-id={a.id} className={selected===a.id?'selected':''} onClick={()=>{onSelect(a.id);setMobileOpen(false)}} key={a.id}><span>{String(navigationAlgorithms.indexOf(a)+1).padStart(2,'0')}</span>{a.navName ?? a.name}</button>)}
       </div>})}
     </nav>
     <div className="sidebar-foot">

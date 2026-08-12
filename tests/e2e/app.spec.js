@@ -59,7 +59,7 @@ test('la sección de complejidad explica la teoría con gráficos y sin laborato
 
 test('fundamentos explica qué son las estructuras de datos sin convertirlo en un laboratorio', async ({ page }) => {
   await page.goto('/estructuras-de-datos');
-  await expect(page.locator('[data-algorithm-id="estructuras-de-datos"]')).toHaveText('01Estructuras de datos');
+  await expect(page.locator('[data-algorithm-id="estructuras-de-datos"]')).toHaveText('59Estructuras de datos');
   await expect(page.getByRole('heading', { name: '¿Qué son las estructuras de datos?', level: 1 })).toBeVisible();
   await expect(page.getByRole('heading', { name: '¿Qué es una estructura de datos?', level: 2 })).toBeVisible();
   await expect(page.locator('[data-data-structures-lesson]')).toContainText('Tipo de Dato Abstracto (TDA)');
@@ -69,6 +69,28 @@ test('fundamentos explica qué son las estructuras de datos sin convertirlo en u
   await expect(page.locator('.code-panel')).toHaveCount(0);
   await expect(page.locator('.operations-panel')).toHaveCount(0);
   await expect(page.locator('.player')).toHaveCount(0);
+});
+
+test('Backtracking, Búsqueda Binaria y Divide y Vencerás tienen fundamentos completos', async ({ page }) => {
+  const guides = [
+    ['fundamentos-backtracking', 'Fundamentos de Backtracking', 'elegir, explorar y deshacer'],
+    ['fundamentos-busqueda-binaria', 'Fundamentos de Búsqueda Binaria', 'datos están ordenados'],
+    ['fundamentos-divide-venceras', 'Fundamentos de Divide y Vencerás', 'cómo dividir'],
+  ];
+
+  for (const [id, title, keyIdea] of guides) {
+    await page.goto(`/${id}`);
+    const lesson = page.locator(`[data-foundation-lesson="${id}"]`);
+    await expect(page.getByRole('heading', { name: title, level: 1 })).toBeVisible();
+    await expect(lesson).toBeVisible();
+    await expect(lesson.locator('.foundation-section-grid > article')).toHaveCount(5);
+    await expect(lesson.locator('.foundation-code-wrap')).not.toHaveCount(0);
+    await expect(lesson.locator('.foundation-mistakes li')).toHaveCount(5);
+    await expect(lesson.locator('.foundation-checklist li')).toHaveCount(5);
+    await expect(lesson).toContainText(keyIdea);
+    await expect(page.locator('.visual-panel')).toHaveCount(0);
+    await expect(page.locator('.code-panel')).toHaveCount(0);
+  }
 });
 
 test('el modo desafío predice operaciones y conserva el progreso local', async ({ page }) => {
@@ -108,7 +130,7 @@ test('el modo desafío predice operaciones y conserva el progreso local', async 
   await expect(page.getByRole('button', { name: 'Modo desafío', exact: true })).toBeVisible();
 });
 
-test('los 73 temas cargan su contenido correspondiente sin errores', async ({ page }) => {
+test('los 76 temas cargan su contenido correspondiente sin errores', async ({ page }) => {
   test.setTimeout(180_000);
   const pageErrors = [];
   const failedResponses = [];

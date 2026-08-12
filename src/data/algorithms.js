@@ -141,7 +141,15 @@ transponer():
   item('bloom-filter','Bloom Filter','Otros','bloom','Insertar / consultar O(k)','Filtro probabilístico compacto: puede dar falsos positivos, nunca falsos negativos.',`insertar(x):\n  para cada hash hᵢ\n    bits[hᵢ(x)] ← 1\ncontiene(x): comprobar todos esos bits`,[1,0,1,1,0,1,0,0,1,1,0,1]),
 ];
 
-export const categories = [...new Set(algorithms.map((algorithm) => algorithm.category))];
+const discoveredCategories = [...new Set(algorithms.map((algorithm) => algorithm.category))];
+export const categories = [
+  ...discoveredCategories.filter(category => category !== 'Fundamentos'),
+  'Fundamentos',
+];
+
+export const navigationAlgorithms = categories.flatMap(category => (
+  algorithms.filter(algorithm => algorithm.category === category)
+));
 
 export const categoryLabels = {
   Fundamentos: 'Bases para organizar y analizar datos',

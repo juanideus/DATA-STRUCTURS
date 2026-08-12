@@ -361,6 +361,114 @@ assert resultado == 2 : "índice incorrecto";`),
     checklist: ['Preparar vacío, uno y muchos', 'Incluir duplicados y límites', 'Anotar resultado esperado antes de ejecutar', 'Reducir el caso que falla', 'Conservar una prueba de regresión'],
     remember: 'Depurar es encontrar la primera diferencia entre el estado esperado y el estado real.',
   }),
+  lesson({
+    id: 'fundamentos-backtracking', name: 'Fundamentos de Backtracking', navName: 'Backtracking',
+    scope: 'Elegir · Comprobar · Avanzar · Deshacer',
+    summary: 'Aprende a explorar decisiones recursivamente, descartar caminos inválidos y volver atrás para probar alternativas.',
+    pseudocode: 'si el estado es solución: retornar verdadero\npara cada decisión posible\n  si es válida: elegir y avanzar\n  si no funciona: deshacer\nretornar falso', values: ['elegir', 'explorar', 'deshacer'],
+    intro: 'Backtracking es una técnica de búsqueda que construye una solución decisión por decisión. Cuando una elección viola las reglas o ya no puede conducir a una respuesta completa, el algoritmo deshace esa elección y prueba otra alternativa. No vuelve atrás por error: volver atrás es una parte planificada del algoritmo.',
+    essentials: [
+      { term: 'Elegir', label: 'Cambiar el estado', text: 'Agrega temporalmente una alternativa que cumple las reglas conocidas.' },
+      { term: 'Explorar', label: 'Llamada recursiva', text: 'Continúa desde el nuevo estado para comprobar si permite completar la solución.' },
+      { term: 'Deshacer', label: 'Restaurar', text: 'Revierte exactamente la elección cuando ese camino no funciona.' },
+    ],
+    sections: [
+      section('Árbol de decisiones', 'Cada nivel representa una decisión y cada rama una alternativa. Una hoja puede ser una solución, un estado inválido o un camino sin opciones. Backtracking evita seguir una rama apenas sabe que ya no sirve.'),
+      section('El patrón completo', 'El estado se modifica antes de la llamada recursiva y debe quedar exactamente como estaba después de volver si no se encontró una solución.', `static boolean resolver(int paso) {
+    if (paso == META) return true;
+
+    for (int opcion = 0; opcion < LIMITE; opcion++) {
+        if (esValida(paso, opcion)) {
+            elegir(paso, opcion);
+            if (resolver(paso + 1)) return true;
+            deshacer(paso, opcion);
+        }
+    }
+    return false;
+}`),
+      section('Validar antes de avanzar', 'El método esValida poda decisiones que ya rompen una restricción. En N-Reinas comprueba columna y diagonales; en Sudoku revisa fila, columna y subcuadro; en un laberinto evita muros y celdas visitadas.'),
+      section('Encontrar una o todas las soluciones', 'Para detenerse en la primera solución se retorna true. Para enumerarlas todas se registra cada solución y se continúa deshaciendo para explorar las demás ramas.', `static void combinaciones(int paso) {
+    if (paso == META) {
+        guardarSolucion();
+        return;
+    }
+    // elegir, explorar y deshacer cada opción
+}`),
+      section('Costo y poda', 'En el peor caso puede explorar una cantidad exponencial de estados. Una validación temprana, un buen orden de decisiones y restricciones fuertes reducen enormemente el espacio recorrido.'),
+    ],
+    mistakes: ['Olvidar deshacer una elección fallida', 'Modificar estado compartido sin restaurarlo', 'Aceptar un estado parcial como solución completa', 'Validar demasiado tarde y explorar ramas imposibles', 'Confundir backtracking con probar valores al azar'],
+    checklist: ['Definir cómo reconocer una solución completa', 'Enumerar las decisiones posibles', 'Escribir la condición de validez', 'Aplicar una elección antes de llamar', 'Restaurar el estado al regresar'],
+    remember: 'El patrón es elegir, explorar y deshacer. Si al regresar el estado no quedó igual que antes de elegir, el backtracking está incompleto.',
+  }),
+  lesson({
+    id: 'fundamentos-busqueda-binaria', name: 'Fundamentos de Búsqueda Binaria', navName: 'Búsqueda binaria',
+    scope: 'Datos ordenados · Mitad · Intervalo · O(log n)',
+    summary: 'Encuentra valores reduciendo a la mitad un intervalo ordenado en cada comparación.',
+    pseudocode: 'izquierda ← 0, derecha ← n - 1\nmientras izquierda ≤ derecha\n  medio ← izquierda + (derecha - izquierda) / 2\n  comparar y descartar una mitad\nretornar -1', values: ['izquierda', 'medio', 'derecha'],
+    intro: 'La búsqueda binaria localiza un valor dentro de datos ordenados. Compara el objetivo con el elemento central y utiliza el orden para descartar de una vez la mitad que no puede contenerlo. Por eso necesita muchas menos comparaciones que un recorrido lineal cuando n crece.',
+    essentials: [
+      { term: 'Orden', label: 'Precondición', text: 'Los datos deben estar ordenados según el mismo criterio utilizado para comparar.' },
+      { term: 'Mitad', label: 'Decisión', text: 'El valor central determina cuál de los dos intervalos todavía puede contener el objetivo.' },
+      { term: 'O(log n)', label: 'Reducción', text: 'Cada comparación divide aproximadamente por dos la cantidad de candidatos.' },
+    ],
+    sections: [
+      section('Intervalo de búsqueda', 'izquierda y derecha delimitan las posiciones donde el objetivo todavía podría encontrarse. El intervalo inicial incluye desde 0 hasta length - 1.'),
+      section('Versión iterativa completa', 'Si el centro es menor que el objetivo se descarta la mitad izquierda; si es mayor se descarta la mitad derecha.', `static int buscar(int[] datos, int objetivo) {
+    int izquierda = 0;
+    int derecha = datos.length - 1;
+
+    while (izquierda <= derecha) {
+        int medio = izquierda + (derecha - izquierda) / 2;
+
+        if (datos[medio] == objetivo) return medio;
+        if (datos[medio] < objetivo) izquierda = medio + 1;
+        else derecha = medio - 1;
+    }
+    return -1;
+}`),
+      section('Por qué termina', 'Cuando el centro no contiene el objetivo se elimina también esa posición usando medio + 1 o medio - 1. El intervalo se hace estrictamente más pequeño hasta quedar vacío.'),
+      section('Invariante', 'Antes de cada iteración, si el objetivo existe, se encuentra entre izquierda y derecha. Cada comparación conserva esa propiedad al descartar solamente valores imposibles.'),
+      section('Variantes útiles', 'El mismo principio permite encontrar la primera aparición, la última aparición o la primera posición donde podría insertarse un valor sin romper el orden.'),
+    ],
+    mistakes: ['Aplicarla sobre datos desordenados', 'Usar derecha = length en un intervalo inclusivo', 'Actualizar izquierda = medio y no reducir el intervalo', 'Olvidar el caso de arreglo vacío', 'Suponer que siempre devuelve la primera repetición'],
+    checklist: ['Confirmar que los datos están ordenados', 'Definir si los límites son inclusivos', 'Calcular medio dentro del intervalo', 'Eliminar medio al actualizar un límite', 'Probar vacío, uno, ausente y repetidos'],
+    remember: 'La búsqueda binaria no revisa ambas mitades: usa el orden para demostrar que una de ellas puede descartarse por completo.',
+  }),
+  lesson({
+    id: 'fundamentos-divide-venceras', name: 'Fundamentos de Divide y Vencerás', navName: 'Divide y vencerás',
+    scope: 'Dividir · Resolver · Combinar · Recurrencia',
+    summary: 'Resuelve problemas grandes separándolos en subproblemas pequeños, solucionándolos y combinando sus respuestas.',
+    pseudocode: 'si el problema es pequeño: resolver directo\ndividir en subproblemas\nresolver cada parte\ncombinar los resultados', values: ['dividir', 'resolver', 'combinar'],
+    intro: 'Divide y Vencerás es una estrategia que transforma un problema en subproblemas más pequeños del mismo tipo. Cada parte se resuelve normalmente de forma recursiva y luego sus resultados se combinan para obtener la respuesta original. La división debe reducir realmente el tamaño y la combinación debe conservar toda la información necesaria.',
+    essentials: [
+      { term: 'Dividir', label: 'Separar', text: 'Crea subproblemas más pequeños y bien definidos del mismo problema general.' },
+      { term: 'Resolver', label: 'Conquistar', text: 'Aplica recursivamente el algoritmo hasta alcanzar casos pequeños y directos.' },
+      { term: 'Combinar', label: 'Reconstruir', text: 'Une las respuestas parciales para formar la solución del problema original.' },
+    ],
+    sections: [
+      section('Caso base y reducción', 'El caso base resuelve directamente una entrada mínima. Cada división debe acercarse a él; de lo contrario, la recursión no termina.'),
+      section('Ejemplo: encontrar el máximo', 'Se obtiene el máximo de cada mitad y luego se comparan únicamente esos dos resultados.', `static int maximo(int[] datos, int inicio, int fin) {
+    if (inicio == fin) return datos[inicio];
+
+    int medio = inicio + (fin - inicio) / 2;
+    int maxIzq = maximo(datos, inicio, medio);
+    int maxDer = maximo(datos, medio + 1, fin);
+    return Math.max(maxIzq, maxDer);
+}`),
+      section('Ejemplo: Merge Sort', 'Divide el arreglo hasta obtener partes de un elemento. Al regresar, mezcla dos mitades ya ordenadas. La combinación realiza trabajo lineal en cada nivel.', `static void mergeSort(int[] datos, int inicio, int fin) {
+    if (inicio >= fin) return;
+    int medio = inicio + (fin - inicio) / 2;
+    mergeSort(datos, inicio, medio);
+    mergeSort(datos, medio + 1, fin);
+    mezclar(datos, inicio, medio, fin);
+}`),
+      section('Recurrencias y complejidad', 'El costo se expresa considerando cuántos subproblemas se crean, cuánto disminuye su tamaño y cuánto trabajo exige dividir o combinar. Merge Sort sigue T(n) = 2T(n/2) + O(n), que produce O(n log n).'),
+      section('Diferencia con otras técnicas', 'Divide y Vencerás resuelve partes independientes y combina sus respuestas. Backtracking explora alternativas y deshace decisiones. Programación dinámica guarda resultados cuando los subproblemas se repiten.'),
+    ],
+    mistakes: ['Crear partes que no reducen el problema', 'Olvidar combinar las respuestas parciales', 'Solapar subproblemas repetidamente sin considerar memoización', 'Perder elementos al calcular los límites', 'Asumir que toda recursión es Divide y Vencerás'],
+    checklist: ['Definir un caso base directo', 'Explicar cómo disminuye cada parte', 'Resolver todas las partes necesarias', 'Diseñar una combinación correcta', 'Escribir y simplificar la recurrencia'],
+    remember: 'La estrategia está completa solamente cuando explica cómo dividir, cómo resolver las partes y cómo reconstruir la respuesta original.',
+  }),
 ];
 
 export const foundationLessonCatalog = foundationLessons.map(item => ({
