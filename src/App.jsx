@@ -2061,7 +2061,7 @@ function DescriptionFallback() {
 
 function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setMobileOpen, collapsed, onToggle }) {
   const filtered = useMemo(() => algorithms.filter(a => `${a.name} ${a.category}`.toLowerCase().includes(query.toLowerCase())), [query]);
-  return <aside className={`sidebar ${mobileOpen ? 'open' : ''} ${collapsed ? 'collapsed' : ''}`}>
+  return <aside data-tour="sidebar" className={`sidebar ${mobileOpen ? 'open' : ''} ${collapsed ? 'collapsed' : ''}`}>
     <div className="brand">
       <button className="brand-home" onClick={()=>{onHome();setMobileOpen(false)}} aria-label="Ir a la bienvenida">
         <span className="brand-mark"><Boxes size={21}/></span>
@@ -2085,6 +2085,137 @@ function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setM
 }
 
 const MemoizedSidebar = memo(Sidebar);
+
+const TOUR_STEPS = [
+  {
+    selector: '[data-tour="sidebar"]',
+    title: 'Elige qué quieres aprender',
+    description: 'El menú reúne todos los temas por categoría. También puedes buscar una estructura o algoritmo por su nombre.',
+  },
+  {
+    selector: '[data-tour="visualizer"]',
+    title: 'Observa cómo cambia la estructura',
+    description: 'Aquí verás cada inserción, eliminación, recorrido o comparación. El elemento activo se destaca durante la ejecución.',
+  },
+  {
+    selector: '[data-tour="operations"]',
+    title: 'Experimenta con tus propios datos',
+    description: 'Escribe valores o índices y ejecuta las operaciones disponibles. El mensaje inferior explica el resultado.',
+  },
+  {
+    selector: '.player',
+    title: 'Controla la animación',
+    description: 'Avanza o retrocede paso a paso, pausa cuando quieras y ajusta la velocidad para estudiar con calma.',
+  },
+  {
+    selector: '[data-tour="code"]',
+    title: 'Relaciona la animación con el código',
+    description: 'La línea activa avanza junto con la visualización. Puedes alternar entre Java y pseudocódigo.',
+  },
+  {
+    selector: '[data-tour="variables"]',
+    title: 'Revisa las variables en tiempo real',
+    description: 'Este panel muestra valores, índices y decisiones internas para que comprendas qué está haciendo el algoritmo.',
+  },
+  {
+    selector: '[data-tour="test"]',
+    title: 'Comprueba lo aprendido',
+    description: 'Cuando termines de practicar, responde diez preguntas conceptuales sobre la materia de esta sección.',
+  },
+];
+
+function GuidedTour({ onClose, onStepChange }) {
+  const [stepIndex, setStepIndex] = useState(0);
+  const [targetRect, setTargetRect] = useState(null);
+  const [leaving, setLeaving] = useState(false);
+  const closeTimerRef = useRef(null);
+  const step = TOUR_STEPS[stepIndex];
+
+  const requestClose = useCallback(() => {
+    if (leaving) return;
+    setLeaving(true);
+    closeTimerRef.current = window.setTimeout(onClose, 220);
+  }, [leaving, onClose]);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    const updateTarget = () => {
+      const target = document.querySelector(step.selector);
+      if (!target) return;
+      const rect = target.getBoundingClientRect();
+      setTargetRect({ left: rect.left, top: rect.top, width: rect.width, height: rect.height });
+    };
+    const target = document.querySelector(step.selector);
+    updateTarget();
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    target?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: step.selector.includes('sidebar') ? 'nearest' : 'center' });
+    const timer = window.setTimeout(updateTarget, reduceMotion ? 0 : 420);
+    window.addEventListener('resize', updateTarget);
+    window.addEventListener('scroll', updateTarget, true);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.clearTimeout(timer);
+      window.removeEventListener('resize', updateTarget);
+      window.removeEventListener('scroll', updateTarget, true);
+    };
+  }, [step]);
+
+  useEffect(() => {
+    const closeWithEscape = event => { if (event.key === 'Escape') requestClose(); };
+    window.addEventListener('keydown', closeWithEscape);
+    return () => window.removeEventListener('keydown', closeWithEscape);
+  }, [requestClose]);
+
+  useEffect(() => () => window.clearTimeout(closeTimerRef.current), []);
+
+  const moveTo = nextIndex => {
+    const boundedIndex = Math.max(0, Math.min(TOUR_STEPS.length - 1, nextIndex));
+    setStepIndex(boundedIndex);
+    onStepChange(boundedIndex);
+  };
+  const finishOrContinue = () => {
+    if (stepIndex === TOUR_STEPS.length - 1) requestClose();
+    else moveTo(stepIndex + 1);
+  };
+  const cardStyle = targetRect
+    ? {
+        left: `${Math.max(16, Math.min(window.innerWidth - 376, targetRect.left + targetRect.width + 18))}px`,
+        top: `${Math.max(16, Math.min(window.innerHeight - 280, targetRect.top + Math.min(28, targetRect.height / 3)))}px`,
+      }
+    : undefined;
+
+  return <div className={`guided-tour ${leaving ? 'is-leaving' : ''}`} role="dialog" aria-modal="true" aria-labelledby="guided-tour-title">
+    <button className="guided-tour-backdrop" type="button" onClick={requestClose} aria-label="Cerrar recorrido"/>
+    {targetRect && (
+      <div className="guided-tour-spotlight" style={{
+        left: targetRect.left - 7,
+        top: targetRect.top - 7,
+        width: targetRect.width + 14,
+        height: targetRect.height + 14,
+      }}/>
+    )}
+    <section className="guided-tour-card" style={cardStyle}>
+      <header>
+        <span><CircleHelp size={16}/> CÓMO FUNCIONA</span>
+        <button type="button" onClick={requestClose} aria-label="Cerrar"><X size={17}/></button>
+      </header>
+      <div className="guided-tour-progress" aria-label={`Paso ${stepIndex + 1} de ${TOUR_STEPS.length}`}>
+        {TOUR_STEPS.map((_, index) => <i className={index <= stepIndex ? 'active' : ''} key={index}/>) }
+      </div>
+      <small>Paso {stepIndex + 1} de {TOUR_STEPS.length}</small>
+      <h2 id="guided-tour-title">{step.title}</h2>
+      <p>{step.description}</p>
+      <footer>
+        <button type="button" className="tour-skip" onClick={requestClose}>Omitir recorrido</button>
+        <div>
+          {stepIndex > 0 && <button type="button" className="tour-previous" onClick={()=>moveTo(stepIndex - 1)}><ArrowLeft size={15}/> Atrás</button>}
+          <button type="button" className="tour-next" aria-label={stepIndex === TOUR_STEPS.length - 1 ? 'Finalizar recorrido' : 'Siguiente paso del recorrido'} onClick={finishOrContinue}>{stepIndex === TOUR_STEPS.length - 1 ? 'Finalizar' : 'Siguiente'}{stepIndex < TOUR_STEPS.length - 1 && <ArrowRight size={15}/>}</button>
+        </div>
+      </footer>
+    </section>
+  </div>;
+}
 
 function OpeningIntro({ onDone }) {
   const [leaving, setLeaving] = useState(false);
@@ -2284,6 +2415,7 @@ function App() {
   const [sectionTestActive, setSectionTestActive] = useState(false);
   const [sectionTestViolation, setSectionTestViolation] = useState(null);
   const [sectionTestClock, setSectionTestClock] = useState(Date.now());
+  const [tourOpen, setTourOpen] = useState(false);
   const algorithm = useMemo(
     () => ({ ...baseAlgorithm, values: demoValues, edges: demoEdges, positions: demoPositions, map: demoMap }),
     [baseAlgorithm, demoValues, demoEdges, demoPositions, demoMap],
@@ -2440,6 +2572,22 @@ function App() {
     if (updateHistory && (algorithmIdFromLocation() !== null || window.location.hash)) updateRoute(null);
   }, [registerTestViolation, updateRoute]);
   const toggleSidebar = useCallback(() => setSidebarCollapsed(value => !value), []);
+  const startGuidedTour = useCallback(() => {
+    setPlaying(false);
+    setShowOpeningIntro(false);
+    setSidebarCollapsed(false);
+    setMobileOpen(window.innerWidth <= 780);
+    const needsCompleteLab = isTheoryPage || hideCodePanel;
+    if (showWelcome || needsCompleteLab) openAlgorithm(needsCompleteLab ? 'array' : selectedId);
+    setTourOpen(true);
+  }, [hideCodePanel, isTheoryPage, openAlgorithm, selectedId, showWelcome]);
+  const closeGuidedTour = useCallback(() => {
+    setTourOpen(false);
+    if (window.innerWidth <= 780) setMobileOpen(false);
+  }, []);
+  const handleTourStepChange = useCallback(index => {
+    if (window.innerWidth <= 780) setMobileOpen(index === 0);
+  }, []);
   useEffect(() => {
     const syncRoute = () => {
       registerTestViolation('history');
@@ -2620,7 +2768,7 @@ function App() {
         <div className="complexity-card"><small>{isTheoryPage ? 'Contenido' : 'Complejidad'}</small><strong>{algorithm.complexity}</strong><div><Gauge size={16}/><span>{isTheoryPage ? algorithm.type === 'complexity' ? 'Fundamentos y gráficos' : 'Conceptos fundamentales' : 'Análisis asintótico'}</span></div></div>
       </section>}
 
-      <div className="section-test-entry">
+      <div className="section-test-entry" data-tour="test">
         <div><ClipboardCopy size={18}/><span><strong>Comprueba lo aprendido</strong><small>Prueba conceptual de 10 preguntas</small></span></div>
         <button onClick={startSectionTest} disabled={sectionTestRemainingMs > 0} title={sectionTestRemainingMs > 0 ? `Disponible en ${sectionTestRemainingMinutes} minutos` : 'Iniciar prueba conceptual'}>
           {sectionTestRemainingMs > 0 ? `Bloqueada · ${sectionTestRemainingMinutes} min` : 'Realizar prueba'}
@@ -2629,7 +2777,7 @@ function App() {
 
       {isTheoryPage ? algorithm.type === 'complexity' ? <ComplexityLesson/> : algorithm.type === 'oop' ? <OopLesson/> : algorithm.type === 'foundation' ? <Suspense fallback={<DescriptionFallback/>}><FoundationLesson algorithm={algorithm}/></Suspense> : <DataStructuresLesson/> : <>
       <section className={`lab-grid ${hideCodePanel ? 'visual-only' : ''}`}>
-        <article className="panel visual-panel">
+        <article className="panel visual-panel" data-tour="visualizer">
           <div className="panel-head"><div><span className="panel-index">01</span><h2>Visualización</h2></div><div className="panel-head-actions">{operationDefinition.actions.length > 0 && <button className={`challenge-toggle ${challengeMode ? 'active' : ''}`} onClick={toggleChallengeMode} title={challengeMode ? 'Salir del modo desafío' : 'Practicar con una predicción'} aria-label={challengeMode ? 'Salir del modo desafío' : 'Modo desafío'} aria-pressed={challengeMode}><Brain size={15}/>{challengeMode ? 'Salir' : 'Desafío'}</button>}<button onClick={createNewExample} title="Generar datos nuevos"><Shuffle size={15}/> Nuevo ejemplo</button><button onClick={resetDemo} title="Volver a los datos originales"><RotateCcw size={15}/> Restablecer</button></div></div>
           <div className="canvas-grid" data-visualizer={algorithm.id}><MemoizedVisualizer algorithm={visualAlgorithm} step={operationFrames.length ? currentAnimationFrame?.position ?? step : step}/><div className={`step-badge ${currentAnimationFrame?.iteration != null ? 'loop-step' : ''}`}>{currentAnimationFrame?.loopExit ? <>Fin <b>bucle</b></> : currentAnimationFrame?.iteration != null ? <>Iteración <b>{Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)}/{currentAnimationFrame.totalIterations}</b></> : <>Paso <b>{String(step+1).padStart(2,'0')}</b></>}</div></div>
           {challengeMode
@@ -2639,7 +2787,7 @@ function App() {
           <div className="player"><button onClick={()=>goToStep(step-1)} aria-label="Anterior"><ArrowLeft size={17}/></button><button className="play" onClick={togglePlayback}>{playing?<Pause size={18}/>:<Play size={18}/>}<span>{playing?'Pausar':'Reproducir'}</span></button><button onClick={()=>goToStep(step+1)} aria-label="Siguiente"><ArrowRight size={17}/></button><div className="timeline"><span style={{width:`${((step+1)/totalSteps)*100}%`}}/></div><label><span>Velocidad</span><select value={speed} onChange={e=>setSpeed(Number(e.target.value))}><option value="0.5">0.5×</option><option value="1">1×</option><option value="2">2×</option></select><ChevronDown size={13}/></label></div>
         </article>
 
-        {!hideCodePanel && <article className="panel code-panel">
+        {!hideCodePanel && <article className="panel code-panel" data-tour="code">
           <div className="panel-head code-head">
             <div><span className="panel-index">02</span><h2>{codeMode === 'java' ? activeOperationLabel : 'Pseudocódigo'}</h2></div>
             <div className="code-actions">
@@ -2667,7 +2815,9 @@ function App() {
       <footer className="algorithm-nav"><button onClick={()=>selectRelative(-1)}><ArrowLeft size={16}/><span><small>Anterior</small>{algorithms[(selectedIndex-1+algorithms.length)%algorithms.length].name}</span></button><button onClick={()=>selectRelative(1)}><span><small>Siguiente</small>{algorithms[(selectedIndex+1)%algorithms.length].name}</span><ArrowRight size={16}/></button></footer>
       </>}
     </main>
+    <button className="guided-tour-launch" type="button" onClick={startGuidedTour} aria-label="Abrir recorrido guiado de cómo funciona DSA Lab"><CircleHelp size={19}/><span>¿Cómo funciona?</span></button>
     <BugReporter section={showWelcome ? 'Bienvenida' : algorithm.name}/>
+    {tourOpen && <GuidedTour onClose={closeGuidedTour} onStepChange={handleTourStepChange}/>}
     {sectionTest && <SectionTestModal
       algorithm={sectionTest.algorithm}
       externalViolation={sectionTestViolation?.reason ?? null}

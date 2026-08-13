@@ -14,7 +14,7 @@ export default function OperationsPanel({ algorithm, message, status = 'idle', a
     }
   };
 
-  return <section className="operations-panel">
+  return <section className="operations-panel" data-tour="operations">
     <div className="operation-fields">
       {definition.fields.map(input => <label key={input.id}>
         <span>{input.label}</span>
