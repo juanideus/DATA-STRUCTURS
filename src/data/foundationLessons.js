@@ -1,4 +1,4 @@
-const section = (title, text, code = '', bullets = []) => ({ title, text, code, bullets });
+const section = (title, text, code = '', bullets = [], codeLabel = 'Ejemplo en Java') => ({ title, text, code, bullets, codeLabel });
 
 const lesson = ({ id, name, navName, scope, summary, pseudocode, values, intro, essentials, sections, mistakes, checklist, remember }) => ({
   id, name, navName, scope, summary, pseudocode, values, intro, essentials, sections, mistakes, checklist, remember,
@@ -113,34 +113,81 @@ int resultado = sumar(3, 4);`),
     remember: 'Un método claro responde cuatro preguntas: cómo se llama, qué recibe, qué hace y qué devuelve.',
   }),
   lesson({
-    id: 'memoria-referencias', name: 'Memoria y referencias', navName: 'Memoria y referencias',
-    scope: 'Stack · Heap · Referencias · null · Alias',
-    summary: 'Comprende dónde viven variables y objetos, qué guarda una referencia y por qué varios enlaces pueden llegar al mismo nodo.',
-    pseudocode: 'crear un objeto en memoria\nguardar su referencia\ncopiar o cambiar referencias\ncomprobar null antes de acceder', values: ['stack', 'heap', 'null'],
-    intro: 'Para razonar sobre nodos, árboles y objetos hay que distinguir el valor de una referencia del objeto al que apunta. Una referencia permite localizar un objeto; copiarla no duplica el objeto. Dos variables pueden llegar a la misma instancia y observar los mismos cambios.',
+    id: 'punteros-referencias', name: 'Punteros y referencias', navName: 'Punteros y referencias',
+    scope: 'Dirección · Indirección · Desreferenciación · Alias · null',
+    summary: 'Comprende cómo un programa localiza datos indirectamente, cómo se enlazan nodos y qué diferencias existen entre un puntero explícito y una referencia administrada.',
+    pseudocode: 'reservar o localizar un dato\nguardar un enlace hacia él\ndesreferenciar para leer o modificar\nvalidar el enlace antes de usarlo', values: ['dirección', 'puntero', 'referencia'],
+    intro: 'Los datos se almacenan en posiciones de memoria. Un puntero o una referencia permite llegar a un dato sin contenerlo completo: funciona como un enlace entre una variable y otra zona de memoria. Los lenguajes presentan este mecanismo con distintos niveles de control, pero la idea de indirección es la misma y permite construir listas, árboles, grafos y objetos compartidos.',
     essentials: [
-      { term: 'Stack', label: 'Llamadas y variables locales', text: 'Cada llamada mantiene sus parámetros, variables locales y punto de retorno.' },
-      { term: 'Heap', label: 'Objetos creados', text: 'new reserva objetos cuya vida puede superar a una llamada particular.' },
-      { term: 'Referencia', label: 'Camino al objeto', text: 'Guarda cómo acceder a una instancia; null indica que no apunta a ninguna.' },
+      { term: 'Dirección', label: 'Dónde está el dato', text: 'Identifica una posición de memoria; suele representarse como un número hexadecimal.' },
+      { term: 'Indirección', label: 'Llegar mediante un enlace', text: 'La variable conduce al dato almacenado en otro lugar en vez de contenerlo directamente.' },
+      { term: 'Desreferenciar', label: 'Acceder al destino', text: 'Consiste en seguir el enlace para leer o modificar el dato al que apunta.' },
     ],
     sections: [
-      section('Crear y referenciar', 'new crea el objeto y devuelve una referencia. La variable guarda esa referencia, no una copia completa de la instancia.', `Nodo primero = new Nodo(10);
-Nodo segundo = new Nodo(20);
-primero.next = segundo;`),
-      section('Alias', 'Copiar una referencia crea otro nombre para el mismo objeto. Modificarlo desde cualquiera de las referencias afecta a la única instancia compartida.', `Nodo a = new Nodo(10);
-Nodo b = a;
-b.valor = 99;
-System.out.println(a.valor); // 99`),
-      section('null y enlaces', 'null representa ausencia de objeto. Antes de seguir next, left o right hay que comprobar que la referencia existe.', `Nodo actual = head;
-while (actual != null) {
-    System.out.println(actual.valor);
-    actual = actual.next;
-}`),
-      section('Recolección de basura', 'Un objeto sin referencias alcanzables puede ser recuperado automáticamente por Java. Asignar null no destruye de inmediato: elimina un camino hacia el objeto.'),
+      section('Valor directo frente a acceso indirecto', 'Una variable común puede guardar directamente un valor. Una variable indirecta guarda cómo llegar a otro dato. Si valor contiene 25 y puntero conduce a valor, leer el destino del puntero también produce 25.', `valor:   [25]
+puntero: [dirección de valor] ───► [25]`, [], 'Modelo conceptual'),
+      section('Qué es un puntero', 'Un puntero guarda explícitamente una dirección de memoria. En lenguajes como C se obtiene la dirección con & y se sigue con *. Su tipo indica qué clase de dato se espera encontrar en el destino.', `int valor = 25;
+int *puntero = &valor;
+
+printf("%d", *puntero); // 25
+*puntero = 40;           // valor ahora contiene 40`, [], 'Ejemplo en C'),
+      section('Qué es una referencia', 'Una referencia también da acceso indirecto, pero normalmente el lenguaje oculta la dirección real y controla qué operaciones están permitidas. Java, Python, C# y otros lenguajes usan referencias administradas para objetos. C++ además posee referencias que actúan como un alias explícito.', '', ['Un puntero suele poder reasignarse y algunos lenguajes permiten aritmética de direcciones.', 'Una referencia administrada permite usar el objeto sin exponer su dirección física.', 'La sintaxis y las reglas cambian según el lenguaje; el concepto compartido es llegar indirectamente al mismo dato.']),
+      section('Alias: dos enlaces al mismo dato', 'Existe aliasing cuando dos punteros o referencias llegan al mismo destino. Modificar el destino mediante uno de ellos hace visible el cambio mediante el otro; copiar el enlace no copia el dato.', `a ──────┐
+         ├──► [ Nodo: 99 ]
+b ──────┘`, [], 'Modelo conceptual'),
+      section('Enlaces en estructuras de datos', 'Un nodo guarda datos y uno o más enlaces. next conecta una lista, left y right conectan un árbol, y una colección de enlaces representa las aristas de un grafo. El enlace transporta la conexión; no contiene una copia completa del siguiente nodo.', `nodoA.next ───► nodoB
+
+       raíz
+      /    \
+   left    right`, [], 'Modelo conceptual'),
+      section('Ausencia de destino', 'Un enlace nulo representa que no existe destino. Antes de desreferenciarlo se valida. En una lista lineal suele marcar el final; en un árbol puede indicar que falta un hijo.', `actual ← cabeza
+mientras actual ≠ nulo
+    mostrar actual.valor
+    actual ← actual.siguiente`, [], 'Pseudocódigo'),
+      section('Riesgos principales', 'Los lenguajes con punteros explícitos entregan más control, pero también permiten errores de memoria. Los lenguajes administrados evitan varios de ellos, aunque todavía pueden ocurrir accesos nulos y alias inesperados.', '', ['Puntero nulo: no conduce a un dato válido.', 'Puntero colgante: conserva una dirección cuyo dato ya dejó de existir.', 'Puntero sin inicializar: contiene una dirección indeterminada.', 'Fuga de memoria: se reserva memoria y se pierde la forma correcta de liberarla.', 'Alias inesperado: una modificación afecta a un dato compartido sin que el programador lo advierta.']),
+      section('Comparación entre enfoques', 'No existe un mecanismo universal idéntico en todos los lenguajes. Conviene aprender primero la relación variable → enlace → dato y después estudiar las reglas concretas del lenguaje utilizado.', '', ['C: punteros explícitos, aritmética y liberación manual.', 'C++: punteros, referencias y punteros inteligentes.', 'Java y C#: referencias administradas y recolección de basura.', 'Python y JavaScript: nombres que enlazan objetos, con memoria administrada.']),
     ],
-    mistakes: ['Creer que copiar una referencia clona el objeto', 'Seguir next cuando actual es null', 'Perder head antes de guardar el siguiente nodo', 'Confundir el heap de memoria con la estructura Heap'],
-    checklist: ['Dibujar variables y objetos por separado', 'Representar cada referencia con una flecha', 'Marcar explícitamente null', 'Actualizar enlaces en un orden que no pierda nodos'],
-    remember: 'Las variables de referencia son flechas, no cajas que contienen el objeto completo.',
+    mistakes: ['Creer que el enlace contiene una copia del dato', 'Confundir la dirección con el valor almacenado en esa dirección', 'Desreferenciar sin comprobar que el destino sea válido', 'Olvidar que dos enlaces pueden compartir el mismo dato', 'Aplicar las reglas de punteros de un lenguaje a otro'],
+    checklist: ['Dibujar variables, enlaces y datos por separado', 'Marcar la dirección y el valor como conceptos distintos', 'Representar cada enlace mediante una flecha', 'Identificar alias y enlaces nulos', 'Revisar las reglas específicas del lenguaje usado'],
+    remember: 'Un puntero o una referencia no es el dato: es el camino que permite llegar hasta él.',
+  }),
+  lesson({
+    id: 'manejo-memoria-java', name: 'Manejo de memoria en Java', navName: 'Manejo de memoria',
+    scope: 'Stack · Heap · Alcance · Recolector de basura',
+    summary: 'Aprende dónde se conservan las llamadas, variables y objetos, cuándo un objeto deja de ser alcanzable y cómo evitar retener memoria sin necesidad.',
+    pseudocode: 'crear un marco al llamar un método\nreservar objetos con new en el heap\nconservar solamente referencias necesarias\npermitir que el recolector recupere objetos', values: ['stack', 'heap', 'GC'],
+    intro: 'Java administra la memoria automáticamente, pero el programador todavía debe comprender qué conserva cada parte del programa. De forma conceptual, la pila de llamadas organiza los métodos activos y el heap contiene los objetos creados con new. El recolector de basura recupera objetos que ya no son alcanzables; no corrige referencias innecesarias que el programa todavía conserva.',
+    essentials: [
+      { term: 'Stack', label: 'Ejecución activa', text: 'Cada llamada conserva parámetros, variables locales y el lugar al que debe regresar.' },
+      { term: 'Heap', label: 'Objetos y arreglos', text: 'Aquí se alojan las instancias creadas con new y pueden ser compartidas por varias referencias.' },
+      { term: 'GC', label: 'Recolección automática', text: 'Recupera objetos que ya no pueden alcanzarse desde referencias activas.' },
+    ],
+    sections: [
+      section('Marcos en la pila de llamadas', 'Cada método agrega un marco con su estado local. Cuando retorna, ese marco se retira. Una recursión demasiado profunda puede agotar la pila y producir StackOverflowError.', `static int sumarHasta(int n) {
+    if (n == 0) return 0;
+    return n + sumarHasta(n - 1);
+}`),
+      section('Objetos en el heap', 'new reserva un objeto o arreglo en el heap y devuelve una referencia. Que una variable local salga de alcance no elimina el objeto si todavía existe otra referencia que lo alcance.', `Nodo cabeza = new Nodo(10);
+cabeza.next = new Nodo(20);
+
+Nodo copia = cabeza; // ambos alcanzan el primer nodo`),
+      section('Alcance y tiempo de vida', 'El alcance indica dónde puede utilizarse un nombre. El tiempo de vida del objeto depende de su alcanzabilidad, no del bloque donde fue creado.', `static Nodo crearNodo() {
+    Nodo nuevo = new Nodo(7);
+    return nuevo; // el objeto sigue alcanzable al retornar
+}`),
+      section('Cuándo un objeto puede recolectarse', 'Un objeto es candidato a recolección cuando ninguna cadena de referencias activas permite llegar hasta él. Asignar null solo elimina una referencia; no ordena una destrucción inmediata.', `Nodo nodo = new Nodo(10);
+nodo = null; // la instancia puede quedar inalcanzable
+// El recolector decide cuándo recuperar su memoria.`),
+      section('Retenciones y fugas lógicas', 'Aunque exista recolector, una colección estática, un listener olvidado o una lista que nunca elimina elementos puede mantener objetos alcanzables sin necesidad. Para Java siguen vivos, aunque la aplicación ya no los utilice.', `static ArrayList<Nodo> historial = new ArrayList<>();
+
+static void limpiarHistorial() {
+    historial.clear();
+}`),
+      section('Errores relacionados', 'StackOverflowError suele indicar demasiadas llamadas anidadas. OutOfMemoryError indica que no se pudo reservar memoria suficiente. Capturarlos normalmente no soluciona la causa: hay que corregir la recursión, el tamaño o las referencias retenidas.'),
+    ],
+    mistakes: ['Confundir el heap de memoria con la estructura de datos Heap', 'Creer que salir de un bloque destruye inmediatamente el objeto', 'Llamar System.gc() esperando una recolección obligatoria', 'Conservar objetos para siempre en colecciones estáticas', 'Crear recursión sin un caso base alcanzable'],
+    checklist: ['Distinguir marcos de llamada y objetos', 'Identificar qué referencias mantienen alcanzable cada objeto', 'Eliminar elementos que dejaron de ser útiles', 'Cerrar recursos externos con try-with-resources', 'Probar entradas grandes y profundidad recursiva'],
+    remember: 'El recolector recupera objetos inalcanzables; diseñar qué objetos siguen alcanzables continúa siendo responsabilidad del programa.',
   }),
   lesson({
     id: 'recursividad-fundamentos', name: 'Fundamentos de recursividad', navName: 'Recursividad',
@@ -468,6 +515,64 @@ assert resultado == 2 : "índice incorrecto";`),
     mistakes: ['Crear partes que no reducen el problema', 'Olvidar combinar las respuestas parciales', 'Solapar subproblemas repetidamente sin considerar memoización', 'Perder elementos al calcular los límites', 'Asumir que toda recursión es Divide y Vencerás'],
     checklist: ['Definir un caso base directo', 'Explicar cómo disminuye cada parte', 'Resolver todas las partes necesarias', 'Diseñar una combinación correcta', 'Escribir y simplificar la recurrencia'],
     remember: 'La estrategia está completa solamente cuando explica cómo dividir, cómo resolver las partes y cómo reconstruir la respuesta original.',
+  }),
+  lesson({
+    id: 'programacion-dinamica', name: 'Fundamentos de Programación Dinámica', navName: 'Programación dinámica',
+    scope: 'Estado · Recurrencia · Memoización · Tabulación',
+    summary: 'Resuelve problemas con subproblemas repetidos guardando sus respuestas para no calcularlas una y otra vez.',
+    pseudocode: 'definir el estado y los casos base\nescribir la relación de recurrencia\nguardar cada resultado calculado\nconstruir o consultar la respuesta final', values: ['estado', 'memo', 'tabla'],
+    intro: 'La programación dinámica se utiliza cuando una solución puede construirse a partir de subproblemas y los mismos subproblemas aparecen repetidamente. En vez de resolverlos otra vez, guarda cada respuesta y la reutiliza. El trabajo principal no es crear una tabla: es definir correctamente qué significa cada estado, cómo depende de estados más pequeños y cuáles son sus casos base.',
+    essentials: [
+      { term: 'Estado', label: 'Qué representa', text: 'Describe exactamente un subproblema, por ejemplo: el Fibonacci correspondiente a n.' },
+      { term: 'Transición', label: 'Cómo se construye', text: 'Relaciona un estado con respuestas de estados más pequeños ya conocidos.' },
+      { term: 'Memoria', label: 'Evita repetir', text: 'Memoización y tabulación almacenan resultados para calcular cada estado una sola vez.' },
+    ],
+    sections: [
+      section('Cuándo se puede aplicar', 'Debe existir subestructura óptima: la respuesta se forma con respuestas correctas de problemas menores. Además, esos subproblemas se superponen; si cada parte aparece una sola vez, Divide y Vencerás puede ser suficiente.', '', ['Subproblemas superpuestos: una misma entrada vuelve a solicitarse.', 'Subestructura óptima: soluciones parciales correctas permiten construir la solución mayor.', 'Una definición precisa del estado evita guardar información incompleta o redundante.']),
+      section('Primero: estado, base y transición', 'Antes de programar se define el significado de dp[i]. Para Fibonacci, dp[i] representa fib(i), los casos base son 0 y 1, y la transición suma los dos estados anteriores.', `dp[0] = 0;
+dp[1] = 1;
+
+for (int i = 2; i <= n; i++) {
+    dp[i] = dp[i - 1] + dp[i - 2];
+}`),
+      section('Memoización: de arriba hacia abajo', 'Mantiene la forma recursiva. Antes de resolver un estado revisa si ya fue calculado; si no, lo calcula y lo guarda. Cada n se resuelve una sola vez.', `static long fibonacci(int n, long[] memo) {
+    if (n <= 1) return n;
+    if (memo[n] != 0) return memo[n];
+
+    memo[n] = fibonacci(n - 1, memo)
+            + fibonacci(n - 2, memo);
+    return memo[n];
+}`),
+      section('Tabulación: de abajo hacia arriba', 'Comienza por los casos base y llena una tabla en un orden que garantiza que cada dependencia ya esté disponible. Evita llamadas recursivas.', `static long fibonacci(int n) {
+    if (n <= 1) return n;
+
+    long[] dp = new long[n + 1];
+    dp[0] = 0;
+    dp[1] = 1;
+
+    for (int i = 2; i <= n; i++) {
+        dp[i] = dp[i - 1] + dp[i - 2];
+    }
+    return dp[n];
+}`),
+      section('Optimizar la memoria', 'Si la transición solo necesita los dos estados anteriores, no hace falta conservar la tabla completa. Dos variables reducen la memoria de O(n) a O(1), sin cambiar el tiempo O(n).', `static long fibonacciOptimizado(int n) {
+    if (n <= 1) return n;
+    long anterior = 0;
+    long actual = 1;
+
+    for (int i = 2; i <= n; i++) {
+        long siguiente = anterior + actual;
+        anterior = actual;
+        actual = siguiente;
+    }
+    return actual;
+}`),
+      section('No es lo mismo que greedy', 'Un algoritmo greedy elige en cada paso lo que parece mejor y no reconsidera la decisión. Programación dinámica compara sistemáticamente estados y conserva resultados; puede encontrar una respuesta óptima cuando una decisión local no basta.'),
+      section('Complejidad', 'Fibonacci recursivo simple repite llamadas y tarda O(2^n). Con memoización o tabulación calcula n estados, cada uno con trabajo constante: O(n) tiempo y O(n) memoria. La optimización conserva O(n) tiempo y utiliza O(1) memoria.'),
+    ],
+    mistakes: ['Crear una tabla sin definir qué representa cada celda', 'Olvidar inicializar todos los casos base', 'Llenar estados antes que sus dependencias', 'Usar memoización pero no guardar el resultado', 'Aplicarla cuando no existen subproblemas repetidos'],
+    checklist: ['Escribir el significado exacto del estado', 'Definir casos base válidos', 'Construir la transición', 'Elegir memoización o tabulación', 'Determinar el orden de cálculo', 'Analizar tiempo, memoria y posible optimización'],
+    remember: 'Programación dinámica = definir estados + relacionarlos + guardar respuestas. La tabla es una consecuencia de esa idea, no el punto de partida.',
   }),
 ];
 
