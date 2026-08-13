@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createReportEmail } from '../src/email.js';
+import { createReportEmail, sendReportEmail } from '../src/email.js';
 import { escapeHtml, normalizeReport, validateReport } from '../src/validation.js';
 
 const validInput = {
@@ -40,4 +40,27 @@ test('prepara un correo de texto y HTML', () => {
   assert.match(message.subject, /DSA Lab/);
   assert.match(message.text, /Árbol AVL/);
   assert.match(message.html, /Ana Torres/);
+});
+
+test('elimina saltos de línea de los campos usados en cabeceras', () => {
+  const report = normalizeReport({ ...validInput, title: 'Error\r\nBcc: atacante@example.com' });
+  assert.equal(report.title, 'Error Bcc: atacante@example.com');
+  assert.ok(!createReportEmail(report).subject.includes('\n'));
+});
+
+test('rechaza direcciones de página con protocolos peligrosos', () => {
+  const report = normalizeReport({ ...validInput, pageUrl: 'javascript:alert(1)' });
+  assert.ok(validateReport(report).pageUrl);
+});
+
+test('no expone el mensaje interno entregado por Resend', async () => {
+  const fetchImpl = async () => ({
+    ok: false,
+    status: 401,
+    json: async () => ({ message: 'API key secreta inválida' }),
+  });
+  await assert.rejects(
+    sendReportEmail({ apiKey: 'secreto', from: 'a@example.com', to: 'b@example.com', report: normalizeReport(validInput), fetchImpl }),
+    error => error.status === 502 && error.message === 'El proveedor de correo rechazó el envío.' && error.providerStatus === 401,
+  );
 });

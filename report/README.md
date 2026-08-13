@@ -39,6 +39,7 @@ RESEND_API_KEY=re_xxxxxxxxx
 REPORT_EMAIL=correo-asociado-a-resend@ejemplo.com
 ALLOWED_ORIGINS=https://tu-proyecto.vercel.app,http://localhost:5173
 REPORT_FROM=DSA Lab <onboarding@resend.dev>
+NODE_ENV=production
 ```
 
 No agregues `RESEND_API_KEY` al frontend, a una variable `VITE_*`, al repositorio ni al archivo `.env.example`.
@@ -71,6 +72,8 @@ No agregues `RESEND_API_KEY` al frontend, a una variable `VITE_*`, al repositori
 - Honeypot contra envíos automatizados.
 - Límite básico de cinco solicitudes por IP cada quince minutos.
 - Respuestas sin detalles internos ni credenciales.
+- Solicitudes sin `Origin` rechazadas en producción.
+- Tiempo máximo de diez segundos para contactar a Resend.
 
 El límite de solicitudes se guarda en memoria y es adecuado como primera barrera. Si en el futuro se utilizan varias instancias o se recibe más tráfico, conviene reemplazarlo por Redis o una solución persistente.
 

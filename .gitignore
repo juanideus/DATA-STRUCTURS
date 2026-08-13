@@ -3,6 +3,9 @@ dist/
 .vite/
 *.local
 *.log
+.env
+.env.*
+!.env.example
 test-results/
 playwright-report/
 blob-report/

@@ -944,12 +944,18 @@ test('la matriz poco poblada es circular y se recorre en el sentido enseñado', 
   await expect(page.locator('.operation-message')).toContainText('4 ← 8 ← 7 ← 2', { timeout: 15000 });
 });
 
-test('muestra informar problema como una función próximamente', async ({ page }) => {
+test('muestra el formulario activo para informar un problema', async ({ page }) => {
   await page.getByRole('button', { name: 'Informar un problema' }).click();
-  await expect(page.getByRole('heading', { name: 'Próximamente' })).toBeVisible();
-  await expect(page.locator('.bug-modal-preview')).toHaveAttribute('inert', '');
-  await expect(page.locator('.bug-modal-preview')).toHaveCSS('filter', 'blur(5px)');
-  await page.getByRole('button', { name: 'Entendido' }).click();
+  const dialog = page.getByRole('dialog', { name: '¿Encontraste algo extraño?' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toHaveCSS('filter', 'none');
+  await expect(page.getByRole('heading', { name: 'Próximamente' })).toHaveCount(0);
+  await expect(page.locator('.bug-modal-preview')).toHaveCount(0);
+  await expect(dialog.getByLabel('Tu nombre')).toBeEnabled();
+  await expect(dialog.getByLabel('Resumen corto')).toBeEnabled();
+  await expect(dialog.getByLabel('Cuéntanos qué ocurrió')).toBeEnabled();
+  await expect(dialog.getByRole('button', { name: 'Enviar reporte' })).toBeEnabled();
+  await dialog.getByRole('button', { name: 'Cerrar formulario' }).click();
   await expect(page.locator('.bug-modal')).toHaveCount(0);
 });
 
