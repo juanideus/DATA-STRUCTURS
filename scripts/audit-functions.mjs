@@ -271,6 +271,7 @@ for (const algorithm of algorithms) {
           JSON.stringify(frame.values) !== JSON.stringify(initialValues)
           || JSON.stringify(frame.edges ?? initialEdges) !== JSON.stringify(initialEdges)
           || (frame.trieState?.revealed ?? 0) > 0
+          || (frame.recursionTree?.nodes?.length ?? 0) > 0
         ));
         assert.ok(firstVisibleChange >= 0 && firstVisibleChange < frames.length - 1, `${label}: el visual cambia recién al terminar, separado de la línea Java que muta la estructura.`);
       }
@@ -345,14 +346,24 @@ assert.equal(overflowingOpenAddressing.values.length, 12, 'Open Addressing no de
 
 const fibonacciAlgorithm = algorithms.find(item => item.id === 'fibonacci');
 const fibonacciJava = getBeginnerJava(fibonacciAlgorithm, 'calculate');
-assert.match(fibonacciJava, /sequence\[i\] = fibonacci\(i\)/, 'Fibonacci debe asociar cada valor visible con su llamada recursiva.');
-assert.match(fibonacciJava, /return fibonacci\(number - 1\) \+ fibonacci\(number - 2\)/, 'Fibonacci debe conservar la recursividad que enseña la sección.');
+assert.match(fibonacciJava, /int left = fibonacci\(number - 1\)/, 'Fibonacci debe mostrar la llamada recursiva izquierda del árbol.');
+assert.match(fibonacciJava, /int right = fibonacci\(number - 2\)/, 'Fibonacci debe mostrar la llamada recursiva derecha del árbol.');
+assert.match(fibonacciJava, /return left \+ right/, 'Fibonacci debe mostrar cómo combina ambos retornos.');
+const fibonacciTreeResult = run(fibonacciAlgorithm, 'calculate', { value: '5', second: '', index: '' });
+assert.equal(fibonacciTreeResult.values[0], 5, 'Fibonacci(5) debe retornar 5.');
+assert.equal(fibonacciTreeResult.frames.at(-1).recursionTree.nodes.length, 15, 'Fibonacci(5) debe revelar sus 15 llamadas en el árbol completo.');
+assert.ok(fibonacciTreeResult.frames.some(frame => frame.recursionTree.phase === 'call-right'), 'Fibonacci debe animar por separado la rama derecha.');
+assert.ok(fibonacciTreeResult.frames.at(-1).recursionTree.nodes.every(node => node.status === 'returned'), 'Fibonacci debe terminar con todos los nodos retornados.');
 
 const factorialAlgorithm = algorithms.find(item => item.id === 'factorial');
 const factorialJava = getBeginnerJava(factorialAlgorithm, 'calculate');
-assert.match(factorialJava, /factorials\[i - 1\] = factorial\(i\)/, 'Factorial debe asociar cada resultado visible con su llamada recursiva.');
-assert.match(factorialJava, /return number \* factorial\(number - 1\)/, 'Factorial debe conservar la recursividad que enseña la sección.');
+assert.match(factorialJava, /int smaller = factorial\(number - 1\)/, 'Factorial debe mostrar la llamada que desciende en el árbol.');
+assert.match(factorialJava, /return number \* smaller/, 'Factorial debe mostrar cómo usa el retorno de la llamada hija.');
 assert.deepEqual(run(factorialAlgorithm, 'calculate', { value: '0', second: '', index: '' }).values, [1], 'Factorial debe visualizar correctamente que 0! = 1.');
+const factorialTreeResult = run(factorialAlgorithm, 'calculate', { value: '5', second: '', index: '' });
+assert.equal(factorialTreeResult.values[0], 120, 'Factorial(5) debe retornar 120.');
+assert.equal(factorialTreeResult.frames.at(-1).recursionTree.nodes.length, 5, 'Factorial(5) debe mostrar una llamada por cada nivel hasta el caso base.');
+assert.ok(factorialTreeResult.frames.at(-1).recursionTree.nodes.every(node => node.status === 'returned'), 'Factorial debe terminar con toda la cadena de retornos calculada.');
 
 const polynomial = algorithms.find(item => item.id === 'polinomios');
 assert.ok(polynomial, 'Falta el visualizador de polinomios.');

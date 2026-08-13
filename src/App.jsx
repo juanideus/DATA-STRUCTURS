@@ -22,6 +22,7 @@ import { COMPLEXITY_ORDERS, complexityValue } from './logic/complexity.js';
 import { GENERALIZED_LIST_EXAMPLES, generalizedListToString, generalizedListValuesFromSource } from './logic/generalizedList.js';
 import { createRandomPathMap, DEFAULT_PATH_MAP } from './logic/pathfindingMap.js';
 import { formatPolynomial, polynomialTerms } from './logic/polynomial.js';
+import { buildRecursionCallTree } from './logic/recursionTrace.js';
 import { getSectionTestLockedUntil } from './logic/sectionTests.js';
 
 const EducationalDescription = lazy(() => import('./components/EducationalDescription.jsx'));
@@ -213,7 +214,7 @@ function createRandomValues(algorithm) {
     return Array.from({ length: disks }, (_, index) => disks - index);
   }
   if (algorithm.id === 'fibonacci') {
-    const length = randomNumber(6, 9), values = [0, 1];
+    const length = randomNumber(6, 8), values = [0, 1];
     while (values.length < length) values.push(values.at(-1) + values.at(-2));
     return values;
   }
@@ -2044,16 +2045,49 @@ function HashTableVisual({ algorithm, step }) {
 }
 
 function RecursionVisual({ algorithm, step }) {
-  const windowSize = 6;
-  const maximumStart = Math.max(0, algorithm.values.length - windowSize);
-  const start = Math.max(0, Math.min(maximumStart, step - 2));
-  return <div className="recursion-visual">
-    {algorithm.values.slice(start, start + windowSize).map((value, visibleIndex) => {
-      const actualIndex = start + visibleIndex;
-      return <div className={actualIndex === step ? 'active' : ''} style={{transform:`translateX(${visibleIndex*16}px)`}} key={actualIndex}>
-        <span>llamada {actualIndex}</span><strong>{value ?? '…'}</strong>
-      </div>;
-    })}
+  const inferredInput = algorithm.id === 'fibonacci'
+    ? Math.max(0, Math.min(7, algorithm.values.length - 1))
+    : Math.max(0, Math.min(10, algorithm.values.length));
+  const tree = algorithm.animationFrame?.recursionTree ?? buildRecursionCallTree(algorithm.id, inferredInput, true);
+  const nodesById = new Map(tree.nodes.map(node => [node.id, node]));
+  const width = Math.max(680, tree.leafCount * 68);
+  const height = Math.max(340, (tree.maxDepth + 1) * 76);
+  const methodLabel = algorithm.id === 'fibonacci' ? 'fib' : 'factorial';
+  const scrollRef = useRef(null);
+  useEffect(() => {
+    const container = scrollRef.current;
+    const focusNode = nodesById.get(tree.activeId) ?? nodesById.get(tree.rootId);
+    if (!container || !focusNode) return;
+    const left = (focusNode.x / 100) * width - container.clientWidth / 2;
+    const top = (focusNode.y / 100) * height - container.clientHeight / 2;
+    container.scrollTo({ left: Math.max(0, left), top: Math.max(0, top), behavior: 'smooth' });
+  }, [height, step, tree.activeId, tree.rootId, width]);
+  return <div className="recursion-tree-shell" aria-label={`Árbol de llamadas de ${algorithm.name}`}>
+    <div className="recursion-tree-legend">
+      <span><i className="call-active"/>Llamada activa</span>
+      <span><i className="call-waiting"/>Esperando retorno</span>
+      <span><i className="call-returned"/>Resultado calculado</span>
+    </div>
+    <div className="recursion-tree-scroll" ref={scrollRef}>
+      <div className={`recursion-call-tree ${algorithm.id}`} style={{ width, height }}>
+        <svg aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none">
+          {tree.nodes.map(node => {
+            const parent = nodesById.get(node.parentId);
+            if (!parent) return null;
+            return <line className={node.id === tree.activeId ? 'active' : node.status === 'returned' ? 'returned' : ''} key={`${parent.id}-${node.id}`} x1={parent.x} y1={parent.y} x2={node.x} y2={node.y}/>;
+          })}
+        </svg>
+        {tree.nodes.map(node => <div
+          className={`recursion-call-node ${node.status} ${node.id === tree.activeId ? 'current' : ''}`}
+          style={{ left: `${node.x}%`, top: `${node.y}%` }}
+          key={node.id}
+          aria-label={`${methodLabel} de ${node.number}${node.result !== null ? ` retorna ${node.result}` : ''}`}
+        >
+          <small>{methodLabel}</small><strong>({node.number})</strong>
+          <em>{node.result !== null ? `= ${node.result}` : node.status === 'waiting' ? 'espera' : '…'}</em>
+        </div>)}
+      </div>
+    </div>
   </div>;
 }
 
@@ -2533,6 +2567,8 @@ function App() {
       ? 'El código usa un único Node con tag 0 para átomos, tag 1 para sublistas y tag 2 para encabezamientos. link avanza en el mismo nivel, dlink baja a una sublista y ref protege las listas compartidas.'
       : baseAlgorithm.id === 'arbol-enhebrado'
         ? 'Las líneas sólidas son hijos reales. Las flechas discontinuas son hilos: LT lleva al predecesor y RT al sucesor inorden. El código comprueba los indicadores antes de seguir cada referencia.'
+      : ['fibonacci', 'factorial'].includes(baseAlgorithm.id)
+        ? 'Cada nodo representa una llamada real del método recursivo. Naranja indica la llamada activa, azul una llamada que espera el retorno de su hija y verde un resultado ya calculado. La línea Java y las variables avanzan junto al nodo enfocado.'
       : baseAlgorithm.id === 'ast'
         ? 'El analizador lee una asignación Java con descenso recursivo. parseExpression procesa + y -, parseTerm respeta la prioridad de * y /, y parseFactor reconoce paréntesis, identificadores y números. Cada nodo que aparece corresponde a la línea iluminada.'
       : 'El código usa variables, arreglos, ciclos, condiciones y métodos pequeños. Cada línea iluminada corresponde al cambio mostrado en la estructura.';

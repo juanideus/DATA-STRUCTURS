@@ -20,6 +20,7 @@ import {
   insertPolynomialTerm,
   polynomialTerms,
 } from './polynomial.js';
+import { createRecursionCallTrace } from './recursionTrace.js';
 
 export const DEFAULT_GRAPH_EDGES = [
   [0, 1, 4], [1, 2, 2], [0, 3, 7], [1, 3, 3], [1, 4, 5],
@@ -1787,16 +1788,6 @@ const validIndex = (raw, length, allowEnd = false) => {
   const index = Number(raw);
   const maximum = allowEnd ? length : length - 1;
   return Number.isInteger(index) && index >= 0 && index <= maximum ? index : null;
-};
-
-const fibonacci = number => {
-  let previous = 0, current = 1;
-  const result = [];
-  for (let index = 0; index <= number; index++) {
-    result.push(previous);
-    [previous, current] = [current, previous + current];
-  }
-  return result;
 };
 
 const SUDOKU_TRACE_LIMITS = {
@@ -5385,19 +5376,16 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       if (algorithm.id === 'merge-sort') return executeMergeSort(next, edges);
       return done([...next].sort((a,b)=>Number(a)-Number(b)), 'Arreglo ordenado de menor a mayor.', 0);
     case 'calculate': {
-      if (String(fields.value ?? '').trim() === '') return fail('Ingresa un entero entre 0 y 20.');
+      if (String(fields.value ?? '').trim() === '') return fail(`Ingresa un entero para construir el árbol de llamadas de ${algorithm.name}.`);
       const number = Number(fields.value);
-      if (!Number.isInteger(number) || number < 0 || number > 20) return fail('Ingresa un entero entre 0 y 20.');
-      if (algorithm.id === 'fibonacci') return done(fibonacci(number), `Fibonacci(${number}) = ${fibonacci(number).at(-1)}.`, number);
-      if (number === 0) return {
-        ...done([1], 'Factorial(0) = 1 por definición.', 0),
-        frames: [
-          { values: [...next], edges, position: 0, codeNeedle: 'if (number == 0)', message: 'Se comprueba el caso especial 0!.' },
-          { values: [1], edges, position: 0, codeNeedle: 'return new int[] {1};', message: 'Por definición, 0! es igual a 1.', completed: true },
-        ],
-      };
-      const result = Array.from({length:number},(_,i)=>i+1).reduce((total,item)=>total*item,1);
-      return done(Array.from({length:number},(_,i)=>Array.from({length:i+1},(_,j)=>j+1).reduce((a,b)=>a*b,1)), `Factorial(${number}) = ${result}.`, Math.max(0, number - 1));
+      const maximum = algorithm.id === 'fibonacci' ? 7 : 10;
+      if (!Number.isInteger(number) || number < 0 || number > maximum) {
+        return fail(`Ingresa un entero entre 0 y ${maximum}; así el árbol completo permanece legible.`);
+      }
+      const trace = createRecursionCallTrace({ kind: algorithm.id, number, beforeValues: next, edges });
+      const message = `${algorithm.id === 'fibonacci' ? 'Fibonacci' : 'Factorial'}(${number}) = ${trace.result}. Árbol de llamadas completado.`;
+      trace.frames.at(-1).message = message;
+      return { ...done([trace.result], message, trace.tree.rootId), frames: trace.frames };
     }
     case 'hanoi-set': {
       const disks = Math.max(1,Math.min(7,Number(fields.value)));
