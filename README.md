@@ -526,6 +526,8 @@ El formulario solicita:
 
 En Vercel se debe configurar `VITE_REPORT_API_URL` con la URL pública del Web Service de Render. En Render, `ALLOWED_ORIGINS` debe contener el dominio exacto del frontend.
 
+La política de seguridad de Vercel permite conexiones HTTPS hacia servicios `*.onrender.com`. Si la API se traslada a otro proveedor o a un dominio propio, ese origen también debe agregarse a `connect-src` en `vercel.json`.
+
 ## Navegación y preferencias
 
 Cada tema dispone de un enlace compartible basado en hash, compatible con alojamiento estático:
