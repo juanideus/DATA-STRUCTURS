@@ -4,11 +4,36 @@ import { getOperationDefinition } from '../../src/logic/operations.js';
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
+    window.localStorage.setItem('dsa-language', 'es');
     if (window.sessionStorage.getItem('dsa-test-show-intro') !== 'true') {
       window.localStorage.setItem('dsa-intro-seen', 'true');
     }
   });
   await page.goto('/');
+});
+
+test('detecta inglés y traduce la guía completa cuando no existe una preferencia guardada', async ({ browser }) => {
+  const context = await browser.newContext({ locale: 'en-US', viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  await page.addInitScript(() => {
+    window.localStorage.removeItem('dsa-language');
+    window.localStorage.setItem('dsa-intro-seen', 'true');
+  });
+  await page.goto('/avl');
+
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.getByRole('heading', { name: 'AVL Tree', level: 1 })).toBeVisible();
+  const guide = page.locator('.educational-description');
+  await expect(guide.getByText('Complete guide', { exact: true })).toBeVisible();
+  await expect(guide).toContainText('How it works internally');
+  await expect(guide).toContainText('balance factor');
+  await expect(page.locator('meta[property="og:locale"]')).toHaveAttribute('content', 'en_US');
+
+  await page.getByRole('button', { name: 'ES', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'es');
+  await expect(page.getByRole('heading', { name: 'Árbol AVL', level: 1 })).toBeVisible();
+  await expect(guide.getByText('Guía completa', { exact: true })).toBeVisible();
+  await context.close();
 });
 
 async function openAlgorithm(page, algorithmId) {

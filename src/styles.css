@@ -264,6 +264,13 @@ body{background:
 
 .sidebar .search{margin:18px 12px 9px;height:35px;min-height:35px;flex:0 0 35px;padding:0 13px;gap:9px;border-radius:10px}
 .sidebar .search input{font-size:14px}
+.language-switch{margin:4px 12px 2px;padding:3px;display:grid;grid-template-columns:1fr 1fr;gap:3px;border:1px solid rgba(255,255,255,.13);border-radius:8px;background:rgba(7,20,16,.16)}
+.language-switch button{height:27px;border:0;border-radius:5px;background:transparent;color:#91a49f;font-family:'DM Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.08em;cursor:pointer;transition:background .18s,color .18s,box-shadow .18s}
+.language-switch button:hover{color:#fff}.language-switch button.active{background:#f8f5ee;color:#20312d;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.collapsed-tools{position:fixed;top:16px;left:15px;z-index:24;display:flex;align-items:center;gap:7px}
+.collapsed-tools .sidebar-reveal-button{position:static}
+.collapsed-language{height:38px;min-width:38px;padding:0 8px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);font-family:'DM Mono',monospace;font-size:10px;font-weight:800;cursor:pointer;box-shadow:var(--shadow)}
+.collapsed-language:hover{border-color:var(--orange);color:var(--orange)}
 
 /* Readable and consistent typography scale */
 .brand strong{font-size:19px}

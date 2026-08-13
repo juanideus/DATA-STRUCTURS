@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { getOperationDefinition } from '../logic/operations.js';
+import { translateOperationLabel, useLanguage } from '../i18n.jsx';
 
 export default function OperationsPanel({ algorithm, message, status = 'idle', activeOperation, onAction }) {
+  const { language, t } = useLanguage();
   const definition = getOperationDefinition(algorithm);
   const [fields, setFields] = useState({ value: '', second: '', index: '' });
 
@@ -17,13 +19,13 @@ export default function OperationsPanel({ algorithm, message, status = 'idle', a
   return <section className="operations-panel" data-tour="operations">
     <div className="operation-fields">
       {definition.fields.map(input => <label key={input.id}>
-        <span>{input.label}</span>
-        <input aria-label={input.label} type={input.type} value={fields[input.id]} placeholder={input.type === 'number' ? '0' : 'Escribe aquí'} onChange={event=>setFields({...fields,[input.id]:event.target.value})} onKeyDown={event=>{if(event.key==='Enter')run(definition.actions[0].id)}} />
+        <span>{translateOperationLabel(input.label, language)}</span>
+        <input aria-label={translateOperationLabel(input.label, language)} type={input.type} value={fields[input.id]} placeholder={input.type === 'number' ? '0' : t('typeHere')} onChange={event=>setFields({...fields,[input.id]:event.target.value})} onKeyDown={event=>{if(event.key==='Enter')run(definition.actions[0].id)}} />
       </label>)}
     </div>
     <div className="operation-actions">
-      {definition.actions.map(button => <button type="button" title={`Ejecutar: ${button.label}`} className={`${button.tone === 'danger' ? 'danger ' : ''}${activeOperation === button.id ? 'selected-operation' : ''}`} onClick={()=>run(button.id)} key={button.id}>{button.label}</button>)}
+      {definition.actions.map(button => <button type="button" title={`${t('run')}: ${translateOperationLabel(button.label, language)}`} className={`${button.tone === 'danger' ? 'danger ' : ''}${activeOperation === button.id ? 'selected-operation' : ''}`} onClick={()=>run(button.id)} key={button.id}>{translateOperationLabel(button.label, language)}</button>)}
     </div>
-    <div className={`operation-message ${status}`} role="status" aria-live="polite"><span>{status === 'error' ? 'Revisar' : status === 'success' ? 'Operación completada' : 'Resultado'}</span><p>{message}</p></div>
+    <div className={`operation-message ${status}`} role="status" aria-live="polite"><span>{status === 'error' ? t('review') : status === 'success' ? t('completedOperation') : t('result')}</span><p>{message}</p></div>
   </section>;
 }
