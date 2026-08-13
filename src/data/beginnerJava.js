@@ -318,17 +318,11 @@ const basic = {
         }
     }
 }`,
-  calculate: `int[] fibonacciUntil(int number) {
-    int[] sequence = new int[number + 1];
-    for (int i = 0; i <= number; i++) {
-        sequence[i] = fibonacci(i);
-    }
-    return sequence;
-}
-
-int fibonacci(int number) {
+  calculate: `int fibonacci(int number) {
     if (number <= 1) return number;
-    return fibonacci(number - 1) + fibonacci(number - 2);
+    int left = fibonacci(number - 1);
+    int right = fibonacci(number - 2);
+    return left + right;
 }`,
   'hanoi-set': `void createDisks(int amount) {
     diskCount = amount;
@@ -776,18 +770,10 @@ boolean isExit(int row, int column) {
     size--;
     return minimum;
 }`,
-  'math:calculate:factorial': `int[] factorialsUntil(int number) {
-    if (number == 0) return new int[] {1};
-    int[] factorials = new int[number];
-    for (int i = 1; i <= number; i++) {
-        factorials[i - 1] = factorial(i);
-    }
-    return factorials;
-}
-
-int factorial(int number) {
+  'math:calculate:factorial': `int factorial(int number) {
     if (number <= 1) return 1;
-    return number * factorial(number - 1);
+    int smaller = factorial(number - 1);
+    return number * smaller;
 }`,
   'list:add-start': `Node addAtStart(Node head, int value) {
     Node newNode = new Node(value);

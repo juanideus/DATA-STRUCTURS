@@ -359,6 +359,30 @@ test('rechaza datos extremos sin alterar ni romper las estructuras', async ({ pa
   await expect(page.locator('.operation-message')).toHaveClass(/error/);
 });
 
+test('Fibonacci y Factorial construyen y resuelven su árbol real de llamadas', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chromium', 'La lógica recursiva es idéntica; el catálogo móvil verifica su adaptación visual.');
+  test.setTimeout(55_000);
+  const samples = [
+    { id: 'fibonacci', input: '4', nodes: 9, result: 'Fibonacci(4) = 3', calls: ['int left = fibonacci(number - 1);', 'int right = fibonacci(number - 2);'] },
+    { id: 'factorial', input: '4', nodes: 4, result: 'Factorial(4) = 24', calls: ['int smaller = factorial(number - 1);', 'return number * smaller;'] },
+  ];
+
+  for (const sample of samples) {
+    await page.goto(`/${sample.id}`);
+    await page.getByLabel('Velocidad').selectOption('2');
+    await page.getByLabel('Número n').fill(sample.input);
+    await page.getByRole('button', { name: 'Calcular', exact: true }).click();
+
+    await expect(page.locator('.operation-message')).toContainText(sample.result, { timeout: 30_000 });
+    await expect(page.locator('.recursion-call-node')).toHaveCount(sample.nodes);
+    await expect(page.locator('.recursion-call-node.returned')).toHaveCount(sample.nodes);
+    await expect(page.locator('.recursion-call-node.current')).toContainText(sample.input);
+    await expect(page.locator('.recursion-tree-legend')).toContainText('Esperando retorno');
+    const java = await page.locator('.code-panel pre').innerText();
+    for (const call of sample.calls) expect(java).toContain(call);
+  }
+});
+
 test('la línea Java, las variables y la animación avanzan juntas en distintas categorías', async ({ page }) => {
   test.setTimeout(120_000);
   const cases = [
