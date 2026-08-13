@@ -23,7 +23,7 @@ export default function FoundationLesson({ algorithm }) {
         <h3>{item.title}</h3>
         <p>{item.text}</p>
         {item.bullets.length > 0 && <ul>{item.bullets.map(bullet => <li key={bullet}>{bullet}</li>)}</ul>}
-        {item.code && <div className="foundation-code-wrap"><header><Code2 size={15}/><span>Ejemplo en Java</span></header><pre><code>{item.code}</code></pre></div>}
+        {item.code && <div className="foundation-code-wrap"><header><Code2 size={15}/><span>{item.codeLabel}</span></header><pre><code>{item.code}</code></pre></div>}
       </article>)}
     </div>
 

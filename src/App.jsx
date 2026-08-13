@@ -62,15 +62,22 @@ const writePreference = (key, value) => {
   }
 };
 
+const legacyAlgorithmIds = new Map([
+  ['memoria-referencias', 'punteros-referencias'],
+  ['punteros-referencias-java', 'punteros-referencias'],
+]);
+
 const algorithmIdFromLocation = () => {
   if (typeof window === 'undefined') return null;
   try {
     const pathCandidate = decodeURIComponent(window.location.pathname.replace(/^\/+|\/+$/g, '').trim());
-    if (algorithms.some(item => item.id === pathCandidate)) return pathCandidate;
+    const resolvedPath = legacyAlgorithmIds.get(pathCandidate) ?? pathCandidate;
+    if (algorithmsById.has(resolvedPath)) return resolvedPath;
 
     // Compatibilidad temporal con enlaces antiguos como /#/avl.
     const candidate = decodeURIComponent(window.location.hash.replace(/^#\/?/, '').trim());
-    return algorithms.some(item => item.id === candidate) ? candidate : null;
+    const resolvedHash = legacyAlgorithmIds.get(candidate) ?? candidate;
+    return algorithmsById.has(resolvedHash) ? resolvedHash : null;
   } catch {
     return null;
   }
@@ -79,7 +86,8 @@ const algorithmIdFromLocation = () => {
 const initialAlgorithmId = () => {
   const routed = algorithmIdFromLocation();
   const stored = readPreference(STORAGE_KEYS.selectedAlgorithm, 'array');
-  return routed ?? (algorithms.some(item => item.id === stored) ? stored : 'array');
+  const resolvedStored = legacyAlgorithmIds.get(stored) ?? stored;
+  return routed ?? (algorithmsById.has(resolvedStored) ? resolvedStored : 'array');
 };
 
 const randomNumber = (minimum, maximum) => Math.floor(Math.random() * (maximum - minimum + 1)) + minimum;
@@ -2159,8 +2167,23 @@ function DescriptionFallback() {
   </section>;
 }
 
+const normalizeSidebarText = (value) => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es').trim();
+const sidebarGroupIds = new Map(categories.map(category => [category, `nav-group-${normalizeSidebarText(category).replace(/[^a-z0-9]+/g, '-')}`]));
+const initiallyClosedSidebarGroups = Object.fromEntries(categories.map(category => [category, category !== 'Estructuras lineales']));
+
 function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setMobileOpen, collapsed, onToggle }) {
-  const filtered = useMemo(() => algorithms.filter(a => `${a.name} ${a.category}`.toLowerCase().includes(query.toLowerCase())), [query]);
+  const [closedGroups, setClosedGroups] = useState(() => initiallyClosedSidebarGroups);
+  const groupedAlgorithms = useMemo(() => {
+    const term = normalizeSidebarText(query);
+    const groups = new Map(categories.map(category => [category, []]));
+    for (const algorithm of algorithms) {
+      const searchable = normalizeSidebarText(`${algorithm.name} ${algorithm.navName ?? ''} ${algorithm.category}`);
+      if (!term || searchable.includes(term)) groups.get(algorithm.category)?.push(algorithm);
+    }
+    return groups;
+  }, [query]);
+  const hasQuery = Boolean(query.trim());
+  const toggleGroup = useCallback((category) => setClosedGroups(current => ({ ...current, [category]: !current[category] })), []);
   return <aside data-tour="sidebar" className={`sidebar ${mobileOpen ? 'open' : ''} ${collapsed ? 'collapsed' : ''}`}>
     <div className="brand">
       <button className="brand-home" onClick={()=>{onHome();setMobileOpen(false)}} aria-label="Ir a la bienvenida">
@@ -2172,10 +2195,23 @@ function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setM
     </div>
     <div className="search"><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar algoritmo…"/></div>
     <nav>
-      {categories.map(category => { const list = filtered.filter(a=>a.category===category); if (!list.length) return null; return <div className="nav-group" key={category}>
-        <div className="nav-heading"><span>{category}</span><em>{String(list.length).padStart(2,'0')}</em></div>
-        {list.map((a) => <button data-algorithm-id={a.id} className={selected===a.id?'selected':''} onClick={()=>{onSelect(a.id);setMobileOpen(false)}} key={a.id}><span>{String((navigationIndexes.get(a.id) ?? 0)+1).padStart(2,'0')}</span>{a.navName ?? a.name}</button>)}
-      </div>})}
+      {categories.map(category => {
+        const list = groupedAlgorithms.get(category) ?? [];
+        if (!list.length) return null;
+        const groupId = sidebarGroupIds.get(category);
+        const isClosed = !hasQuery && Boolean(closedGroups[category]);
+        return <div className="nav-group" key={category}>
+          <button type="button" className="nav-heading" onClick={()=>toggleGroup(category)} aria-expanded={!isClosed} aria-controls={groupId}>
+            <span className="nav-heading-label"><ChevronDown className="nav-chevron" size={14}/>{category}</span>
+            <em>{String(list.length).padStart(2,'0')}</em>
+          </button>
+          <div id={groupId} className={`nav-items ${isClosed ? 'closed' : ''}`} aria-hidden={isClosed}>
+            <div className="nav-items-inner">
+              {list.map((a) => <button data-algorithm-id={a.id} className={`nav-item ${selected===a.id?'selected':''}`} onClick={()=>{onSelect(a.id);setMobileOpen(false)}} key={a.id}><span>{String((navigationIndexes.get(a.id) ?? 0)+1).padStart(2,'0')}</span>{a.navName ?? a.name}</button>)}
+            </div>
+          </div>
+        </div>;
+      })}
     </nav>
     <div className="sidebar-foot">
       <span><Sparkles size={14}/> {algorithms.length} temas incluidos</span>

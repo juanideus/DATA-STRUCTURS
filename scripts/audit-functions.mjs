@@ -152,11 +152,12 @@ function validQueens(queens) {
   )));
 }
 
-assert.equal(algorithms.length, 76, 'El catálogo debe contener 76 temas.');
+assert.equal(algorithms.length, 78, 'El catálogo debe contener 78 temas.');
 assert.equal(new Set(algorithms.map(algorithm => algorithm.id)).size, algorithms.length, 'El catálogo contiene identificadores duplicados.');
 assert.equal(new Set(algorithms.map(algorithm => algorithm.name)).size, algorithms.length, 'El catálogo contiene nombres duplicados.');
 assert.equal(Object.keys(educationalDescriptions).length, algorithms.length, 'La cantidad de descripciones no coincide con el catálogo.');
-assert.equal(Object.keys(guideJavaExamples).length, algorithms.length - 18, 'Todas las secciones prácticas deben incluir ejemplo Java; las dieciocho guías de Fundamentos no usan el panel práctico.');
+const theoreticalTypes = new Set(['theory', 'complexity', 'oop', 'foundation']);
+assert.equal(Object.keys(guideJavaExamples).length, algorithms.filter(algorithm => !theoreticalTypes.has(algorithm.type)).length, 'Todas las secciones prácticas deben incluir ejemplo Java; las guías de Fundamentos no usan el panel práctico.');
 
 let actionCount = 0;
 let executionCount = 0;
