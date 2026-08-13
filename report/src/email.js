@@ -67,11 +67,14 @@ export async function sendReportEmail({ apiKey, from, to, report, fetchImpl = fe
       'Idempotency-Key': crypto.randomUUID(),
     },
     body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(10_000),
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(result.message || 'Resend no pudo enviar el correo.');
-    error.status = response.status;
+    const error = new Error('El proveedor de correo rechazó el envío.');
+    error.status = 502;
+    error.providerStatus = response.status;
+    error.providerMessage = result.message;
     throw error;
   }
   return result;

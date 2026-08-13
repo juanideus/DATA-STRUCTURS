@@ -1,6 +1,6 @@
 import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, ArrowRight, BookOpen, Boxes, Brain, Bug, ChevronDown, CircleHelp, ClipboardCopy, ExternalLink, Gauge,
+  ArrowLeft, ArrowRight, BookOpen, Boxes, Brain, Bug, ChevronDown, CircleHelp, ClipboardCopy, Gauge,
   MapPin, Menu, PanelLeftClose, PanelLeftOpen, Pause, Play, RotateCcw, Search, Shuffle, Sparkles, X,
 } from 'lucide-react';
 import { algorithmIndexes, algorithms, algorithmsById, categories, categoryLabels, navigationIndexes } from './data/algorithms.js';
@@ -35,6 +35,7 @@ const SUDOKU_START = [
 ];
 
 const NORMAL_FRAME_DELAY = 800;
+const REPORT_API_URL = String(import.meta.env.VITE_REPORT_API_URL || '').replace(/\/+$/, '');
 const STORAGE_KEYS = {
   introSeen: 'dsa-intro-seen',
   selectedAlgorithm: 'dsa-selected-algorithm',
@@ -2315,8 +2316,9 @@ function Welcome({ onStart, startName }) {
 
 function BugReporter({ section }) {
   const [open, setOpen] = useState(false);
-  const [report, setReport] = useState({ title:'', type:'Algo no funciona', description:'', steps:'' });
+  const [report, setReport] = useState({ name:'', email:'', title:'', type:'Algo no funciona', description:'', steps:'', website:'' });
   const [copyStatus, setCopyStatus] = useState('');
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -2326,15 +2328,16 @@ function BugReporter({ section }) {
   }, [open]);
 
   const update = (field, value) => setReport(current=>({...current,[field]:value}));
-  const reportBody = () => `# [Bug] ${report.title.trim()}\n\n## Sección afectada\n${section}\n\n## Tipo de problema\n${report.type}\n\n## Descripción\n${report.description.trim()}\n\n## Pasos para reproducirlo\n${report.steps.trim() || 'No especificados.'}\n\n---\nReporte generado desde DSA Lab.`;
+  const reportBody = () => `# [Bug] ${report.title.trim()}\n\n## Nombre\n${report.name.trim()}\n\n## Correo\n${report.email.trim() || 'No proporcionado'}\n\n## Sección afectada\n${section}\n\n## Tipo de problema\n${report.type}\n\n## Descripción\n${report.description.trim()}\n\n## Pasos para reproducirlo\n${report.steps.trim() || 'No especificados.'}\n\n---\nReporte generado desde DSA Lab.`;
   const resetReport = () => {
     setOpen(false);
     setCopyStatus('');
-    setReport({ title:'', type:'Algo no funciona', description:'', steps:'' });
+    setSending(false);
+    setReport({ name:'', email:'', title:'', type:'Algo no funciona', description:'', steps:'', website:'' });
   };
   const copyReport = async () => {
-    if (!report.title.trim() || !report.description.trim()) {
-      setCopyStatus('Completa el resumen y la descripción antes de copiar.');
+    if (!report.name.trim() || !report.title.trim() || !report.description.trim()) {
+      setCopyStatus('Completa tu nombre, el resumen y la descripción antes de copiar.');
       return;
     }
     try {
@@ -2344,37 +2347,61 @@ function BugReporter({ section }) {
       setCopyStatus('El navegador no permitió copiar. Selecciona el texto e inténtalo nuevamente.');
     }
   };
-  const submit = event => {
+  const submit = async event => {
     event.preventDefault();
-    const body = reportBody().replace(/^# \[Bug\].*\n\n/, '');
-    const issueUrl = `https://github.com/juanideus/DATA-STRUCTURS/issues/new?title=${encodeURIComponent(`[Bug] ${report.title.trim()}`)}&body=${encodeURIComponent(body)}`;
-    window.open(issueUrl, '_blank', 'noopener,noreferrer');
-    resetReport();
+    if (sending) return;
+    if (!REPORT_API_URL) {
+      setCopyStatus('El envío todavía no está configurado. Agrega VITE_REPORT_API_URL en Vercel.');
+      return;
+    }
+    setSending(true);
+    setCopyStatus('Enviando reporte…');
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15_000);
+    try {
+      const response = await fetch(`${REPORT_API_URL}/api/report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...report,
+          section,
+          pageUrl: window.location.href,
+          userAgent: navigator.userAgent,
+        }),
+        signal: controller.signal,
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message || 'No fue posible enviar el reporte.');
+      setReport({ name:'', email:'', title:'', type:'Algo no funciona', description:'', steps:'', website:'' });
+      setCopyStatus('¡Gracias! El reporte fue enviado correctamente.');
+    } catch (error) {
+      setCopyStatus(error.name === 'AbortError'
+        ? 'El servidor tardó demasiado en responder. Inténtalo nuevamente.'
+        : error.message || 'No fue posible enviar el reporte. Inténtalo nuevamente.');
+    } finally {
+      window.clearTimeout(timeout);
+      setSending(false);
+    }
   };
 
   return <>
     <button className="bug-fab" onClick={()=>setOpen(true)} aria-label="Informar un problema"><Bug size={20}/><span>Informar problema</span></button>
     {open && <div className="bug-modal-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)setOpen(false)}}>
-      <section className="bug-modal bug-modal-disabled" role="dialog" aria-modal="true" aria-labelledby="bug-coming-soon-title">
-        <div className="bug-modal-preview" inert={true} aria-hidden="true">
-        <header><div className="bug-modal-icon"><Bug size={20}/></div><div><span>Ayúdanos a mejorar</span><h2>¿Encontraste algo extraño?</h2></div><button type="button" tabIndex="-1"><X size={18}/></button></header>
+      <section className="bug-modal" role="dialog" aria-modal="true" aria-labelledby="bug-report-title">
+        <header><div className="bug-modal-icon"><Bug size={20}/></div><div><span>Ayúdanos a mejorar</span><h2 id="bug-report-title">¿Encontraste algo extraño?</h2></div><button type="button" onClick={()=>setOpen(false)} aria-label="Cerrar formulario"><X size={18}/></button></header>
         <p className="bug-intro">Cuéntanos qué pasó y cómo podemos repetirlo. Con esos datos será mucho más fácil encontrar y corregir el problema.</p>
         <div className="bug-section-label"><small>Estabas viendo</small><strong>{section}</strong></div>
         <form onSubmit={submit}>
-          <label><span>Resumen corto</span><input required maxLength="90" value={report.title} onChange={event=>update('title',event.target.value)} placeholder="Ej.: El botón eliminar no responde"/></label>
+          <label><span>Tu nombre</span><input required minLength="2" maxLength="80" autoComplete="name" value={report.name} onChange={event=>update('name',event.target.value)} placeholder="Ej.: Ana Torres"/></label>
+          <label><span>Tu correo (opcional)</span><input type="email" maxLength="254" autoComplete="email" value={report.email} onChange={event=>update('email',event.target.value)} placeholder="Para poder responderte"/></label>
+          <label className="bug-field-wide"><span>Resumen corto</span><input required maxLength="120" value={report.title} onChange={event=>update('title',event.target.value)} placeholder="Ej.: El botón eliminar no responde"/></label>
           <label><span>¿Qué tipo de problema es?</span><select value={report.type} onChange={event=>update('type',event.target.value)}><option>Algo no funciona</option><option>Se ve incorrecto</option><option>Problema en el código Java</option><option>Contenido difícil de entender</option><option>Otro problema</option></select></label>
-          <label><span>Cuéntanos qué ocurrió</span><textarea required rows="4" value={report.description} onChange={event=>update('description',event.target.value)} placeholder="¿Qué hiciste, qué apareció y qué esperabas que ocurriera?"/></label>
-          <label><span>¿Cómo podemos repetirlo?</span><textarea rows="3" value={report.steps} onChange={event=>update('steps',event.target.value)} placeholder={'1. Entré a la estructura...\n2. Presioné el botón...\n3. Entonces ocurrió...'}/></label>
+          <label className="bug-field-wide"><span>Cuéntanos qué ocurrió</span><textarea required minLength="10" maxLength="3000" rows="4" value={report.description} onChange={event=>update('description',event.target.value)} placeholder="¿Qué hiciste, qué apareció y qué esperabas que ocurriera?"/></label>
+          <label className="bug-field-wide"><span>¿Cómo podemos repetirlo?</span><textarea maxLength="3000" rows="3" value={report.steps} onChange={event=>update('steps',event.target.value)} placeholder={'1. Entré a la estructura...\n2. Presioné el botón...\n3. Entonces ocurrió...'}/></label>
+          <label className="bug-honeypot" aria-hidden="true"><span>Sitio web</span><input tabIndex="-1" autoComplete="off" value={report.website} onChange={event=>update('website',event.target.value)}/></label>
           {copyStatus && <p className="bug-copy-status" role="status">{copyStatus}</p>}
-          <div className="bug-form-actions"><p><ExternalLink size={13}/> Usa GitHub o copia el reporte para compartirlo sin una cuenta.</p><button type="button" onClick={()=>setOpen(false)}>Ahora no</button><button className="copy-report" type="button" onClick={copyReport}><ClipboardCopy size={15}/> Copiar reporte</button><button type="submit">Revisar en GitHub <ExternalLink size={15}/></button></div>
+          <div className="bug-form-actions"><p><Bug size={13}/> El reporte se enviará directamente al equipo de DSA Lab.</p><button type="button" disabled={sending} onClick={()=>setOpen(false)}>Ahora no</button><button className="copy-report" type="button" disabled={sending} onClick={copyReport}><ClipboardCopy size={15}/> Copiar</button><button type="submit" disabled={sending}>{sending ? 'Enviando…' : 'Enviar reporte'} <Bug size={15}/></button></div>
         </form>
-        </div>
-        <div className="bug-coming-soon">
-          <span><Bug size={15}/> INFORMAR PROBLEMA</span>
-          <h2 id="bug-coming-soon-title">Próximamente</h2>
-          <p>Estamos preparando una forma directa y sencilla de enviar tus reportes desde DSA Lab.</p>
-          <button type="button" onClick={()=>setOpen(false)}>Entendido</button>
-        </div>
       </section>
     </div>}
   </>;

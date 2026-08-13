@@ -129,7 +129,7 @@ Cada tema incluye una guía con:
 - Diseño adaptable para escritorio, tablet y móvil.
 - Favicon y marca visual de DSA Lab.
 - Crédito de autor visible en el menú lateral.
-- Vista previa desenfocada del futuro sistema de reportes directos.
+- Formulario para enviar reportes directamente al equipo del proyecto.
 
 ## Catálogo de contenidos
 
@@ -513,17 +513,18 @@ Vite debe compilar los recursos usando esa ruta base. En ese caso, configura `ba
 
 ## Reporte de errores
 
-La aplicación incluye un botón con icono de insecto para informar problemas. Actualmente abre una vista previa desenfocada con el aviso **Próximamente**, porque el envío directo todavía no dispone de un servicio receptor.
+La aplicación incluye un botón con icono de insecto para informar problemas. El formulario envía la información directamente a la API ubicada en `report/`, sin abrir GitHub ni exponer la clave de Resend en el navegador.
 
-El formulario previsto solicitará:
+El formulario solicita:
 
 - Resumen corto.
 - Tipo de problema.
 - Descripción.
 - Pasos para reproducirlo.
 - Sección afectada.
+- Nombre y correo opcional para responder al usuario.
 
-Los campos permanecen bloqueados hasta incorporar el backend que recibirá y almacenará los reportes sin depender de GitHub.
+En Vercel se debe configurar `VITE_REPORT_API_URL` con la URL pública del Web Service de Render. En Render, `ALLOWED_ORIGINS` debe contener el dominio exacto del frontend.
 
 ## Navegación y preferencias
 

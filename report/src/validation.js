@@ -16,18 +16,22 @@ const cleanText = (value, maximum) => String(value ?? '')
   .trim()
   .slice(0, maximum);
 
+const cleanSingleLine = (value, maximum) => cleanText(value, maximum)
+  .replace(/[\r\n\t]+/g, ' ')
+  .replace(/\s{2,}/g, ' ');
+
 export function normalizeReport(input = {}) {
   return {
-    name: cleanText(input.name, LIMITS.name),
-    email: cleanText(input.email, LIMITS.email).toLowerCase(),
-    title: cleanText(input.title, LIMITS.title),
-    type: cleanText(input.type, LIMITS.type),
-    section: cleanText(input.section, LIMITS.section),
+    name: cleanSingleLine(input.name, LIMITS.name),
+    email: cleanSingleLine(input.email, LIMITS.email).toLowerCase(),
+    title: cleanSingleLine(input.title, LIMITS.title),
+    type: cleanSingleLine(input.type, LIMITS.type),
+    section: cleanSingleLine(input.section, LIMITS.section),
     description: cleanText(input.description, LIMITS.description),
     steps: cleanText(input.steps, LIMITS.steps),
-    pageUrl: cleanText(input.pageUrl, LIMITS.pageUrl),
-    userAgent: cleanText(input.userAgent, LIMITS.userAgent),
-    website: cleanText(input.website, 200),
+    pageUrl: cleanSingleLine(input.pageUrl, LIMITS.pageUrl),
+    userAgent: cleanSingleLine(input.userAgent, LIMITS.userAgent),
+    website: cleanSingleLine(input.website, 200),
   };
 }
 
@@ -39,6 +43,14 @@ export function validateReport(report) {
   if (!report.section) errors.section = 'No se pudo identificar la sección.';
   if (report.description.length < 10) errors.description = 'Describe el problema con al menos 10 caracteres.';
   if (report.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(report.email)) errors.email = 'El correo no es válido.';
+  if (report.pageUrl) {
+    try {
+      const url = new URL(report.pageUrl);
+      if (!['http:', 'https:'].includes(url.protocol)) errors.pageUrl = 'La dirección de la página no es válida.';
+    } catch {
+      errors.pageUrl = 'La dirección de la página no es válida.';
+    }
+  }
   return errors;
 }
 

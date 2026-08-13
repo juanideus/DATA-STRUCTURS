@@ -7,6 +7,7 @@ const MAX_BODY_SIZE = 16 * 1024;
 const RATE_WINDOW_MS = 15 * 60 * 1000;
 const RATE_MAXIMUM = 5;
 const requestsByAddress = new Map();
+let lastRateLimitCleanup = 0;
 
 const allowedOrigins = () => String(process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
   .split(',')
@@ -18,6 +19,8 @@ const setSecurityHeaders = response => {
   response.setHeader('Cache-Control', 'no-store');
   response.setHeader('X-Content-Type-Options', 'nosniff');
   response.setHeader('Referrer-Policy', 'no-referrer');
+  response.setHeader('X-Frame-Options', 'DENY');
+  response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 };
 
 const sendJson = (response, status, body) => {
@@ -34,7 +37,7 @@ const applyCors = (request, response) => {
     response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     return true;
   }
-  return !origin;
+  return !origin && process.env.NODE_ENV !== 'production';
 };
 
 const clientAddress = request => String(request.headers['x-forwarded-for'] || request.socket.remoteAddress || 'unknown')
@@ -43,6 +46,14 @@ const clientAddress = request => String(request.headers['x-forwarded-for'] || re
 
 const exceedsRateLimit = address => {
   const now = Date.now();
+  if (now - lastRateLimitCleanup >= RATE_WINDOW_MS) {
+    for (const [key, timestamps] of requestsByAddress) {
+      const active = timestamps.filter(timestamp => now - timestamp < RATE_WINDOW_MS);
+      if (active.length) requestsByAddress.set(key, active);
+      else requestsByAddress.delete(key);
+    }
+    lastRateLimitCleanup = now;
+  }
   const recent = (requestsByAddress.get(address) || []).filter(timestamp => now - timestamp < RATE_WINDOW_MS);
   recent.push(now);
   requestsByAddress.set(address, recent);
@@ -134,7 +145,10 @@ export const server = http.createServer(async (request, response) => {
     });
     sendJson(response, 201, { ok: true, message: 'Reporte enviado correctamente.', id: result.id });
   } catch (error) {
-    console.error('No se pudo procesar el reporte:', error.message);
+    console.error('No se pudo procesar el reporte:', {
+      message: error.message,
+      providerStatus: error.providerStatus,
+    });
     sendJson(response, error.status && error.status < 500 ? error.status : 502, {
       ok: false,
       message: error.status && error.status < 500 ? error.message : 'No fue posible enviar el reporte. Inténtalo nuevamente.',
@@ -143,6 +157,10 @@ export const server = http.createServer(async (request, response) => {
 });
 
 if (process.env.NODE_ENV !== 'test') {
+  server.requestTimeout = 15_000;
+  server.headersTimeout = 10_000;
+  server.keepAliveTimeout = 5_000;
+  server.maxHeadersCount = 50;
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`DSA Lab Report API disponible en el puerto ${PORT}`);
   });
