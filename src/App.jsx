@@ -1942,19 +1942,24 @@ function FenwickVisual({ algorithm, step }) {
 
 function TrieTreeVisual({ algorithm, step }) {
   const words = algorithm.values.map(value=>String(value).trim().toUpperCase()).filter(Boolean);
-  const nodes = [{ id:0, letter:'∅', depth:0, parent:null, children:new Map(), endings:[] }];
+  const trieState = algorithm.animationFrame?.trieState;
+  const partialWord = trieState && !trieState.marked ? trieState.word.slice(0, trieState.revealed) : '';
+  const treeWords = partialWord && !words.includes(partialWord) ? [...words, partialWord] : words;
+  const nodes = [{ id:0, letter:'∅', prefix:'', depth:0, parent:null, children:new Map(), endings:[] }];
 
-  words.forEach(word => {
+  treeWords.forEach(word => {
     let current = 0;
+    let prefix = '';
     [...word].forEach(letter => {
+      prefix += letter;
       if (!nodes[current].children.has(letter)) {
         const id = nodes.length;
         nodes[current].children.set(letter, id);
-        nodes.push({ id, letter, depth:nodes[current].depth + 1, parent:current, children:new Map(), endings:[] });
+        nodes.push({ id, letter, prefix, depth:nodes[current].depth + 1, parent:current, children:new Map(), endings:[] });
       }
       current = nodes[current].children.get(letter);
     });
-    nodes[current].endings.push(word);
+    if (word !== partialWord || trieState?.marked) nodes[current].endings.push(word);
   });
 
   let leafPosition = 0;
@@ -1985,11 +1990,70 @@ function TrieTreeVisual({ algorithm, step }) {
         return <line key={`edge-${node.id}`} x1={`${parent.x}%`} y1={`${parent.y}%`} x2={`${node.x}%`} y2={`${node.y}%`}/>;
       })}
     </svg>
-    {nodes.map(node => <div className={`trie-tree-node ${node.id===0?'root':''} ${node.endings.length?'terminal':''} ${node.endings.includes(activeWord)?'active':''}`} style={{left:`${node.x}%`,top:`${node.y}%`}} key={node.id}>
+    {nodes.map(node => <div className={`trie-tree-node ${node.id===0?'root':''} ${node.endings.length?'terminal':''} ${node.endings.includes(activeWord) || (partialWord && partialWord.startsWith(node.prefix))?'active':''}`} style={{left:`${node.x}%`,top:`${node.y}%`}} key={node.id}>
       <strong>{node.letter}</strong>
       {node.endings.length > 0 && <small>FIN · {node.endings.join(', ')}</small>}
     </div>)}
     <div className="trie-legend"><i/> FIN indica el último nodo de una palabra</div>
+  </div>;
+}
+
+function javaStringHash(value) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index++) hash = (Math.imul(hash, 31) + value.charCodeAt(index)) | 0;
+  return hash;
+}
+
+function hashKey(value) {
+  return String(value ?? '').split(':')[0];
+}
+
+function HashTableVisual({ algorithm, step }) {
+  const entries = algorithm.values.filter(value => value !== undefined && value !== null && String(value) !== '');
+  const activeEntry = entries[Math.max(0, Math.min(entries.length - 1, step))];
+
+  if (algorithm.id === 'hash-chaining') {
+    const buckets = Array.from({ length: 8 }, () => []);
+    entries.forEach(entry => {
+      const index = ((javaStringHash(hashKey(entry)) % buckets.length) + buckets.length) % buckets.length;
+      buckets[index].unshift(entry);
+    });
+    return <div className="chaining-visual" aria-label="Tabla hash con encadenamiento separado">
+      {buckets.map((bucket, index) => <div className="chain-row" key={index}>
+        <span className="chain-index">{index.toString().padStart(2, '0')}</span>
+        <span className="chain-head">bucket[{index}]</span>
+        {bucket.length === 0 ? <span className="chain-null">null</span> : bucket.map((entry, entryIndex) => <span className={`chain-node ${entry === activeEntry ? 'active' : ''}`} key={`${entry}-${entryIndex}`}>
+          {entryIndex > 0 && <i aria-hidden="true">→</i>}<strong>{String(entry)}</strong>
+        </span>)}
+        {bucket.length > 0 && <span className="chain-null">→ null</span>}
+      </div>)}
+    </div>;
+  }
+
+  const slots = Array(12).fill(null);
+  entries.forEach(entry => {
+    let index = ((javaStringHash(hashKey(entry)) % slots.length) + slots.length) % slots.length;
+    while (slots[index] !== null) index = (index + 1) % slots.length;
+    slots[index] = entry;
+  });
+  return <div className="hash-visual" aria-label="Tabla hash con direccionamiento abierto">
+    {slots.map((entry, index) => <div className={`hash-slot ${entry === activeEntry ? 'active' : ''}`} key={index}>
+      <small>{index.toString().padStart(2, '0')}</small><strong>{entry ?? '∅'}</strong>
+    </div>)}
+  </div>;
+}
+
+function RecursionVisual({ algorithm, step }) {
+  const windowSize = 6;
+  const maximumStart = Math.max(0, algorithm.values.length - windowSize);
+  const start = Math.max(0, Math.min(maximumStart, step - 2));
+  return <div className="recursion-visual">
+    {algorithm.values.slice(start, start + windowSize).map((value, visibleIndex) => {
+      const actualIndex = start + visibleIndex;
+      return <div className={actualIndex === step ? 'active' : ''} style={{transform:`translateX(${visibleIndex*16}px)`}} key={actualIndex}>
+        <span>llamada {actualIndex}</span><strong>{value ?? '…'}</strong>
+      </div>;
+    })}
   </div>;
 }
 
@@ -2032,8 +2096,9 @@ function SpecialVisual({ algorithm, step }) {
   }
   if (algorithm.id === 'trie') return <TrieTreeVisual algorithm={algorithm} step={step}/>;
   if (algorithm.id === 'suffix-tree') { const text=algorithm.values.join(''); return <div className="suffix-visual"><span className="tree-kind-label">TODOS LOS SUFIJOS DE “{text}”</span><div className="suffix-root">ROOT</div><div className="suffix-branches">{Array.from({length:Math.min(5,text.length)},(_,index)=><div className={index===step%Math.min(5,text.length)?'active':''} key={index}><i/>{text.slice(index)}</div>)}</div></div>; }
-  if (algorithm.type === 'hash' || algorithm.type === 'bloom') return <div className="hash-visual">{algorithm.values.map((v,i)=><div className={`hash-slot ${i===step%algorithm.values.length?'active':''}`} key={i}><small>{i.toString().padStart(2,'0')}</small><strong>{v}</strong></div>)}</div>;
-  if (algorithm.type === 'recursion') return <div className="recursion-visual">{algorithm.values.slice(0,6).map((v,i)=><div className={i===step%6?'active':''} style={{transform:`translateX(${i*16}px)`}} key={i}><span>llamada {i}</span><strong>{v}</strong></div>)}</div>;
+  if (algorithm.type === 'hash') return <HashTableVisual algorithm={algorithm} step={step}/>;
+  if (algorithm.type === 'bloom') return <div className="hash-visual">{algorithm.values.map((v,i)=><div className={`hash-slot ${i===step%algorithm.values.length?'active':''}`} key={i}><small>{i.toString().padStart(2,'0')}</small><strong>{v}</strong></div>)}</div>;
+  if (algorithm.type === 'recursion') return <RecursionVisual algorithm={algorithm} step={step}/>;
   return <LinearVisual algorithm={algorithm} step={step}/>;
 }
 

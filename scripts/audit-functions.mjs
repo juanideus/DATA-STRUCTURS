@@ -162,6 +162,12 @@ let actionCount = 0;
 let executionCount = 0;
 const actionIds = new Set();
 const incompleteJavaSnippets = [];
+const actionsThatMustMutateBeforeCompletion = new Set([
+  'add-end', 'remove-end', 'sorted-add', 'remove-value', 'set-word',
+  'hash-put', 'cache-put', 'cache-get', 'vertex-add', 'vertex-remove',
+  'edge-add', 'edge-remove', 'calculate', 'hanoi-set', 'shuffle', 'bloom-add',
+  'poly-insert-a', 'poly-insert-b', 'poly-remove-a', 'poly-remove-b',
+]);
 for (const algorithm of algorithms) {
   assert.ok(algorithm.id && algorithm.name && algorithm.category && algorithm.type, `${algorithm.id || '(sin id)'}: faltan datos principales.`);
   assert.ok(algorithm.complexity.length >= 4, `${algorithm.id}: falta indicar una complejidad útil.`);
@@ -258,6 +264,17 @@ for (const algorithm of algorithms) {
       assert.ok(frames.every(frame => typeof frame.message === 'string' && frame.message.length > 0), `${label}: un fotograma no explica lo que ocurre.`);
       assert.deepEqual(frames.at(-1).values, result.values, `${label}: el último fotograma no coincide con el resultado.`);
 
+      const valuesChanged = JSON.stringify(initialValues) !== JSON.stringify(result.values);
+      const edgesChanged = JSON.stringify(initialEdges) !== JSON.stringify(result.edges);
+      if (result.ok && frames.length > 2 && actionsThatMustMutateBeforeCompletion.has(action.id) && (valuesChanged || edgesChanged)) {
+        const firstVisibleChange = frames.findIndex(frame => (
+          JSON.stringify(frame.values) !== JSON.stringify(initialValues)
+          || JSON.stringify(frame.edges ?? initialEdges) !== JSON.stringify(initialEdges)
+          || (frame.trieState?.revealed ?? 0) > 0
+        ));
+        assert.ok(firstVisibleChange >= 0 && firstVisibleChange < frames.length - 1, `${label}: el visual cambia recién al terminar, separado de la línea Java que muta la estructura.`);
+      }
+
       if (!usesCustomFrames) {
         assert.deepEqual(frames.at(-1).edges, result.edges, `${label}: las aristas finales no coinciden.`);
         if (!result.ok && operationGroup(algorithm) !== 'list') {
@@ -290,6 +307,52 @@ for (const algorithm of algorithms) {
 }
 
 assert.deepEqual(incompleteJavaSnippets, [], `Hay métodos Java utilizados pero no mostrados:\n${JSON.stringify(incompleteJavaSnippets, null, 2)}`);
+
+const separateChaining = algorithms.find(item => item.id === 'hash-chaining');
+const separateChainingPut = getBeginnerJava(separateChaining, 'hash-put');
+assert.match(separateChainingPut, /Node\[\]\s+buckets/, 'Separate Chaining debe usar buckets con listas enlazadas.');
+assert.match(separateChainingPut, /current\s*=\s*current\.next/, 'Separate Chaining debe recorrer el nexo del bucket.');
+assert.doesNotMatch(separateChainingPut, /while\s*\(used\[index\]\)/, 'Separate Chaining no debe reutilizar sondeo lineal.');
+
+const lru = algorithms.find(item => item.id === 'lru-cache');
+assert.match(getBeginnerJava(lru, 'cache-get'), /markRecent\(node\)/, 'LRU get debe mover el nodo al extremo reciente.');
+assert.match(getBeginnerJava(lru, 'cache-put'), /cache\.remove\(head\.key\)/, 'LRU put debe expulsar el nodo menos reciente.');
+
+const bloom = algorithms.find(item => item.id === 'bloom-filter');
+assert.match(getBeginnerJava(bloom, 'bloom-add'), /int\[\]\s+seeds\s*=\s*\{3, 7, 11\}/, 'Bloom debe mostrar las mismas tres funciones hash que usa la animación.');
+const bloomTrace = run(bloom, 'bloom-add', { value: 'codigo', second: '', index: '' });
+const bloomBitFrames = bloomTrace.frames.filter(frame => frame.codeNeedle === 'bits[index] = true;');
+assert.equal(bloomBitFrames.length, 3, 'Bloom debe ejecutar exactamente tres activaciones, una por cada semilla.');
+assert.deepEqual(bloomBitFrames.map(frame => frame.position), [3, 7, 11].map(seed => ('codigo'.length * seed + 'codigo'.charCodeAt(0)) % bloom.values.length), 'Bloom debe iluminar los índices entregados por sus funciones hash.');
+
+const skipList = algorithms.find(item => item.id === 'skip-list');
+assert.match(getBeginnerJava(skipList, 'sorted-add'), /Node\[\]\s+next/, 'Skip List debe mostrar enlaces por nivel.');
+assert.match(getBeginnerJava(skipList, 'sorted-add'), /currentLevel--/, 'Skip List debe descender por sus niveles.');
+assert.match(getBeginnerJava(skipList, 'sorted-add'), /int newLevel = randomLevel\(\)/, 'Skip List debe calcular el nivel sin pedir un dato inexistente en el formulario.');
+
+const openAddressing = algorithms.find(item => item.id === 'hash-open');
+const openAddressingRemove = getBeginnerJava(openAddressing, 'remove-value');
+assert.match(openAddressingRemove, /states\[index\] = 2/, 'Open Addressing debe dejar una marca de borrado para no cortar una cadena de sondeo.');
+assert.match(getBeginnerJava(openAddressing, 'find'), /while \(states\[index\] != 0\)/, 'Open Addressing debe buscar a través de casillas eliminadas.');
+assert.match(getBeginnerJava(openAddressing, 'hash-put'), /firstDeleted/, 'Open Addressing debe recordar una casilla eliminada sin duplicar una clave ubicada más adelante.');
+let fullOpenAddressing = [];
+for (let index = 0; index < 12; index++) {
+  fullOpenAddressing = run(openAddressing, 'hash-put', { value: `clave-${index}`, second: `${index}`, index: '' }, fullOpenAddressing).values;
+}
+const overflowingOpenAddressing = run(openAddressing, 'hash-put', { value: 'clave-extra', second: '13', index: '' }, fullOpenAddressing);
+assert.equal(overflowingOpenAddressing.ok, false, 'Open Addressing debe rechazar con claridad una inserción cuando sus 12 casillas están llenas.');
+assert.equal(overflowingOpenAddressing.values.length, 12, 'Open Addressing no debe desbordar su arreglo visual ni dejar al renderizador buscando una casilla inexistente.');
+
+const fibonacciAlgorithm = algorithms.find(item => item.id === 'fibonacci');
+const fibonacciJava = getBeginnerJava(fibonacciAlgorithm, 'calculate');
+assert.match(fibonacciJava, /sequence\[i\] = fibonacci\(i\)/, 'Fibonacci debe asociar cada valor visible con su llamada recursiva.');
+assert.match(fibonacciJava, /return fibonacci\(number - 1\) \+ fibonacci\(number - 2\)/, 'Fibonacci debe conservar la recursividad que enseña la sección.');
+
+const factorialAlgorithm = algorithms.find(item => item.id === 'factorial');
+const factorialJava = getBeginnerJava(factorialAlgorithm, 'calculate');
+assert.match(factorialJava, /factorials\[i - 1\] = factorial\(i\)/, 'Factorial debe asociar cada resultado visible con su llamada recursiva.');
+assert.match(factorialJava, /return number \* factorial\(number - 1\)/, 'Factorial debe conservar la recursividad que enseña la sección.');
+assert.deepEqual(run(factorialAlgorithm, 'calculate', { value: '0', second: '', index: '' }).values, [1], 'Factorial debe visualizar correctamente que 0! = 1.');
 
 const polynomial = algorithms.find(item => item.id === 'polinomios');
 assert.ok(polynomial, 'Falta el visualizador de polinomios.');

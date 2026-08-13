@@ -2301,6 +2301,16 @@ function executePolynomialOperation({ actionId, fields, values, edges }) {
     frames.push(frame({
       nextA,
       nextB,
+      nextC: C,
+      codeNeedle: assignment,
+      message: `${targetName} recibe la cabeza devuelta por insertOrdered; el cambio ya es visible.`,
+      activePolynomial: targetName,
+      activeIndex: Math.max(0, updatedTarget.findIndex(term => term.exponent === exponent)),
+      phase: 'assign',
+    }));
+    frames.push(frame({
+      nextA,
+      nextB,
       nextC: [],
       codeNeedle: 'C = null;',
       message: finalMessage,
@@ -2356,6 +2366,7 @@ function executePolynomialOperation({ actionId, fields, values, edges }) {
     const nextA = targetName === 'A' ? updatedTarget : A;
     const nextB = targetName === 'B' ? updatedTarget : B;
     const finalMessage = `Se eliminó x^${exponent} de ${targetName}. C se limpió.`;
+    frames.push(frame({ nextA, nextB, nextC: C, codeNeedle: assignment, message: `${targetName} recibe la lista sin x^${exponent}.`, activePolynomial: targetName, completed: false }));
     frames.push(frame({ nextA, nextB, nextC: [], codeNeedle: 'C = null;', message: finalMessage, activePolynomial: targetName, completed: true }));
     return finish(true, stateValues(nextA, nextB, []), finalMessage, frames);
   }
@@ -5161,8 +5172,27 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
         if (word.length > 8) return fail('Usa una palabra de hasta 8 letras para mantener visible el árbol.');
         if (next.includes(word)) return fail(`${word} ya existe en el Trie.`);
         if (next.length >= 6) return fail('El Trie visual admite hasta 6 palabras.');
+        const beforeWords = [...next];
+        const frames = [{
+          values: [...beforeWords], edges, position: 0,
+          codeNeedle: 'TrieNode current = root;',
+          message: 'current comienza en la raíz del Prefix Tree.',
+          trieState: { word, revealed: 0, marked: false },
+          variables: [{ name: 'current', value: 'root', role: 'position' }],
+        }];
+        let prefix = '';
+        [...word].forEach((letter, letterIndex) => {
+          prefix += letter;
+          const existed = beforeWords.some(item => String(item).startsWith(prefix));
+          const state = { word, revealed: letterIndex + 1, marked: false };
+          frames.push({ values: [...beforeWords], edges, position: letterIndex, codeNeedle: 'for (int i = 0; i < word.length(); i++) {', message: `Iteración ${letterIndex + 1}: se procesa ${letter}.`, trieState: state, variables: [{ name: 'i', value: letterIndex, role: 'index' }, { name: 'letter', value: letter, role: 'value' }] });
+          frames.push({ values: [...beforeWords], edges, position: letterIndex, codeNeedle: 'if (current.children[letter] == null) {', message: existed ? `${prefix} ya comparte un nodo.` : `${prefix} todavía no tiene nodo.`, trieState: state, variables: [{ name: `children[${letter}]`, value: existed ? 'nodo' : 'null', role: existed ? 'true' : 'false' }] });
+          if (!existed) frames.push({ values: [...beforeWords], edges, position: letterIndex, codeNeedle: 'current.children[letter] = new TrieNode();', message: `Se crea el nodo ${letter}.`, trieState: state, variables: [{ name: 'nuevo prefijo', value: prefix, role: 'value' }] });
+          frames.push({ values: [...beforeWords], edges, position: letterIndex, codeNeedle: 'current = current.children[letter];', message: `current avanza hasta ${prefix}.`, trieState: state, variables: [{ name: 'current', value: prefix, role: 'position' }] });
+        });
         next.push(word);
-        return done(next, `La palabra ${word} fue insertada en el Trie.`, next.length - 1);
+        frames.push({ values: [...next], edges, position: word.length - 1, codeNeedle: 'current.isWord = true;', message: `El último nodo se marca como FIN de ${word}.`, trieState: { word, revealed: word.length, marked: true }, variables: [{ name: 'current.isWord', value: true, role: 'true' }], completed: true });
+        return { ...done(next, `La palabra ${word} fue insertada en el Trie.`, next.length - 1), frames };
       }
       return done([...word], `La palabra ${word} fue insertada en el Trie.`, word.length - 1);
     }
@@ -5220,6 +5250,12 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       const key = String(fields.value ?? '').trim();
       if (!key) return fail('Ingresa una clave.');
       const found = next.findIndex(item => String(item).split(':')[0] === key);
+      if (actionId === 'hash-put' && algorithm.id !== 'hash-chaining' && found < 0 && next.length >= 12) {
+        return fail('La tabla visual de direccionamiento abierto está llena (12 casillas). Elimina una clave antes de insertar otra.');
+      }
+      if (actionId === 'hash-put' && algorithm.id === 'hash-chaining' && found < 0 && next.length >= 24) {
+        return fail('La demostración admite hasta 24 entradas distribuidas en sus cadenas.');
+      }
       const entry = fields.second ? `${key}:${fields.second}` : key;
       if (found >= 0) next[found] = entry; else next.push(entry);
       if (actionId === 'cache-put' && next.length > 5) next.shift();
@@ -5306,7 +5342,44 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     case 'kruskal-run': {
       return minimumSpanningTreeTrace({ algorithm, values: next, edges, start: 0 });
     }
-    case 'shuffle': return done([...next].sort(()=>Math.random()-.5), 'Valores mezclados.', 0);
+    case 'shuffle': {
+      const working = [...next];
+      const frames = [];
+      const addFrame = (codeNeedle, message, position, variables = []) => frames.push({
+        values: [...working],
+        edges: edges.map(edge => [...edge]),
+        position,
+        codeNeedle,
+        message,
+        variables,
+      });
+      for (let i = working.length - 1; i > 0; i--) {
+        addFrame('for (int i = size - 1; i > 0; i--) {', `Fisher–Yates procesa el índice ${i}.`, i, [
+          { name: 'i', value: i, role: 'index' },
+        ]);
+        const other = i === 1 ? 0 : Math.floor(Math.random() * (i + 1));
+        addFrame('int other = (int) (Math.random() * (i + 1));', `Se elige el índice ${other} entre 0 y ${i}.`, other, [
+          { name: 'i', value: i, role: 'index' },
+          { name: 'other', value: other, role: 'index' },
+        ]);
+        const temporary = working[i];
+        addFrame('int temp = values[i];', `temp guarda ${temporary}.`, i, [
+          { name: 'temp', value: temporary, role: 'value' },
+        ]);
+        working[i] = working[other];
+        addFrame('values[i] = values[other];', `values[${i}] recibe ${working[i]}.`, i, [
+          { name: 'i', value: i, role: 'index' },
+          { name: 'other', value: other, role: 'index' },
+        ]);
+        working[other] = temporary;
+        addFrame('values[other] = temp;', `values[${other}] recibe ${temporary}; el intercambio queda visible.`, other, [
+          { name: 'other', value: other, role: 'index' },
+          { name: 'temp', value: temporary, role: 'value' },
+        ]);
+      }
+      if (frames.length) frames.at(-1).completed = true;
+      return { ...done(working, 'Valores mezclados con Fisher–Yates.', 0), frames };
+    }
     case 'sort':
       if (algorithm.id === 'quick-sort') return executeQuickSort(next, edges);
       if (algorithm.id === 'merge-sort') return executeMergeSort(next, edges);
@@ -5315,9 +5388,16 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       if (String(fields.value ?? '').trim() === '') return fail('Ingresa un entero entre 0 y 20.');
       const number = Number(fields.value);
       if (!Number.isInteger(number) || number < 0 || number > 20) return fail('Ingresa un entero entre 0 y 20.');
-      if (algorithm.id === 'fibonacci') return done(fibonacci(number), `Fibonacci(${number}) = ${fibonacci(number).at(-1)}.`);
+      if (algorithm.id === 'fibonacci') return done(fibonacci(number), `Fibonacci(${number}) = ${fibonacci(number).at(-1)}.`, number);
+      if (number === 0) return {
+        ...done([1], 'Factorial(0) = 1 por definición.', 0),
+        frames: [
+          { values: [...next], edges, position: 0, codeNeedle: 'if (number == 0)', message: 'Se comprueba el caso especial 0!.' },
+          { values: [1], edges, position: 0, codeNeedle: 'return new int[] {1};', message: 'Por definición, 0! es igual a 1.', completed: true },
+        ],
+      };
       const result = Array.from({length:number},(_,i)=>i+1).reduce((total,item)=>total*item,1);
-      return done(Array.from({length:Math.min(number,8)},(_,i)=>Array.from({length:i+1},(_,j)=>j+1).reduce((a,b)=>a*b,1)), `Factorial(${number}) = ${result}.`);
+      return done(Array.from({length:number},(_,i)=>Array.from({length:i+1},(_,j)=>j+1).reduce((a,b)=>a*b,1)), `Factorial(${number}) = ${result}.`, Math.max(0, number - 1));
     }
     case 'hanoi-set': {
       const disks = Math.max(1,Math.min(7,Number(fields.value)));
@@ -5415,14 +5495,36 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       const text = String(fields.value ?? '').trim();
       if (!text) return fail('Ingresa un elemento.');
       const updated = [...next];
-      [3,7,11].forEach(seed=>updated[(text.length*seed+text.charCodeAt(0))%updated.length]=1);
-      return done(updated, `${text} fue agregado usando 3 funciones hash.`, 0);
+      const frames = [];
+      [3,7,11].forEach((seed, iteration) => {
+        const position = (text.length * seed + text.charCodeAt(0)) % updated.length;
+        frames.push({ values: [...updated], edges, position, codeNeedle: 'for (int seed : seeds) {', message: `Hash ${iteration + 1} de 3: se usa la semilla ${seed}.`, variables: [{ name: 'seed', value: seed, role: 'value' }] });
+        frames.push({ values: [...updated], edges, position, codeNeedle: 'int index = hash(word, seed);', message: `La función hash entrega el índice ${position}.`, variables: [{ name: 'seed', value: seed, role: 'value' }, { name: 'index', value: position, role: 'index' }] });
+        updated[position] = 1;
+        frames.push({ values: [...updated], edges, position, codeNeedle: 'bits[index] = true;', message: `bits[${position}] cambia a 1.`, variables: [{ name: 'index', value: position, role: 'index' }, { name: `bits[${position}]`, value: true, role: 'true' }] });
+      });
+      const message = `${text} fue agregado usando exactamente 3 funciones hash.`;
+      if (frames.length) { frames.at(-1).message = message; frames.at(-1).completed = true; }
+      return { ...done(updated, message, frames.at(-1)?.position ?? 0), frames };
     }
     case 'bloom-check': {
       const text = String(fields.value ?? '').trim();
       if (!text) return fail('Ingresa un elemento.');
-      const indexes=[3,7,11].map(seed=>(text.length*seed+text.charCodeAt(0))%next.length);
-      return done(next, indexes.every(index=>next[index]===1) ? `${text} posiblemente pertenece al conjunto.` : `${text} definitivamente no pertenece al conjunto.`, indexes[0]);
+      const frames = [];
+      let missingIndex = -1;
+      for (const [iteration, seed] of [3,7,11].entries()) {
+        const position = (text.length * seed + text.charCodeAt(0)) % next.length;
+        frames.push({ values: [...next], edges, position, codeNeedle: 'for (int seed : seeds) {', message: `Hash ${iteration + 1} de 3: se usa la semilla ${seed}.`, variables: [{ name: 'seed', value: seed, role: 'value' }] });
+        frames.push({ values: [...next], edges, position, codeNeedle: 'int index = hash(word, seed);', message: `Se revisará bits[${position}].`, variables: [{ name: 'index', value: position, role: 'index' }] });
+        const exists = next[position] === 1;
+        frames.push({ values: [...next], edges, position, codeNeedle: 'if (!bits[index]) return false;', message: exists ? `bits[${position}] es 1; la búsqueda continúa.` : `bits[${position}] es 0; el elemento definitivamente no pertenece.`, variables: [{ name: `bits[${position}]`, value: Boolean(exists), role: exists ? 'true' : 'false' }] });
+        if (!exists) { missingIndex = position; break; }
+      }
+      const belongs = missingIndex < 0;
+      const message = belongs ? `${text} posiblemente pertenece al conjunto.` : `${text} definitivamente no pertenece al conjunto.`;
+      if (belongs) frames.push({ values: [...next], edges, position: frames.at(-1)?.position ?? 0, codeNeedle: 'return true;', message, completed: true });
+      else { frames.at(-1).message = message; frames.at(-1).completed = true; }
+      return { ...done(next, message, frames.at(-1)?.position ?? 0), frames };
     }
     default: return fail('La operación todavía no está disponible.');
   }

@@ -4,6 +4,7 @@ import { getDenseMatrixJava } from './denseMatrixJava.js';
 import { getGeneralizedListJava } from './generalizedListJava.js';
 import { getGraphJava } from './graphJava.js';
 import { getLinearJava } from './linearJava.js';
+import { getSpecializedJava } from './specializedJava.js';
 import { linkedListJava } from './linkedListJava.js';
 import { getSparseMatrixJava } from './sparseMatrixJava.js';
 import { getPolynomialJava } from './polynomialJava.js';
@@ -317,9 +318,17 @@ const basic = {
         }
     }
 }`,
-  calculate: `int calculate(int number) {
+  calculate: `int[] fibonacciUntil(int number) {
+    int[] sequence = new int[number + 1];
+    for (int i = 0; i <= number; i++) {
+        sequence[i] = fibonacci(i);
+    }
+    return sequence;
+}
+
+int fibonacci(int number) {
     if (number <= 1) return number;
-    return calculate(number - 1) + calculate(number - 2);
+    return fibonacci(number - 1) + fibonacci(number - 2);
 }`,
   'hanoi-set': `void createDisks(int amount) {
     diskCount = amount;
@@ -767,12 +776,18 @@ boolean isExit(int row, int column) {
     size--;
     return minimum;
 }`,
-  'math:calculate:factorial': `int factorial(int number) {
-    int result = 1;
+  'math:calculate:factorial': `int[] factorialsUntil(int number) {
+    if (number == 0) return new int[] {1};
+    int[] factorials = new int[number];
     for (int i = 1; i <= number; i++) {
-        result = result * i;
+        factorials[i - 1] = factorial(i);
     }
-    return result;
+    return factorials;
+}
+
+int factorial(int number) {
+    if (number <= 1) return 1;
+    return number * factorial(number - 1);
 }`,
   'list:add-start': `Node addAtStart(Node head, int value) {
     Node newNode = new Node(value);
@@ -1267,7 +1282,8 @@ export function getBeginnerJava(algorithm, actionId) {
   const denseMatrixSource = sparseMatrixSource ? null : algorithm.id === 'matriz' ? getDenseMatrixJava(actionId) : null;
   const polynomialSource = sparseMatrixSource || denseMatrixSource ? null : algorithm.id === 'polinomios' ? getPolynomialJava(actionId) : null;
   const generalizedListSource = sparseMatrixSource || denseMatrixSource || polynomialSource ? null : algorithm.id === 'listas-generalizadas' ? getGeneralizedListJava(actionId) : null;
-  const graphSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource ? null : getGraphJava(algorithm.id, actionId);
+  const specializedSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource ? null : getSpecializedJava(algorithm.id, actionId);
+  const graphSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || specializedSource ? null : getGraphJava(algorithm.id, actionId);
   const astSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || graphSource ? null : algorithm.id === 'ast' ? getAstJava(actionId) : null;
   const linearSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || graphSource || astSource ? null : getLinearJava(algorithm.id, actionId);
   const treeSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || graphSource || astSource || linearSource ? null : getTreeJava(algorithm.id, actionId);
@@ -1279,6 +1295,8 @@ export function getBeginnerJava(algorithm, actionId) {
     source = polynomialSource;
   } else if (generalizedListSource) {
     source = generalizedListSource;
+  } else if (specializedSource) {
+    source = specializedSource;
   } else if (graphSource) {
     source = graphSource;
   } else if (astSource) {

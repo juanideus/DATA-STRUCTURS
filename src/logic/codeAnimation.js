@@ -191,6 +191,54 @@ function applyVisibleMutation({ actionId, line, workingValues, beforeValues, aft
   if (actionId === 'clear-bits' && /bits\[i\]\s*=\s*false/.test(text) && iteration < workingValues.length) {
     workingValues[iteration] = 0;
   }
+
+  if (actionId === 'bloom-add' && /bits\[index\]\s*=\s*true/.test(text)) {
+    const changedIndexes = afterValues
+      .map((value, index) => value !== beforeValues[index] ? index : -1)
+      .filter(index => index >= 0);
+    const changedIndex = changedIndexes[Math.min(iteration, changedIndexes.length - 1)];
+    if (changedIndex !== undefined) workingValues[changedIndex] = afterValues[changedIndex];
+  }
+
+  if (actionId === 'calculate' && /int\[\]\s+(?:sequence|factorials)\s*=\s*new int/.test(text)) {
+    workingValues.splice(0, workingValues.length, ...Array(afterValues.length).fill(undefined));
+  }
+  if (actionId === 'calculate' && /sequence\[i\]\s*=\s*fibonacci\(i\)/.test(text)) {
+    const targetIndex = Math.min(afterValues.length - 1, iteration);
+    if (targetIndex >= 0) workingValues[targetIndex] = afterValues[targetIndex];
+  }
+  if (actionId === 'calculate' && /factorials\[i\s*-\s*1\]\s*=\s*factorial\(i\)/.test(text)) {
+    const targetIndex = Math.min(afterValues.length - 1, iteration);
+    if (targetIndex >= 0) workingValues[targetIndex] = afterValues[targetIndex];
+  }
+  if (actionId === 'hanoi-set' && /diskCount\s*=\s*amount/.test(text)) {
+    workingValues.splice(0, workingValues.length, ...Array(afterValues.length).fill(undefined));
+  }
+  if (actionId === 'hanoi-set' && /source\[i\]\s*=\s*amount\s*-\s*i/.test(text)) {
+    const targetIndex = Math.min(afterValues.length - 1, iteration);
+    if (targetIndex >= 0) workingValues[targetIndex] = afterValues[targetIndex];
+  }
+}
+
+function stateMutationPattern(actionId) {
+  const patterns = {
+    'add-end': /(?:result\[n\]|values\[size\])\s*=\s*value/,
+    'remove-end': /(?:size--|return removed)/,
+    'sorted-add': /(?:update\[currentLevel\]\.next\[currentLevel\]\s*=\s*newNode|values\[index\]\s*=\s*value)/,
+    'remove-value': /(?:size--|return true)/,
+    clear: /(?:size\s*=\s*0|cache\.clear\(\)|head\s*=\s*null)/,
+    'set-word': /current\.isWord\s*=\s*true/,
+    'hash-put': /(?:used\[index\]\s*=\s*true|states\[index\]\s*=\s*1|buckets\[index\]\s*=\s*new Node)/,
+    'cache-put': /(?:addLast\(node\)|markRecent\(node\))/,
+    'cache-get': /markRecent\(node\)/,
+    'vertex-add': /vertexNames\[vertexCount\]\s*=\s*name/,
+    'vertex-remove': /vertexCount--/,
+    'edge-add': /(?:adjacency\[(?:from|to)\]\[(?:to|from)\]\s*=\s*true|weights\[(?:from|to)\]\[(?:to|from)\]\s*=\s*weight|edges\[edgeCount\]\s*=\s*new Edge)/,
+    'edge-remove': /(?:adjacency\[(?:from|to)\]\[(?:to|from)\]\s*=\s*false|weights\[(?:from|to)\]\[(?:to|from)\]\s*=\s*NO_EDGE|removeEdgeAt\(edge\))/,
+    calculate: /return (?:sequence|factorials)/,
+    shuffle: /values\[other\]\s*=\s*temp/,
+  };
+  return patterns[actionId] ?? null;
 }
 
 function readableVariableValue(value) {
@@ -275,12 +323,23 @@ export function createCodeSynchronizedFrames({ code, actionId, beforeValues, aft
   const iterationCount = estimateLoopIterations({ actionId, beforeValues, afterValues, finalStep, finalMessage, lengthBasedArray });
   const sequence = buildCodeExecutionTrace(code, iterationCount);
   const workingValues = copyVisualValues(beforeValues);
+  let workingEdges = cloneEdges(beforeEdges);
+  const mutationPattern = stateMutationPattern(actionId);
+  let appliedFinalState = false;
   const frames = sequence.map(line => {
     applyVisibleMutation({ actionId, line, workingValues, beforeValues, afterValues, finalStep, lengthBasedArray });
+    if (!appliedFinalState && mutationPattern?.test(line.text.replace(/\s+/g, ' '))) {
+      const bloomStep = actionId === 'bloom-add' && /bits\[index\]\s*=\s*true/.test(line.text.replace(/\s+/g, ' '));
+      if (!bloomStep) {
+        workingValues.splice(0, workingValues.length, ...copyVisualValues(afterValues));
+        workingEdges = cloneEdges(afterEdges);
+        appliedFinalState = true;
+      }
+    }
     const position = framePosition(actionId, line, beforeValues, workingValues, finalStep, lengthBasedArray);
     return {
       values: copyVisualValues(workingValues),
-      edges: cloneEdges(beforeEdges),
+      edges: cloneEdges(workingEdges),
       position,
       codeLine: line.index,
       message: executionMessage(line),
@@ -296,7 +355,7 @@ export function createCodeSynchronizedFrames({ code, actionId, beforeValues, aft
     values: copyVisualValues(afterValues),
     edges: cloneEdges(afterEdges),
     position: Math.max(0, Number(finalStep) || 0),
-    codeLine: executable.at(-1)?.index ?? 0,
+    codeLine: sequence.at(-1)?.index ?? executable.at(-1)?.index ?? 0,
     message: finalMessage,
     delayMs: 650,
     completed: true,
