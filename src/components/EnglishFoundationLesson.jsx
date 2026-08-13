@@ -1,4 +1,5 @@
 import { AlertTriangle, BookOpen, CheckCircle2, Code2, Lightbulb } from 'lucide-react';
+import ComplexityGrowthChart from './ComplexityGrowthChart.jsx';
 
 const profiles = {
   'estructuras-de-datos': ['Data Structures', 'A data structure is a disciplined way to store, connect, and access information so a program can perform its important operations efficiently.', ['Data','The values and relationships a program needs'], ['Organization','Indices, links, keys, or levels locate the data'], ['Operations','Search, insert, update, delete, and traverse'], 'Choose a structure from the operations and constraints of the problem, not from its name.', ['Separate the ADT contract from its implementation','Compare time and additional memory','Preserve the invariant after every change','Test empty, single-value, and large cases']],
@@ -35,6 +36,7 @@ export default function EnglishFoundationLesson({ algorithm }) {
   const concepts = [p[2], p[3], p[4]];
   const code = codeExamples[algorithm.id];
   const mistakes = ['Skipping the input assumptions or required conditions','Changing state without preserving the central rule','Testing only one normal example','Memorizing syntax without tracing how values change'];
+  const isComplexity = algorithm.id === 'complejidad-algoritmica';
   return <section className="complexity-lesson foundation-lesson" data-foundation-lesson={algorithm.id}>
     <article className="complexity-intro-card foundation-intro-card"><span className="lesson-kicker">01 · CENTRAL IDEA</span><h2>{p[0]}</h2><p>{p[1]}</p><div className="complexity-foundations foundation-key-grid">{concepts.map(([term,text])=><div key={term}><strong>{term}</strong><span>Core concept</span><p>{text}</p></div>)}</div></article>
     <div className="foundation-section-grid">
@@ -43,6 +45,7 @@ export default function EnglishFoundationLesson({ algorithm }) {
       <article><span className="lesson-kicker">04 · CONCEPT</span><h3>How to reason about it</h3><p>Separate inputs, internal state, operations, and outputs. Then test a small example by hand and record every change before writing more code.</p>{code&&<div className="foundation-code-wrap"><header><Code2 size={15}/><span>Basic Java example</span></header><pre><code>{code}</code></pre></div>}</article>
       <article><span className="lesson-kicker">05 · CONCEPT</span><h3>Connection with algorithms</h3><p>Use this concept to justify conditions, loops, references, recursive calls, or stored states instead of treating code as isolated syntax.</p></article>
     </div>
+    {isComplexity && <article className="complexity-chart-card"><div><span className="lesson-kicker">GROWTH ORDERS</span><h3>What happens as n grows</h3><p>The chart compares seven growth rates. O(log n) grows slowly, while O(n!) eventually grows faster than O(2ⁿ).</p></div><ComplexityGrowthChart language="en"/></article>}
     <div className="foundation-review-grid"><article className="foundation-mistakes"><span className="lesson-kicker">COMMON MISTAKES</span><h3>What to review</h3><ul>{mistakes.map(x=><li key={x}><AlertTriangle size={15}/><span>{x}</span></li>)}</ul></article><article className="foundation-checklist"><span className="lesson-kicker">APPLICATION GUIDE</span><h3>Steps for practice</h3><ol>{p[6].map(x=><li key={x}><CheckCircle2 size={15}/><span>{x}</span></li>)}</ol></article></div>
     <article className="complexity-summary-card foundation-summary-card"><Lightbulb size={20}/><div><span className="lesson-kicker">IDEA TO REMEMBER</span><p>{p[5]}</p></div></article>
   </section>;
