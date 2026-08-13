@@ -304,6 +304,8 @@ body{background:
 .hash-slot strong{font-size:12px}
 .sudoku-grid>div{font-size:13px}
 .recursion-visual span{font-size:10px}
+
+.chaining-visual{position:relative;z-index:1;width:min(720px,94%);display:grid;gap:8px}.chain-row{min-height:42px;display:flex;align-items:center;gap:8px;overflow-x:auto;padding:3px 4px}.chain-index{flex:0 0 30px;color:var(--muted);font:10px 'DM Mono',monospace;text-align:center}.chain-head{flex:0 0 76px;padding:8px 9px;border:1px solid #aeb8b1;border-radius:5px;background:#f4f1e9;color:var(--green);font:9px 'DM Mono',monospace}.chain-node{display:flex;align-items:center;gap:8px;flex:0 0 auto}.chain-node i{color:var(--orange);font-style:normal;font-size:18px}.chain-node strong{min-width:58px;padding:9px 11px;border:1px solid var(--green);border-radius:5px;background:#faf8f2;font:11px 'DM Mono',monospace;text-align:center;transition:.25s}.chain-node.active strong{background:var(--orange);border-color:var(--orange);color:#fff;box-shadow:0 7px 15px rgba(239,90,54,.2)}.chain-null{flex:0 0 auto;color:var(--muted);font:9px 'DM Mono',monospace}
 .leaf-link{font-size:10px}
 
 .future-description span{font-size:9px}
