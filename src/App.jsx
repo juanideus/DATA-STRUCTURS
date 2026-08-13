@@ -8,6 +8,7 @@ import { getGraphDesign, graphEdgesFor, graphPositionsFor } from './data/graphDe
 import OperationsPanel from './components/OperationsPanel.jsx';
 import SectionTestModal from './components/SectionTestModal.jsx';
 import VariablesPanel from './components/VariablesPanel.jsx';
+import ComplexityGrowthChart from './components/ComplexityGrowthChart.jsx';
 import {
   adaptFramesToCode,
   copyVisualValues,
@@ -18,7 +19,6 @@ import {
 import { DEFAULT_GRAPH_EDGES, DEFAULT_GRAPH_POSITIONS, executeOperation, getOperationDefinition, getThreadedTreeLinks, operationGroup, SPARSE_MATRIX_COLUMNS, SPARSE_MATRIX_ROWS } from './logic/operations.js';
 import { AST_EXAMPLES, astValuesFromSource } from './logic/ast.js';
 import { DENSE_MATRIX_SIZE, normalizeDenseMatrixValues } from './logic/denseMatrix.js';
-import { COMPLEXITY_ORDERS, complexityValue } from './logic/complexity.js';
 import { GENERALIZED_LIST_EXAMPLES, generalizedListToString, generalizedListValuesFromSource } from './logic/generalizedList.js';
 import { createRandomPathMap, DEFAULT_PATH_MAP } from './logic/pathfindingMap.js';
 import { formatPolynomial, polynomialTerms } from './logic/polynomial.js';
@@ -345,13 +345,6 @@ function DenseMatrixVisual({ algorithm, step }) {
 }
 
 function ComplexityLesson() {
-  const chartSizes = Array.from({ length: 10 }, (_, index) => index + 1);
-  const chartPath = order => chartSizes.map((size, index) => {
-    const x = 8 + index * 9.2;
-    const value = complexityValue(order, size);
-    const y = 91 - (Math.log10(value + 1) / Math.log10(1025)) * 78;
-    return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
-  }).join(' ');
   const orderRows = [
     ['O(1)', 'Constante', 'Acceder a una posición conocida', 'No cambia'],
     ['O(log n)', 'Logarítmica', 'Búsqueda binaria', 'Aumenta muy poco'],
@@ -359,6 +352,7 @@ function ComplexityLesson() {
     ['O(n log n)', 'Lineal-logarítmica', 'Merge Sort', 'Algo más del doble'],
     ['O(n²)', 'Cuadrática', 'Dos ciclos completos', 'Se cuadruplica'],
     ['O(2ⁿ)', 'Exponencial', 'Explorar subconjuntos', 'Se eleva drásticamente'],
+    ['O(n!)', 'Factorial', 'Probar todas las permutaciones', 'Crece más rápido que 2ⁿ'],
   ];
 
   return <section className="complexity-lesson" data-complexity-lesson>
@@ -400,17 +394,9 @@ function ComplexityLesson() {
       <div>
         <span className="lesson-kicker">04 · ÓRDENES DE CRECIMIENTO</span>
         <h3>Qué ocurre cuando n aumenta</h3>
-        <p>El gráfico usa una escala vertical logarítmica para que las seis curvas sean legibles. Una curva más empinada significa que el costo crece con mayor rapidez.</p>
+        <p>El gráfico compara siete órdenes de crecimiento. O(log n) aumenta lentamente, mientras que O(n!) termina creciendo más rápido que O(2ⁿ).</p>
       </div>
-      <div className="complexity-static-chart">
-        <svg viewBox="0 0 100 100" role="img" aria-label="Gráfico de órdenes de crecimiento desde O de 1 hasta O de 2 elevado a n">
-          <path className="axis" d="M8 8 V91 H96"/>
-          {[25, 50, 75].map(value => <path className="guide" d={`M8 ${value} H96`} key={value}/>)}
-          {COMPLEXITY_ORDERS.map(order => <path className="curve" d={chartPath(order.id)} style={{ stroke: order.color }} key={order.id}/>)}
-          <text x="92" y="98">n</text><text x="1" y="11">trabajo</text>
-        </svg>
-        <div className="complexity-chart-legend">{COMPLEXITY_ORDERS.map(order => <span key={order.id}><i style={{ background: order.color }}/>{order.label}</span>)}</div>
-      </div>
+      <ComplexityGrowthChart language="es"/>
     </article>
 
     <article className="complexity-order-table-card">

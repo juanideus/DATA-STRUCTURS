@@ -48,6 +48,38 @@ test('traduce todas las páginas de fundamentos al inglés', async ({ page }) =>
   }
 });
 
+test('complejidad en inglés conserva el gráfico y dibuja O(log n) de forma continua', async ({ page }) => {
+  await page.goto('/complejidad-algoritmica?lang=en');
+  const chart = page.locator('.complexity-static-chart');
+  await expect(chart).toBeVisible();
+  await expect(chart).toContainText('O(log n)');
+  const logarithmicPath = chart.locator('.curve-logarithmic');
+  await expect(logarithmicPath).toHaveCount(1);
+  const points = await logarithmicPath.getAttribute('d');
+  expect(points?.match(/\bL\b/g)?.length).toBeGreaterThanOrEqual(150);
+  const yValues = [...(points?.matchAll(/(?:M|L)\s+[\d.-]+\s+([\d.-]+)/g) ?? [])].map(match => match[1]);
+  expect(new Set(yValues).size).toBeGreaterThan(140);
+  await expect(chart.locator('.curve-constant')).toHaveCount(1);
+  await expect(chart.locator('.curve-linear')).toHaveCount(1);
+  await expect(chart.locator('.curve-quadratic')).toHaveCount(1);
+  await expect(chart.locator('.curve-exponential')).toHaveCount(1);
+  await expect(chart.locator('.curve-factorial')).toHaveCount(1);
+  await expect(chart).toContainText('O(n!)');
+  await expect(chart.locator('.curve-constant')).toHaveAttribute('d', /^M 8 [\d.]+ H 96$/);
+  const starts = await chart.locator('.curve').evaluateAll(paths => Object.fromEntries(paths.map(path => {
+    const id = [...path.classList].find(name => name.startsWith('curve-') && name !== 'curve');
+    const [, x, y] = path.getAttribute('d').match(/^M\s+([\d.-]+)\s+([\d.-]+)/) ?? [];
+    return [id, { x: Number(x), y: Number(y) }];
+  })));
+  expect(starts['curve-logarithmic']).toEqual({ x: 8, y: 88 });
+  expect(starts['curve-linear']).toEqual({ x: 8, y: 88 });
+  expect(starts['curve-linearithmic']).toEqual({ x: 8, y: 88 });
+  expect(starts['curve-quadratic']).toEqual({ x: 8, y: 88 });
+  expect(starts['curve-exponential']).toEqual({ x: 8, y: 88 });
+  expect(starts['curve-factorial']).toEqual({ x: 8, y: 88 });
+  expect(starts['curve-constant'].y).toBeLessThan(88);
+});
+
 test('el modo inglés traduce también la interfaz interactiva, desafíos, prueba, tour y reporte', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name.startsWith('mobile'), 'La cobertura bilingüe completa se comprueba una vez en escritorio.');
   await page.goto('/array?lang=en');
@@ -130,8 +162,8 @@ test('la sección de complejidad explica la teoría con gráficos y sin laborato
   await page.goto('/complejidad-algoritmica');
   await expect(page.getByRole('heading', { name: 'Complejidad algorítmica', level: 1 })).toBeVisible();
   await expect(page.getByRole('heading', { name: '¿Qué es la complejidad algorítmica?', level: 2 })).toBeVisible();
-  await expect(page.locator('.complexity-static-chart .curve')).toHaveCount(6);
-  await expect(page.locator('.complexity-order-table [role="row"]')).toHaveCount(7);
+  await expect(page.locator('.complexity-static-chart .curve')).toHaveCount(7);
+  await expect(page.locator('.complexity-order-table [role="row"]')).toHaveCount(8);
   await expect(page.locator('.complexity-notation-card')).toContainText('O(g(n))');
   await expect(page.locator('.complexity-notation-card')).toContainText('Ω(g(n))');
   await expect(page.locator('.complexity-notation-card')).toContainText('Θ(g(n))');
