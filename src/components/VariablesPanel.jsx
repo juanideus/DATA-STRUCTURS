@@ -43,7 +43,7 @@ export default function VariablesPanel({ frame, algorithm, step, playing }) {
   const variables = frame?.variables?.length ? frame.variables : fallbackVariables(frame, algorithm, step);
   const status = frame?.failed ? 'Error' : frame?.completed ? 'Finalizado' : playing ? 'Ejecutando' : 'Estado actual';
 
-  return <section className="variables-panel" aria-live="polite" aria-label="Variables en tiempo real">
+  return <section className="variables-panel" data-tour="variables" aria-live="polite" aria-label="Variables en tiempo real">
     <header>
       <div><Variable size={16}/><strong>Variables en tiempo real</strong></div>
       <span className={playing ? 'is-running' : ''}><i/>{status}</span>

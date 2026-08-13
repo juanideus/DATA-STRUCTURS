@@ -1013,3 +1013,30 @@ test('no produce desbordamiento horizontal en móvil', async ({ page }, testInfo
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
 });
+
+test('el recorrido guiado explica sus herramientas y puede completarse', async ({ page }) => {
+  await page.goto('/complejidad-algoritmica');
+  const launch = page.getByRole('button', { name: 'Abrir recorrido guiado de cómo funciona DSA Lab' });
+  await expect(launch).toBeVisible();
+  await launch.click();
+
+  await expect(page).toHaveURL(/\/array$/);
+  await expect(page.getByRole('dialog', { name: 'Elige qué quieres aprender' })).toBeVisible();
+  await expect(page.locator('.guided-tour-spotlight')).toBeVisible();
+
+  const remainingTitles = [
+    'Observa cómo cambia la estructura',
+    'Experimenta con tus propios datos',
+    'Controla la animación',
+    'Relaciona la animación con el código',
+    'Revisa las variables en tiempo real',
+    'Comprueba lo aprendido',
+  ];
+  for (const title of remainingTitles) {
+    await page.getByRole('button', { name: 'Siguiente paso del recorrido', exact: true }).click();
+    await expect(page.getByRole('heading', { name: title })).toBeVisible();
+  }
+
+  await page.getByRole('button', { name: 'Finalizar recorrido', exact: true }).click();
+  await expect(page.locator('.guided-tour')).toHaveCount(0);
+});
