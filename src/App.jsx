@@ -2454,11 +2454,18 @@ function BugReporter({ section }) {
   const [report, setReport] = useState({ name:'', email:'', title:'', type:'Algo no funciona', description:'', steps:'', website:'' });
   const [copyStatus, setCopyStatus] = useState('');
   const [sending, setSending] = useState(false);
+  const reportServiceWarmed = useRef(false);
 
   useEffect(() => {
     if (!open) return undefined;
     const closeWithEscape = event => { if (event.key === 'Escape') setOpen(false); };
     window.addEventListener('keydown', closeWithEscape);
+    if (REPORT_API_URL && !reportServiceWarmed.current) {
+      reportServiceWarmed.current = true;
+      fetch(`${REPORT_API_URL}/health`, { mode: 'no-cors', cache: 'no-store' }).catch(() => {
+        reportServiceWarmed.current = false;
+      });
+    }
     return () => window.removeEventListener('keydown', closeWithEscape);
   }, [open]);
 
@@ -2491,8 +2498,9 @@ function BugReporter({ section }) {
     }
     setSending(true);
     setCopyStatus('Enviando reporte…');
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 15_000);
+    const slowResponseNotice = window.setTimeout(() => {
+      setCopyStatus('El servicio se está iniciando. Mantén esta ventana abierta; tu reporte se enviará automáticamente.');
+    }, 8_000);
     try {
       const response = await fetch(`${REPORT_API_URL}/api/report`, {
         method: 'POST',
@@ -2503,18 +2511,15 @@ function BugReporter({ section }) {
           pageUrl: window.location.href,
           userAgent: navigator.userAgent,
         }),
-        signal: controller.signal,
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.message || 'No fue posible enviar el reporte.');
       setReport({ name:'', email:'', title:'', type:'Algo no funciona', description:'', steps:'', website:'' });
       setCopyStatus('¡Gracias! El reporte fue enviado correctamente.');
     } catch (error) {
-      setCopyStatus(error.name === 'AbortError'
-        ? 'El servidor tardó demasiado en responder. Inténtalo nuevamente.'
-        : error.message || 'No fue posible enviar el reporte. Inténtalo nuevamente.');
+      setCopyStatus(error.message || 'No fue posible enviar el reporte. Comprueba tu conexión e inténtalo nuevamente.');
     } finally {
-      window.clearTimeout(timeout);
+      window.clearTimeout(slowResponseNotice);
       setSending(false);
     }
   };
