@@ -6,6 +6,7 @@ import {
   normalizeChallengeProgress,
   recordChallengeAttempt,
 } from '../logic/challenges.js';
+import { translateLearningText, useLanguage } from '../i18n.jsx';
 
 const STORAGE_KEY = 'dsa-challenge-progress-v1';
 
@@ -26,6 +27,7 @@ function saveProgress(progress) {
 }
 
 export default function ChallengePanel({ algorithm, values, playing, scenarioKey = 0, onVerify }) {
+  const { language } = useLanguage();
   const [progress, setProgress] = useState(loadProgress);
   const [challenge, setChallenge] = useState(() => createChallenge(
     algorithm,
@@ -61,6 +63,14 @@ export default function ChallengePanel({ algorithm, values, playing, scenarioKey
   const topicProgress = progress.byAlgorithm[algorithm.id] ?? { attempts: 0, correct: 0 };
   const successRate = progress.attempts ? Math.round(progress.correct / progress.attempts * 100) : 0;
   const selectedIsCorrect = selectedChoice === challenge.correctChoiceId;
+  const lt = value => translateLearningText(value, language);
+  const copy = language === 'en' ? {
+    mode:'Challenge mode', title:'Predict before running', correct:'correct', attempts:'attempts', answers:'Possible answers', shown:'Hint shown', hint:'I need a hint',
+    topic:'Topic', in:'in', good:'Great prediction!', retry:'Not yet — let’s review the idea', started:'Animation started', verify:'Check with the animation', another:'Another challenge',
+  } : {
+    mode:'Modo desafío', title:'Predice antes de ejecutar', correct:'aciertos', attempts:'intentos', answers:'Posibles respuestas', shown:'Pista mostrada', hint:'Necesito una pista',
+    topic:'Tema', in:'en', good:'¡Buena predicción!', retry:'Todavía no, revisemos la idea', started:'Animación iniciada', verify:'Comprobar con la animación', another:'Otro desafío',
+  };
 
   const answer = choiceId => {
     if (answered) return;
@@ -81,18 +91,18 @@ export default function ChallengePanel({ algorithm, values, playing, scenarioKey
     <header className="challenge-header">
       <div className="challenge-title">
         <span><Brain size={18}/></span>
-        <div><small>Modo desafío</small><h3 id="challenge-title">Predice antes de ejecutar</h3></div>
+        <div><small>{copy.mode}</small><h3 id="challenge-title">{copy.title}</h3></div>
       </div>
-      <div className="challenge-progress" aria-label={`${progress.correct} aciertos de ${progress.attempts} intentos`}>
+      <div className="challenge-progress" aria-label={`${progress.correct} ${copy.correct} ${copy.in} ${progress.attempts} ${copy.attempts}`}>
         <Trophy size={15}/><strong>{progress.correct}/{progress.attempts}</strong><span>{successRate}%</span>
       </div>
     </header>
 
     <div className="challenge-question">
-      <Target size={17}/><p>{challenge.question}</p>
+      <Target size={17}/><p>{lt(challenge.question)}</p>
     </div>
 
-    <div className="challenge-options" role="group" aria-label="Posibles respuestas">
+    <div className="challenge-options" role="group" aria-label={copy.answers}>
       {challenge.options.map(option => {
         const isSelected = selectedChoice === option.id;
         const isCorrect = option.id === challenge.correctChoiceId;
@@ -107,7 +117,7 @@ export default function ChallengePanel({ algorithm, values, playing, scenarioKey
           disabled={answered}
           onClick={() => answer(option.id)}
         >
-          <span>{option.label}</span>
+          <span>{lt(option.label)}</span>
           {answered && isCorrect && <CheckCircle2 size={16}/>}
           {answered && isSelected && !isCorrect && <XCircle size={16}/>}
         </button>;
@@ -116,24 +126,24 @@ export default function ChallengePanel({ algorithm, values, playing, scenarioKey
 
     {!answered && <div className="challenge-hint-row">
       <button type="button" className="challenge-hint-button" onClick={() => setUsedHint(true)} disabled={usedHint}>
-        <Lightbulb size={15}/>{usedHint ? 'Pista mostrada' : 'Necesito una pista'}
+        <Lightbulb size={15}/>{usedHint ? copy.shown : copy.hint}
       </button>
-      <span>Tema: {topicProgress.correct} aciertos en {topicProgress.attempts} intentos</span>
+      <span>{copy.topic}: {topicProgress.correct} {copy.correct} {copy.in} {topicProgress.attempts} {copy.attempts}</span>
     </div>}
 
-    {usedHint && !answered && <p className="challenge-hint" role="status"><Lightbulb size={15}/>{challenge.hint}</p>}
+    {usedHint && !answered && <p className="challenge-hint" role="status"><Lightbulb size={15}/>{lt(challenge.hint)}</p>}
 
     {answered && <div className={`challenge-feedback ${selectedIsCorrect ? 'success' : 'error'}`} role="status" aria-live="polite">
       {selectedIsCorrect ? <CheckCircle2 size={19}/> : <XCircle size={19}/>}
-      <div><strong>{selectedIsCorrect ? '¡Buena predicción!' : 'Todavía no, revisemos la idea'}</strong><p>{challenge.explanation}</p></div>
+      <div><strong>{selectedIsCorrect ? copy.good : copy.retry}</strong><p>{lt(challenge.explanation)}</p></div>
     </div>}
 
     {answered && <div className="challenge-actions">
       <button type="button" className="challenge-verify" onClick={verify} disabled={playing || verified}>
-        <Play size={15}/>{verified ? 'Animación iniciada' : 'Comprobar con la animación'}
+        <Play size={15}/>{verified ? copy.started : copy.verify}
       </button>
       <button type="button" onClick={() => prepareChallenge(values)} disabled={playing}>
-        <RotateCcw size={15}/>Otro desafío
+        <RotateCcw size={15}/>{copy.another}
       </button>
     </div>}
   </section>;

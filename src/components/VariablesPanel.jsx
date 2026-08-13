@@ -1,4 +1,5 @@
 import { Variable } from 'lucide-react';
+import { translateLearningText, useLanguage } from '../i18n.jsx';
 
 function formatValue(value) {
   if (value === undefined) return '—';
@@ -40,24 +41,25 @@ function fallbackVariables(frame, algorithm, step) {
 }
 
 export default function VariablesPanel({ frame, algorithm, step, playing }) {
+  const { language, t } = useLanguage();
   const variables = frame?.variables?.length ? frame.variables : fallbackVariables(frame, algorithm, step);
-  const status = frame?.failed ? 'Error' : frame?.completed ? 'Finalizado' : playing ? 'Ejecutando' : 'Estado actual';
+  const status = frame?.failed ? t('error') : frame?.completed ? t('finished') : playing ? t('running') : t('currentState');
 
-  return <section className="variables-panel" data-tour="variables" aria-live="polite" aria-label="Variables en tiempo real">
+  return <section className="variables-panel" data-tour="variables" aria-live="polite" aria-label={t('realTimeVariables')}>
     <header>
-      <div><Variable size={16}/><strong>Variables en tiempo real</strong></div>
+      <div><Variable size={16}/><strong>{t('realTimeVariables')}</strong></div>
       <span className={playing ? 'is-running' : ''}><i/>{status}</span>
     </header>
     <div className="variables-grid">
       {variables.map((variable, index) => <div className={`variable-item role-${variable.role ?? 'value'}`} key={`${variable.name}-${index}`}>
-        <small>{variable.name}</small>
+        <small>{translateLearningText(variable.name, language)}</small>
         <strong title={formatValue(variable.value)}>{formatValue(variable.value)}</strong>
       </div>)}
     </div>
     <p>{frame?.loopExit
-      ? 'La condición dio false: el ciclo termina y el programa continúa.'
+      ? t('loopExit')
       : frame?.iteration !== null && frame?.iteration !== undefined
-        ? 'Estos valores cambian al mismo tiempo que la línea activa y la animación.'
-        : 'El panel refleja el estado visible de la estructura en este paso.'}</p>
+        ? t('loopState')
+        : t('panelState')}</p>
   </section>;
 }

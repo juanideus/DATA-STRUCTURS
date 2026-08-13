@@ -24,10 +24,12 @@ import { createRandomPathMap, DEFAULT_PATH_MAP } from './logic/pathfindingMap.js
 import { formatPolynomial, polynomialTerms } from './logic/polynomial.js';
 import { buildRecursionCallTree } from './logic/recursionTrace.js';
 import { getSectionTestLockedUntil } from './logic/sectionTests.js';
+import { categoryDescriptions, categoryNames, localizeAlgorithm, siteMetadata, translateCodeText, translateLearningText, translateOperationLabel, useLanguage } from './i18n.jsx';
 
 const EducationalDescription = lazy(() => import('./components/EducationalDescription.jsx'));
 const FoundationLesson = lazy(() => import('./components/FoundationLesson.jsx'));
 const ChallengePanel = lazy(() => import('./components/ChallengePanel.jsx'));
+const EnglishFoundationLesson = lazy(() => import('./components/EnglishFoundationLesson.jsx'));
 
 const SUDOKU_START = [
   5,3,0,0,7,0,0,0,0, 6,0,0,1,9,5,0,0,0, 0,9,8,0,0,0,0,6,0,
@@ -967,8 +969,9 @@ function generalizedListLayout(root) {
 }
 
 function GeneralizedListVisual({ algorithm }) {
+  const en = algorithm.language === 'en';
   const root = algorithm.values[0];
-  if (!root) return <div className="empty-visual"><strong>()</strong><span>Lista generalizada sin referencias</span></div>;
+  if (!root) return <div className="empty-visual"><strong>()</strong><span>{en ? 'Generalized list with no references' : 'Lista generalizada sin referencias'}</span></div>;
   const { nodes, edges } = generalizedListLayout(root);
   const activePaths = new Set(algorithm.animationFrame?.generalizedListState?.activePaths ?? []);
   return <div className="generalized-list-visual" role="img" aria-label={`Lista generalizada A igual a ${generalizedListToString(root)}`}>
@@ -1007,7 +1010,7 @@ function GeneralizedListVisual({ algorithm }) {
       {node.header && <small>REF</small>}
     </div>)}
     {edges.filter(edge => edge.kind === 'null').map(edge => <span className="generalized-null" style={{ left: `${edge.toX}%`, top: `${edge.toY}%` }} key={edge.to}>⌟</span>)}
-    <div className="generalized-legend"><span><i className="tag0"/>0 átomo</span><span><i className="tag1"/>1 sublista · dlink ↓</span><span><i className="tag2"/>2 encabezamiento · ref</span></div>
+    <div className="generalized-legend"><span><i className="tag0"/>0 {en ? 'atom' : 'átomo'}</span><span><i className="tag1"/>1 {en ? 'sublist' : 'sublista'} · dlink ↓</span><span><i className="tag2"/>2 {en ? 'header' : 'encabezamiento'} · ref</span></div>
   </div>;
 }
 
@@ -1222,7 +1225,7 @@ function SparseMatrixVisual({ algorithm }) {
 
 function LinearVisual({ algorithm, step }) {
   const { values, type } = algorithm;
-  if (!values.length) return <div className="empty-visual"><strong>∅</strong><span>Estructura vacía</span></div>;
+  if (!values.length) return <div className="empty-visual"><strong>∅</strong><span>{algorithm.language === 'en' ? 'Empty structure' : 'Estructura vacía'}</span></div>;
   if (type === 'stack') {
     const activeIndex = step % values.length;
     return <div className="stack-visual">{[...values].reverse().map((v, reversedIndex) => {
@@ -1651,7 +1654,7 @@ function SpatialTreeDiagram({ algorithm, step }) {
 
 function TreeVisual({ algorithm, step }) {
   const values = algorithm.values.slice(0,15);
-  if (!values.length) return <div className="empty-visual"><strong>∅</strong><span>Árbol vacío</span></div>;
+  if (!values.length) return <div className="empty-visual"><strong>∅</strong><span>{algorithm.language === 'en' ? 'Empty tree' : 'Árbol vacío'}</span></div>;
   if (['arbol-general','arbol-nario'].includes(algorithm.id)) return <NaryTreeDiagram algorithm={algorithm} step={step}/>;
   if (algorithm.id === 'arbol-enhebrado') return <ThreadedTreeDiagram algorithm={algorithm} step={step}/>;
   if (algorithm.type==='btree') return <MultiwayTreeDiagram algorithm={algorithm} step={step}/>;
@@ -1890,7 +1893,7 @@ function GraphVisual({ algorithm, step }) {
     (!directed && edge[0] === candidate[1] && edge[1] === candidate[0])
   );
   const labelsFor = indexes => indexes?.length ? indexes.map(index=>algorithm.values[index]).join(', ') : '∅';
-  if (!algorithm.values.length) return <div className="empty-visual"><strong>∅</strong><span>Grafo vacío</span></div>;
+  if (!algorithm.values.length) return <div className="empty-visual"><strong>∅</strong><span>{algorithm.language === 'en' ? 'Empty graph' : 'Grafo vacío'}</span></div>;
   return <div className={`graph-canvas graph-design-${algorithm.id} ${graphState ? 'pathfinding-canvas' : ''}`} role="img" aria-label={`Grafo de ${algorithm.name}: ${design.caption}`}>
   <div className="graph-design-title"><span>{design.label}</span><small>{design.caption}</small></div>
   <div className="graph-design-motif" aria-hidden="true"><i/><i/><i/></div>
@@ -2149,7 +2152,7 @@ function Visualizer({ algorithm, step }) {
   if (algorithm.type === 'generalized-list') return <GeneralizedListVisual algorithm={algorithm}/>;
   if (algorithm.type === 'matrix') return <DenseMatrixVisual algorithm={algorithm} step={step}/>;
   if (algorithm.type === 'sparse-matrix') return <SparseMatrixVisual algorithm={algorithm}/>;
-  if (!algorithm.values.length) return <div className="empty-visual"><strong>∅</strong><span>Estructura vacía</span></div>;
+  if (!algorithm.values.length) return <EmptyVisual/>;
   if (['dijkstra','a-star'].includes(algorithm.id)) return <PathMapVisual algorithm={algorithm}/>;
   if (algorithm.type === 'sort') return <SortVisual algorithm={algorithm} step={step}/>;
   if (algorithm.id==='fenwick-tree') return <FenwickVisual algorithm={algorithm} step={step}/>;
@@ -2159,10 +2162,16 @@ function Visualizer({ algorithm, step }) {
   return <SpecialVisual algorithm={algorithm} step={step}/>;
 }
 
+function EmptyVisual() {
+  const { t } = useLanguage();
+  return <div className="empty-visual"><strong>∅</strong><span>{t('emptyStructure')}</span></div>;
+}
+
 const MemoizedVisualizer = memo(Visualizer);
 
 function DescriptionFallback() {
-  return <section className="description-loading" aria-label="Cargando descripción">
+  const { t } = useLanguage();
+  return <section className="description-loading" aria-label={t('loadingDescription')}>
     <span/><div><i/><i/><i/></div>
   </section>;
 }
@@ -2172,28 +2181,34 @@ const sidebarGroupIds = new Map(categories.map(category => [category, `nav-group
 const initiallyClosedSidebarGroups = Object.fromEntries(categories.map(category => [category, category !== 'Estructuras lineales']));
 
 function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setMobileOpen, collapsed, onToggle }) {
+  const { language, setLanguage, t } = useLanguage();
   const [closedGroups, setClosedGroups] = useState(() => initiallyClosedSidebarGroups);
   const groupedAlgorithms = useMemo(() => {
     const term = normalizeSidebarText(query);
     const groups = new Map(categories.map(category => [category, []]));
     for (const algorithm of algorithms) {
-      const searchable = normalizeSidebarText(`${algorithm.name} ${algorithm.navName ?? ''} ${algorithm.category}`);
+      const localized = localizeAlgorithm(algorithm, language);
+      const searchable = normalizeSidebarText(`${algorithm.name} ${algorithm.navName ?? ''} ${localized.name} ${localized.navName ?? ''} ${algorithm.category} ${categoryNames[algorithm.category] ?? ''}`);
       if (!term || searchable.includes(term)) groups.get(algorithm.category)?.push(algorithm);
     }
     return groups;
-  }, [query]);
+  }, [query, language]);
   const hasQuery = Boolean(query.trim());
   const toggleGroup = useCallback((category) => setClosedGroups(current => ({ ...current, [category]: !current[category] })), []);
   return <aside data-tour="sidebar" className={`sidebar ${mobileOpen ? 'open' : ''} ${collapsed ? 'collapsed' : ''}`}>
     <div className="brand">
-      <button className="brand-home" onClick={()=>{onHome();setMobileOpen(false)}} aria-label="Ir a la bienvenida">
+      <button className="brand-home" onClick={()=>{onHome();setMobileOpen(false)}} aria-label={t('welcome')}>
         <span className="brand-mark"><Boxes size={21}/></span>
-        <span className="brand-copy"><strong>DSA Lab</strong><span>Algoritmos visuales</span></span>
+        <span className="brand-copy"><strong>DSA Lab</strong><span>{t('visualAlgorithms')}</span></span>
       </button>
-      <button className="sidebar-collapse-button" onClick={onToggle} aria-label="Ocultar menú lateral" title="Ocultar menú lateral"><PanelLeftClose size={18}/></button>
-      <button className="close-mobile" onClick={()=>setMobileOpen(false)} aria-label="Cerrar"><X/></button>
+      <button className="sidebar-collapse-button" onClick={onToggle} aria-label={t('hideMenu')} title={t('hideMenu')}><PanelLeftClose size={18}/></button>
+      <button className="close-mobile" onClick={()=>setMobileOpen(false)} aria-label={t('close')}><X/></button>
     </div>
-    <div className="search"><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar algoritmo…"/></div>
+    <div className="search"><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={t('search')}/></div>
+    <div className="language-switch" role="group" aria-label="Language / Idioma">
+      <button type="button" className={language === 'es' ? 'active' : ''} aria-pressed={language === 'es'} onClick={()=>setLanguage('es')}>ES</button>
+      <button type="button" className={language === 'en' ? 'active' : ''} aria-pressed={language === 'en'} onClick={()=>setLanguage('en')}>EN</button>
+    </div>
     <nav>
       {categories.map(category => {
         const list = groupedAlgorithms.get(category) ?? [];
@@ -2202,20 +2217,20 @@ function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setM
         const isClosed = !hasQuery && Boolean(closedGroups[category]);
         return <div className="nav-group" key={category}>
           <button type="button" className="nav-heading" onClick={()=>toggleGroup(category)} aria-expanded={!isClosed} aria-controls={groupId}>
-            <span className="nav-heading-label"><ChevronDown className="nav-chevron" size={14}/>{category}</span>
+            <span className="nav-heading-label"><ChevronDown className="nav-chevron" size={14}/>{language === 'en' ? categoryNames[category] ?? category : category}</span>
             <em>{String(list.length).padStart(2,'0')}</em>
           </button>
           <div id={groupId} className={`nav-items ${isClosed ? 'closed' : ''}`} aria-hidden={isClosed}>
             <div className="nav-items-inner">
-              {list.map((a) => <button data-algorithm-id={a.id} className={`nav-item ${selected===a.id?'selected':''}`} onClick={()=>{onSelect(a.id);setMobileOpen(false)}} key={a.id}><span>{String((navigationIndexes.get(a.id) ?? 0)+1).padStart(2,'0')}</span>{a.navName ?? a.name}</button>)}
+              {list.map((a) => { const localized = localizeAlgorithm(a, language); return <button data-algorithm-id={a.id} className={`nav-item ${selected===a.id?'selected':''}`} onClick={()=>{onSelect(a.id);setMobileOpen(false)}} key={a.id}><span>{String((navigationIndexes.get(a.id) ?? 0)+1).padStart(2,'0')}</span>{localized.navName ?? localized.name}</button>; })}
             </div>
           </div>
         </div>;
       })}
     </nav>
     <div className="sidebar-foot">
-      <span><Sparkles size={14}/> {algorithms.length} temas incluidos</span>
-      <div className="author-credit"><small>Autor</small><strong>Juan Zúñiga Maluenda</strong></div>
+      <span><Sparkles size={14}/> {algorithms.length} {t('includedTopics')}</span>
+      <div className="author-credit"><small>{t('author')}</small><strong>Juan Zúñiga Maluenda</strong></div>
     </div>
   </aside>;
 }
@@ -2261,11 +2276,25 @@ const TOUR_STEPS = [
 ];
 
 function GuidedTour({ onClose, onStepChange }) {
+  const { language } = useLanguage();
   const [stepIndex, setStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState(null);
   const [leaving, setLeaving] = useState(false);
   const closeTimerRef = useRef(null);
-  const step = TOUR_STEPS[stepIndex];
+  const englishSteps = [
+    ['Choose what you want to learn','The menu groups every topic by category. You can also search for a structure or algorithm by name.'],
+    ['Watch the structure change','Here you will see every insertion, deletion, traversal, or comparison. The active element is highlighted during execution.'],
+    ['Experiment with your own data','Enter values or indices and run the available operations. The message below explains the result.'],
+    ['Control the animation','Move forward or backward step by step, pause whenever you want, and adjust the speed to study comfortably.'],
+    ['Connect the animation with the code','The active line advances with the visualization. You can switch between Java and pseudocode.'],
+    ['Inspect variables in real time','This panel shows values, indices, and internal decisions so you can understand what the algorithm is doing.'],
+    ['Check what you learned','After practicing, answer ten conceptual questions about this section.'],
+  ];
+  const sourceStep = TOUR_STEPS[stepIndex];
+  const step = language === 'en' ? { ...sourceStep, title: englishSteps[stepIndex][0], description: englishSteps[stepIndex][1] } : sourceStep;
+  const tc = language === 'en'
+    ? { close:'Close tour', label:'HOW IT WORKS', step:'Step', of:'of', skip:'Skip tour', back:'Back', finish:'Finish tour', next:'Next tour step', finishText:'Finish', nextText:'Next' }
+    : { close:'Cerrar recorrido', label:'CÓMO FUNCIONA', step:'Paso', of:'de', skip:'Omitir recorrido', back:'Atrás', finish:'Finalizar recorrido', next:'Siguiente paso del recorrido', finishText:'Finalizar', nextText:'Siguiente' };
 
   const requestClose = useCallback(() => {
     if (leaving) return;
@@ -2322,7 +2351,7 @@ function GuidedTour({ onClose, onStepChange }) {
     : undefined;
 
   return <div className={`guided-tour ${leaving ? 'is-leaving' : ''}`} role="dialog" aria-modal="true" aria-labelledby="guided-tour-title">
-    <button className="guided-tour-backdrop" type="button" onClick={requestClose} aria-label="Cerrar recorrido"/>
+    <button className="guided-tour-backdrop" type="button" onClick={requestClose} aria-label={tc.close}/>
     {targetRect && (
       <div className="guided-tour-spotlight" style={{
         left: targetRect.left - 7,
@@ -2333,20 +2362,20 @@ function GuidedTour({ onClose, onStepChange }) {
     )}
     <section className="guided-tour-card" style={cardStyle}>
       <header>
-        <span><CircleHelp size={16}/> CÓMO FUNCIONA</span>
-        <button type="button" onClick={requestClose} aria-label="Cerrar"><X size={17}/></button>
+        <span><CircleHelp size={16}/> {tc.label}</span>
+        <button type="button" onClick={requestClose} aria-label={tc.close}><X size={17}/></button>
       </header>
-      <div className="guided-tour-progress" aria-label={`Paso ${stepIndex + 1} de ${TOUR_STEPS.length}`}>
+      <div className="guided-tour-progress" aria-label={`${tc.step} ${stepIndex + 1} ${tc.of} ${TOUR_STEPS.length}`}>
         {TOUR_STEPS.map((_, index) => <i className={index <= stepIndex ? 'active' : ''} key={index}/>) }
       </div>
-      <small>Paso {stepIndex + 1} de {TOUR_STEPS.length}</small>
+      <small>{tc.step} {stepIndex + 1} {tc.of} {TOUR_STEPS.length}</small>
       <h2 id="guided-tour-title">{step.title}</h2>
       <p>{step.description}</p>
       <footer>
-        <button type="button" className="tour-skip" onClick={requestClose}>Omitir recorrido</button>
+        <button type="button" className="tour-skip" onClick={requestClose}>{tc.skip}</button>
         <div>
-          {stepIndex > 0 && <button type="button" className="tour-previous" onClick={()=>moveTo(stepIndex - 1)}><ArrowLeft size={15}/> Atrás</button>}
-          <button type="button" className="tour-next" aria-label={stepIndex === TOUR_STEPS.length - 1 ? 'Finalizar recorrido' : 'Siguiente paso del recorrido'} onClick={finishOrContinue}>{stepIndex === TOUR_STEPS.length - 1 ? 'Finalizar' : 'Siguiente'}{stepIndex < TOUR_STEPS.length - 1 && <ArrowRight size={15}/>}</button>
+          {stepIndex > 0 && <button type="button" className="tour-previous" onClick={()=>moveTo(stepIndex - 1)}><ArrowLeft size={15}/> {tc.back}</button>}
+          <button type="button" className="tour-next" aria-label={stepIndex === TOUR_STEPS.length - 1 ? tc.finish : tc.next} onClick={finishOrContinue}>{stepIndex === TOUR_STEPS.length - 1 ? tc.finishText : tc.nextText}{stepIndex < TOUR_STEPS.length - 1 && <ArrowRight size={15}/>}</button>
         </div>
       </footer>
     </section>
@@ -2354,6 +2383,7 @@ function GuidedTour({ onClose, onStepChange }) {
 }
 
 function OpeningIntro({ onDone }) {
+  const { language } = useLanguage();
   const [leaving, setLeaving] = useState(false);
   const onDoneRef = useRef(onDone);
   const exitTimer = useRef(null);
@@ -2379,41 +2409,69 @@ function OpeningIntro({ onDone }) {
     finishTimer.current = window.setTimeout(() => onDoneRef.current(), 620);
   };
 
+  const copy = language === 'en' ? {
+    visual:'Visual algorithms', enter:'Enter now', kicker:'Inspired by better learning', titleA:'Understanding is easier', titleB:'when you can see it.',
+    description:'This page was created to improve student learning: visualize every step, experiment with structures, and build your own algorithms more easily.',
+    see:'Visualize', seeText:'Observe what happens at every step.', understand:'Understand', understandText:'Connect the animation with Java.', create:'Create', createText:'Build your own algorithms.',
+    preparing:'Preparing your learning space', motto:'Your imagination is the limit',
+  } : {
+    visual:'Algoritmos visuales', enter:'Entrar ahora', kicker:'Inspirada en aprender mejor', titleA:'Comprender es más fácil', titleB:'cuando puedes verlo.',
+    description:'Esta página fue creada para mejorar el aprendizaje de los estudiantes: permite visualizar cada paso, experimentar con las estructuras y realizar sus propios algoritmos de una manera más sencilla.',
+    see:'Visualiza', seeText:'Observa qué ocurre en cada paso.', understand:'Comprende', understandText:'Relaciona la animación con Java.', create:'Crea', createText:'Construye tus propios algoritmos.',
+    preparing:'Preparando tu espacio de aprendizaje', motto:'El límite es tu imaginación',
+  };
   return <section className={`opening-intro ${leaving ? 'is-leaving' : ''}`} role="dialog" aria-modal="true" aria-labelledby="opening-title">
     <div className="opening-surface">
       <header className="opening-header">
-        <div><span className="opening-logo"><Boxes size={22}/></span><p><strong>DSA Lab</strong><small>Algoritmos visuales</small></p></div>
-        <button type="button" onClick={enterNow}>Entrar ahora <ArrowRight size={15}/></button>
+        <div><span className="opening-logo"><Boxes size={22}/></span><p><strong>DSA Lab</strong><small>{copy.visual}</small></p></div>
+        <button type="button" onClick={enterNow}>{copy.enter} <ArrowRight size={15}/></button>
       </header>
 
       <div className="opening-content">
         <div className="opening-message">
-          <span className="opening-kicker"><Sparkles size={14}/> Inspirada en aprender mejor</span>
-          <h1 id="opening-title"><span>Comprender es más fácil</span><span>cuando puedes verlo.</span></h1>
-          <p>Esta página fue creada para mejorar el aprendizaje de los estudiantes: permite visualizar cada paso, experimentar con las estructuras y realizar sus propios algoritmos de una manera más sencilla.</p>
+          <span className="opening-kicker"><Sparkles size={14}/> {copy.kicker}</span>
+          <h1 id="opening-title"><span>{copy.titleA}</span><span>{copy.titleB}</span></h1>
+          <p>{copy.description}</p>
         </div>
 
         <div className="opening-journey" aria-hidden="true">
-          <div><span><Play size={17}/></span><p><small>01</small><strong>Visualiza</strong><em>Observa qué ocurre en cada paso.</em></p></div>
-          <div><span><BookOpen size={17}/></span><p><small>02</small><strong>Comprende</strong><em>Relaciona la animación con Java.</em></p></div>
-          <div><span><Boxes size={17}/></span><p><small>03</small><strong>Crea</strong><em>Construye tus propios algoritmos.</em></p></div>
+          <div><span><Play size={17}/></span><p><small>01</small><strong>{copy.see}</strong><em>{copy.seeText}</em></p></div>
+          <div><span><BookOpen size={17}/></span><p><small>02</small><strong>{copy.understand}</strong><em>{copy.understandText}</em></p></div>
+          <div><span><Boxes size={17}/></span><p><small>03</small><strong>{copy.create}</strong><em>{copy.createText}</em></p></div>
         </div>
       </div>
 
-      <footer className="opening-footer"><span>Preparando tu espacio de aprendizaje</span><div><i/></div><small>El límite es tu imaginación</small></footer>
+      <footer className="opening-footer"><span>{copy.preparing}</span><div><i/></div><small>{copy.motto}</small></footer>
     </div>
   </section>;
 }
 
 function Welcome({ onStart, startName }) {
+  const { language } = useLanguage();
+  const c = language === 'en' ? {
+    hello:'Welcome to DSA Lab',learn:'Learn by practicing',title:'Algorithms you can see, touch, and understand.',
+    lead:'This is an educational laboratory for visualizing data structures and algorithms more simply. Students can modify examples, play every execution step by step, and use Java code as a guide to understand, practice, and develop their own algorithms.',
+    continue:'Continue with',motto:'Your imagination is the limit.',you:'You can do it.',about:'About this project',aboutTitle:'A space to experiment without being afraid of mistakes',
+    aboutText:'Every topic combines a visual representation, interactive controls, and simple code. The goal is to help students understand what happens internally and give them a clear foundation for building their own algorithms.',
+    topics:'visual topics',topicsText:'From arrays and linked lists to trees, graphs, recursion, and backtracking.',practice:'Interactive practice',practiceText:'Add, remove, search, and traverse elements while watching every change.',
+    java:'Java for beginners',javaText:'Direct, readable code designed for students who are getting started.',s1:'Step 1',s1t:'Choose a topic',s1p:'Use the sidebar to open any structure or algorithm.',
+    s2:'Step 2',s2t:'Run an operation',s2p:'Fill in the fields and select an operation to modify the example.',s3:'Step 3',s3t:'Observe and learn',s3p:'Compare the animation with the highlighted Java code lines.',
+  } : {
+    hello:'Bienvenido a DSA Lab',learn:'Aprende practicando',title:'Algoritmos que puedes ver, tocar y entender.',
+    lead:'Esta página es un laboratorio educativo creado para visualizar estructuras de datos y algoritmos de una manera más sencilla. Los alumnos pueden modificar ejemplos, reproducir cada ejecución paso a paso y usar el código Java como punto de apoyo para comprender, practicar y desarrollar sus propios algoritmos.',
+    continue:'Continuar con',motto:'El límite es tu imaginación.',you:'Tú puedes.',about:'Sobre este proyecto',aboutTitle:'Un espacio para experimentar sin miedo a equivocarse',
+    aboutText:'Cada tema combina una representación visual, controles interactivos y código sencillo. El objetivo es que los alumnos entiendan qué ocurre internamente y dispongan de una base clara desde la cual puedan construir sus propios algoritmos.',
+    topics:'temas visuales',topicsText:'Desde arrays y listas hasta árboles, grafos, recursividad y backtracking.',practice:'Práctica interactiva',practiceText:'Agrega, elimina, busca y recorre elementos mientras observas cada cambio.',
+    java:'Java para principiantes',javaText:'Código directo y legible, pensado para estudiantes que están comenzando.',s1:'Paso 1',s1t:'Elige un tema',s1p:'Usa el menú lateral para entrar a cualquier estructura o algoritmo.',
+    s2:'Paso 2',s2t:'Ejecuta una función',s2p:'Completa los campos y pulsa una operación para modificar el ejemplo.',s3:'Paso 3',s3t:'Observa y aprende',s3p:'Compara la animación con las líneas destacadas del código Java.',
+  };
   return <div className="welcome-page">
     <section className="welcome-hero">
       <div className="welcome-copy">
-        <div className="eyebrow"><span>Bienvenido a DSA Lab</span><i>Aprende practicando</i></div>
-        <h1>Algoritmos que puedes ver, tocar y entender.</h1>
-        <p>Esta página es un laboratorio educativo creado para visualizar estructuras de datos y algoritmos de una manera más sencilla. Los alumnos pueden modificar ejemplos, reproducir cada ejecución paso a paso y usar el código Java como punto de apoyo para comprender, practicar y desarrollar sus propios algoritmos.</p>
-        <button className="welcome-start" onClick={onStart}><Play size={17}/> Continuar con {startName} <ArrowRight size={16}/></button>
-        <p className="welcome-motto"><Sparkles size={15}/><strong>El límite es tu imaginación.</strong> Tú puedes.</p>
+        <div className="eyebrow"><span>{c.hello}</span><i>{c.learn}</i></div>
+        <h1>{c.title}</h1><p>{c.lead}</p>
+        <button className="welcome-start" onClick={onStart}><Play size={17}/> {c.continue} {startName} <ArrowRight size={16}/></button>
+        <p className="welcome-motto"><Sparkles size={15}/><strong>{c.motto}</strong> {c.you}</p>
       </div>
       <div className="welcome-demo" aria-hidden="true">
         <span className="welcome-orbit orbit-one"/>
@@ -2428,33 +2486,43 @@ function Welcome({ onStart, startName }) {
 
     <section className="welcome-about" aria-labelledby="welcome-about-title">
       <div className="welcome-section-heading">
-        <span>Sobre este proyecto</span>
-        <h2 id="welcome-about-title">Un espacio para experimentar sin miedo a equivocarse</h2>
-        <p>Cada tema combina una representación visual, controles interactivos y código sencillo. El objetivo es que los alumnos entiendan qué ocurre internamente y dispongan de una base clara desde la cual puedan construir sus propios algoritmos.</p>
+        <span>{c.about}</span><h2 id="welcome-about-title">{c.aboutTitle}</h2><p>{c.aboutText}</p>
       </div>
       <div className="welcome-features">
-        <article><span>01</span><Sparkles size={21}/><h3>{algorithms.length} temas visuales</h3><p>Desde arrays y listas hasta árboles, grafos, recursividad y backtracking.</p></article>
-        <article><span>02</span><Play size={21}/><h3>Práctica interactiva</h3><p>Agrega, elimina, busca y recorre elementos mientras observas cada cambio.</p></article>
-        <article><span>03</span><BookOpen size={21}/><h3>Java para principiantes</h3><p>Código directo y legible, pensado para estudiantes que están comenzando.</p></article>
+        <article><span>01</span><Sparkles size={21}/><h3>{algorithms.length} {c.topics}</h3><p>{c.topicsText}</p></article>
+        <article><span>02</span><Play size={21}/><h3>{c.practice}</h3><p>{c.practiceText}</p></article>
+        <article><span>03</span><BookOpen size={21}/><h3>{c.java}</h3><p>{c.javaText}</p></article>
       </div>
     </section>
 
     <section className="welcome-path">
-      <div><small>Paso 1</small><strong>Elige un tema</strong><p>Usa el menú lateral para entrar a cualquier estructura o algoritmo.</p></div>
+      <div><small>{c.s1}</small><strong>{c.s1t}</strong><p>{c.s1p}</p></div>
       <ArrowRight size={18}/>
-      <div><small>Paso 2</small><strong>Ejecuta una función</strong><p>Completa los campos y pulsa una operación para modificar el ejemplo.</p></div>
+      <div><small>{c.s2}</small><strong>{c.s2t}</strong><p>{c.s2p}</p></div>
       <ArrowRight size={18}/>
-      <div><small>Paso 3</small><strong>Observa y aprende</strong><p>Compara la animación con las líneas destacadas del código Java.</p></div>
+      <div><small>{c.s3}</small><strong>{c.s3t}</strong><p>{c.s3p}</p></div>
     </section>
   </div>;
 }
 
 function BugReporter({ section }) {
+  const { language, t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [report, setReport] = useState({ name:'', email:'', title:'', type:'Algo no funciona', description:'', steps:'', website:'' });
   const [copyStatus, setCopyStatus] = useState('');
   const [sending, setSending] = useState(false);
   const reportServiceWarmed = useRef(false);
+  const bc = language === 'en' ? {
+    name:'Your name', namePh:'E.g. Ana Torres', email:'Your email (optional)', emailPh:'So we can reply to you', summary:'Short summary', summaryPh:'E.g. The delete button does not respond',
+    type:'What kind of problem is it?', types:['Something does not work','It looks incorrect','Problem in the Java code','Content is difficult to understand','Another problem'],
+    happened:'Tell us what happened', happenedPh:'What did you do, what appeared, and what did you expect?', repeat:'How can we reproduce it?', repeatPh:'1. I opened the structure...\n2. I pressed the button...\n3. Then this happened...',
+    website:'Website', delivery:'The report will be sent directly to the DSA Lab team.', later:'Not now', copy:'Copy', sending:'Sending…', send:'Send report',
+  } : {
+    name:'Tu nombre', namePh:'Ej.: Ana Torres', email:'Tu correo (opcional)', emailPh:'Para poder responderte', summary:'Resumen corto', summaryPh:'Ej.: El botón eliminar no responde',
+    type:'¿Qué tipo de problema es?', types:['Algo no funciona','Se ve incorrecto','Problema en el código Java','Contenido difícil de entender','Otro problema'],
+    happened:'Cuéntanos qué ocurrió', happenedPh:'¿Qué hiciste, qué apareció y qué esperabas que ocurriera?', repeat:'¿Cómo podemos repetirlo?', repeatPh:'1. Entré a la estructura...\n2. Presioné el botón...\n3. Entonces ocurrió...',
+    website:'Sitio web', delivery:'El reporte se enviará directamente al equipo de DSA Lab.', later:'Ahora no', copy:'Copiar', sending:'Enviando…', send:'Enviar reporte',
+  };
 
   useEffect(() => {
     if (!open) return undefined;
@@ -2525,22 +2593,22 @@ function BugReporter({ section }) {
   };
 
   return <>
-    <button className="bug-fab" onClick={()=>setOpen(true)} aria-label="Informar un problema"><Bug size={20}/><span>Informar problema</span></button>
+    <button className="bug-fab" onClick={()=>setOpen(true)} aria-label={t('reportProblem')}><Bug size={20}/><span>{t('reportProblem')}</span></button>
     {open && <div className="bug-modal-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)setOpen(false)}}>
       <section className="bug-modal" role="dialog" aria-modal="true" aria-labelledby="bug-report-title">
-        <header><div className="bug-modal-icon"><Bug size={20}/></div><div><span>Ayúdanos a mejorar</span><h2 id="bug-report-title">¿Encontraste algo extraño?</h2></div><button type="button" onClick={()=>setOpen(false)} aria-label="Cerrar formulario"><X size={18}/></button></header>
-        <p className="bug-intro">Cuéntanos qué pasó y cómo podemos repetirlo. Con esos datos será mucho más fácil encontrar y corregir el problema.</p>
-        <div className="bug-section-label"><small>Estabas viendo</small><strong>{section}</strong></div>
+        <header><div className="bug-modal-icon"><Bug size={20}/></div><div><span>{language === 'en' ? 'Help us improve' : 'Ayúdanos a mejorar'}</span><h2 id="bug-report-title">{language === 'en' ? 'Did you find something unusual?' : '¿Encontraste algo extraño?'}</h2></div><button type="button" onClick={()=>setOpen(false)} aria-label={t('closeForm')}><X size={18}/></button></header>
+        <p className="bug-intro">{language === 'en' ? 'Tell us what happened and how we can reproduce it. These details help us find and fix the problem.' : 'Cuéntanos qué pasó y cómo podemos repetirlo. Con esos datos será mucho más fácil encontrar y corregir el problema.'}</p>
+        <div className="bug-section-label"><small>{language === 'en' ? 'You were viewing' : 'Estabas viendo'}</small><strong>{section}</strong></div>
         <form onSubmit={submit}>
-          <label><span>Tu nombre</span><input required minLength="2" maxLength="80" autoComplete="name" value={report.name} onChange={event=>update('name',event.target.value)} placeholder="Ej.: Ana Torres"/></label>
-          <label><span>Tu correo (opcional)</span><input type="email" maxLength="254" autoComplete="email" value={report.email} onChange={event=>update('email',event.target.value)} placeholder="Para poder responderte"/></label>
-          <label className="bug-field-wide"><span>Resumen corto</span><input required maxLength="120" value={report.title} onChange={event=>update('title',event.target.value)} placeholder="Ej.: El botón eliminar no responde"/></label>
-          <label><span>¿Qué tipo de problema es?</span><select value={report.type} onChange={event=>update('type',event.target.value)}><option>Algo no funciona</option><option>Se ve incorrecto</option><option>Problema en el código Java</option><option>Contenido difícil de entender</option><option>Otro problema</option></select></label>
-          <label className="bug-field-wide"><span>Cuéntanos qué ocurrió</span><textarea required minLength="10" maxLength="3000" rows="4" value={report.description} onChange={event=>update('description',event.target.value)} placeholder="¿Qué hiciste, qué apareció y qué esperabas que ocurriera?"/></label>
-          <label className="bug-field-wide"><span>¿Cómo podemos repetirlo?</span><textarea maxLength="3000" rows="3" value={report.steps} onChange={event=>update('steps',event.target.value)} placeholder={'1. Entré a la estructura...\n2. Presioné el botón...\n3. Entonces ocurrió...'}/></label>
-          <label className="bug-honeypot" aria-hidden="true"><span>Sitio web</span><input tabIndex="-1" autoComplete="off" value={report.website} onChange={event=>update('website',event.target.value)}/></label>
+          <label><span>{bc.name}</span><input required minLength="2" maxLength="80" autoComplete="name" value={report.name} onChange={event=>update('name',event.target.value)} placeholder={bc.namePh}/></label>
+          <label><span>{bc.email}</span><input type="email" maxLength="254" autoComplete="email" value={report.email} onChange={event=>update('email',event.target.value)} placeholder={bc.emailPh}/></label>
+          <label className="bug-field-wide"><span>{bc.summary}</span><input required maxLength="120" value={report.title} onChange={event=>update('title',event.target.value)} placeholder={bc.summaryPh}/></label>
+          <label><span>{bc.type}</span><select value={report.type} onChange={event=>update('type',event.target.value)}>{bc.types.map(type=><option key={type}>{type}</option>)}</select></label>
+          <label className="bug-field-wide"><span>{bc.happened}</span><textarea required minLength="10" maxLength="3000" rows="4" value={report.description} onChange={event=>update('description',event.target.value)} placeholder={bc.happenedPh}/></label>
+          <label className="bug-field-wide"><span>{bc.repeat}</span><textarea maxLength="3000" rows="3" value={report.steps} onChange={event=>update('steps',event.target.value)} placeholder={bc.repeatPh}/></label>
+          <label className="bug-honeypot" aria-hidden="true"><span>{bc.website}</span><input tabIndex="-1" autoComplete="off" value={report.website} onChange={event=>update('website',event.target.value)}/></label>
           {copyStatus && <p className="bug-copy-status" role="status">{copyStatus}</p>}
-          <div className="bug-form-actions"><p><Bug size={13}/> El reporte se enviará directamente al equipo de DSA Lab.</p><button type="button" disabled={sending} onClick={()=>setOpen(false)}>Ahora no</button><button className="copy-report" type="button" disabled={sending} onClick={copyReport}><ClipboardCopy size={15}/> Copiar</button><button type="submit" disabled={sending}>{sending ? 'Enviando…' : 'Enviar reporte'} <Bug size={15}/></button></div>
+          <div className="bug-form-actions"><p><Bug size={13}/> {bc.delivery}</p><button type="button" disabled={sending} onClick={()=>setOpen(false)}>{bc.later}</button><button className="copy-report" type="button" disabled={sending} onClick={copyReport}><ClipboardCopy size={15}/> {bc.copy}</button><button type="submit" disabled={sending}>{sending ? bc.sending : bc.send} <Bug size={15}/></button></div>
         </form>
       </section>
     </div>}
@@ -2548,6 +2616,7 @@ function BugReporter({ section }) {
 }
 
 function App() {
+  const { language, setLanguage, t } = useLanguage();
   const [startingId] = useState(initialAlgorithmId);
   const startingAlgorithm = algorithmsById.get(startingId) ?? algorithms[0];
   const [showOpeningIntro, setShowOpeningIntro] = useState(() => readPreference(STORAGE_KEYS.introSeen, 'false') !== 'true');
@@ -2565,7 +2634,8 @@ function App() {
   const [codeMode, setCodeMode] = useState(() => readPreference(STORAGE_KEYS.codeMode, 'java') === 'pseudo' ? 'pseudo' : 'java');
   const [copied, setCopied] = useState(false);
   const codePanelRef = useRef(null);
-  const baseAlgorithm = algorithmsById.get(selectedId) ?? algorithms[0];
+  const sourceAlgorithm = algorithmsById.get(selectedId) ?? algorithms[0];
+  const baseAlgorithm = useMemo(() => localizeAlgorithm(sourceAlgorithm, language), [sourceAlgorithm, language]);
   const [activeOperation, setActiveOperation] = useState(() => getOperationDefinition(startingAlgorithm).actions[0]?.id ?? null);
   const [operationFrames, setOperationFrames] = useState([]);
   const [activeCodeLine, setActiveCodeLine] = useState(null);
@@ -2591,7 +2661,7 @@ function App() {
   const hideCodePanel = ['dijkstra','a-star'].includes(baseAlgorithm.id);
   const selectedIndex = algorithmIndexes.get(baseAlgorithm.id) ?? 0;
   const operationDefinition = getOperationDefinition(baseAlgorithm);
-  const activeOperationLabel = operationDefinition.actions.find(item=>item.id===activeOperation)?.label ?? 'Operación';
+  const activeOperationLabel = translateOperationLabel(operationDefinition.actions.find(item=>item.id===activeOperation)?.label ?? t('operation'), language);
   const javaOverview = operationGroup(baseAlgorithm) === 'list'
     ? `El código muestra la clase Node, head, size y los enlaces next${baseAlgorithm.id.includes('doble') ? ' y prev' : ''}. No existe una variable de cola: cada recorrido parte en head y avanza del índice 0 hacia adelante. Cada if se evalúa antes de entrar únicamente al bloque que corresponde.`
     : baseAlgorithm.id === 'pila'
@@ -2613,11 +2683,12 @@ function App() {
       : baseAlgorithm.id === 'ast'
         ? 'El analizador lee una asignación Java con descenso recursivo. parseExpression procesa + y -, parseTerm respeta la prioridad de * y /, y parseFactor reconoce paréntesis, identificadores y números. Cada nodo que aparece corresponde a la línea iluminada.'
       : 'El código usa variables, arreglos, ciclos, condiciones y métodos pequeños. Cada línea iluminada corresponde al cambio mostrado en la estructura.';
-  const displayedCode = isTheoryPage
+  const sourceCode = isTheoryPage
     ? ''
     : codeMode === 'java'
       ? javaCodeFactory?.(baseAlgorithm, activeOperation) ?? '// Cargando código Java…'
       : baseAlgorithm.code;
+  const displayedCode = translateCodeText(sourceCode, language);
   const codeLines = displayedCode.split('\n');
   const totalSteps = operationFrames.length || Math.max(algorithm.values.length, codeLines.length);
   const currentAnimationFrame = operationFrames[step] ?? null;
@@ -2625,8 +2696,8 @@ function App() {
   const sectionTestRemainingMs = Math.max(0, sectionTestLockedUntil - sectionTestClock);
   const sectionTestRemainingMinutes = Math.ceil(sectionTestRemainingMs / 60000);
   const visualAlgorithm = useMemo(
-    () => ({ ...algorithm, animationFrame: currentAnimationFrame }),
-    [algorithm, currentAnimationFrame],
+    () => ({ ...algorithm, language, animationFrame: currentAnimationFrame }),
+    [algorithm, language, currentAnimationFrame],
   );
 
   useEffect(() => {
@@ -2642,8 +2713,31 @@ function App() {
     writePreference(STORAGE_KEYS.codeMode, codeMode);
   }, [codeMode]);
   useEffect(() => {
-    document.title = showWelcome ? 'DSA Lab — Algoritmos visuales' : `${baseAlgorithm.name} — DSA Lab`;
-  }, [baseAlgorithm.name, showWelcome]);
+    document.documentElement.lang = language;
+    const site = siteMetadata[language];
+    const title = showWelcome ? site.title : `${baseAlgorithm.name} — DSA Lab`;
+    const description = showWelcome ? site.description : `${baseAlgorithm.description} ${language === 'en' ? 'Explore it step by step in DSA Lab.' : 'Explóralo paso a paso en DSA Lab.'}`;
+    const pageUrl = `${window.location.origin}${window.location.pathname}`;
+    const setMeta = (selector, value) => document.head.querySelector(selector)?.setAttribute('content', value);
+    document.title = title;
+    setMeta('meta[name="description"]', description);
+    setMeta('meta[itemprop="name"]', title);
+    setMeta('meta[itemprop="description"]', description);
+    setMeta('meta[property="og:locale"]', site.locale);
+    setMeta('meta[property="og:locale:alternate"]', language === 'en' ? 'es_CL' : 'en_US');
+    setMeta('meta[property="og:title"]', title);
+    setMeta('meta[property="og:description"]', description);
+    setMeta('meta[property="og:url"]', pageUrl);
+    setMeta('meta[property="og:image:alt"]', site.imageAlt);
+    setMeta('meta[name="twitter:title"]', title);
+    setMeta('meta[name="twitter:description"]', description);
+    setMeta('meta[name="twitter:url"]', pageUrl);
+    setMeta('meta[name="twitter:image:alt"]', site.imageAlt);
+    document.head.querySelector('link[rel="canonical"]')?.setAttribute('href', pageUrl);
+    document.head.querySelector('link[hreflang="es"]')?.setAttribute('href', `${pageUrl}?lang=es`);
+    document.head.querySelector('link[hreflang="en"]')?.setAttribute('href', `${pageUrl}?lang=en`);
+    document.head.querySelector('link[hreflang="x-default"]')?.setAttribute('href', pageUrl);
+  }, [baseAlgorithm.description, baseAlgorithm.name, showWelcome, language]);
   useEffect(() => {
     if (isTheoryPage || javaCodeFactory) return;
     let active = true;
@@ -2926,66 +3020,69 @@ function App() {
   return <div className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
     {showOpeningIntro && <OpeningIntro onDone={finishOpeningIntro}/>}
     <MemoizedSidebar selected={showWelcome ? null : selectedId} onSelect={openAlgorithm} onHome={openWelcome} query={query} setQuery={setQuery} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} collapsed={sidebarCollapsed} onToggle={toggleSidebar}/>
-    {sidebarCollapsed && <button className="sidebar-reveal-button" onClick={()=>setSidebarCollapsed(false)} aria-label="Mostrar menú lateral" title="Mostrar menú lateral"><PanelLeftOpen size={20}/><span>Mostrar menú</span></button>}
+    {sidebarCollapsed && <div className="collapsed-tools"><button className="sidebar-reveal-button" onClick={()=>setSidebarCollapsed(false)} aria-label={t('showMenu')} title={t('showMenu')}><PanelLeftOpen size={20}/><span>{t('showMenu')}</span></button><button className="collapsed-language" onClick={()=>setLanguage(language === 'es' ? 'en' : 'es')} aria-label="Language / Idioma">{language === 'es' ? 'EN' : 'ES'}</button></div>}
     <main className="workspace">
-      <button className="menu-button mobile-menu-button" onClick={()=>setMobileOpen(true)} aria-label="Abrir menú"><Menu/></button>
+      <button className="menu-button mobile-menu-button" onClick={()=>setMobileOpen(true)} aria-label={t('openMenu')}><Menu/></button>
 
       {showWelcome ? <Welcome onStart={()=>openAlgorithm(selectedId)} startName={baseAlgorithm.name}/> : <>
 
       {!sidebarCollapsed && <section className="hero">
-        <div><div className="eyebrow"><span>{algorithm.category}</span><i>{isTheoryPage ? 'Guía teórica' : 'Práctica interactiva'}</i></div><h1>{algorithm.name}</h1><p>{algorithm.description}</p></div>
-        <div className="complexity-card"><small>{isTheoryPage ? 'Contenido' : 'Complejidad'}</small><strong>{algorithm.complexity}</strong><div><Gauge size={16}/><span>{isTheoryPage ? algorithm.type === 'complexity' ? 'Fundamentos y gráficos' : 'Conceptos fundamentales' : 'Análisis asintótico'}</span></div></div>
+        <div><div className="eyebrow"><span>{language === 'en' ? categoryNames[algorithm.category] ?? algorithm.category : algorithm.category}</span><i>{isTheoryPage ? t('theoryGuide') : t('interactivePractice')}</i></div><h1>{algorithm.name}</h1><p>{algorithm.description}</p></div>
+        <div className="complexity-card"><small>{isTheoryPage ? t('content') : t('complexity')}</small><strong>{algorithm.complexity}</strong><div><Gauge size={16}/><span>{isTheoryPage ? algorithm.type === 'complexity' ? t('fundamentalsCharts') : t('fundamentalConcepts') : t('asymptoticAnalysis')}</span></div></div>
       </section>}
 
       <div className="section-test-entry" data-tour="test">
-        <div><ClipboardCopy size={18}/><span><strong>Comprueba lo aprendido</strong><small>Prueba conceptual de 10 preguntas</small></span></div>
-        <button onClick={startSectionTest} disabled={sectionTestRemainingMs > 0} title={sectionTestRemainingMs > 0 ? `Disponible en ${sectionTestRemainingMinutes} minutos` : 'Iniciar prueba conceptual'}>
-          {sectionTestRemainingMs > 0 ? `Bloqueada · ${sectionTestRemainingMinutes} min` : 'Realizar prueba'}
+        <div><ClipboardCopy size={18}/><span><strong>{t('checkLearning')}</strong><small>{t('tenQuestions')}</small></span></div>
+        <button onClick={startSectionTest} disabled={sectionTestRemainingMs > 0} title={sectionTestRemainingMs > 0 ? `${t('availableIn')} ${sectionTestRemainingMinutes} min` : t('takeTest')}>
+          {sectionTestRemainingMs > 0 ? `${t('locked')} · ${sectionTestRemainingMinutes} min` : t('takeTest')}
         </button>
       </div>
 
-      {isTheoryPage ? algorithm.type === 'complexity' ? <ComplexityLesson/> : algorithm.type === 'oop' ? <OopLesson/> : algorithm.type === 'foundation' ? <Suspense fallback={<DescriptionFallback/>}><FoundationLesson algorithm={algorithm}/></Suspense> : <DataStructuresLesson/> : <>
+      {isTheoryPage ? language === 'en'
+        ? <Suspense fallback={<DescriptionFallback/>}><EnglishFoundationLesson algorithm={algorithm}/></Suspense>
+        : algorithm.type === 'complexity' ? <ComplexityLesson/> : algorithm.type === 'oop' ? <OopLesson/> : algorithm.type === 'foundation' ? <Suspense fallback={<DescriptionFallback/>}><FoundationLesson algorithm={algorithm}/></Suspense> : <DataStructuresLesson/>
+      : <>
       <section className={`lab-grid ${hideCodePanel ? 'visual-only' : ''}`}>
         <article className="panel visual-panel" data-tour="visualizer">
-          <div className="panel-head"><div><span className="panel-index">01</span><h2>Visualización</h2></div><div className="panel-head-actions">{operationDefinition.actions.length > 0 && <button className={`challenge-toggle ${challengeMode ? 'active' : ''}`} onClick={toggleChallengeMode} title={challengeMode ? 'Salir del modo desafío' : 'Practicar con una predicción'} aria-label={challengeMode ? 'Salir del modo desafío' : 'Modo desafío'} aria-pressed={challengeMode}><Brain size={15}/>{challengeMode ? 'Salir' : 'Desafío'}</button>}<button onClick={createNewExample} title="Generar datos nuevos"><Shuffle size={15}/> Nuevo ejemplo</button><button onClick={resetDemo} title="Volver a los datos originales"><RotateCcw size={15}/> Restablecer</button></div></div>
-          <div className="canvas-grid" data-visualizer={algorithm.id}><MemoizedVisualizer algorithm={visualAlgorithm} step={operationFrames.length ? currentAnimationFrame?.position ?? step : step}/><div className={`step-badge ${currentAnimationFrame?.iteration != null ? 'loop-step' : ''}`}>{currentAnimationFrame?.loopExit ? <>Fin <b>bucle</b></> : currentAnimationFrame?.iteration != null ? <>Iteración <b>{Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)}/{currentAnimationFrame.totalIterations}</b></> : <>Paso <b>{String(step+1).padStart(2,'0')}</b></>}</div></div>
+          <div className="panel-head"><div><span className="panel-index">01</span><h2>{t('visualization')}</h2></div><div className="panel-head-actions">{operationDefinition.actions.length > 0 && <button className={`challenge-toggle ${challengeMode ? 'active' : ''}`} onClick={toggleChallengeMode} title={challengeMode ? t('exit') : t('challengeMode')} aria-label={challengeMode ? t('exit') : t('challengeMode')} aria-pressed={challengeMode}><Brain size={15}/>{challengeMode ? t('exit') : t('challenge')}</button>}<button onClick={createNewExample} title={t('generateData')}><Shuffle size={15}/> {t('newExample')}</button><button onClick={resetDemo} title={t('originalData')}><RotateCcw size={15}/> {t('reset')}</button></div></div>
+          <div className="canvas-grid" data-visualizer={algorithm.id}><MemoizedVisualizer algorithm={visualAlgorithm} step={operationFrames.length ? currentAnimationFrame?.position ?? step : step}/><div className={`step-badge ${currentAnimationFrame?.iteration != null ? 'loop-step' : ''}`}>{currentAnimationFrame?.loopExit ? <>{t('loopEnd')}</> : currentAnimationFrame?.iteration != null ? <>{t('iteration')} <b>{Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)}/{currentAnimationFrame.totalIterations}</b></> : <>{t('step')} <b>{String(step+1).padStart(2,'0')}</b></>}</div></div>
           {challengeMode
             ? <Suspense fallback={<section className="challenge-panel" aria-label="Cargando desafío"/>}><ChallengePanel algorithm={algorithm} values={demoValues} playing={playing} scenarioKey={challengeScenarioKey} onVerify={handleOperation}/></Suspense>
             : <OperationsPanel algorithm={baseAlgorithm} message={operationMessage} status={operationStatus} activeOperation={activeOperation} onAction={handleOperation}/>}
           {hideCodePanel && <VariablesPanel frame={currentAnimationFrame} algorithm={algorithm} step={step} playing={playing}/>}
-          <div className="player"><button onClick={()=>goToStep(step-1)} aria-label="Anterior"><ArrowLeft size={17}/></button><button className="play" onClick={togglePlayback}>{playing?<Pause size={18}/>:<Play size={18}/>}<span>{playing?'Pausar':'Reproducir'}</span></button><button onClick={()=>goToStep(step+1)} aria-label="Siguiente"><ArrowRight size={17}/></button><div className="timeline"><span style={{width:`${((step+1)/totalSteps)*100}%`}}/></div><label><span>Velocidad</span><select value={speed} onChange={e=>setSpeed(Number(e.target.value))}><option value="0.5">0.5×</option><option value="1">1×</option><option value="2">2×</option></select><ChevronDown size={13}/></label></div>
+          <div className="player"><button onClick={()=>goToStep(step-1)} aria-label={t('previous')}><ArrowLeft size={17}/></button><button className="play" onClick={togglePlayback}>{playing?<Pause size={18}/>:<Play size={18}/>}<span>{playing?t('pause'):t('play')}</span></button><button onClick={()=>goToStep(step+1)} aria-label={t('next')}><ArrowRight size={17}/></button><div className="timeline"><span style={{width:`${((step+1)/totalSteps)*100}%`}}/></div><label><span>{t('speed')}</span><select value={speed} onChange={e=>setSpeed(Number(e.target.value))}><option value="0.5">0.5×</option><option value="1">1×</option><option value="2">2×</option></select><ChevronDown size={13}/></label></div>
         </article>
 
         {!hideCodePanel && <article className="panel code-panel" data-tour="code">
           <div className="panel-head code-head">
             <div><span className="panel-index">02</span><h2>{codeMode === 'java' ? activeOperationLabel : 'Pseudocódigo'}</h2></div>
             <div className="code-actions">
-              <div className="code-tabs" aria-label="Formato de código">
+              <div className="code-tabs" aria-label={t('codeFormat')}>
                 <button className={codeMode === 'java' ? 'active' : ''} onClick={()=>setCodeMode('java')}>Java</button>
-                <button className={codeMode === 'pseudo' ? 'active' : ''} onClick={()=>setCodeMode('pseudo')}>Pseudocódigo</button>
+                <button className={codeMode === 'pseudo' ? 'active' : ''} onClick={()=>setCodeMode('pseudo')}>{t('pseudocode')}</button>
               </div>
-              <button className="copy-button" onClick={copyCode}>{copied ? 'Copiado' : 'Copiar'}</button>
+              <button className="copy-button" onClick={copyCode}>{copied ? t('copied') : t('copy')}</button>
             </div>
           </div>
           <pre ref={codePanelRef}>{codeLines.map((line,i)=>{
             const isActive = i === (activeCodeLine ?? step%codeLines.length);
-            const isHelperLabel = line.trim().startsWith('// Método auxiliar utilizado arriba:');
+            const isHelperLabel = line.trim().startsWith('// Método auxiliar utilizado arriba:') || line.trim().startsWith('// Helper method used above:');
             return <code className={`${isActive?'active':''} ${isHelperLabel?'helper-method-label':''}`.trim()} key={i}><i>{String(i+1).padStart(2,'0')}</i>{line || ' '}</code>;
           })}</pre>
           <VariablesPanel frame={currentAnimationFrame} algorithm={algorithm} step={step} playing={playing}/>
-          <div className="note"><CircleHelp size={17}/><p><strong>{codeMode === 'java' ? `Java básico · ${activeOperationLabel}` : '¿Qué ocurre aquí?'}</strong><span>{codeMode === 'java' ? currentAnimationFrame?.iteration != null ? `El ciclo está en la iteración ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} de ${currentAnimationFrame.totalIterations}. La línea iluminada y el elemento activo avanzan juntos.` : javaOverview : step === 0 ? 'Se prepara el estado inicial y la estructura auxiliar.' : step >= totalSteps-1 ? 'El algoritmo completa la operación y devuelve el resultado.' : `Se procesa el elemento activo del paso ${step+1} y se actualiza el estado.`}</span></p></div>
+          <div className="note"><CircleHelp size={17}/><p><strong>{codeMode === 'java' ? `${language === 'en' ? 'Basic Java' : 'Java básico'} · ${activeOperationLabel}` : language === 'en' ? 'What happens here?' : '¿Qué ocurre aquí?'}</strong><span>{codeMode === 'java' ? currentAnimationFrame?.iteration != null ? language === 'en' ? `The loop is at iteration ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} of ${currentAnimationFrame.totalIterations}. The highlighted line and active element advance together.` : `El ciclo está en la iteración ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} de ${currentAnimationFrame.totalIterations}. La línea iluminada y el elemento activo avanzan juntos.` : language === 'en' ? 'The code uses small variables, arrays, loops, conditions, and methods. Each highlighted line matches the visible change in the structure.' : javaOverview : step === 0 ? translateLearningText('Se prepara el estado inicial y la estructura auxiliar.', language) : step >= totalSteps-1 ? translateLearningText('El algoritmo completa la operación y devuelve el resultado.', language) : language === 'en' ? `The active element at step ${step+1} is processed and the state is updated.` : `Se procesa el elemento activo del paso ${step+1} y se actualiza el estado.`}</span></p></div>
         </article>}
       </section>
 
       <Suspense fallback={<DescriptionFallback/>}><EducationalDescription algorithm={algorithm}/></Suspense>
       </>}
 
-      <section className="learning-strip"><div><BookOpen size={18}/><span><b>{categoryLabels[algorithm.category]}</b> · {algorithm.name}</span></div></section>
-      <footer className="algorithm-nav"><button onClick={()=>selectRelative(-1)}><ArrowLeft size={16}/><span><small>Anterior</small>{algorithms[(selectedIndex-1+algorithms.length)%algorithms.length].name}</span></button><button onClick={()=>selectRelative(1)}><span><small>Siguiente</small>{algorithms[(selectedIndex+1)%algorithms.length].name}</span><ArrowRight size={16}/></button></footer>
+      <section className="learning-strip"><div><BookOpen size={18}/><span><b>{language === 'en' ? categoryDescriptions[algorithm.category] ?? categoryLabels[algorithm.category] : categoryLabels[algorithm.category]}</b> · {algorithm.name}</span></div></section>
+      <footer className="algorithm-nav"><button onClick={()=>selectRelative(-1)}><ArrowLeft size={16}/><span><small>{t('previous')}</small>{localizeAlgorithm(algorithms[(selectedIndex-1+algorithms.length)%algorithms.length], language).name}</span></button><button onClick={()=>selectRelative(1)}><span><small>{t('next')}</small>{localizeAlgorithm(algorithms[(selectedIndex+1)%algorithms.length], language).name}</span><ArrowRight size={16}/></button></footer>
       </>}
     </main>
-    <button className="guided-tour-launch" type="button" onClick={startGuidedTour} aria-label="Abrir recorrido guiado de cómo funciona DSA Lab"><CircleHelp size={19}/><span>¿Cómo funciona?</span></button>
-    <BugReporter section={showWelcome ? 'Bienvenida' : algorithm.name}/>
+    <button className="guided-tour-launch" type="button" onClick={startGuidedTour} aria-label={t('guidedTourLabel')}><CircleHelp size={19}/><span>{t('howItWorks')}</span></button>
+    <BugReporter section={showWelcome ? t('welcome') : algorithm.name}/>
     {tourOpen && <GuidedTour onClose={closeGuidedTour} onStepChange={handleTourStepChange}/>}
     {sectionTest && <SectionTestModal
       algorithm={sectionTest.algorithm}
@@ -2994,7 +3091,7 @@ function App() {
       onActiveChange={setSectionTestActive}
       onLockout={() => setSectionTestClock(Date.now())}
     />}
-    {mobileOpen && <button className="scrim" onClick={()=>setMobileOpen(false)} aria-label="Cerrar menú"/>}
+    {mobileOpen && <button className="scrim" onClick={()=>setMobileOpen(false)} aria-label={t('close')}/>}
   </div>;
 }
 
