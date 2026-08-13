@@ -29,6 +29,7 @@ import { categoryDescriptions, categoryNames, localizeAlgorithm, siteMetadata, t
 const EducationalDescription = lazy(() => import('./components/EducationalDescription.jsx'));
 const FoundationLesson = lazy(() => import('./components/FoundationLesson.jsx'));
 const ChallengePanel = lazy(() => import('./components/ChallengePanel.jsx'));
+const EnglishFoundationLesson = lazy(() => import('./components/EnglishFoundationLesson.jsx'));
 
 const SUDOKU_START = [
   5,3,0,0,7,0,0,0,0, 6,0,0,1,9,5,0,0,0, 0,9,8,0,0,0,0,6,0,
@@ -3010,7 +3011,10 @@ function App() {
         </button>
       </div>
 
-      {isTheoryPage ? algorithm.type === 'complexity' ? <ComplexityLesson/> : algorithm.type === 'oop' ? <OopLesson/> : algorithm.type === 'foundation' ? <Suspense fallback={<DescriptionFallback/>}><FoundationLesson algorithm={algorithm}/></Suspense> : <DataStructuresLesson/> : <>
+      {isTheoryPage ? language === 'en'
+        ? <Suspense fallback={<DescriptionFallback/>}><EnglishFoundationLesson algorithm={algorithm}/></Suspense>
+        : algorithm.type === 'complexity' ? <ComplexityLesson/> : algorithm.type === 'oop' ? <OopLesson/> : algorithm.type === 'foundation' ? <Suspense fallback={<DescriptionFallback/>}><FoundationLesson algorithm={algorithm}/></Suspense> : <DataStructuresLesson/>
+      : <>
       <section className={`lab-grid ${hideCodePanel ? 'visual-only' : ''}`}>
         <article className="panel visual-panel" data-tour="visualizer">
           <div className="panel-head"><div><span className="panel-index">01</span><h2>{t('visualization')}</h2></div><div className="panel-head-actions">{operationDefinition.actions.length > 0 && <button className={`challenge-toggle ${challengeMode ? 'active' : ''}`} onClick={toggleChallengeMode} title={challengeMode ? t('exit') : t('challengeMode')} aria-label={challengeMode ? t('exit') : t('challengeMode')} aria-pressed={challengeMode}><Brain size={15}/>{challengeMode ? t('exit') : t('challenge')}</button>}<button onClick={createNewExample} title={t('generateData')}><Shuffle size={15}/> {t('newExample')}</button><button onClick={resetDemo} title={t('originalData')}><RotateCcw size={15}/> {t('reset')}</button></div></div>

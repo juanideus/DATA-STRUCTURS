@@ -36,6 +36,18 @@ test('detecta inglés y traduce la guía completa cuando no existe una preferenc
   await context.close();
 });
 
+test('traduce todas las páginas de fundamentos al inglés', async ({ page }) => {
+  const foundations = algorithms.filter(algorithm => algorithm.category === 'Fundamentos');
+  for (const algorithm of foundations) {
+    await page.goto(`/${algorithm.id}?lang=en`);
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(page.locator('[data-foundation-lesson]')).toBeVisible();
+    await expect(page.locator('[data-foundation-lesson]')).toContainText('CENTRAL IDEA');
+    await expect(page.locator('[data-foundation-lesson]')).toContainText('IDEA TO REMEMBER');
+    await expect(page.locator('[data-foundation-lesson]')).not.toContainText('IDEA CENTRAL');
+  }
+});
+
 async function openAlgorithm(page, algorithmId) {
   const menu = page.getByRole('button', { name: 'Abrir menú' });
   if (await menu.isVisible()) await menu.click();
