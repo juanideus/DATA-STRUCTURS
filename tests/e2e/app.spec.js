@@ -48,6 +48,53 @@ test('traduce todas las páginas de fundamentos al inglés', async ({ page }) =>
   }
 });
 
+test('el modo inglés traduce también la interfaz interactiva, desafíos, prueba, tour y reporte', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name.startsWith('mobile'), 'La cobertura bilingüe completa se comprueba una vez en escritorio.');
+  await page.goto('/array?lang=en');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.getByRole('heading', { name: 'Array', level: 1 })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add at start' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'New example' })).toBeVisible();
+  await expect(page.getByText('Real-time variables')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Challenge mode', exact: true }).click();
+  const challenge = page.locator('.challenge-panel');
+  await expect(challenge).toContainText('Predict before running');
+  await expect(challenge).toContainText('I need a hint');
+  await expect(challenge).not.toContainText('Modo desafío');
+  await page.getByRole('button', { name: 'Exit', exact: true }).click();
+
+  await page.getByRole('button', { name: 'Take test' }).click();
+  const assessment = page.locator('.section-test-modal');
+  await expect(assessment).toContainText('Section assessment');
+  await expect(assessment).toContainText('Anti-cheating rule');
+  await expect(assessment).not.toContainText('Evaluación de la sección');
+  await assessment.getByRole('button', { name: 'Close test' }).click();
+
+  await page.getByRole('button', { name: 'Open the guided tour of how DSA Lab works' }).click();
+  const tour = page.locator('.guided-tour-card');
+  await expect(tour).toContainText('Choose what you want to learn');
+  await expect(tour).toContainText('Skip tour');
+  await tour.getByRole('button', { name: 'Close tour' }).click();
+
+  await page.getByRole('button', { name: 'Report a problem' }).click();
+  const report = page.locator('.bug-modal');
+  await expect(report.getByText('Your name', { exact: true })).toBeVisible();
+  await expect(report.getByText('What kind of problem is it?', { exact: true })).toBeVisible();
+  await expect(report).not.toContainText('Tu nombre');
+});
+
+test('ninguna sección deja controles principales en español al activar inglés', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name.startsWith('mobile'), 'El contenido bilingüe se recorre completo una vez en escritorio.');
+  const forbidden = /\b(Visualización|Nuevo ejemplo|Restablecer|Realizar prueba|Variables en tiempo real|Agregar inicio|Agregar final|Eliminar inicio|Eliminar final|Guía completa|Idea central|Próximamente)\b/i;
+  for (const algorithm of algorithms) {
+    await page.goto(`/${algorithm.id}?lang=en`);
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    const visibleText = await page.locator('body').innerText();
+    expect(visibleText, `Texto español visible en ${algorithm.id}`).not.toMatch(forbidden);
+  }
+});
+
 async function openAlgorithm(page, algorithmId) {
   const menu = page.getByRole('button', { name: 'Abrir menú' });
   if (await menu.isVisible()) await menu.click();

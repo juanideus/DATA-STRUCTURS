@@ -24,7 +24,7 @@ import { createRandomPathMap, DEFAULT_PATH_MAP } from './logic/pathfindingMap.js
 import { formatPolynomial, polynomialTerms } from './logic/polynomial.js';
 import { buildRecursionCallTree } from './logic/recursionTrace.js';
 import { getSectionTestLockedUntil } from './logic/sectionTests.js';
-import { categoryDescriptions, categoryNames, localizeAlgorithm, siteMetadata, translateOperationLabel, useLanguage } from './i18n.jsx';
+import { categoryDescriptions, categoryNames, localizeAlgorithm, siteMetadata, translateCodeText, translateLearningText, translateOperationLabel, useLanguage } from './i18n.jsx';
 
 const EducationalDescription = lazy(() => import('./components/EducationalDescription.jsx'));
 const FoundationLesson = lazy(() => import('./components/FoundationLesson.jsx'));
@@ -969,8 +969,9 @@ function generalizedListLayout(root) {
 }
 
 function GeneralizedListVisual({ algorithm }) {
+  const en = algorithm.language === 'en';
   const root = algorithm.values[0];
-  if (!root) return <div className="empty-visual"><strong>()</strong><span>Lista generalizada sin referencias</span></div>;
+  if (!root) return <div className="empty-visual"><strong>()</strong><span>{en ? 'Generalized list with no references' : 'Lista generalizada sin referencias'}</span></div>;
   const { nodes, edges } = generalizedListLayout(root);
   const activePaths = new Set(algorithm.animationFrame?.generalizedListState?.activePaths ?? []);
   return <div className="generalized-list-visual" role="img" aria-label={`Lista generalizada A igual a ${generalizedListToString(root)}`}>
@@ -1009,7 +1010,7 @@ function GeneralizedListVisual({ algorithm }) {
       {node.header && <small>REF</small>}
     </div>)}
     {edges.filter(edge => edge.kind === 'null').map(edge => <span className="generalized-null" style={{ left: `${edge.toX}%`, top: `${edge.toY}%` }} key={edge.to}>⌟</span>)}
-    <div className="generalized-legend"><span><i className="tag0"/>0 átomo</span><span><i className="tag1"/>1 sublista · dlink ↓</span><span><i className="tag2"/>2 encabezamiento · ref</span></div>
+    <div className="generalized-legend"><span><i className="tag0"/>0 {en ? 'atom' : 'átomo'}</span><span><i className="tag1"/>1 {en ? 'sublist' : 'sublista'} · dlink ↓</span><span><i className="tag2"/>2 {en ? 'header' : 'encabezamiento'} · ref</span></div>
   </div>;
 }
 
@@ -1224,7 +1225,7 @@ function SparseMatrixVisual({ algorithm }) {
 
 function LinearVisual({ algorithm, step }) {
   const { values, type } = algorithm;
-  if (!values.length) return <div className="empty-visual"><strong>∅</strong><span>Estructura vacía</span></div>;
+  if (!values.length) return <div className="empty-visual"><strong>∅</strong><span>{algorithm.language === 'en' ? 'Empty structure' : 'Estructura vacía'}</span></div>;
   if (type === 'stack') {
     const activeIndex = step % values.length;
     return <div className="stack-visual">{[...values].reverse().map((v, reversedIndex) => {
@@ -1653,7 +1654,7 @@ function SpatialTreeDiagram({ algorithm, step }) {
 
 function TreeVisual({ algorithm, step }) {
   const values = algorithm.values.slice(0,15);
-  if (!values.length) return <div className="empty-visual"><strong>∅</strong><span>Árbol vacío</span></div>;
+  if (!values.length) return <div className="empty-visual"><strong>∅</strong><span>{algorithm.language === 'en' ? 'Empty tree' : 'Árbol vacío'}</span></div>;
   if (['arbol-general','arbol-nario'].includes(algorithm.id)) return <NaryTreeDiagram algorithm={algorithm} step={step}/>;
   if (algorithm.id === 'arbol-enhebrado') return <ThreadedTreeDiagram algorithm={algorithm} step={step}/>;
   if (algorithm.type==='btree') return <MultiwayTreeDiagram algorithm={algorithm} step={step}/>;
@@ -1892,7 +1893,7 @@ function GraphVisual({ algorithm, step }) {
     (!directed && edge[0] === candidate[1] && edge[1] === candidate[0])
   );
   const labelsFor = indexes => indexes?.length ? indexes.map(index=>algorithm.values[index]).join(', ') : '∅';
-  if (!algorithm.values.length) return <div className="empty-visual"><strong>∅</strong><span>Grafo vacío</span></div>;
+  if (!algorithm.values.length) return <div className="empty-visual"><strong>∅</strong><span>{algorithm.language === 'en' ? 'Empty graph' : 'Grafo vacío'}</span></div>;
   return <div className={`graph-canvas graph-design-${algorithm.id} ${graphState ? 'pathfinding-canvas' : ''}`} role="img" aria-label={`Grafo de ${algorithm.name}: ${design.caption}`}>
   <div className="graph-design-title"><span>{design.label}</span><small>{design.caption}</small></div>
   <div className="graph-design-motif" aria-hidden="true"><i/><i/><i/></div>
@@ -2275,11 +2276,25 @@ const TOUR_STEPS = [
 ];
 
 function GuidedTour({ onClose, onStepChange }) {
+  const { language } = useLanguage();
   const [stepIndex, setStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState(null);
   const [leaving, setLeaving] = useState(false);
   const closeTimerRef = useRef(null);
-  const step = TOUR_STEPS[stepIndex];
+  const englishSteps = [
+    ['Choose what you want to learn','The menu groups every topic by category. You can also search for a structure or algorithm by name.'],
+    ['Watch the structure change','Here you will see every insertion, deletion, traversal, or comparison. The active element is highlighted during execution.'],
+    ['Experiment with your own data','Enter values or indices and run the available operations. The message below explains the result.'],
+    ['Control the animation','Move forward or backward step by step, pause whenever you want, and adjust the speed to study comfortably.'],
+    ['Connect the animation with the code','The active line advances with the visualization. You can switch between Java and pseudocode.'],
+    ['Inspect variables in real time','This panel shows values, indices, and internal decisions so you can understand what the algorithm is doing.'],
+    ['Check what you learned','After practicing, answer ten conceptual questions about this section.'],
+  ];
+  const sourceStep = TOUR_STEPS[stepIndex];
+  const step = language === 'en' ? { ...sourceStep, title: englishSteps[stepIndex][0], description: englishSteps[stepIndex][1] } : sourceStep;
+  const tc = language === 'en'
+    ? { close:'Close tour', label:'HOW IT WORKS', step:'Step', of:'of', skip:'Skip tour', back:'Back', finish:'Finish tour', next:'Next tour step', finishText:'Finish', nextText:'Next' }
+    : { close:'Cerrar recorrido', label:'CÓMO FUNCIONA', step:'Paso', of:'de', skip:'Omitir recorrido', back:'Atrás', finish:'Finalizar recorrido', next:'Siguiente paso del recorrido', finishText:'Finalizar', nextText:'Siguiente' };
 
   const requestClose = useCallback(() => {
     if (leaving) return;
@@ -2336,7 +2351,7 @@ function GuidedTour({ onClose, onStepChange }) {
     : undefined;
 
   return <div className={`guided-tour ${leaving ? 'is-leaving' : ''}`} role="dialog" aria-modal="true" aria-labelledby="guided-tour-title">
-    <button className="guided-tour-backdrop" type="button" onClick={requestClose} aria-label="Cerrar recorrido"/>
+    <button className="guided-tour-backdrop" type="button" onClick={requestClose} aria-label={tc.close}/>
     {targetRect && (
       <div className="guided-tour-spotlight" style={{
         left: targetRect.left - 7,
@@ -2347,20 +2362,20 @@ function GuidedTour({ onClose, onStepChange }) {
     )}
     <section className="guided-tour-card" style={cardStyle}>
       <header>
-        <span><CircleHelp size={16}/> CÓMO FUNCIONA</span>
-        <button type="button" onClick={requestClose} aria-label="Cerrar"><X size={17}/></button>
+        <span><CircleHelp size={16}/> {tc.label}</span>
+        <button type="button" onClick={requestClose} aria-label={tc.close}><X size={17}/></button>
       </header>
-      <div className="guided-tour-progress" aria-label={`Paso ${stepIndex + 1} de ${TOUR_STEPS.length}`}>
+      <div className="guided-tour-progress" aria-label={`${tc.step} ${stepIndex + 1} ${tc.of} ${TOUR_STEPS.length}`}>
         {TOUR_STEPS.map((_, index) => <i className={index <= stepIndex ? 'active' : ''} key={index}/>) }
       </div>
-      <small>Paso {stepIndex + 1} de {TOUR_STEPS.length}</small>
+      <small>{tc.step} {stepIndex + 1} {tc.of} {TOUR_STEPS.length}</small>
       <h2 id="guided-tour-title">{step.title}</h2>
       <p>{step.description}</p>
       <footer>
-        <button type="button" className="tour-skip" onClick={requestClose}>Omitir recorrido</button>
+        <button type="button" className="tour-skip" onClick={requestClose}>{tc.skip}</button>
         <div>
-          {stepIndex > 0 && <button type="button" className="tour-previous" onClick={()=>moveTo(stepIndex - 1)}><ArrowLeft size={15}/> Atrás</button>}
-          <button type="button" className="tour-next" aria-label={stepIndex === TOUR_STEPS.length - 1 ? 'Finalizar recorrido' : 'Siguiente paso del recorrido'} onClick={finishOrContinue}>{stepIndex === TOUR_STEPS.length - 1 ? 'Finalizar' : 'Siguiente'}{stepIndex < TOUR_STEPS.length - 1 && <ArrowRight size={15}/>}</button>
+          {stepIndex > 0 && <button type="button" className="tour-previous" onClick={()=>moveTo(stepIndex - 1)}><ArrowLeft size={15}/> {tc.back}</button>}
+          <button type="button" className="tour-next" aria-label={stepIndex === TOUR_STEPS.length - 1 ? tc.finish : tc.next} onClick={finishOrContinue}>{stepIndex === TOUR_STEPS.length - 1 ? tc.finishText : tc.nextText}{stepIndex < TOUR_STEPS.length - 1 && <ArrowRight size={15}/>}</button>
         </div>
       </footer>
     </section>
@@ -2497,6 +2512,17 @@ function BugReporter({ section }) {
   const [copyStatus, setCopyStatus] = useState('');
   const [sending, setSending] = useState(false);
   const reportServiceWarmed = useRef(false);
+  const bc = language === 'en' ? {
+    name:'Your name', namePh:'E.g. Ana Torres', email:'Your email (optional)', emailPh:'So we can reply to you', summary:'Short summary', summaryPh:'E.g. The delete button does not respond',
+    type:'What kind of problem is it?', types:['Something does not work','It looks incorrect','Problem in the Java code','Content is difficult to understand','Another problem'],
+    happened:'Tell us what happened', happenedPh:'What did you do, what appeared, and what did you expect?', repeat:'How can we reproduce it?', repeatPh:'1. I opened the structure...\n2. I pressed the button...\n3. Then this happened...',
+    website:'Website', delivery:'The report will be sent directly to the DSA Lab team.', later:'Not now', copy:'Copy', sending:'Sending…', send:'Send report',
+  } : {
+    name:'Tu nombre', namePh:'Ej.: Ana Torres', email:'Tu correo (opcional)', emailPh:'Para poder responderte', summary:'Resumen corto', summaryPh:'Ej.: El botón eliminar no responde',
+    type:'¿Qué tipo de problema es?', types:['Algo no funciona','Se ve incorrecto','Problema en el código Java','Contenido difícil de entender','Otro problema'],
+    happened:'Cuéntanos qué ocurrió', happenedPh:'¿Qué hiciste, qué apareció y qué esperabas que ocurriera?', repeat:'¿Cómo podemos repetirlo?', repeatPh:'1. Entré a la estructura...\n2. Presioné el botón...\n3. Entonces ocurrió...',
+    website:'Sitio web', delivery:'El reporte se enviará directamente al equipo de DSA Lab.', later:'Ahora no', copy:'Copiar', sending:'Enviando…', send:'Enviar reporte',
+  };
 
   useEffect(() => {
     if (!open) return undefined;
@@ -2574,15 +2600,15 @@ function BugReporter({ section }) {
         <p className="bug-intro">{language === 'en' ? 'Tell us what happened and how we can reproduce it. These details help us find and fix the problem.' : 'Cuéntanos qué pasó y cómo podemos repetirlo. Con esos datos será mucho más fácil encontrar y corregir el problema.'}</p>
         <div className="bug-section-label"><small>{language === 'en' ? 'You were viewing' : 'Estabas viendo'}</small><strong>{section}</strong></div>
         <form onSubmit={submit}>
-          <label><span>Tu nombre</span><input required minLength="2" maxLength="80" autoComplete="name" value={report.name} onChange={event=>update('name',event.target.value)} placeholder="Ej.: Ana Torres"/></label>
-          <label><span>Tu correo (opcional)</span><input type="email" maxLength="254" autoComplete="email" value={report.email} onChange={event=>update('email',event.target.value)} placeholder="Para poder responderte"/></label>
-          <label className="bug-field-wide"><span>Resumen corto</span><input required maxLength="120" value={report.title} onChange={event=>update('title',event.target.value)} placeholder="Ej.: El botón eliminar no responde"/></label>
-          <label><span>¿Qué tipo de problema es?</span><select value={report.type} onChange={event=>update('type',event.target.value)}><option>Algo no funciona</option><option>Se ve incorrecto</option><option>Problema en el código Java</option><option>Contenido difícil de entender</option><option>Otro problema</option></select></label>
-          <label className="bug-field-wide"><span>Cuéntanos qué ocurrió</span><textarea required minLength="10" maxLength="3000" rows="4" value={report.description} onChange={event=>update('description',event.target.value)} placeholder="¿Qué hiciste, qué apareció y qué esperabas que ocurriera?"/></label>
-          <label className="bug-field-wide"><span>¿Cómo podemos repetirlo?</span><textarea maxLength="3000" rows="3" value={report.steps} onChange={event=>update('steps',event.target.value)} placeholder={'1. Entré a la estructura...\n2. Presioné el botón...\n3. Entonces ocurrió...'}/></label>
-          <label className="bug-honeypot" aria-hidden="true"><span>Sitio web</span><input tabIndex="-1" autoComplete="off" value={report.website} onChange={event=>update('website',event.target.value)}/></label>
+          <label><span>{bc.name}</span><input required minLength="2" maxLength="80" autoComplete="name" value={report.name} onChange={event=>update('name',event.target.value)} placeholder={bc.namePh}/></label>
+          <label><span>{bc.email}</span><input type="email" maxLength="254" autoComplete="email" value={report.email} onChange={event=>update('email',event.target.value)} placeholder={bc.emailPh}/></label>
+          <label className="bug-field-wide"><span>{bc.summary}</span><input required maxLength="120" value={report.title} onChange={event=>update('title',event.target.value)} placeholder={bc.summaryPh}/></label>
+          <label><span>{bc.type}</span><select value={report.type} onChange={event=>update('type',event.target.value)}>{bc.types.map(type=><option key={type}>{type}</option>)}</select></label>
+          <label className="bug-field-wide"><span>{bc.happened}</span><textarea required minLength="10" maxLength="3000" rows="4" value={report.description} onChange={event=>update('description',event.target.value)} placeholder={bc.happenedPh}/></label>
+          <label className="bug-field-wide"><span>{bc.repeat}</span><textarea maxLength="3000" rows="3" value={report.steps} onChange={event=>update('steps',event.target.value)} placeholder={bc.repeatPh}/></label>
+          <label className="bug-honeypot" aria-hidden="true"><span>{bc.website}</span><input tabIndex="-1" autoComplete="off" value={report.website} onChange={event=>update('website',event.target.value)}/></label>
           {copyStatus && <p className="bug-copy-status" role="status">{copyStatus}</p>}
-          <div className="bug-form-actions"><p><Bug size={13}/> El reporte se enviará directamente al equipo de DSA Lab.</p><button type="button" disabled={sending} onClick={()=>setOpen(false)}>Ahora no</button><button className="copy-report" type="button" disabled={sending} onClick={copyReport}><ClipboardCopy size={15}/> Copiar</button><button type="submit" disabled={sending}>{sending ? 'Enviando…' : 'Enviar reporte'} <Bug size={15}/></button></div>
+          <div className="bug-form-actions"><p><Bug size={13}/> {bc.delivery}</p><button type="button" disabled={sending} onClick={()=>setOpen(false)}>{bc.later}</button><button className="copy-report" type="button" disabled={sending} onClick={copyReport}><ClipboardCopy size={15}/> {bc.copy}</button><button type="submit" disabled={sending}>{sending ? bc.sending : bc.send} <Bug size={15}/></button></div>
         </form>
       </section>
     </div>}
@@ -2657,11 +2683,12 @@ function App() {
       : baseAlgorithm.id === 'ast'
         ? 'El analizador lee una asignación Java con descenso recursivo. parseExpression procesa + y -, parseTerm respeta la prioridad de * y /, y parseFactor reconoce paréntesis, identificadores y números. Cada nodo que aparece corresponde a la línea iluminada.'
       : 'El código usa variables, arreglos, ciclos, condiciones y métodos pequeños. Cada línea iluminada corresponde al cambio mostrado en la estructura.';
-  const displayedCode = isTheoryPage
+  const sourceCode = isTheoryPage
     ? ''
     : codeMode === 'java'
       ? javaCodeFactory?.(baseAlgorithm, activeOperation) ?? '// Cargando código Java…'
       : baseAlgorithm.code;
+  const displayedCode = translateCodeText(sourceCode, language);
   const codeLines = displayedCode.split('\n');
   const totalSteps = operationFrames.length || Math.max(algorithm.values.length, codeLines.length);
   const currentAnimationFrame = operationFrames[step] ?? null;
@@ -2669,8 +2696,8 @@ function App() {
   const sectionTestRemainingMs = Math.max(0, sectionTestLockedUntil - sectionTestClock);
   const sectionTestRemainingMinutes = Math.ceil(sectionTestRemainingMs / 60000);
   const visualAlgorithm = useMemo(
-    () => ({ ...algorithm, animationFrame: currentAnimationFrame }),
-    [algorithm, currentAnimationFrame],
+    () => ({ ...algorithm, language, animationFrame: currentAnimationFrame }),
+    [algorithm, language, currentAnimationFrame],
   );
 
   useEffect(() => {
@@ -3039,11 +3066,11 @@ function App() {
           </div>
           <pre ref={codePanelRef}>{codeLines.map((line,i)=>{
             const isActive = i === (activeCodeLine ?? step%codeLines.length);
-            const isHelperLabel = line.trim().startsWith('// Método auxiliar utilizado arriba:');
+            const isHelperLabel = line.trim().startsWith('// Método auxiliar utilizado arriba:') || line.trim().startsWith('// Helper method used above:');
             return <code className={`${isActive?'active':''} ${isHelperLabel?'helper-method-label':''}`.trim()} key={i}><i>{String(i+1).padStart(2,'0')}</i>{line || ' '}</code>;
           })}</pre>
           <VariablesPanel frame={currentAnimationFrame} algorithm={algorithm} step={step} playing={playing}/>
-          <div className="note"><CircleHelp size={17}/><p><strong>{codeMode === 'java' ? `Java básico · ${activeOperationLabel}` : '¿Qué ocurre aquí?'}</strong><span>{codeMode === 'java' ? currentAnimationFrame?.iteration != null ? `El ciclo está en la iteración ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} de ${currentAnimationFrame.totalIterations}. La línea iluminada y el elemento activo avanzan juntos.` : javaOverview : step === 0 ? 'Se prepara el estado inicial y la estructura auxiliar.' : step >= totalSteps-1 ? 'El algoritmo completa la operación y devuelve el resultado.' : `Se procesa el elemento activo del paso ${step+1} y se actualiza el estado.`}</span></p></div>
+          <div className="note"><CircleHelp size={17}/><p><strong>{codeMode === 'java' ? `${language === 'en' ? 'Basic Java' : 'Java básico'} · ${activeOperationLabel}` : language === 'en' ? 'What happens here?' : '¿Qué ocurre aquí?'}</strong><span>{codeMode === 'java' ? currentAnimationFrame?.iteration != null ? language === 'en' ? `The loop is at iteration ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} of ${currentAnimationFrame.totalIterations}. The highlighted line and active element advance together.` : `El ciclo está en la iteración ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} de ${currentAnimationFrame.totalIterations}. La línea iluminada y el elemento activo avanzan juntos.` : language === 'en' ? 'The code uses small variables, arrays, loops, conditions, and methods. Each highlighted line matches the visible change in the structure.' : javaOverview : step === 0 ? translateLearningText('Se prepara el estado inicial y la estructura auxiliar.', language) : step >= totalSteps-1 ? translateLearningText('El algoritmo completa la operación y devuelve el resultado.', language) : language === 'en' ? `The active element at step ${step+1} is processed and the state is updated.` : `Se procesa el elemento activo del paso ${step+1} y se actualiza el estado.`}</span></p></div>
         </article>}
       </section>
 

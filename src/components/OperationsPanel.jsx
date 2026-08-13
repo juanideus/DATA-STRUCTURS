@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getOperationDefinition } from '../logic/operations.js';
-import { translateOperationLabel, useLanguage } from '../i18n.jsx';
+import { translateLearningText, translateOperationLabel, useLanguage } from '../i18n.jsx';
 
 export default function OperationsPanel({ algorithm, message, status = 'idle', activeOperation, onAction }) {
   const { language, t } = useLanguage();
@@ -26,6 +26,6 @@ export default function OperationsPanel({ algorithm, message, status = 'idle', a
     <div className="operation-actions">
       {definition.actions.map(button => <button type="button" title={`${t('run')}: ${translateOperationLabel(button.label, language)}`} className={`${button.tone === 'danger' ? 'danger ' : ''}${activeOperation === button.id ? 'selected-operation' : ''}`} onClick={()=>run(button.id)} key={button.id}>{translateOperationLabel(button.label, language)}</button>)}
     </div>
-    <div className={`operation-message ${status}`} role="status" aria-live="polite"><span>{status === 'error' ? t('review') : status === 'success' ? t('completedOperation') : t('result')}</span><p>{message}</p></div>
+    <div className={`operation-message ${status}`} role="status" aria-live="polite"><span>{status === 'error' ? t('review') : status === 'success' ? t('completedOperation') : t('result')}</span><p>{translateLearningText(message, language)}</p></div>
   </section>;
 }

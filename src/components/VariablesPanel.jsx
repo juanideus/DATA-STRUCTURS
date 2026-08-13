@@ -1,5 +1,5 @@
 import { Variable } from 'lucide-react';
-import { useLanguage } from '../i18n.jsx';
+import { translateLearningText, useLanguage } from '../i18n.jsx';
 
 function formatValue(value) {
   if (value === undefined) return '—';
@@ -41,7 +41,7 @@ function fallbackVariables(frame, algorithm, step) {
 }
 
 export default function VariablesPanel({ frame, algorithm, step, playing }) {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const variables = frame?.variables?.length ? frame.variables : fallbackVariables(frame, algorithm, step);
   const status = frame?.failed ? t('error') : frame?.completed ? t('finished') : playing ? t('running') : t('currentState');
 
@@ -52,7 +52,7 @@ export default function VariablesPanel({ frame, algorithm, step, playing }) {
     </header>
     <div className="variables-grid">
       {variables.map((variable, index) => <div className={`variable-item role-${variable.role ?? 'value'}`} key={`${variable.name}-${index}`}>
-        <small>{variable.name}</small>
+        <small>{translateLearningText(variable.name, language)}</small>
         <strong title={formatValue(variable.value)}>{formatValue(variable.value)}</strong>
       </div>)}
     </div>
