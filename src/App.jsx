@@ -1,7 +1,7 @@
 import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, BookOpen, Boxes, Brain, Bug, ChevronDown, CircleHelp, ClipboardCopy, Gauge,
-  MapPin, Menu, PanelLeftClose, PanelLeftOpen, Pause, Play, RotateCcw, Search, Shuffle, Sparkles, X,
+  Eraser, MapPin, Menu, PanelLeftClose, PanelLeftOpen, Pause, Play, RotateCcw, Search, Shuffle, Sparkles, X,
 } from 'lucide-react';
 import { algorithmIndexes, algorithms, algorithmsById, categories, categoryLabels, navigationIndexes } from './data/algorithms.js';
 import { getGraphDesign, graphEdgesFor, graphPositionsFor } from './data/graphDesigns.js';
@@ -264,6 +264,19 @@ function createRandomValues(algorithm) {
   if (algorithm.type === 'heap') return values.sort((a, b) => b - a);
   if (['skip-list','btree','bplus-tree','bstar-tree'].includes(algorithm.id)) return values.sort((a, b) => a - b);
   return values;
+}
+
+function createEmptyValues(algorithm) {
+  if (algorithm.id === 'matriz') return new Array(DENSE_MATRIX_SIZE ** 2).fill(0);
+  if (algorithm.id === 'sudoku') return new Array(81).fill(0);
+  if (algorithm.id === 'laberinto') return new Array(36).fill(0);
+  if (algorithm.id === 'n-reinas') return new Array(Math.max(4, algorithm.values.length)).fill(-1);
+  if (algorithm.id === 'union-find') return algorithm.values.map((_, index) => index);
+  if (['segment-tree', 'fenwick-tree', 'bloom-filter'].includes(algorithm.id)) {
+    return algorithm.values.map(() => 0);
+  }
+  if (['dijkstra', 'a-star'].includes(algorithm.id)) return [...algorithm.values];
+  return [];
 }
 
 function CircularListVisual({ algorithm, step }) {
@@ -2869,6 +2882,18 @@ function App() {
     setStep(0);
     setPlaying(false);
   };
+  const clearDemo = () => {
+    setDemoValues(createEmptyValues(baseAlgorithm));
+    setDemoEdges([]);
+    setDemoPositions(positionsForAlgorithm(baseAlgorithm));
+    setOperationFrames([]);
+    setActiveCodeLine(null);
+    setOperationMessage(t('dataClearedMessage'));
+    setOperationStatus('idle');
+    setChallengeScenarioKey(current => current + 1);
+    setStep(0);
+    setPlaying(false);
+  };
   const createNewExample = () => {
     const nextValues = createRandomValues(baseAlgorithm);
     setDemoValues(nextValues);
@@ -3030,7 +3055,7 @@ function App() {
       : <>
       <section className={`lab-grid ${hideCodePanel ? 'visual-only' : ''}`}>
         <article className="panel visual-panel" data-tour="visualizer">
-          <div className="panel-head"><div><span className="panel-index">01</span><h2>{t('visualization')}</h2></div><div className="panel-head-actions">{operationDefinition.actions.length > 0 && <button className={`challenge-toggle ${challengeMode ? 'active' : ''}`} onClick={toggleChallengeMode} title={challengeMode ? t('exit') : t('challengeMode')} aria-label={challengeMode ? t('exit') : t('challengeMode')} aria-pressed={challengeMode}><Brain size={15}/>{challengeMode ? t('exit') : t('challenge')}</button>}<button onClick={createNewExample} title={t('generateData')}><Shuffle size={15}/> {t('newExample')}</button><button onClick={resetDemo} title={t('originalData')}><RotateCcw size={15}/> {t('reset')}</button></div></div>
+          <div className="panel-head"><div><span className="panel-index">01</span><h2>{t('visualization')}</h2></div><div className="panel-head-actions">{operationDefinition.actions.length > 0 && <button className={`challenge-toggle ${challengeMode ? 'active' : ''}`} onClick={toggleChallengeMode} title={challengeMode ? t('exit') : t('challengeMode')} aria-label={challengeMode ? t('exit') : t('challengeMode')} aria-pressed={challengeMode}><Brain size={15}/>{challengeMode ? t('exit') : t('challenge')}</button>}<button onClick={createNewExample} title={t('generateData')}><Shuffle size={15}/> {t('newExample')}</button><button className="clear-demo-button" onClick={clearDemo} title={t('clearCurrentData')}><Eraser size={15}/> {t('clearData')}</button><button onClick={resetDemo} title={t('originalData')}><RotateCcw size={15}/> {t('reset')}</button></div></div>
           <div className="canvas-grid" data-visualizer={algorithm.id}><MemoizedVisualizer algorithm={visualAlgorithm} step={operationFrames.length ? currentAnimationFrame?.position ?? step : step}/><div className={`step-badge ${currentAnimationFrame?.iteration != null ? 'loop-step' : ''}`}>{currentAnimationFrame?.loopExit ? <>{t('loopEnd')}</> : currentAnimationFrame?.iteration != null ? <>{t('iteration')} <b>{Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)}/{currentAnimationFrame.totalIterations}</b></> : <>{t('step')} <b>{String(step+1).padStart(2,'0')}</b></>}</div></div>
           {challengeMode
             ? <Suspense fallback={<section className="challenge-panel" aria-label="Cargando desafío"/>}><ChallengePanel algorithm={algorithm} values={demoValues} playing={playing} scenarioKey={challengeScenarioKey} onVerify={handleOperation}/></Suspense>
