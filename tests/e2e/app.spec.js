@@ -118,10 +118,14 @@ test('el modo inglés traduce también la interfaz interactiva, desafíos, prueb
 
 test('ninguna sección deja controles principales en español al activar inglés', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name.startsWith('mobile'), 'El contenido bilingüe se recorre completo una vez en escritorio.');
-  const forbidden = /\b(Visualización|Nuevo ejemplo|Restablecer|Realizar prueba|Variables en tiempo real|Agregar inicio|Agregar final|Eliminar inicio|Eliminar final|Guía completa|Idea central|Próximamente)\b/i;
+  const forbidden = /\b(Visualización|Nuevo ejemplo|Vaciar|Restablecer|Realizar prueba|Variables en tiempo real|Agregar inicio|Agregar final|Eliminar inicio|Eliminar final|Guía completa|Idea central|Próximamente)\b/i;
   for (const algorithm of algorithms) {
     await page.goto(`/${algorithm.id}?lang=en`);
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    if (!['theory', 'complexity', 'oop', 'foundation'].includes(algorithm.type)) {
+      await expect(page.locator('.clear-demo-button')).toHaveAccessibleName('Clear');
+      await expect(page.locator('.clear-demo-button')).toBeVisible();
+    }
     const visibleText = await page.locator('body').innerText();
     expect(visibleText, `Texto español visible en ${algorithm.id}`).not.toMatch(forbidden);
   }
@@ -715,6 +719,43 @@ test('ejecuta y restablece una operación de lista enlazada', async ({ page }) =
 
   await page.getByRole('button', { name: 'Restablecer' }).click();
   await expect(page.locator('.operation-message')).toContainText('restablecida');
+});
+
+test('vacía los datos y permite construir estructuras desde cero', async ({ page }) => {
+  await page.goto('/array');
+  await expect(page.locator('.data-cell')).toHaveCount(6);
+  await page.getByRole('button', { name: 'Vaciar', exact: true }).click();
+  await expect(page.locator('.empty-visual')).toBeVisible();
+  await expect(page.locator('.operation-message')).toContainText('desde cero');
+  await page.getByLabel('Valor').fill('42');
+  await page.getByRole('button', { name: 'Agregar final', exact: true }).click();
+  await expect(page.locator('.data-cell')).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.locator('.data-cell')).toContainText('42');
+
+  await page.goto('/grafo');
+  await page.getByRole('button', { name: 'Vaciar', exact: true }).click();
+  await expect(page.locator('.empty-visual')).toContainText('Estructura vacía');
+  await page.getByLabel('Origen / vértice').fill('X');
+  await page.getByRole('button', { name: 'Agregar vértice' }).click();
+  await expect(page.locator('.graph-node')).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.locator('.graph-node')).toContainText('X');
+});
+
+test('vaciar conserva las dimensiones de estructuras de tamaño fijo', async ({ page }) => {
+  await page.goto('/matriz');
+  await page.getByRole('button', { name: 'Vaciar', exact: true }).click();
+  await expect(page.locator('.dense-matrix-cell')).toHaveCount(16);
+  await expect(page.locator('.dense-matrix-cell strong')).toHaveText(new Array(16).fill('0'));
+
+  await page.goto('/sudoku');
+  await page.getByRole('button', { name: 'Vaciar', exact: true }).click();
+  await expect(page.locator('.sudoku-grid > div')).toHaveCount(81);
+  await expect(page.locator('.sudoku-grid > div').filter({ hasText: /\d/ })).toHaveCount(0);
+
+  await page.goto('/n-reinas');
+  await page.getByRole('button', { name: 'Vaciar', exact: true }).click();
+  await expect(page.locator('.chess-board > div')).toHaveCount(16);
+  await expect(page.locator('.chess-board .queen')).toHaveCount(0);
 });
 
 test('lista circular doble conserva next y prev cuando queda un solo nodo', async ({ page }) => {

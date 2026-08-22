@@ -827,6 +827,8 @@ body{background:var(--paper)}
 .panel-head-actions{display:flex;align-items:center;gap:6px;flex:0 0 auto}
 .panel-head-actions button:last-child{color:var(--muted);background:#f8f9fb}
 .panel-head-actions button:last-child:hover{border-color:var(--green);color:var(--green)}
+.panel-head-actions .clear-demo-button{border-color:#ead8d3;background:#fff9f7;color:#a44d3b}
+.panel-head-actions .clear-demo-button:hover{border-color:#c65f47;background:#fff3ef;color:#913b2b}
 .canvas-grid{background-color:#eef1f5;background-image:linear-gradient(rgba(54,72,98,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(54,72,98,.045) 1px,transparent 1px)}
 .canvas-grid:before,.canvas-grid:after{display:none}
 .step-badge{border-radius:5px;background:rgba(255,255,255,.92)}
