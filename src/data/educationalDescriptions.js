@@ -600,7 +600,7 @@ export const educationalDescriptions = {
   ),
   'bogo-sort': guide(
     'Bogo Sort es un algoritmo deliberadamente ineficiente: pregunta si el Array está ordenado y, si no lo está, lo mezcla completamente al azar para volver a intentarlo.',
-    'No aprende de los intentos anteriores ni acerca deliberadamente los elementos a su destino. Para n elementos distintos existen n! permutaciones. La animación limita los intentos visibles y simula una mezcla afortunada para enseñar la idea sin bloquear el navegador; el código Java conserva el ciclo aleatorio auténtico.',
+    'No aprende de los intentos anteriores ni acerca deliberadamente los elementos a su destino. Para n elementos distintos existen n! permutaciones. El laboratorio ejecuta mezclas Fisher–Yates reales y sólo omite fotogramas intermedios cuando hay demasiados; nunca reemplaza el resultado con otro algoritmo. Para proteger el navegador, la práctica admite como máximo siete valores.',
     'Comprobar todos los pares vecinos con isSorted|Mezclar mediante Fisher–Yates|Repetir mientras falte orden|Contar intentos sólo para observar el costo',
     'Expone claramente la diferencia entre correcto y eficiente|Sirve para comprender crecimiento factorial|Su código es corto|Es un ejemplo memorable de lo que no debe usarse en producción',
     'Promedio aproximado O(n·n!)|No posee una cota práctica útil de tiempo|Puede repetir la misma permutación|Incluso entradas pequeñas pueden tardar demasiado',

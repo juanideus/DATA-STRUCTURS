@@ -148,7 +148,7 @@ const specialDetails = {
   'heap-sort': 'It builds a max-heap, moves the root to the final region, reduces heapSize, and restores the heap after every extraction.',
   'counting-sort': 'It uses count[value - min], so this lesson also handles negative integers. Its usefulness depends on the numeric range k.',
   'radix-sort': 'Stable digit passes process units, tens, and higher positions. Subtracting the minimum creates non-negative keys without changing order.',
-  'bogo-sort': 'It shuffles randomly until sorted. The visual lesson limits displayed attempts so factorial behavior cannot freeze the browser.',
+  'bogo-sort': 'It performs real Fisher–Yates shuffles until sorted. The lesson may omit intermediate frames, never forces the result with another sort, and limits practice to seven values so factorial behavior cannot freeze the browser.',
   polinomios: 'Terms remain ordered by exponent. Equal exponents are combined and zero coefficients are not stored.',
   'listas-generalizadas': 'A tag distinguishes atoms, sublists, and headers; link moves horizontally and dlink enters a nested list.',
   'union-find': 'Path compression shortens find paths and union by rank prevents unnecessarily tall trees.',

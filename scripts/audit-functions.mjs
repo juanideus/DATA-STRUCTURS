@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { algorithms } from '../src/data/algorithms.js';
 import { completeJavaSnippet, getBeginnerJava } from '../src/data/beginnerJava.js';
 import { educationalDescriptions } from '../src/data/educationalDescriptions.js';
@@ -23,6 +24,7 @@ import { DEFAULT_PATH_MAP } from '../src/logic/pathfindingMap.js';
 
 const edges = () => DEFAULT_GRAPH_EDGES.map(edge => [...edge]);
 const mojibake = /Ã|â€|â†|�/;
+const sortingEngineSource = readFileSync(new URL('../src/logic/sortingAlgorithms.js', import.meta.url), 'utf8');
 
 function balanced(source, opening, closing) {
   let depth = 0;
@@ -1348,6 +1350,16 @@ const sortingAlgorithmIds = [
   'bubble-sort', 'selection-sort', 'insertion-sort', 'merge-sort', 'quick-sort',
   'shell-sort', 'heap-sort', 'counting-sort', 'radix-sort', 'bogo-sort',
 ];
+assert.doesNotMatch(
+  sortingEngineSource,
+  /\.sort\s*\(/,
+  'Ordenamientos: el motor visual no debe obtener resultados mediante Array.sort().',
+);
+assert.doesNotMatch(
+  sortingEngineSource,
+  /bogo-lucky|mezcla afortunada/i,
+  'Bogo Sort: la visualización no debe inventar una mezcla exitosa.',
+);
 for (const algorithmId of sortingAlgorithmIds) {
   const sortAlgorithm = algorithms.find(item => item.id === algorithmId);
   const java = getBeginnerJava(sortAlgorithm, 'sort');
@@ -1413,6 +1425,46 @@ for (const algorithmId of sortingAlgorithmIds) {
     }[algorithmId];
     assert.ok(trace.some(frame => frame.sortPhase === expectedPhase), `${sortAlgorithm.name}: falta animar su fase principal ${expectedPhase}.`);
     assert.ok(trace.length > 2, `${sortAlgorithm.name}: la animación debe contener pasos reales, no sólo el resultado final.`);
+  }
+
+  if (algorithmId === 'bubble-sort') {
+    assert.equal((java.match(/\bfor\s*\(/g) ?? []).length, 2, 'Bubble Sort: el código debe usar exactamente dos ciclos for.');
+    assert.match(java, /values\[i\] > values\[i \+ 1\]/, 'Bubble Sort: debe comparar exclusivamente vecinos consecutivos.');
+    assert.match(java, /if \(!changed\)/, 'Bubble Sort: falta la parada anticipada después de una pasada sin intercambios.');
+    assert.ok(trace.some(frame => frame.sortPhase === 'bubble-loop'), 'Bubble Sort: la animación no recorre el for interno.');
+    assert.ok(trace.some(frame => frame.sortPhase === 'bubble-swap-complete'), 'Bubble Sort: la animación no completa el intercambio vecino.');
+  }
+  if (algorithmId === 'selection-sort') {
+    assert.match(java, /int minIndex = i;/, 'Selection Sort: falta conservar el índice del mínimo provisional.');
+    assert.match(java, /if \(minIndex != i\)/, 'Selection Sort: el intercambio debe ocurrir después de completar la búsqueda del mínimo.');
+  }
+  if (algorithmId === 'insertion-sort') {
+    assert.match(java, /int key = values\[i\];/, 'Insertion Sort: falta preservar la clave antes de desplazar valores.');
+    assert.match(java, /values\[j \+ 1\] = values\[j\];/, 'Insertion Sort: debe desplazar los valores mayores, no intercambiarlos como Bubble Sort.');
+  }
+  if (algorithmId === 'shell-sort') {
+    assert.match(java, /gap = size \/ 2; gap > 0; gap \/= 2/, 'Shell Sort: falta la secuencia decreciente de saltos.');
+    assert.match(java, /values\[j\] = values\[j - gap\];/, 'Shell Sort: debe realizar inserciones separadas por gap.');
+  }
+  if (algorithmId === 'heap-sort') {
+    assert.match(java, /heapify\(size, i\);/, 'Heap Sort: falta construir el max-heap desde los nodos internos.');
+    assert.match(java, /swap\(0, end\);\s*heapify\(end, 0\);/s, 'Heap Sort: cada extracción debe restaurar el heap activo.');
+    assert.ok(trace.some(frame => frame.codeNeedle === 'root = largest;'), 'Heap Sort: la animación no muestra el descenso de heapify.');
+  }
+  if (algorithmId === 'counting-sort') {
+    assert.match(java, /count\[values\[i\] - min\]\+\+;/, 'Counting Sort: debe contar frecuencias usando el desplazamiento del mínimo.');
+    assert.match(java, /while \(count\[index\] > 0\)/, 'Counting Sort: debe reconstruir los valores desde sus frecuencias.');
+  }
+  if (algorithmId === 'radix-sort') {
+    assert.match(java, /for \(int i = size - 1; i >= 0; i--\)/, 'Radix Sort: la distribución por dígito debe recorrerse desde el final para ser estable.');
+    assert.match(java, /count\[digit\]--;/, 'Radix Sort: falta consumir la posición acumulada del dígito.');
+    assert.ok(trace.some(frame => frame.sortPhase === 'radix-decrement'), 'Radix Sort: la animación no muestra la actualización del conteo acumulado.');
+  }
+  if (algorithmId === 'bogo-sort') {
+    assert.match(java, /while \(!isSorted\(\)\)/, 'Bogo Sort: debe repetir mientras el arreglo no esté ordenado.');
+    assert.match(java, /Math\.random\(\)/, 'Bogo Sort: shuffle debe elegir posiciones aleatorias reales.');
+    assert.ok(trace.some(frame => frame.sortPhase === 'bogo-random-index'), 'Bogo Sort: la animación no muestra Fisher–Yates.');
+    assert.ok(!trace.some(frame => frame.sortPhase === 'bogo-lucky'), 'Bogo Sort: se detectó un resultado forzado en la animación.');
   }
 }
 
