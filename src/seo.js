@@ -1,7 +1,7 @@
 import { englishAlgorithmDescriptions, englishAlgorithmNames } from './data/algorithmTranslations.js';
 import { translateComplexity } from './data/complexityTranslations.js';
 
-export const SITE_ORIGIN = 'https://data-structurs.vercel.app';
+export const SITE_ORIGIN = 'https://dsalab.dev';
 export const SOCIAL_IMAGE_URL = `${SITE_ORIGIN}/dsa-lab-social-v2.jpg`;
 
 const HOME = {
