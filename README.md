@@ -585,7 +585,7 @@ npm run build
 npm run audit:seo
 ```
 
-Después del despliegue, el propietario debe verificar `dsalab.dev` como propiedad de dominio en Google Search Console y enviar `https://dsalab.dev/sitemap.xml`.
+Después del despliegue, el propietario debe verificar `dsalab.dev` como propiedad de dominio en Google Search Console y enviar `https://www.dsalab.dev/sitemap.xml`.
 
 ## Contribuciones
 

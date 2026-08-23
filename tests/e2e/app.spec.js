@@ -169,8 +169,8 @@ test('abre un tema mediante un enlace compartible', async ({ page }) => {
 test('expone rutas, enlaces y metadatos rastreables en ambos idiomas', async ({ page }) => {
   await page.goto('/avl');
   await expect(page).toHaveURL(/\/avl$/);
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://dsalab.dev/avl');
-  await expect(page.locator('link[hreflang="en"]')).toHaveAttribute('href', 'https://dsalab.dev/en/avl');
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://www.dsalab.dev/avl');
+  await expect(page.locator('link[hreflang="en"]')).toHaveAttribute('href', 'https://www.dsalab.dev/en/avl');
   expect(await page.locator('#dsa-structured-data').textContent()).toContain('LearningResource');
   await expect(page.locator('[data-algorithm-id="array"]')).toHaveAttribute('href', '/array');
 
@@ -179,7 +179,7 @@ test('expone rutas, enlaces y metadatos rastreables en ambos idiomas', async ({ 
   await page.getByRole('button', { name: 'EN', exact: true }).click();
   await expect(page).toHaveURL(/\/en\/avl$/);
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://dsalab.dev/en/avl');
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://www.dsalab.dev/en/avl');
   await expect(page.locator('[data-algorithm-id="array"]')).toHaveAttribute('href', '/en/array');
 
   await page.goto('/en/dijkstra');
