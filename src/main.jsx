@@ -8,8 +8,12 @@ import { LanguageProvider } from './i18n.jsx';
 import './styles.css';
 
 const isLocalEnvironment = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+const root = document.getElementById('root');
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+// El build incluye contenido HTML rastreable. React lo reemplaza por la aplicación interactiva.
+root.replaceChildren();
+
+ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <AppErrorBoundary>
       <LanguageProvider><App /></LanguageProvider>
