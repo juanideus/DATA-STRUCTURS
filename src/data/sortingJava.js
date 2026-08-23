@@ -5,11 +5,9 @@ const sortingSources = {
 
         for (int i = 0; i < end; i++) {
             if (values[i] > values[i + 1]) {
-                int first = i;
-                int second = i + 1;
-                int temp = values[first];
-                values[first] = values[second];
-                values[second] = temp;
+                int temp = values[i];
+                values[i] = values[i + 1];
+                values[i + 1] = temp;
                 changed = true;
             }
         }
