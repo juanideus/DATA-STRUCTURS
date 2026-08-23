@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ClipboardCheck, ShieldAlert, X, XCircle } from 'lucide-react';
 import { createSectionTest, gradeSectionTest, lockSectionTest, saveSectionTestResult } from '../logic/sectionTests.js';
+import { useDialogFocus } from '../accessibility/useDialogFocus.js';
 import { translateLearningText, useLanguage } from '../i18n.jsx';
 
 const violationLabels = {
@@ -97,6 +98,7 @@ export default function SectionTestModal({ algorithm, externalViolation, onClose
   const [violation, setViolation] = useState(null);
   const statusRef = useRef(status);
   const savedRef = useRef(false);
+  const dialogRef = useDialogFocus({ onClose, closeOnEscape: status !== 'active' });
 
   useEffect(() => {
     statusRef.current = status;
@@ -191,22 +193,31 @@ export default function SectionTestModal({ algorithm, externalViolation, onClose
   const question = test.questions[questionIndex];
   const selectedChoice = question ? answers[question.id] : null;
   const lt = value => translateLearningText(value, language);
+  const localizedPrompt = item => language === 'en' && item.promptEn ? item.promptEn : lt(item.prompt);
+  const localizedExplanation = item => language === 'en' && item.explanationEn ? item.explanationEn : lt(item.explanation);
+  const answerReview = result ? test.questions.map((item, index) => {
+    const selected = item.choices.find(choice => choice.id === answers[item.id]);
+    const correct = item.choices.find(choice => choice.correct);
+    return { item, index, selected, correct, isCorrect: Boolean(selected?.correct) };
+  }) : [];
   const c = language === 'en' ? {
     test:'Test', testName:name=>`Test: ${name}`, close:'Close test', evaluation:'Section assessment', answer:`You will answer ${test.questions.length} questions. You need at least 60% to pass.`, anti:'Anti-cheating rule',
     warning:'If you change section, tab, or window, reload, or leave the page, the attempt is recorded as cheating and this topic test is locked for 45 minutes.', later:'Not now', begin:'Start test',
     active:'Test in progress · Do not change windows', submit:'Submit test', next:'Next question', annulled:'Attempt voided', cancelled:'Test cancelled due to cheating',
     detected:'DSA Lab detected that the assessment was abandoned.', saved:'The attempt was saved and you cannot retake this test for 45 minutes.', understood:'Understood',
     finished:'Test completed', passed:'Section passed', practice:'Keep practicing', passedText:'You understood the main concepts in this section.', failedText:'Review the explanation and try again when you are ready.', back:'Return to section',
+    reviewTitle:'Review your answers', reviewIntro:'Compare your answer with the correct one and read why.', yourAnswer:'Your answer', correctAnswer:'Correct answer', correctLabel:'Correct', incorrectLabel:'Needs review', unanswered:'No answer', explanation:'Explanation', codeReview:'Code from the question',
   } : {
     test:'Prueba', testName:name=>`Prueba de ${name}`, close:'Cerrar prueba', evaluation:'Evaluación de la sección', answer:`Responderás ${test.questions.length} preguntas. Necesitas al menos un 60% para aprobar.`, anti:'Regla contra copia',
     warning:'Si cambias de sección, pestaña o ventana, recargas o sales de la página, el intento se registra como copia y la prueba de este tema queda bloqueada durante 45 minutos.', later:'Ahora no', begin:'Comenzar prueba',
     active:'Prueba en curso · No cambies de ventana', submit:'Entregar prueba', next:'Siguiente pregunta', annulled:'Intento anulado', cancelled:'Prueba cancelada por copia',
     detected:'DSA Lab detectó que se abandonó la evaluación.', saved:'El intento quedó guardado y no podrás repetir esta prueba durante 45 minutos.', understood:'Entendido',
     finished:'Prueba finalizada', passed:'Sección aprobada', practice:'Sigue practicando', passedText:'Comprendiste los conceptos principales de esta sección.', failedText:'Repasa la explicación y vuelve a intentarlo cuando estés preparado.', back:'Volver a la sección',
+    reviewTitle:'Revisa tus respuestas', reviewIntro:'Compara tu respuesta con la correcta y descubre por qué.', yourAnswer:'Tu respuesta', correctAnswer:'Respuesta correcta', correctLabel:'Correcta', incorrectLabel:'Necesita repaso', unanswered:'Sin respuesta', explanation:'Explicación', codeReview:'Código de la pregunta',
   };
 
-  return <div className="section-test-overlay" role="dialog" aria-modal="true" aria-label={c.testName(algorithm.name)}>
-    <section className="section-test-modal">
+  return <div className="section-test-overlay" role="presentation">
+    <section ref={dialogRef} tabIndex="-1" className="section-test-modal" role="dialog" aria-modal="true" aria-label={c.testName(algorithm.name)}>
       {status !== 'active' && <button className="section-test-close" onClick={onClose} aria-label={c.close}><X size={19}/></button>}
 
       {status === 'instructions' && <>
@@ -231,7 +242,7 @@ export default function SectionTestModal({ algorithm, externalViolation, onClose
         </header>
         <div className="section-test-progressbar"><span style={{ width: `${(questionIndex + 1) / test.questions.length * 100}%` }}/></div>
         <fieldset className="section-test-question">
-          <legend>{language === 'en' && question.promptEn ? question.promptEn : lt(question.prompt)}</legend>
+          <legend>{localizedPrompt(question)}</legend>
           <QuestionVisual visual={question.visual} language={language}/>
           {question.code && <pre className="section-test-code" aria-label={language === 'en' ? 'Code to analyze' : 'Código para analizar'}><code>{question.code}</code></pre>}
           {question.choices.map(choice => <label className={selectedChoice === choice.id ? 'selected' : ''} key={choice.id}>
@@ -253,11 +264,31 @@ export default function SectionTestModal({ algorithm, externalViolation, onClose
       </div>}
 
       {status === 'completed' && result && <div className={`section-test-result ${result.passed ? 'passed' : 'failed'}`}>
-        {result.passed ? <CheckCircle2 size={36}/> : <XCircle size={36}/>}<small>{c.finished}</small>
-        <h2 id="section-test-title">{result.passed ? c.passed : c.practice}</h2>
-        <strong>{result.correct}/{result.total} · {result.percentage}%</strong>
-        <p>{result.passed ? c.passedText : c.failedText}</p>
-        <button className="primary" onClick={onClose}>{c.back}</button>
+        <div className="section-test-result-summary">
+          {result.passed ? <CheckCircle2 size={36}/> : <XCircle size={36}/>}<small>{c.finished}</small>
+          <h2 id="section-test-title">{result.passed ? c.passed : c.practice}</h2>
+          <strong>{result.correct}/{result.total} · {result.percentage}%</strong>
+          <p>{result.passed ? c.passedText : c.failedText}</p>
+        </div>
+        <section className="section-test-review" aria-labelledby="section-test-review-title">
+          <header><div><small>{c.finished}</small><h3 id="section-test-review-title">{c.reviewTitle}</h3></div><p>{c.reviewIntro}</p></header>
+          <ol>
+            {answerReview.map(({ item, index, selected, correct, isCorrect }) => <li className={isCorrect ? 'correct' : 'incorrect'} key={item.id}>
+              <div className="section-test-review-heading">
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                <div><small>{isCorrect ? c.correctLabel : c.incorrectLabel}</small><h4>{localizedPrompt(item)}</h4></div>
+                {isCorrect ? <CheckCircle2 aria-hidden="true" size={20}/> : <XCircle aria-hidden="true" size={20}/>}
+              </div>
+              {item.code && <pre className="section-test-review-code" aria-label={c.codeReview}><code>{item.code}</code></pre>}
+              <dl>
+                <div className="selected-answer"><dt>{c.yourAnswer}</dt><dd>{selected ? lt(selected.label) : c.unanswered}</dd></div>
+                {!isCorrect && <div className="correct-answer"><dt>{c.correctAnswer}</dt><dd>{correct ? lt(correct.label) : c.unanswered}</dd></div>}
+              </dl>
+              <div className="section-test-review-explanation"><strong>{c.explanation}</strong><p>{localizedExplanation(item)}</p></div>
+            </li>)}
+          </ol>
+        </section>
+        <button className="primary section-test-review-back" onClick={onClose}>{c.back}</button>
       </div>}
     </section>
   </div>;
