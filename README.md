@@ -86,7 +86,7 @@ DSA Lab fue creado para:
 ### Modo desafío guiado
 
 - Preguntas de predicción construidas a partir del estado real de la estructura.
-- Disponible en los 58 laboratorios prácticos; cada desafío utiliza una operación real del tema y el estado actual del visualizador.
+- Disponible en los 66 laboratorios prácticos; cada desafío utiliza una operación real del tema y el estado actual del visualizador.
 - Tres respuestas posibles, pista opcional y explicación posterior al intento.
 - Botón para comprobar la predicción ejecutando la operación en el visualizador.
 - Progreso local con intentos, aciertos, porcentaje y uso de pistas, sin cuentas ni base de datos.
@@ -134,7 +134,7 @@ Cada tema incluye una guía con:
 
 ## Catálogo de contenidos
 
-La versión actual contiene **78 temas**, agrupados en ocho categorías.
+La versión actual contiene **86 temas**, agrupados en nueve categorías.
 
 ### 0. Fundamentos — 20 temas
 
@@ -214,29 +214,39 @@ La versión actual contiene **78 temas**, agrupados en ocho categorías.
 42. Prim
 43. Kruskal
 
-### 5. Recursión — 5 temas
+### 5. Recursión — 3 temas
 
 44. Fibonacci
 45. Factorial
 46. Torres de Hanoi
-47. Merge Sort
-48. Quick Sort
+### 6. Ordenamientos — 10 temas
 
-### 6. Backtracking — 3 temas
+47. Bubble Sort
+48. Selection Sort
+49. Insertion Sort
+50. Merge Sort
+51. Quick Sort
+52. Shell Sort
+53. Heap Sort
+54. Counting Sort
+55. Radix Sort
+56. Bogo Sort
 
-49. N-Reinas
-50. Laberinto
-51. Sudoku Solver 9×9
+### 7. Backtracking — 3 temas
 
-### 7. Otros — 7 temas
+57. N-Reinas
+58. Laberinto
+59. Sudoku Solver 9×9
 
-52. Matriz
-53. Polinomios con listas
-54. Listas generalizadas
-55. Matriz poco poblada
-56. Union-Find
-57. LRU Cache
-58. Bloom Filter
+### 8. Otros — 7 temas
+
+60. Matriz
+61. Polinomios con listas
+62. Listas generalizadas
+63. Matriz poco poblada
+64. Union-Find
+65. LRU Cache
+66. Bloom Filter
 
 ## Cómo funciona la experiencia
 
@@ -337,7 +347,7 @@ npm run preview
 | `npm run preview` | Sirve localmente la compilación de producción |
 | `npm run audit` | Ejecuta la auditoría funcional y educativa del catálogo |
 | `npm run audit:challenges` | Genera desafíos y compara sus predicciones con las operaciones reales |
-| `npm run audit:java` | Compila con `javac` los 270 códigos Java visibles |
+| `npm run audit:java` | Compila con `javac` los 310 códigos Java visibles |
 | `npm run audit:stress` | Prueba entradas extremas y secuencias largas de operaciones |
 | `npm run test:e2e` | Ejecuta pruebas reales de navegador en escritorio y móvil |
 | `npm run check` | Ejecuta las auditorías funcional, de desafíos, Java y de estrés, además de las pruebas E2E |
@@ -380,7 +390,7 @@ DSA/
 │   │   ├── OperationsPanel.jsx        # Campos y botones de operaciones
 │   │   └── VariablesPanel.jsx         # Variables de la ejecución en tiempo real
 │   ├── data/
-│   │   ├── algorithms.js              # Catálogo de 78 temas
+│   │   ├── algorithms.js              # Catálogo de 86 temas
 │   │   ├── astJava.js                 # Parser AST y operaciones completas en Java
 │   │   ├── denseMatrixJava.js         # Operaciones de matriz densa en Java
 │   │   ├── beginnerJava.js            # Código Java por operación
@@ -391,7 +401,8 @@ DSA/
 │   │   ├── polynomialJava.js           # Polinomios enlazados completos en Java
 │   │   ├── guideJavaExamples.js        # Ejemplos Java de las guías
 │   │   ├── treeJava.js                 # Operaciones completas de árboles en Java
-│   │   └── sparseMatrixJava.js         # Matriz circular AROW/ACOL completa en Java
+│   │   ├── sparseMatrixJava.js         # Matriz circular AROW/ACOL completa en Java
+│   │   └── sortingJava.js              # Implementaciones completas de ordenamientos en Java
 │   ├── logic/
 │   │   ├── codeAnimation.js            # Sincronización entre código y animaciones
 │   │   ├── ast.js                      # Parser y disposición visual del AST
@@ -400,7 +411,8 @@ DSA/
 │   │   ├── generalizedList.js           # Parser y modelo de listas generalizadas
 │   │   ├── operations.js               # Implementación de las acciones interactivas
 │   │   ├── polynomial.js                # Modelo y operaciones de polinomios
-│   │   └── pathfindingMap.js           # Mapas para Dijkstra y A*
+│   │   ├── pathfindingMap.js           # Mapas para Dijkstra y A*
+│   │   └── sortingAlgorithms.js        # Trazas reales de los diez ordenamientos
 ├── .gitignore                         # Archivos excluidos del repositorio
 ├── LICENSE                            # Licencia MIT
 └── README.md                          # Documentación del proyecto
@@ -429,7 +441,7 @@ npm run audit
 
 comprueba automáticamente, entre otros puntos:
 
-- Que existan los 78 temas esperados.
+- Que existan los 86 temas esperados.
 - Que cada tema tenga descripción educativa suficiente.
 - Que cada sección práctica incluya un ejemplo Java; las guías de fundamentos son deliberadamente teóricas y no muestran código.
 - Que todas las acciones devuelvan valores, aristas y mensajes válidos.
@@ -453,12 +465,12 @@ comprueba automáticamente, entre otros puntos:
 - Que las listas generalizadas distingan átomos, sublistas y cabeceras, calculen longitud y profundidad y mantengan referencias compartidas.
 - Que la matriz poco poblada inserte un único nodo en AROW y ACOL, recorra ambas listas en orden invertido y cierre sus enlaces circulares.
 
-La auditoría actual cubre **78 temas, 270 acciones, 2700 pruebas funcionales y 83 funciones distintas**. También valida desafíos generados desde el estado real de los **58 laboratorios prácticos**. La capa de estrés añade **13 800 comprobaciones** —10 320 entradas extremas y 3480 operaciones encadenadas—, para un total de **16 500 pruebas de lógica**. Además, los **270 códigos Java visibles** se compilan realmente con `javac`.
+La auditoría actual cubre **86 temas, 310 acciones, 3100 pruebas funcionales y 83 funciones distintas**. También valida desafíos generados desde el estado real de los **66 laboratorios prácticos**. La capa de estrés añade **15 520 comprobaciones** —11 560 entradas extremas y 3960 operaciones encadenadas—. Además, los **310 códigos Java visibles** se compilan realmente con `javac`.
 
 Además, Playwright verifica los recorridos críticos en Chromium de escritorio y móvil:
 
 - Enlaces compartibles como `/avl` y `/sudoku`.
-- Carga directa de los 78 temas y del tipo de contenido que corresponde a cada uno.
+- Carga directa de los 86 temas y del tipo de contenido que corresponde a cada uno.
 - Veinte guías de Fundamentos sin visualizador interactivo, operaciones, reproductor ni panel de código.
 - Rechazo seguro de índices negativos, coordenadas fuera de rango, valores enormes y texto potencialmente peligroso.
 - Avance sincronizado de animación, línea Java, explicación y variables en arreglos, grafos, Hanoi y N-Reinas.

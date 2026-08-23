@@ -205,7 +205,7 @@ test('la sección de complejidad explica la teoría con gráficos y sin laborato
 
 test('fundamentos explica qué son las estructuras de datos sin convertirlo en un laboratorio', async ({ page }) => {
   await page.goto('/estructuras-de-datos');
-  await expect(page.locator('[data-algorithm-id="estructuras-de-datos"]')).toHaveText('59Estructuras de datos');
+  await expect(page.locator('[data-algorithm-id="estructuras-de-datos"]')).toHaveText('67Estructuras de datos');
   await expect(page.getByRole('heading', { name: '¿Qué son las estructuras de datos?', level: 1 })).toBeVisible();
   await expect(page.getByRole('heading', { name: '¿Qué es una estructura de datos?', level: 2 })).toBeVisible();
   await expect(page.locator('[data-data-structures-lesson]')).toContainText('Tipo de Dato Abstracto (TDA)');
@@ -276,7 +276,7 @@ test('el modo desafío predice operaciones y conserva el progreso local', async 
   await expect(page.getByRole('button', { name: 'Modo desafío', exact: true })).toBeVisible();
 });
 
-test('los 76 temas cargan su contenido correspondiente sin errores', async ({ page }) => {
+test('los 86 temas cargan su contenido correspondiente sin errores', async ({ page }) => {
   test.setTimeout(180_000);
   const pageErrors = [];
   const failedResponses = [];
@@ -627,6 +627,49 @@ test('Quick Sort y Merge Sort ejecutan sus algoritmos reales junto al código', 
 
     const visibleValues = (await page.locator('.sort-array-row').first().locator('.sort-cell span').allTextContents())
       .map(Number);
+    expect(visibleValues).toEqual(sample.expected);
+  }
+});
+
+test('los otros ocho ordenamientos usan su lógica y animación propias', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chromium', 'La lógica se audita en escritorio y el catálogo móvil se prueba por separado.');
+  test.setTimeout(120_000);
+  const samples = [
+    { id: 'bubble-sort', method: 'void bubbleSort()', phase: 'Bubble Sort terminado', expected: [8, 10, 13, 14, 22, 29, 37] },
+    { id: 'selection-sort', method: 'void selectionSort()', phase: 'Selection Sort terminado', expected: [3, 7, 12, 18, 25, 31, 40] },
+    { id: 'insertion-sort', method: 'void insertionSort()', phase: 'Insertion Sort terminado', expected: [4, 6, 11, 18, 19, 23, 27] },
+    { id: 'shell-sort', method: 'void shellSort()', phase: 'Shell Sort terminado', expected: [5, 8, 11, 17, 19, 26, 33, 42] },
+    { id: 'heap-sort', method: 'void heapSort()', phase: 'Heap Sort terminado', expected: [4, 9, 12, 17, 21, 28, 31, 35] },
+    { id: 'counting-sort', method: 'void countingSort()', phase: 'Counting Sort terminado', expected: [-2, -2, 1, 1, 4, 4, 5, 7] },
+    { id: 'radix-sort', method: 'void radixSort()', phase: 'Radix Sort terminado', expected: [-90, 2, 24, 45, 66, 75, 170, 802] },
+    { id: 'bogo-sort', method: 'void bogoSort()', phase: 'Bogo Sort terminado', expected: [1, 2, 3, 4] },
+  ];
+
+  for (const sample of samples) {
+    await page.goto(`/${sample.id}`);
+    await page.getByRole('button', { name: 'Ordenar', exact: true }).click();
+    const java = await page.locator('.code-panel').textContent();
+    expect(java).toContain(sample.method);
+    expect(java).not.toContain('Arrays.sort');
+
+    const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+    if (await pause.isVisible()) await pause.click();
+    const visitedLines = new Set();
+    let completed = false;
+    for (let frame = 0; frame < 420; frame++) {
+      const phase = (await page.locator('.sort-phase-label strong').textContent())?.trim();
+      const line = (await page.locator('.code-panel code.active').textContent())?.trim();
+      if (line) visitedLines.add(line);
+      if (phase === sample.phase) {
+        completed = true;
+        break;
+      }
+      await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    }
+
+    expect(completed, `${sample.id}: no alcanzó su fase final`).toBe(true);
+    expect(visitedLines.size, `${sample.id}: el código no avanzó con la animación`).toBeGreaterThan(2);
+    const visibleValues = (await page.locator('.sort-array-row').first().locator('.sort-cell span').allTextContents()).map(Number);
     expect(visibleValues).toEqual(sample.expected);
   }
 });

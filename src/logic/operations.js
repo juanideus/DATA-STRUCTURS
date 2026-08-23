@@ -21,6 +21,7 @@ import {
   polynomialTerms,
 } from './polynomial.js';
 import { createRecursionCallTrace } from './recursionTrace.js';
+import { executeEducationalSort } from './sortingAlgorithms.js';
 
 export const DEFAULT_GRAPH_EDGES = [
   [0, 1, 4], [1, 2, 2], [0, 3, 7], [1, 3, 3], [1, 4, 5],
@@ -5629,7 +5630,8 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     case 'sort':
       if (algorithm.id === 'quick-sort') return executeQuickSort(next, edges);
       if (algorithm.id === 'merge-sort') return executeMergeSort(next, edges);
-      return done([...next].sort((a,b)=>Number(a)-Number(b)), 'Arreglo ordenado de menor a mayor.', 0);
+      return executeEducationalSort(algorithm.id, next, edges)
+        ?? fail(`Todavía no existe una animación de ordenamiento para ${algorithm.name}.`);
     case 'calculate': {
       if (String(fields.value ?? '').trim() === '') return fail(`Ingresa un entero para construir el árbol de llamadas de ${algorithm.name}.`);
       const number = Number(fields.value);

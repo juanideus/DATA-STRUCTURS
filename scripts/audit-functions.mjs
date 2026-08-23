@@ -152,7 +152,7 @@ function validQueens(queens) {
   )));
 }
 
-assert.equal(algorithms.length, 78, 'El catálogo debe contener 78 temas.');
+assert.equal(algorithms.length, 86, 'El catálogo debe contener 86 temas.');
 assert.equal(new Set(algorithms.map(algorithm => algorithm.id)).size, algorithms.length, 'El catálogo contiene identificadores duplicados.');
 assert.equal(new Set(algorithms.map(algorithm => algorithm.name)).size, algorithms.length, 'El catálogo contiene nombres duplicados.');
 assert.equal(Object.keys(educationalDescriptions).length, algorithms.length, 'La cantidad de descripciones no coincide con el catálogo.');
@@ -1344,10 +1344,17 @@ const sortingCases = [
   { label: 'unitario', values: [42] },
   { label: 'vacío', values: [] },
 ];
-for (const algorithmId of ['quick-sort', 'merge-sort']) {
+const sortingAlgorithmIds = [
+  'bubble-sort', 'selection-sort', 'insertion-sort', 'merge-sort', 'quick-sort',
+  'shell-sort', 'heap-sort', 'counting-sort', 'radix-sort', 'bogo-sort',
+];
+for (const algorithmId of sortingAlgorithmIds) {
   const sortAlgorithm = algorithms.find(item => item.id === algorithmId);
   const java = getBeginnerJava(sortAlgorithm, 'sort');
-  assert.doesNotMatch(java, /bubbleSort|values\[i\]\s*>\s*values\[i\s*\+\s*1\]/, `${sortAlgorithm.name}: no debe reutilizar Bubble Sort.`);
+  assert.doesNotMatch(java, /Arrays\.sort|Collections\.sort/, `${sortAlgorithm.name}: debe mostrar el algoritmo y no delegar en una biblioteca.`);
+  if (algorithmId !== 'bubble-sort') {
+    assert.doesNotMatch(java, /void bubbleSort/, `${sortAlgorithm.name}: no debe reutilizar Bubble Sort.`);
+  }
 
   for (const { label, values } of sortingCases) {
     const result = run(sortAlgorithm, 'sort', {}, values);
@@ -1378,7 +1385,7 @@ for (const algorithmId of ['quick-sort', 'merge-sort']) {
       .map(variable => variable.value);
     assert.ok(conditions.includes('true') && conditions.includes('false'), 'Quick Sort: las comparaciones deben mostrar resultados true y false.');
     assert.ok(trace.some(frame => frame.sortFixedPositions?.length > 0), 'Quick Sort: no marca los pivotes en su posición definitiva.');
-  } else {
+  } else if (algorithmId === 'merge-sort') {
     assert.match(java, /int\[\] help = new int\[size\]/, 'Merge Sort: falta crear el arreglo auxiliar.');
     assert.match(java, /void mergeSort\(int left, int right, int\[\] help\)/, 'Merge Sort: falta mostrar la división recursiva.');
     assert.match(java, /void merge\(int left, int middle, int right, int\[\] help\)/, 'Merge Sort: falta mostrar el método merge.');
@@ -1393,6 +1400,19 @@ for (const algorithmId of ['quick-sort', 'merge-sort']) {
       trace.some(frame => frame.sortLeftRange && frame.sortRightRange),
       'Merge Sort: no distingue visualmente las dos mitades.',
     );
+  } else {
+    const expectedPhase = {
+      'bubble-sort': 'bubble-compare',
+      'selection-sort': 'selection-compare',
+      'insertion-sort': 'insertion-compare',
+      'shell-sort': 'shell-compare',
+      'heap-sort': 'heap-sort-heapify',
+      'counting-sort': 'counting-count',
+      'radix-sort': 'radix-digit',
+      'bogo-sort': 'bogo-check',
+    }[algorithmId];
+    assert.ok(trace.some(frame => frame.sortPhase === expectedPhase), `${sortAlgorithm.name}: falta animar su fase principal ${expectedPhase}.`);
+    assert.ok(trace.length > 2, `${sortAlgorithm.name}: la animación debe contener pasos reales, no sólo el resultado final.`);
   }
 }
 
