@@ -629,6 +629,116 @@ const binarySearchPosition = (values, target) => {
   return -1;
 };
 
+const kdCoordinate = (point, axis) => (
+  axis === 0 ? Math.trunc(Number(point) / 10) : Number(point) % 10
+);
+
+const kdSearchPosition = (values, target) => {
+  let index = 0;
+  let depth = 0;
+  while (index < values.length && values[index] !== undefined && values[index] !== null) {
+    if (Number(values[index]) === Number(target)) return index;
+    const axis = depth % 2;
+    index = kdCoordinate(target, axis) < kdCoordinate(values[index], axis)
+      ? index * 2 + 1
+      : index * 2 + 2;
+    depth++;
+  }
+  return -1;
+};
+
+const insertIntoKdTree = (values, value) => {
+  const result = [...values];
+  let index = 0;
+  let depth = 0;
+  while (index < 255 && result[index] !== undefined && result[index] !== null) {
+    if (Number(result[index]) === Number(value)) return { values: trimTreeSlots(result), position: index, duplicate: true };
+    const axis = depth % 2;
+    index = kdCoordinate(value, axis) < kdCoordinate(result[index], axis)
+      ? index * 2 + 1
+      : index * 2 + 2;
+    depth++;
+  }
+  if (index >= 255) return { values: trimTreeSlots(result), position: -1, hiddenNode: true };
+  result[index] = value;
+  return { values: trimTreeSlots(result), position: index, duplicate: false };
+};
+
+const treeSlotsToKdNode = (values, index = 0) => {
+  if (index >= values.length || values[index] === undefined || values[index] === null) return null;
+  return {
+    value: values[index],
+    left: treeSlotsToKdNode(values, index * 2 + 1),
+    right: treeSlotsToKdNode(values, index * 2 + 2),
+  };
+};
+
+const kdNodeToTreeSlots = root => {
+  const values = [];
+  let hiddenNode = false;
+  const place = (node, index) => {
+    if (!node) return;
+    if (index >= 255) {
+      hiddenNode = true;
+      return;
+    }
+    values[index] = node.value;
+    place(node.left, index * 2 + 1);
+    place(node.right, index * 2 + 2);
+  };
+  place(root, 0);
+  return { values: trimTreeSlots(values), hiddenNode };
+};
+
+const findKdMinimum = (node, targetAxis, depth) => {
+  if (!node) return null;
+  const axis = depth % 2;
+  if (axis === targetAxis) {
+    return node.left ? findKdMinimum(node.left, targetAxis, depth + 1) : node;
+  }
+  const candidates = [
+    node,
+    findKdMinimum(node.left, targetAxis, depth + 1),
+    findKdMinimum(node.right, targetAxis, depth + 1),
+  ].filter(Boolean);
+  return candidates.reduce((minimum, candidate) => (
+    kdCoordinate(candidate.value, targetAxis) < kdCoordinate(minimum.value, targetAxis)
+      ? candidate
+      : minimum
+  ));
+};
+
+const removeKdNode = (node, target, depth = 0) => {
+  if (!node) return null;
+  const axis = depth % 2;
+  if (Number(node.value) === Number(target)) {
+    if (node.right) {
+      const replacement = findKdMinimum(node.right, axis, depth + 1);
+      node.value = replacement.value;
+      node.right = removeKdNode(node.right, replacement.value, depth + 1);
+      return node;
+    }
+    if (node.left) {
+      const replacement = findKdMinimum(node.left, axis, depth + 1);
+      node.value = replacement.value;
+      node.right = removeKdNode(node.left, replacement.value, depth + 1);
+      node.left = null;
+      return node;
+    }
+    return null;
+  }
+  if (kdCoordinate(target, axis) < kdCoordinate(node.value, axis)) {
+    node.left = removeKdNode(node.left, target, depth + 1);
+  } else {
+    node.right = removeKdNode(node.right, target, depth + 1);
+  }
+  return node;
+};
+
+const removeFromKdTree = (values, target) => kdNodeToTreeSlots(
+  removeKdNode(treeSlotsToKdNode(values), target),
+);
+
 const occupiedThreadedPosition = (values, index) => (
   index >= 0 && index < values.length && values[index] !== undefined && values[index] !== null
 );
@@ -1998,38 +2108,173 @@ const completeSudokuTrace = (tracer, solvedBoard) => {
 
 const solveQueensWithTrace = size => {
   const queens = new Array(size).fill(-1);
-  const trace = [{ values: [...queens], position: 0, codeLine: 3, message: `Se inicializa el tablero y comienza solveQueens(${size}).` }];
-  const safe = (row, column) => {
-    trace.push({ values: [...queens], position: row * size + column, codeLine: 25, message: `isSafe comprueba la posición (${row + 1}, ${column + 1}).` });
+  const trace = [];
+  const lineByNeedle = new Map([
+    ['boolean solveQueens(int boardSize) {', 3], ['size = boardSize;', 4], ['queens = new int[size];', 5],
+    ['for (int row = 0; row < size; row++) {', 6], ['queens[row] = -1;', 7], ['return placeQueen(0);', 9],
+    ['boolean placeQueen(int row) {', 12], ['if (row == size) return true;', 13],
+    ['for (int column = 0; column < size; column++) {', 15], ['if (isSafe(row, column)) {', 16],
+    ['queens[row] = column;', 17], ['if (placeQueen(row + 1)) return true;', 18], ['backtracking', 19],
+    ['return false;', 22], ['boolean isSafe(int row, int column) {', 25],
+    ['for (int previousRow = 0; previousRow < row; previousRow++) {', 26],
+    ['int previousColumn = queens[previousRow];', 27], ['if (previousColumn == column) return false;', 28],
+    ['int rowDistance = row - previousRow;', 29], ['int columnDistance = Math.abs(column - previousColumn);', 30],
+    ['if (rowDistance == columnDistance) return false;', 31], ['return true;', 33],
+  ]);
+  const record = (codeNeedle, message, row = 0, column = 0, variables = [], options = {}) => {
+    trace.push({
+      values: [...queens],
+      position: Math.max(0, Math.min(size * size - 1, row * size + column)),
+      codeLine: lineByNeedle.get(codeNeedle) ?? 0,
+      codeNeedle,
+      message,
+      delayMs: options.delayMs ?? 115,
+      completed: options.completed ?? false,
+      variables: [
+        { name: 'row', value: row, role: 'index' },
+        { name: 'column', value: column, role: 'index' },
+        ...variables,
+      ],
+    });
+  };
+  record('boolean solveQueens(int boardSize) {', `Comienza solveQueens(${size}).`);
+  record('size = boardSize;', `size recibe el valor ${size}.`, 0, 0, [{ name: 'size', value: size, role: 'size' }]);
+  record('queens = new int[size];', `Se reserva un arreglo para ${size} filas.`);
+  for (let row = 0; row < size; row++) {
+    record('for (int row = 0; row < size; row++) {', `El for inicializa la fila ${row + 1}.`, row, 0, [
+      { name: 'condición', value: 'true', role: 'true' },
+    ], { delayMs: 75 });
+    record('queens[row] = -1;', `La fila ${row + 1} comienza sin reina.`, row, 0, [], { delayMs: 75 });
+  }
+  record('for (int row = 0; row < size; row++) {', 'row alcanzó size: termina el ciclo de inicialización.', size - 1, 0, [
+    { name: 'condición', value: 'false', role: 'false' },
+  ]);
+  record('return placeQueen(0);', 'La búsqueda recursiva comienza en la primera fila.');
+
+  const inspectedRows = new Set();
+  const exhaustedRows = new Set();
+  const detailedOutcomes = new Set();
+  const inspect = (row, column) => {
+    const checks = [];
     for (let previous = 0; previous < row; previous++) {
-      if (queens[previous] === column) {
-        trace.push({ values: [...queens], position: row * size + column, codeLine: 28, message: `No es segura: ya existe una reina en la columna ${column + 1}.` });
-        return false;
-      }
-      if (Math.abs(queens[previous] - column) === row - previous) {
-        trace.push({ values: [...queens], position: row * size + column, codeLine: 31, message: 'No es segura: otra reina se encuentra en la misma diagonal.' });
-        return false;
-      }
+      const previousColumn = queens[previous];
+      const sameColumn = previousColumn === column;
+      const rowDistance = row - previous;
+      const columnDistance = Math.abs(column - previousColumn);
+      checks.push({ previous, previousColumn, sameColumn, rowDistance, columnDistance });
+      if (sameColumn) return { safe: false, reason: 'column', checks };
+      if (rowDistance === columnDistance) return { safe: false, reason: 'diagonal', checks };
     }
-    trace.push({ values: [...queens], position: row * size + column, codeLine: 33, message: 'La columna y las diagonales están libres: isSafe devuelve true.' });
-    return true;
+    return { safe: true, reason: 'safe', checks };
+  };
+  const recordDetailedInspection = (row, column, inspection) => {
+    record('boolean isSafe(int row, int column) {', `isSafe revisa la posición (${row + 1}, ${column + 1}).`, row, column);
+    for (const check of inspection.checks) {
+      record('for (int previousRow = 0; previousRow < row; previousRow++) {', `Compara con la reina de la fila ${check.previous + 1}.`, row, column, [
+        { name: 'previousRow', value: check.previous, role: 'index' },
+        { name: 'condición', value: 'true', role: 'true' },
+      ], { delayMs: 80 });
+      record('int previousColumn = queens[previousRow];', `previousColumn vale ${check.previousColumn}.`, row, column, [
+        { name: 'previousColumn', value: check.previousColumn, role: 'value' },
+      ], { delayMs: 80 });
+      record('if (previousColumn == column) return false;', check.sameColumn
+        ? `Conflicto: ambas reinas usarían la columna ${column + 1}.`
+        : `${check.previousColumn} y ${column} son columnas diferentes.`, row, column, [
+        { name: 'condición', value: String(check.sameColumn), role: check.sameColumn ? 'true' : 'false' },
+      ], { delayMs: 90 });
+      if (check.sameColumn) return;
+      record('int rowDistance = row - previousRow;', `La distancia entre filas es ${check.rowDistance}.`, row, column, [
+        { name: 'rowDistance', value: check.rowDistance, role: 'value' },
+      ], { delayMs: 75 });
+      record('int columnDistance = Math.abs(column - previousColumn);', `La distancia entre columnas es ${check.columnDistance}.`, row, column, [
+        { name: 'columnDistance', value: check.columnDistance, role: 'value' },
+      ], { delayMs: 75 });
+      const diagonal = check.rowDistance === check.columnDistance;
+      record('if (rowDistance == columnDistance) return false;', diagonal
+        ? 'Las distancias son iguales: las reinas comparten una diagonal.'
+        : 'Las distancias son distintas: no existe conflicto diagonal.', row, column, [
+        { name: 'condición', value: String(diagonal), role: diagonal ? 'true' : 'false' },
+      ], { delayMs: 90 });
+      if (diagonal) return;
+    }
+    record('for (int previousRow = 0; previousRow < row; previousRow++) {', 'No quedan filas anteriores por revisar.', row, column, [
+      { name: 'condición', value: 'false', role: 'false' },
+    ], { delayMs: 80 });
+    record('return true;', 'No hay conflictos de columna ni diagonal: isSafe devuelve true.', row, column);
+  };
+  const flushRejected = (row, rejected) => {
+    if (!rejected.length) return;
+    const last = rejected.at(-1);
+    const columns = rejected.map(item => item.column + 1).join(', ');
+    record('if (isSafe(row, column)) {', rejected.length === 1
+      ? `El for probó la columna ${columns}; isSafe la rechazó y avanzó.`
+      : `El for probó las columnas ${columns}; se agrupan porque ninguna cambió el tablero.`, row, last.column, [
+      { name: 'intentos agrupados', value: rejected.length, role: 'size' },
+      { name: 'resultado', value: 'false', role: 'false' },
+    ], { delayMs: 90 });
+    const representative = rejected.find(item => !detailedOutcomes.has(item.inspection.reason));
+    if (representative) {
+      detailedOutcomes.add(representative.inspection.reason);
+      recordDetailedInspection(row, representative.column, representative.inspection);
+    }
   };
   const place = row => {
+    if (!inspectedRows.has(row)) {
+      inspectedRows.add(row);
+      record('boolean placeQueen(int row) {', `placeQueen entra por primera vez a la fila ${row + 1}.`, Math.min(row, size - 1), 0);
+      record('if (row == size) return true;', row === size
+        ? 'row == size: todas las reinas fueron colocadas.'
+        : `row vale ${row}; todavía faltan filas por resolver.`, Math.min(row, size - 1), 0, [
+        { name: 'condición', value: String(row === size), role: row === size ? 'true' : 'false' },
+      ]);
+    }
     if (row === size) {
-      trace.push({ values: [...queens], position: size * size - 1, codeLine: 13, message: 'Caso base: todas las reinas fueron colocadas sin conflictos.' });
       return true;
     }
+    const rejected = [];
     for (let column = 0; column < size; column++) {
-      if (!safe(row, column)) continue;
+      const inspection = inspect(row, column);
+      if (!inspection.safe) {
+        rejected.push({ column, inspection });
+        continue;
+      }
+      flushRejected(row, rejected.splice(0));
+      record('if (isSafe(row, column)) {', 'Se llama a isSafe antes de modificar el tablero.', row, column);
+      if (!detailedOutcomes.has('safe')) {
+        detailedOutcomes.add('safe');
+        recordDetailedInspection(row, column, inspection);
+      } else {
+        trace.at(-1).message = `isSafe revisó las ${row} reinas anteriores y devolvió true.`;
+        trace.at(-1).variables.push({ name: 'resultado', value: 'true', role: 'true' });
+      }
       queens[row] = column;
-      trace.push({ values: [...queens], position: row * size + column, codeLine: 17, message: `isSafe devolvió true. Se coloca una reina en fila ${row + 1}, columna ${column + 1}.` });
+      record('queens[row] = column;', `Se coloca una reina en fila ${row + 1}, columna ${column + 1}.`, row, column, [], { delayMs: 180 });
+      record('if (placeQueen(row + 1)) return true;', `La recursión intenta resolver ahora la fila ${row + 2}.`, row, column);
       if (place(row + 1)) return true;
       queens[row] = -1;
-      trace.push({ values: [...queens], position: row * size + column, codeLine: 19, message: `La reina en (${row + 1}, ${column + 1}) conduce a un conflicto: se retira y se vuelve atrás.` });
+      record('backtracking', `La rama falló: se retira la reina de (${row + 1}, ${column + 1}) y se retrocede.`, row, column, [], { delayMs: 180 });
+    }
+    flushRejected(row, rejected);
+    record('for (int column = 0; column < size; column++) {', `La fila ${row + 1} agotó sus columnas: el for termina.`, row, size - 1, [
+      { name: 'condición', value: 'false', role: 'false' },
+    ], { delayMs: 90 });
+    if (!exhaustedRows.has(row)) {
+      exhaustedRows.add(row);
+      record('return false;', `Ninguna columna resolvió la fila ${row + 1}; la llamada devuelve false.`, row, size - 1, [
+        { name: 'resultado', value: 'false', role: 'false' },
+      ]);
     }
     return false;
   };
-  return { solved: place(0), values: queens, frames: trace };
+  const solved = place(0);
+  if (trace.length) {
+    trace.at(-1).completed = true;
+    trace.at(-1).delayMs = 260;
+    trace.at(-1).message = solved
+      ? `Solución completa: ${size} reinas quedaron en posiciones seguras.`
+      : `No existe una solución para ${size} reinas.`;
+  }
+  return { solved, values: queens, frames: trace };
 };
 
 const solveMazeWithTrace = initialMaze => {
@@ -4959,7 +5204,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     case 'remove-value': {
       if (value === null) return fail('Ingresa el valor que quieres eliminar.');
       const found = orderedBinaryTreeIds.has(algorithm.id)
-        ? binarySearchPosition(next, value)
+        ? algorithm.id === 'kd-tree' ? kdSearchPosition(next, value) : binarySearchPosition(next, value)
         : next.findIndex(item => (
             ['hash', 'cache'].includes(group) ? entryKey(item) === String(value) : String(item) === String(value)
           ));
@@ -4971,6 +5216,11 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
             ? ` y aplicó rotación ${removal.rotations.map(rotation => rotation.type).join(' + ')}`
             : ' y actualizó sus alturas sin necesitar una rotación';
           return done(removal.values, `${value} fue eliminado; el AVL conservó su balance${rotationDetail}.`, Math.max(0, found));
+        }
+        if (algorithm.id === 'kd-tree') {
+          const removal = removeFromKdTree(next, value);
+          if (removal.hiddenNode) return fail('La eliminación produciría una rama fuera del espacio visible.');
+          return done(removal.values, `${value} fue eliminado respetando los ejes alternados del KD-Tree.`, Math.max(0, found));
         }
         const remaining = compactTreeValues(next).filter(item => String(item) !== String(value));
         const rebuilt = balancedBinaryTreeIds.has(algorithm.id)
@@ -5074,6 +5324,11 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
             : ' Se actualizaron las alturas y no fue necesaria una rotación.';
           return done(insertion.values, `Nodo ${value} insertado siguiendo el BST.${rotationDetail}`, insertedAt);
         }
+        if (algorithm.id === 'kd-tree') {
+          const insertion = insertIntoKdTree(next, value);
+          if (insertion.hiddenNode || insertion.position < 0) return fail('El punto quedaría fuera del espacio visible del KD-Tree.');
+          return done(insertion.values, `Punto ${value} insertado alternando los ejes X e Y.`, insertion.position);
+        }
         const insertedValues = [...compactTreeValues(next), value];
         const rebuilt = balancedBinaryTreeIds.has(algorithm.id)
           ? buildBalancedBinaryTree(insertedValues)
@@ -5125,7 +5380,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     case 'find': {
       if (value === null) return fail('Ingresa el valor que quieres buscar.');
       const found = orderedBinaryTreeIds.has(algorithm.id)
-        ? binarySearchPosition(next, value)
+        ? algorithm.id === 'kd-tree' ? kdSearchPosition(next, value) : binarySearchPosition(next, value)
         : next.findIndex(item => (
             ['hash', 'cache'].includes(group) ? entryKey(item) === String(value) : String(item) === String(value)
           ));

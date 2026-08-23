@@ -168,6 +168,25 @@ function balancedLevelOrder(sortedValues) {
   return result;
 }
 
+function randomKdLevelOrder() {
+  const point = (x, y) => x * 10 + y;
+  const rootX = randomNumber(4, 5);
+  const rootY = randomNumber(4, 5);
+  const leftX = randomNumber(1, 3);
+  const leftY = randomNumber(4, 6);
+  const rightX = randomNumber(7, 9);
+  const rightY = randomNumber(4, 6);
+  return [
+    point(rootX, rootY),
+    point(leftX, leftY),
+    point(rightX, rightY),
+    point(randomNumber(0, 4), randomNumber(0, leftY - 1)),
+    point(randomNumber(0, 4), randomNumber(leftY + 1, 9)),
+    point(randomNumber(5, 9), randomNumber(0, rightY - 1)),
+    point(randomNumber(5, 9), randomNumber(rightY + 1, 9)),
+  ];
+}
+
 function createRandomValues(algorithm) {
   const amount = algorithm.values.length;
 
@@ -241,6 +260,7 @@ function createRandomValues(algorithm) {
   if (algorithm.id === 'expression-tree') return ['+','×','−',...randomUniqueNumbers(4, 1, 9).map(String)];
   if (algorithm.id === 'ast') return astValuesFromSource(AST_EXAMPLES[randomNumber(0, AST_EXAMPLES.length - 1)]);
   if (algorithm.id === 'merkle-tree') return Array.from({ length: amount }, () => `B${randomNumber(10, 99)}`);
+  if (algorithm.id === 'kd-tree') return randomKdLevelOrder();
   if (algorithm.category === 'Grafos') {
     const offset = randomNumber(0, 19);
     return Array.from({ length: amount }, (_, index) => String.fromCharCode(65 + (offset + index) % 26));
@@ -261,7 +281,7 @@ function createRandomValues(algorithm) {
   if (algorithm.id === 'bloom-filter') return Array.from({ length: amount }, () => randomNumber(0, 1));
 
   const values = randomUniqueNumbers(amount);
-  if (['arbol-enhebrado','bst','avl','rojo-negro','splay-tree','kd-tree'].includes(algorithm.id)) return balancedLevelOrder(values.sort((a, b) => a - b));
+  if (['arbol-enhebrado','bst','avl','rojo-negro','splay-tree'].includes(algorithm.id)) return balancedLevelOrder(values.sort((a, b) => a - b));
   if (algorithm.type === 'heap') return values.sort((a, b) => b - a);
   if (['skip-list','btree','bplus-tree','bstar-tree'].includes(algorithm.id)) return values.sort((a, b) => a - b);
   return values;

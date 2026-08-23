@@ -5,11 +5,15 @@ export const copyVisualValues = values => values.map(value => (
 export function executableCodeLines(code) {
   return code.split('\n')
     .map((text, index) => ({ index, text: text.trim() }))
-    .filter(line => line.text && line.text !== '}' && line.text !== '};');
+    .filter(line => line.text
+      && !line.text.startsWith('//')
+      && line.text !== '}'
+      && line.text !== '};');
 }
 
 const isLoop = text => /\b(?:for|while)\s*\(/.test(text);
 const isDoLoop = text => /^\s*do\s*\{/.test(text);
+const isCondition = text => /\b(?:if|else if|for|while)\s*\(/.test(text) || /^\s*do\s*\{/.test(text);
 const openingBraces = text => (text.match(/{/g) ?? []).length;
 const closingBraces = text => (text.match(/}/g) ?? []).length;
 
@@ -33,7 +37,7 @@ function expandBlock(lines, start, end, baseIterations, depth = 0, outerIteratio
   while (index <= end) {
     const line = lines[index];
     const text = line.text.trim();
-    if (!text || text === '}' || text === '};') { index++; continue; }
+    if (!text || text.startsWith('//') || text === '}' || text === '};') { index++; continue; }
 
     if (isDoLoop(text)) {
       const closingIndex = blockEnd(lines, index, end);
@@ -117,7 +121,10 @@ function framePosition(actionId, line, beforeValues, workingValues, finalStep, l
 
   if (lengthBasedArray && line.iteration !== null && line.iteration !== undefined) {
     if (actionId === 'add-start') return Math.min(length - 1, iteration + 1);
-    if (actionId === 'add-index') return Math.min(length - 1, iteration < target ? iteration : iteration + 1);
+    if (actionId === 'add-index') {
+      if (/int\s+destination\s*=\s*i|if\s*\(i\s*>=\s*index\)/.test(line.text)) return Math.min(length - 1, iteration);
+      return Math.min(length - 1, iteration < target ? iteration : iteration + 1);
+    }
     if (['add-end', 'remove-start', 'remove-end', 'remove-index'].includes(actionId)) {
       return Math.min(length - 1, iteration);
     }
@@ -136,10 +143,10 @@ function applyVisibleMutation({ actionId, line, workingValues, beforeValues, aft
 
   if (lengthBasedArray) {
     if (/int\[\] result = new int\[n \+ 1\]/.test(text) && workingValues.length < afterValues.length) {
-      workingValues.push(undefined);
+      workingValues.splice(0, workingValues.length, ...Array(afterValues.length).fill(undefined));
     }
     if (/int\[\] result = new int\[n - 1\]/.test(text) && workingValues.length > afterValues.length) {
-      workingValues.length = afterValues.length;
+      workingValues.splice(0, workingValues.length, ...Array(afterValues.length).fill(undefined));
     }
 
     if (actionId === 'add-start' && /result\[i \+ 1\] = values\[i\]/.test(text) && iteration < beforeValues.length) {
@@ -293,18 +300,45 @@ function createLiveVariables({ actionId, line, beforeValues, workingValues, fina
   if (activeValue !== undefined) {
     variables.push({ name: 'elemento', value: readableVariableValue(activeValue), role: 'value' });
   }
-  if (line.iteration !== null && line.iteration !== undefined) {
-    variables.push({ name: 'condición', value: line.loopExit ? 'false' : 'true', role: line.loopExit ? 'false' : 'true' });
+  if (isCondition(line.text) && (line.conditionResult !== undefined || line.loopCondition !== undefined || line.loopExit)) {
+    const conditionResult = line.conditionResult ?? (line.loopExit ? false : line.loopCondition);
+    variables.push({
+      name: 'condición',
+      value: conditionResult ? 'true' : 'false',
+      role: conditionResult ? 'true' : 'false',
+    });
   }
   return variables;
 }
 
 function executionMessage(line) {
   if (line.loopExit) return `El bucle termina después de ${line.totalIterations} iteraciones.`;
+  if (line.conditionResult !== undefined) {
+    return `La condición de la línea ${line.index + 1} es ${line.conditionResult ? 'verdadera' : 'falsa'}: ${line.text}`;
+  }
   if (line.iteration !== null && line.iteration !== undefined) {
     return `Iteración ${Math.min(line.iteration + 1, line.totalIterations)} de ${line.totalIterations}: línea ${line.index + 1}, ${line.text}`;
   }
   return `Ejecutando línea ${line.index + 1}: ${line.text}`;
+}
+
+function synchronizeKnownBranches(sequence, { actionId, inputValues = {}, beforeValues, succeeded }) {
+  if (!['add-index', 'remove-index'].includes(actionId)) return sequence;
+  const requestedIndex = Number(inputValues.index);
+  if (!Number.isInteger(requestedIndex)) return sequence;
+
+  return sequence.flatMap(line => {
+    const text = line.text.replace(/\s+/g, ' ');
+    if (/if \(index < 0 \|\| index (?:>|>=) n\)/.test(text)) {
+      return [{ ...line, conditionResult: !succeeded }];
+    }
+    if (/return values;/.test(text) && succeeded) return [];
+    if (/if \(i >= index\)/.test(text)) {
+      return [{ ...line, conditionResult: Number(line.iteration) >= requestedIndex }];
+    }
+    if (/(?:destination|source) = i \+ 1;/.test(text) && Number(line.iteration) < requestedIndex) return [];
+    return [line];
+  });
 }
 
 export function createCodeSynchronizedFrames({ code, actionId, beforeValues, afterValues, beforeEdges, afterEdges, finalStep, finalMessage, succeeded = true, inputValues = {} }) {
@@ -321,7 +355,12 @@ export function createCodeSynchronizedFrames({ code, actionId, beforeValues, aft
   }
 
   const iterationCount = estimateLoopIterations({ actionId, beforeValues, afterValues, finalStep, finalMessage, lengthBasedArray });
-  const sequence = buildCodeExecutionTrace(code, iterationCount);
+  const sequence = synchronizeKnownBranches(buildCodeExecutionTrace(code, iterationCount), {
+    actionId,
+    inputValues,
+    beforeValues,
+    succeeded,
+  });
   const workingValues = copyVisualValues(beforeValues);
   let workingEdges = cloneEdges(beforeEdges);
   const mutationPattern = stateMutationPattern(actionId);
@@ -1060,6 +1099,28 @@ function binarySearchVisitPositions(values, target, includeInsertionPosition = f
   return positions;
 }
 
+const kdCoordinate = (point, axis) => (
+  axis === 0 ? Math.trunc(Number(point) / 10) : Number(point) % 10
+);
+
+function kdTreeVisitPositions(values, target, includeEmptyPosition = false) {
+  const positions = [];
+  let index = 0;
+  let depth = 0;
+  while (index < 255) {
+    positions.push(index);
+    if (!occupiedTreePosition(values, index)) break;
+    if (Number(values[index]) === Number(target)) break;
+    const axis = depth % 2;
+    index = kdCoordinate(target, axis) < kdCoordinate(values[index], axis)
+      ? index * 2 + 1
+      : index * 2 + 2;
+    depth++;
+  }
+  if (!includeEmptyPosition && !occupiedTreePosition(values, positions.at(-1))) positions.pop();
+  return positions;
+}
+
 function binaryTraversalPositions(values, order) {
   const positions = [];
   const visit = index => {
@@ -1101,6 +1162,10 @@ function heapVisitPositions(actionId, beforeValues, afterValues, finalStep) {
 function treeVisitPositions({ algorithm, actionId, beforeValues, afterValues, finalStep, inputValues }) {
   const target = inputValues.value;
   if (algorithm.type === 'heap') return heapVisitPositions(actionId, beforeValues, afterValues, finalStep);
+
+  if (algorithm.id === 'kd-tree' && ['tree-add', 'find', 'remove-value'].includes(actionId)) {
+    return kdTreeVisitPositions(beforeValues, target, actionId === 'tree-add');
+  }
 
   if (orderedBinaryTreeIds.has(algorithm.id) && ['tree-add', 'find', 'remove-value'].includes(actionId)) {
     return binarySearchVisitPositions(beforeValues, target, actionId === 'tree-add');
@@ -1166,7 +1231,340 @@ function structuralMutationLine(code, algorithm, actionId) {
   return null;
 }
 
+const semanticOrderedTreeIds = new Set(['bst', 'avl', 'kd-tree']);
+
+function selectedOperationRange(code) {
+  const lines = code.split('\n');
+  const marker = lines.findIndex(line => line.trim() === '// Start of the selected operation');
+  const endMarker = lines.findIndex((line, index) => (
+    index > marker && line.trim() === '// End of the selected operation'
+  ));
+  return {
+    lines,
+    start: marker >= 0 ? marker + 1 : 0,
+    end: endMarker >= 0 ? endMarker - 1 : lines.length - 1,
+    helpersStart: endMarker >= 0 ? endMarker + 1 : lines.length,
+  };
+}
+
+function findSourceLine(range, pattern, helpersOnly = false) {
+  const start = helpersOnly ? range.helpersStart : range.start;
+  const end = helpersOnly ? range.lines.length - 1 : range.end;
+  for (let index = start; index <= end; index++) {
+    if (pattern.test(range.lines[index])) return index;
+  }
+  return -1;
+}
+
+function methodSourceLines(range, declarationPattern) {
+  const declaration = findSourceLine(range, declarationPattern, true);
+  if (declaration < 0) return [];
+  const end = blockEnd(range.lines.map(text => ({ text })), declaration, range.lines.length - 1);
+  return Array.from({ length: end - declaration + 1 }, (_, offset) => declaration + offset)
+    .filter(index => {
+      const text = range.lines[index].trim();
+      return text && !text.startsWith('//') && text !== '}' && text !== '};';
+    });
+}
+
+function treeHeightAt(values, index) {
+  if (!occupiedTreePosition(values, index)) return 0;
+  return 1 + Math.max(treeHeightAt(values, index * 2 + 1), treeHeightAt(values, index * 2 + 2));
+}
+
+function treeBalanceAt(values, index) {
+  if (!occupiedTreePosition(values, index)) return 0;
+  return treeHeightAt(values, index * 2 + 1) - treeHeightAt(values, index * 2 + 2);
+}
+
+function semanticSearchPath(values, target) {
+  const positions = [];
+  let index = 0;
+  while (index < 255) {
+    positions.push(index);
+    if (!occupiedTreePosition(values, index)) break;
+    const current = Number(values[index]);
+    if (!Number.isFinite(current) || current === target) break;
+    index = target < current ? index * 2 + 1 : index * 2 + 2;
+  }
+  return positions;
+}
+
+function createSemanticOrderedTreeFrames(args) {
+  if (!semanticOrderedTreeIds.has(args.algorithm.id) || !['tree-add', 'find'].includes(args.actionId)) return null;
+  const target = Number(args.inputValues.value);
+  if (!Number.isFinite(target)) return null;
+
+  const range = selectedOperationRange(args.code);
+  const operationName = args.actionId === 'tree-add' ? 'insert' : 'search';
+  const declarationLine = findSourceLine(range, new RegExp(`Node\\s+${operationName}\\s*\\(`));
+  const baseLine = findSourceLine(range, /if\s*\(node == null/);
+  if (declarationLine < 0 || baseLine < 0) return null;
+
+  const before = copyVisualValues(args.beforeValues);
+  const after = copyVisualValues(args.afterValues);
+  const visits = args.algorithm.id === 'kd-tree'
+    ? kdTreeVisitPositions(before, target, true)
+    : semanticSearchPath(before, target);
+  const frames = [];
+  let visibleValues = before;
+  const pushFrame = (codeLine, position, message, options = {}) => {
+    const conditionResult = options.conditionResult;
+    const activeValue = visibleValues[position];
+    const variables = [
+      { name: 'valor buscado', value: readableVariableValue(target), role: 'input' },
+      { name: 'profundidad', value: readableVariableValue(options.depth ?? 0), role: 'index' },
+      ...(args.algorithm.id === 'kd-tree'
+        ? [
+            { name: 'eje activo', value: (options.depth ?? 0) % 2 === 0 ? 'X' : 'Y', role: 'index' },
+            { name: 'punto objetivo', value: `(${Math.trunc(target / 10)}, ${target % 10})`, role: 'input' },
+            ...(activeValue === undefined || activeValue === null
+              ? []
+              : [{ name: 'punto activo', value: `(${Math.trunc(Number(activeValue) / 10)}, ${Number(activeValue) % 10})`, role: 'value' }]),
+          ]
+        : []),
+      { name: 'nodo activo', value: readableVariableValue(activeValue ?? null), role: 'value' },
+      { name: 'índice del nodo', value: readableVariableValue(position), role: 'position' },
+      ...(options.balance === undefined
+        ? []
+        : [{ name: 'factor de balance', value: readableVariableValue(options.balance), role: 'value' }]),
+      ...(conditionResult === undefined
+        ? []
+        : [{ name: 'condición', value: conditionResult ? 'true' : 'false', role: conditionResult ? 'true' : 'false' }]),
+    ];
+    frames.push({
+      values: copyVisualValues(visibleValues),
+      edges: cloneEdges(options.useAfterEdges ? args.afterEdges : args.beforeEdges),
+      position,
+      codeLine,
+      message,
+      delayMs: options.delayMs ?? 430,
+      completed: options.completed ?? false,
+      failed: options.failed ?? false,
+      conditionResult,
+      variables,
+    });
+  };
+
+  if (args.actionId === 'find') {
+    const axisLine = findSourceLine(range, /int axis = depth % DIMENSIONS;/);
+    const coordinateLines = methodSourceLines(range, /^\s*int coordinate\s*\(/);
+    const leftLine = findSourceLine(range, args.algorithm.id === 'kd-tree'
+      ? /if\s*\(coordinate\(target, axis\) < coordinate\(node\.value, axis\)\)/
+      : /if\s*\(target < node\.value\)/);
+    const leftCallLine = findSourceLine(range, /return search\(node\.left/);
+    const rightLine = findSourceLine(range, /return search\(node\.right/);
+    for (let depth = 0; depth < visits.length; depth++) {
+      const position = visits[depth];
+      const occupied = occupiedTreePosition(before, position);
+      pushFrame(declarationLine, position, `Llamada ${depth + 1}: search recibe ${occupied ? `el nodo ${before[position]}` : 'null'}.`, { depth });
+      const found = occupied && Number(before[position]) === target;
+      pushFrame(baseLine, position, found
+        ? `${target} coincide con el nodo actual: la búsqueda termina.`
+        : occupied
+          ? `${before[position]} no es null y todavía no coincide con ${target}.`
+          : 'La llamada recibió null: el valor no existe en esta rama.', {
+        depth,
+        conditionResult: found || !occupied,
+        completed: found || !occupied,
+        failed: !occupied,
+      });
+      if (found || !occupied) break;
+
+      const axis = depth % 2;
+      if (args.algorithm.id === 'kd-tree') {
+        pushFrame(axisLine, position, `depth % 2 selecciona el eje ${axis === 0 ? 'X' : 'Y'} para esta comparación.`, { depth });
+        for (const helperLine of coordinateLines) {
+          pushFrame(helperLine, position, `coordinate extrae el componente ${axis === 0 ? 'X' : 'Y'} de ambos puntos.`, { depth, delayMs: 280 });
+        }
+      }
+      const goesLeft = args.algorithm.id === 'kd-tree'
+        ? kdCoordinate(target, axis) < kdCoordinate(before[position], axis)
+        : target < Number(before[position]);
+      pushFrame(leftLine, position, goesLeft
+        ? `${target} queda antes que ${before[position]} en el eje ${axis === 0 ? 'X' : 'Y'}: continúa por la izquierda.`
+        : `${target} no queda antes que ${before[position]} en el eje ${axis === 0 ? 'X' : 'Y'}: descarta la rama izquierda.`, {
+        depth,
+        conditionResult: goesLeft,
+      });
+      if (goesLeft) {
+        pushFrame(leftCallLine, position, 'Se realiza la llamada recursiva con el hijo izquierdo.', { depth });
+      } else {
+        pushFrame(rightLine, position, `${target} es mayor que ${before[position]}: continúa por la derecha.`, { depth });
+      }
+    }
+    if (frames.length) frames.at(-1).message = args.finalMessage;
+    return frames;
+  }
+
+  if (!args.succeeded) return null;
+  const leftConditionLine = findSourceLine(range, args.algorithm.id === 'kd-tree'
+    ? /if\s*\(coordinate\(value, axis\) < coordinate\(node\.value, axis\)\)/
+    : /if\s*\(value < node\.value\)/);
+  const leftAssignmentLine = findSourceLine(range, /node\.left = insert\(node\.left/);
+  const rightConditionLine = findSourceLine(range, args.algorithm.id === 'kd-tree'
+    ? /^\s*}\s*else\s*\{/
+    : /else if\s*\(value > node\.value\)/);
+  const rightAssignmentLine = findSourceLine(range, /node\.right = insert\(node\.right/);
+  const returnLine = findSourceLine(range, /^\s*return node;/);
+  const axisLine = findSourceLine(range, /int axis = depth % DIMENSIONS;/);
+  const coordinateLines = methodSourceLines(range, /^\s*int coordinate\s*\(/);
+  const rawValues = copyVisualValues(before);
+
+  for (let depth = 0; depth < visits.length; depth++) {
+    const position = visits[depth];
+    const occupied = occupiedTreePosition(before, position);
+    pushFrame(declarationLine, position, `Llamada ${depth + 1}: insert recibe ${occupied ? `el nodo ${before[position]}` : 'null'}.`, { depth });
+    if (!occupied) {
+      rawValues[position] = args.inputValues.value === '' ? target : Number(args.inputValues.value);
+      visibleValues = rawValues;
+      pushFrame(baseLine, position, `node es null: se crea aquí el nuevo nodo ${target}.`, {
+        depth,
+        conditionResult: true,
+        useAfterEdges: false,
+      });
+      break;
+    }
+
+    pushFrame(baseLine, position, `El nodo ${before[position]} existe, por eso la recursión debe compararlo con ${target}.`, {
+      depth,
+      conditionResult: false,
+    });
+    const axis = depth % 2;
+    if (args.algorithm.id === 'kd-tree') {
+      pushFrame(axisLine, position, `depth % 2 selecciona el eje ${axis === 0 ? 'X' : 'Y'} para insertar.`, { depth });
+      for (const helperLine of coordinateLines) {
+        pushFrame(helperLine, position, `coordinate extrae el componente ${axis === 0 ? 'X' : 'Y'} de ambos puntos.`, { depth, delayMs: 280 });
+      }
+    }
+    const goesLeft = args.algorithm.id === 'kd-tree'
+      ? kdCoordinate(target, axis) < kdCoordinate(before[position], axis)
+      : target < Number(before[position]);
+    pushFrame(leftConditionLine, position, goesLeft
+      ? `${target} queda antes que ${before[position]} en el eje ${axis === 0 ? 'X' : 'Y'}: baja por la izquierda.`
+      : `${target} no queda antes que ${before[position]} en el eje ${axis === 0 ? 'X' : 'Y'}.`, {
+      depth,
+      conditionResult: goesLeft,
+    });
+    if (goesLeft) {
+      if (leftAssignmentLine !== leftConditionLine) {
+        pushFrame(leftAssignmentLine, position, 'El resultado de la inserción recursiva se enlazará como hijo izquierdo.', { depth });
+      }
+    } else {
+      pushFrame(rightConditionLine, position, args.algorithm.id === 'kd-tree'
+        ? `El else dirige el punto por la derecha según el eje ${axis === 0 ? 'X' : 'Y'}.`
+        : `${target} > ${before[position]}: la llamada recursiva baja por la derecha.`, {
+        depth,
+        conditionResult: args.algorithm.id === 'kd-tree' ? undefined : true,
+      });
+      if (rightAssignmentLine !== rightConditionLine) {
+        pushFrame(rightAssignmentLine, position, 'El resultado de la inserción recursiva se enlazará como hijo derecho.', { depth });
+      }
+    }
+  }
+
+  const occupiedVisits = visits.filter(position => occupiedTreePosition(before, position));
+  if (args.algorithm.id !== 'avl') {
+    for (const position of [...occupiedVisits].reverse()) {
+      pushFrame(returnLine, position, `La recursión vuelve al nodo ${before[position]} y conserva su enlace actualizado.`, {
+        depth: Math.max(0, visits.indexOf(position)),
+      });
+    }
+    visibleValues = after;
+    if (frames.length) {
+      frames.at(-1).values = copyVisualValues(after);
+      frames.at(-1).edges = cloneEdges(args.afterEdges);
+      frames.at(-1).position = Math.max(0, Number(args.finalStep) || 0);
+      frames.at(-1).message = args.finalMessage;
+      frames.at(-1).completed = true;
+    }
+    return frames;
+  }
+
+  const updateLine = findSourceLine(range, /updateHeight\(node\);/);
+  const balanceLine = findSourceLine(range, /int balance = balanceOf\(node\);/);
+  const rotationConditions = [
+    findSourceLine(range, /if\s*\(balance > 1 && value < node\.left\.value\)/),
+    findSourceLine(range, /if\s*\(balance < -1 && value > node\.right\.value\)/),
+    findSourceLine(range, /if\s*\(balance > 1 && value > node\.left\.value\)/),
+    findSourceLine(range, /if\s*\(balance < -1 && value < node\.right\.value\)/),
+  ];
+  const rotationType = args.finalMessage.match(/rotación\s+(LL|RR|LR|RL)/i)?.[1]?.toUpperCase() ?? null;
+  const rawPivot = [...occupiedVisits].reverse().find(position => Math.abs(treeBalanceAt(rawValues, position)) > 1);
+  const typeIndex = { LL: 0, RR: 1, LR: 2, RL: 3 };
+  let rotationApplied = false;
+
+  for (const position of [...occupiedVisits].reverse()) {
+    const depth = Math.max(0, visits.indexOf(position));
+    const nodeValue = before[position];
+    const finalPosition = after.findIndex(value => Number(value) === Number(nodeValue));
+    const balance = rotationApplied && finalPosition >= 0
+      ? treeBalanceAt(after, finalPosition)
+      : treeBalanceAt(rawValues, position);
+    pushFrame(updateLine, position, `Al volver al nodo ${nodeValue}, se actualiza su altura.`, { depth, balance });
+    for (const helperLine of methodSourceLines(range, /^\s*void updateHeight\s*\(/)) {
+      pushFrame(helperLine, position, `updateHeight calcula la altura de ${nodeValue} usando las alturas de sus hijos.`, { depth, balance, delayMs: 300 });
+    }
+    pushFrame(balanceLine, position, `El factor de balance de ${nodeValue} es ${balance}.`, { depth, balance });
+    for (const helperLine of methodSourceLines(range, /^\s*int balanceOf\s*\(/)) {
+      pushFrame(helperLine, position, `balanceOf resta altura izquierda menos altura derecha: ${balance}.`, { depth, balance, delayMs: 300 });
+    }
+
+    const rotatesHere = !rotationApplied && rotationType && position === rawPivot;
+    const lastCondition = rotatesHere ? typeIndex[rotationType] : rotationConditions.length - 1;
+    for (let conditionIndex = 0; conditionIndex <= lastCondition; conditionIndex++) {
+      const conditionLine = rotationConditions[conditionIndex];
+      const conditionTrue = rotatesHere && conditionIndex === typeIndex[rotationType];
+      pushFrame(conditionLine, position, conditionTrue
+        ? `Se reconoce el caso ${rotationType}: esta condición es verdadera.`
+        : `Esta rotación no corresponde al balance ${balance}.`, {
+        depth,
+        balance,
+        conditionResult: conditionTrue,
+      });
+    }
+
+    if (rotatesHere) {
+      const helperNames = rotationType === 'LL'
+        ? ['rotateRight']
+        : rotationType === 'RR'
+          ? ['rotateLeft']
+          : rotationType === 'LR'
+            ? ['rotateLeft', 'rotateRight']
+            : ['rotateRight', 'rotateLeft'];
+      for (const helperName of helperNames) {
+        for (const helperLine of methodSourceLines(range, new RegExp(`^\\s*Node ${helperName}\\s*\\(`))) {
+          pushFrame(helperLine, position, `${helperName} reajusta referencias y alturas sin perder nodos.`, {
+            depth,
+            balance,
+            delayMs: 330,
+          });
+        }
+      }
+      visibleValues = after;
+      rotationApplied = true;
+    }
+    pushFrame(returnLine, Math.max(0, rotationApplied && finalPosition >= 0 ? finalPosition : position), `La llamada devuelve la raíz equilibrada de este subárbol.`, {
+      depth,
+      balance,
+      useAfterEdges: rotationApplied,
+    });
+  }
+
+  visibleValues = after;
+  if (frames.length) {
+    frames.at(-1).values = copyVisualValues(after);
+    frames.at(-1).edges = cloneEdges(args.afterEdges);
+    frames.at(-1).position = Math.max(0, Number(args.finalStep) || 0);
+    frames.at(-1).message = args.finalMessage;
+    frames.at(-1).completed = true;
+  }
+  return frames;
+}
+
 export function createTreeSynchronizedFrames(args) {
+  const semanticFrames = createSemanticOrderedTreeFrames(args);
+  if (semanticFrames?.length) return semanticFrames;
   const baseFrames = createCodeSynchronizedFrames(args);
   if (!args.succeeded || !baseFrames.length) return baseFrames;
 
@@ -1263,8 +1661,16 @@ export function adaptFramesToCode(frames, code, keepOriginalLines) {
         let matchedLine = sourceLines.findIndex((line, sourceIndex) => (
           sourceIndex >= selectedStart
           && sourceIndex <= selectedEnd
+          && line.trim() === frame.codeNeedle.trim()
+        ));
+        if (matchedLine < 0) matchedLine = sourceLines.findIndex((line, sourceIndex) => (
+          sourceIndex >= selectedStart
+          && sourceIndex <= selectedEnd
           && line.includes(frame.codeNeedle)
         ));
+        if (matchedLine < 0) {
+          matchedLine = sourceLines.findIndex(line => line.trim() === frame.codeNeedle.trim());
+        }
         if (matchedLine < 0) {
           matchedLine = sourceLines.findIndex(line => line.includes(frame.codeNeedle));
         }
