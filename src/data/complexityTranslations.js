@@ -17,6 +17,9 @@ const EXACT_TRANSLATIONS = {
   'Datos ordenados · Mitad · Intervalo · O(log n)': 'Sorted data · Middle · Interval · O(log n)',
   'Dividir · Resolver · Combinar · Recurrencia': 'Divide · Solve · Combine · Recurrence',
   'Estado · Recurrencia · Memoización · Tabulación': 'State · Recurrence · Memoization · Tabulation',
+  'Promedio y peor O(n²) · Mejor O(n)': 'Average and worst O(n²) · Best O(n)',
+  'Depende de los saltos · Usualmente entre O(n log n) y O(n²)': 'Depends on the gap sequence · Usually between O(n log n) and O(n²)',
+  'Promedio O(n · n!) · Sin cota práctica segura': 'Average O(n · n!) · No safe practical bound',
 };
 
 const REPLACEMENTS = [

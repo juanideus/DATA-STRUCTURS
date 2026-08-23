@@ -508,6 +508,36 @@ export const educationalDescriptions = {
     'Para mover tres discos primero debes liberar el disco mayor moviendo los dos pequeños.',
     'El número mínimo de movimientos es exactamente 2^n - 1.'
   ),
+  'bubble-sort': guide(
+    'Bubble Sort es un ordenamiento por comparación que revisa pares vecinos. Si el elemento de la izquierda es mayor, los intercambia; al terminar una pasada, el mayor valor pendiente queda en el extremo derecho.',
+    'La primera pasada compara desde el índice 0 hasta n - 2. Después ya no necesita tocar la última posición, porque contiene el máximo. El límite se reduce en cada pasada. Una variable changed permite terminar antes cuando se recorre una pasada completa sin intercambios, caso que ocurre si los datos ya están ordenados.',
+    'Comparar values[i] con values[i + 1]|Intercambiar vecinos en orden incorrecto|Reducir el límite final de cada pasada|Detenerse anticipadamente si no hubo cambios',
+    'Muy sencillo para comenzar a estudiar ciclos anidados|Trabaja en el mismo Array|Es estable si sólo intercambia cuando izquierda > derecha|Puede detectar un arreglo ya ordenado en O(n)',
+    'Su tiempo promedio y peor es O(n²)|Realiza muchos intercambios|No es adecuado para colecciones grandes|Su nombre no justifica usarlo cuando existe una opción eficiente',
+    'Enseñanza de comparaciones e intercambios|Listas muy pequeñas|Comprobar manualmente invariantes de ciclos|Introducir mejor y peor caso',
+    'En [5, 2, 4], primero intercambia 5 y 2, luego 5 y 4; el 5 “sube” hasta el final de la pasada.',
+    'Después de cada pasada, observa la zona final: contiene valores definitivos que ya no participan en las comparaciones.'
+  ),
+  'selection-sort': guide(
+    'Selection Sort divide el Array en una zona ordenada a la izquierda y otra pendiente a la derecha. En cada pasada busca el mínimo pendiente y lo coloca en la primera posición libre.',
+    'El índice i marca dónde debe quedar el siguiente mínimo. minIndex comienza en i y j recorre el resto del arreglo. Cuando aparece un valor menor, minIndex cambia. Sólo después de terminar la búsqueda se realiza, como máximo, un intercambio entre i y minIndex.',
+    'Definir el inicio de la zona pendiente|Buscar el índice del menor valor|Actualizar minIndex al encontrar un candidato menor|Intercambiar el mínimo con la posición i',
+    'Lógica directa y fácil de seguir|Usa memoria O(1)|Realiza como máximo n - 1 intercambios|Su número de comparaciones es predecible',
+    'Siempre realiza O(n²) comparaciones|La versión básica no es estable|No aprovecha que los datos ya estén casi ordenados|Es lento para entradas grandes',
+    'Enseñanza del seguimiento de un mínimo|Sistemas donde escribir es caro y comparar es barato|Arreglos pequeños|Selección repetida de extremos',
+    'En [7, 3, 5], busca el mínimo 3 y lo cambia con 7; la primera posición queda resuelta definitivamente.',
+    'No intercambies cada vez que encuentres un valor menor: guarda su índice y realiza un solo intercambio al final de la pasada.'
+  ),
+  'insertion-sort': guide(
+    'Insertion Sort construye una parte ordenada del Array de izquierda a derecha. Toma el siguiente valor como key, desplaza los valores mayores y lo inserta en el espacio que queda libre.',
+    'La zona de un elemento se considera ordenada. Para cada i desde 1, key conserva values[i] antes de modificar el arreglo. j retrocede mientras values[j] sea mayor que key; cada valor se copia una posición a la derecha. Al terminar, key se escribe en j + 1.',
+    'Guardar el valor actual en key|Comparar hacia la izquierda|Desplazar a la derecha los valores mayores|Insertar key en j + 1',
+    'Muy eficiente con datos pequeños o casi ordenados|Mejor caso O(n)|Es estable|Trabaja en el mismo Array con memoria O(1)',
+    'Peor caso O(n²) para un arreglo invertido|Muchos desplazamientos en entradas grandes|El acceso aleatorio favorece Arrays sobre listas enlazadas|No compite con O(n log n) a gran escala',
+    'Ordenar manos de cartas|Final de algoritmos híbridos|Datos que llegan casi ordenados|Enseñar desplazamiento frente a intercambio',
+    'Para insertar 4 en [2, 7, 9], desplaza 9 y 7 una posición y luego escribe 4 después de 2.',
+    'key debe guardarse antes del primer desplazamiento; de lo contrario, el valor que quieres insertar se sobrescribe.'
+  ),
   'merge-sort': guide(
     'Merge Sort ordena dividiendo el Array en mitades, ordenando cada mitad y mezclándolas.',
     'La división continúa hasta tener partes de un elemento. Merge compara los primeros elementos disponibles de ambas mitades y copia siempre el menor al resultado.',
@@ -527,6 +557,56 @@ export const educationalDescriptions = {
     'Ordenamiento general|Bibliotecas optimizadas combinadas|Procesamiento en memoria|Selección y partición de datos',
     'El pivote funciona como una persona que separa números pequeños a un lado y grandes al otro.',
     'Un pivote aleatorio o mediana de tres reduce la posibilidad de particiones extremadamente desbalanceadas.'
+  ),
+  'shell-sort': guide(
+    'Shell Sort es una mejora de Insertion Sort que primero ordena grupos de elementos separados por un salto o gap. Al reducir el salto, los valores llegan cerca de su posición final antes de la pasada con gap igual a 1.',
+    'Una secuencia sencilla comienza con n / 2 y divide el gap por 2. Para cada gap se ejecuta una inserción que compara values[j] con values[j - gap], en vez de limitarse a vecinos. La última pasada equivale a Insertion Sort, pero recibe un arreglo mucho más organizado.',
+    'Elegir una secuencia de saltos|Recorrer desde i = gap|Desplazar elementos separados por gap|Reducir gap hasta llegar a 1',
+    'Trabaja en el mismo Array|Suele superar a los algoritmos cuadráticos simples|Mueve rápidamente valores muy alejados|No necesita recursión ni arreglo auxiliar',
+    'Su complejidad depende de la secuencia de gaps|La versión común no es estable|Es más difícil de analizar|No garantiza siempre O(n log n)',
+    'Colecciones medianas|Sistemas con poca memoria auxiliar|Base educativa para algoritmos por incrementos|Entradas donde Insertion Sort movería valores demasiadas posiciones',
+    'Con gap 4 se comparan posiciones 0 y 4, 1 y 5, etc.; luego gap 2 refina el orden y gap 1 lo completa.',
+    'No olvides la pasada gap = 1: es la que garantiza que todos los vecinos queden finalmente ordenados.'
+  ),
+  'heap-sort': guide(
+    'Heap Sort usa el mismo arreglo para interpretarlo como un árbol binario completo. Primero construye un max-heap, cuya raíz es el mayor valor, y después extrae esa raíz repetidamente hacia el final.',
+    'Los hijos del índice i están en 2i + 1 y 2i + 2. La construcción aplica heapify desde el último nodo interno hasta la raíz. En cada extracción se intercambian values[0] y values[end], se reduce el tamaño lógico del heap y heapify hace descender la nueva raíz hasta restaurar la propiedad de máximo.',
+    'Construir el max-heap desde abajo|Intercambiar raíz con el último elemento pendiente|Reducir el tamaño lógico del heap|Heapificar la raíz comparando ambos hijos',
+    'Garantiza O(n log n)|Usa memoria adicional O(1)|No depende de elegir pivotes|Conserva buen rendimiento en el peor caso',
+    'La versión común no es estable|Tiene accesos de memoria menos locales que Quick Sort|El arreglo sólo representa un heap durante parte del proceso|Su implementación tiene más índices que los algoritmos simples',
+    'Ordenamiento con memoria limitada|Sistemas que exigen una cota O(n log n)|Enseñanza de heaps almacenados en Arrays|Construcción de colas de prioridad',
+    'Tras construir [9, 7, 5, 2], se cambia 9 con el final. Luego heapify restaura el heap [7, 2, 5] mientras 9 queda fijo.',
+    'Distingue size del Array y heapSize: durante las extracciones el Array conserva todos los valores, pero el heap activo se hace más pequeño.'
+  ),
+  'counting-sort': guide(
+    'Counting Sort no compara pares. Cuenta cuántas veces aparece cada entero dentro de un rango y usa esas frecuencias para reconstruir el Array de menor a mayor.',
+    'Primero encuentra min y max. El contador asociado al valor x está en count[x - min], por lo que también pueden manejarse negativos. Después de contar, se recorre count desde el índice 0 y se escribe index + min tantas veces como indique su frecuencia.',
+    'Encontrar mínimo y máximo|Crear max - min + 1 contadores|Incrementar la frecuencia de cada valor|Reconstruir el Array respetando las repeticiones',
+    'Tiempo O(n + k)|No depende de comparaciones|Maneja duplicados naturalmente|Es muy rápido cuando el rango k es pequeño',
+    'Necesita memoria O(k)|No conviene si max - min es enorme|La versión directa sólo sirve para claves enteras|Para conservar objetos asociados se requiere una versión estable con salida auxiliar',
+    'Edades, notas o categorías numéricas pequeñas|Histogramas|Paso interno de Radix Sort|Conteo de frecuencias',
+    'Para [-1, 2, -1], min es -1 y count[0] vale 2; al reconstruir se escriben dos -1 y después un 2.',
+    'Analiza k = max - min + 1, no sólo n. Diez datos muy separados pueden requerir un arreglo de conteo gigantesco.'
+  ),
+  'radix-sort': guide(
+    'Radix Sort ordena números por partes: unidades, decenas, centenas y así sucesivamente. Cada pasada debe ser estable para no destruir el orden conseguido por los dígitos anteriores.',
+    'La variante LSD comienza por el dígito menos significativo. Usa Counting Sort estable con diez contadores, recorre la entrada desde el final al distribuirla y copia output de vuelta. En esta demostración se resta el mínimo para convertir incluso los negativos en claves no negativas sin cambiar su orden relativo.',
+    'Calcular claves no negativas mediante un desplazamiento|Contar el dígito actual|Acumular posiciones por dígito|Distribuir establemente en output|Repetir con exp 1, 10, 100...',
+    'Tiempo cercano a O(d·n) con una base fija|No compara valores completos|Puede ser muy rápido para enteros de longitud acotada|Procesa duplicados correctamente',
+    'Necesita memoria auxiliar O(n + base)|La estabilidad de cada pasada es obligatoria|No se adapta directamente a cualquier tipo de dato|El número de pasadas depende de la cantidad de dígitos',
+    'Identificadores numéricos|Códigos postales|Enteros de tamaño fijo|Ordenamiento de cadenas por caracteres con adaptación',
+    'Después de ordenar por unidades, 170 queda antes de 802 por sus dígitos 0 y 2; las decenas y centenas corrigen después el orden completo.',
+    'Distribuye desde el final del Array al usar conteos acumulados; ese detalle conserva la estabilidad.'
+  ),
+  'bogo-sort': guide(
+    'Bogo Sort es un algoritmo deliberadamente ineficiente: pregunta si el Array está ordenado y, si no lo está, lo mezcla completamente al azar para volver a intentarlo.',
+    'No aprende de los intentos anteriores ni acerca deliberadamente los elementos a su destino. Para n elementos distintos existen n! permutaciones. La animación limita los intentos visibles y simula una mezcla afortunada para enseñar la idea sin bloquear el navegador; el código Java conserva el ciclo aleatorio auténtico.',
+    'Comprobar todos los pares vecinos con isSorted|Mezclar mediante Fisher–Yates|Repetir mientras falte orden|Contar intentos sólo para observar el costo',
+    'Expone claramente la diferencia entre correcto y eficiente|Sirve para comprender crecimiento factorial|Su código es corto|Es un ejemplo memorable de lo que no debe usarse en producción',
+    'Promedio aproximado O(n·n!)|No posee una cota práctica útil de tiempo|Puede repetir la misma permutación|Incluso entradas pequeñas pueden tardar demasiado',
+    'Demostraciones educativas|Estudio de aleatoriedad|Contraste con algoritmos eficientes|Experimentos controlados con muy pocos elementos',
+    'Con cuatro valores existen 24 órdenes posibles; con diez ya existen 3.628.800, antes de contar el costo de revisar cada intento.',
+    'Nunca ejecutes Bogo Sort real con datos importantes. En el laboratorio se limita la visualización precisamente para proteger la página.'
   ),
 
   'n-reinas': guide(

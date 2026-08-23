@@ -1,0 +1,323 @@
+const numeric = value => Number(value);
+
+function variables(values, entries = {}) {
+  return [
+    { name: 'size', value: values.length, role: 'size' },
+    ...Object.entries(entries)
+      .filter(([, value]) => value !== undefined && value !== null)
+      .map(([name, value]) => ({
+        name,
+        value: name === 'condición' ? (value ? 'true' : 'false') : value,
+        role: name === 'condición' ? (value ? 'true' : 'false') : /^(i|j|end|minIndex|index|root|largest|left|right|gap|position|exp)$/.test(name) ? 'index' : 'value',
+      })),
+  ];
+}
+
+function createTrace(values, edges, algorithmId) {
+  const working = [...values];
+  const frames = [];
+  const fixed = new Set();
+  const add = (codeNeedle, message, sortPhase, options = {}) => {
+    const length = working.length;
+    const rawPosition = options.position ?? options.sortWriteIndex ?? options.sortComparePositions?.[0] ?? 0;
+    frames.push({
+      values: [...working],
+      edges: edges.map(edge => [...edge]),
+      position: Math.max(0, Math.min(Math.max(0, length - 1), rawPosition)),
+      codeNeedle,
+      message,
+      sortPhase,
+      sortRange: options.sortRange ?? (length ? [0, length - 1] : null),
+      sortComparePositions: options.sortComparePositions ?? [],
+      sortSwapPositions: options.sortSwapPositions ?? [],
+      sortFixedPositions: options.sortFixedPositions ?? [...fixed],
+      sortWriteIndex: options.sortWriteIndex ?? null,
+      sortAuxValues: options.sortAuxValues,
+      sortAuxLabel: options.sortAuxLabel,
+      sortGap: options.sortGap,
+      sortAttempt: options.sortAttempt,
+      variables: variables(working, options.variables),
+      delayMs: options.delayMs ?? 360,
+      completed: options.completed ?? false,
+    });
+  };
+  const swap = (first, second, phase, context = {}) => {
+    add('int temp = values[first];', `temp guarda ${working[first]} del índice ${first}.`, `${phase}-swap-save`, {
+      ...context, position: first, sortSwapPositions: [first, second], variables: { ...context.variables, first, second, temp: working[first] },
+    });
+    const temp = working[first];
+    working[first] = working[second];
+    add('values[first] = values[second];', `El índice ${first} recibe ${working[first]}.`, `${phase}-swap-first`, {
+      ...context, position: first, sortSwapPositions: [first, second], variables: { ...context.variables, first, second, temp },
+    });
+    working[second] = temp;
+    add('values[second] = temp;', `El índice ${second} recibe ${temp}; termina el intercambio.`, `${phase}-swap-complete`, {
+      ...context, position: second, sortSwapPositions: [first, second], variables: { ...context.variables, first, second, temp },
+    });
+  };
+  const finish = message => {
+    for (let i = 0; i < working.length; i++) fixed.add(i);
+    add('return;', message, `${algorithmId}-complete`, { completed: true, delayMs: 500 });
+    return { ok: true, values: working, edges, message, step: 0, frames };
+  };
+  return { working, frames, fixed, add, swap, finish };
+}
+
+function bubbleSort(values, edges) {
+  const trace = createTrace(values, edges, 'bubble');
+  const { working, fixed, add, swap } = trace;
+  add('void bubbleSort() {', 'Bubble Sort comienza con todo el arreglo sin ordenar.', 'bubble-start');
+  for (let end = working.length - 1; end > 0; end--) {
+    let changed = false;
+    add('boolean changed = false;', `Inicia la pasada que termina en ${end}.`, 'bubble-pass', { sortRange: [0, end], variables: { end, changed } });
+    for (let i = 0; i < end; i++) {
+      const shouldSwap = numeric(working[i]) > numeric(working[i + 1]);
+      add('if (values[i] > values[i + 1]) {', `${working[i]} ${shouldSwap ? '>' : '≤'} ${working[i + 1]}: ${shouldSwap ? 'se intercambian' : 'ya están en orden'}.`, 'bubble-compare', {
+        position: i, sortRange: [0, end], sortComparePositions: [i, i + 1], variables: { end, i, changed, condición: shouldSwap },
+      });
+      if (shouldSwap) {
+        changed = true;
+        swap(i, i + 1, 'bubble', { sortRange: [0, end], variables: { end, i, changed } });
+        add('changed = true;', 'La pasada registra que sí hubo un cambio.', 'bubble-changed', { position: i + 1, sortRange: [0, end], variables: { end, i, changed } });
+      }
+    }
+    fixed.add(end);
+    add('if (!changed) {', changed ? `Hubo cambios; se necesita otra pasada.` : `No hubo cambios: el arreglo ya está ordenado.`, 'bubble-early-stop', {
+      position: end, sortRange: [0, end], variables: { end, changed, condición: !changed },
+    });
+    if (!changed) break;
+  }
+  return trace.finish('Bubble Sort terminó: cada pasada empujó el mayor valor pendiente hacia el final.');
+}
+
+function selectionSort(values, edges) {
+  const trace = createTrace(values, edges, 'selection');
+  const { working, fixed, add, swap } = trace;
+  add('void selectionSort() {', 'Selection Sort buscará el mínimo de cada zona pendiente.', 'selection-start');
+  for (let i = 0; i < working.length - 1; i++) {
+    let minIndex = i;
+    add('int minIndex = i;', `El mínimo provisional comienza en el índice ${i}: ${working[i]}.`, 'selection-minimum', { position: i, sortRange: [i, working.length - 1], variables: { i, minIndex } });
+    for (let j = i + 1; j < working.length; j++) {
+      const isSmaller = numeric(working[j]) < numeric(working[minIndex]);
+      add('if (values[j] < values[minIndex]) {', `${working[j]} ${isSmaller ? '<' : '≥'} ${working[minIndex]}.`, 'selection-compare', {
+        position: j, sortRange: [i, working.length - 1], sortComparePositions: [j, minIndex], variables: { i, j, minIndex, condición: isSmaller },
+      });
+      if (isSmaller) {
+        minIndex = j;
+        add('minIndex = j;', `${working[j]} pasa a ser el nuevo mínimo provisional.`, 'selection-new-minimum', { position: j, sortRange: [i, working.length - 1], variables: { i, j, minIndex } });
+      }
+    }
+    add('if (minIndex != i) {', minIndex !== i ? `El mínimo debe moverse al índice ${i}.` : `El índice ${i} ya contiene el mínimo.`, 'selection-place', {
+      position: i, sortRange: [i, working.length - 1], sortComparePositions: [i, minIndex], variables: { i, minIndex, condición: minIndex !== i },
+    });
+    if (minIndex !== i) swap(i, minIndex, 'selection', { sortRange: [i, working.length - 1], variables: { i, minIndex } });
+    fixed.add(i);
+  }
+  return trace.finish('Selection Sort terminó: en cada pasada colocó el menor valor pendiente.');
+}
+
+function insertionSort(values, edges) {
+  const trace = createTrace(values, edges, 'insertion');
+  const { working, fixed, add } = trace;
+  if (working.length) fixed.add(0);
+  add('void insertionSort() {', 'Insertion Sort comienza con el primer elemento como zona ordenada.', 'insertion-start');
+  for (let i = 1; i < working.length; i++) {
+    const key = working[i];
+    let j = i - 1;
+    add('int key = values[i];', `key guarda ${key} para insertarlo en la zona ordenada.`, 'insertion-key', { position: i, sortRange: [0, i], variables: { i, j, key } });
+    while (j >= 0) {
+      const shouldShift = numeric(working[j]) > numeric(key);
+      add('while (j >= 0 && values[j] > key) {', shouldShift ? `${working[j]} > ${key}: se desplaza a la derecha.` : `${working[j]} ≤ ${key}: aquí termina la búsqueda.`, 'insertion-compare', {
+        position: j, sortRange: [0, i], sortComparePositions: [j, j + 1], variables: { i, j, key, condición: shouldShift },
+      });
+      if (!shouldShift) break;
+      working[j + 1] = working[j];
+      add('values[j + 1] = values[j];', `${working[j]} se desplaza del índice ${j} al ${j + 1}.`, 'insertion-shift', { position: j + 1, sortRange: [0, i], sortSwapPositions: [j, j + 1], variables: { i, j, key } });
+      j--;
+      add('j--;', `j retrocede a ${j}.`, 'insertion-move', { position: Math.max(0, j), sortRange: [0, i], variables: { i, j, key } });
+    }
+    working[j + 1] = key;
+    fixed.add(i);
+    add('values[j + 1] = key;', `${key} se inserta en el índice ${j + 1}.`, 'insertion-write', { position: j + 1, sortRange: [0, i], sortWriteIndex: j + 1, variables: { i, j, key } });
+  }
+  return trace.finish('Insertion Sort terminó: cada valor quedó insertado en la posición correcta de la zona ordenada.');
+}
+
+function shellSort(values, edges) {
+  const trace = createTrace(values, edges, 'shell');
+  const { working, add } = trace;
+  add('void shellSort() {', 'Shell Sort comienza con comparaciones entre elementos alejados.', 'shell-start');
+  for (let gap = Math.floor(working.length / 2); gap > 0; gap = Math.floor(gap / 2)) {
+    add('for (int gap = size / 2; gap > 0; gap /= 2) {', `El salto actual es ${gap}.`, 'shell-gap', { sortGap: gap, variables: { gap } });
+    for (let i = gap; i < working.length; i++) {
+      const temp = working[i];
+      let j = i;
+      add('int temp = values[i];', `temp guarda ${temp} del índice ${i}.`, 'shell-key', { position: i, sortGap: gap, variables: { gap, i, j, temp } });
+      while (j >= gap) {
+        const shift = numeric(working[j - gap]) > numeric(temp);
+        add('while (j >= gap && values[j - gap] > temp) {', shift ? `${working[j - gap]} > ${temp}: se desplaza ${gap} posiciones.` : `${working[j - gap]} ≤ ${temp}: termina esta inserción.`, 'shell-compare', {
+          position: j, sortComparePositions: [j - gap, j], sortGap: gap, variables: { gap, i, j, temp, condición: shift },
+        });
+        if (!shift) break;
+        working[j] = working[j - gap];
+        add('values[j] = values[j - gap];', `${working[j]} avanza al índice ${j}.`, 'shell-shift', { position: j, sortSwapPositions: [j - gap, j], sortGap: gap, variables: { gap, i, j, temp } });
+        j -= gap;
+        add('j -= gap;', `j retrocede hasta ${j}.`, 'shell-move', { position: j, sortGap: gap, variables: { gap, i, j, temp } });
+      }
+      working[j] = temp;
+      add('values[j] = temp;', `${temp} queda insertado en el índice ${j}.`, 'shell-write', { position: j, sortWriteIndex: j, sortGap: gap, variables: { gap, i, j, temp } });
+    }
+  }
+  return trace.finish('Shell Sort terminó cuando el salto llegó a 1 y completó la inserción final.');
+}
+
+function heapSort(values, edges) {
+  const trace = createTrace(values, edges, 'heap-sort');
+  const { working, fixed, add, swap } = trace;
+  const heapify = (heapSize, root) => {
+    let current = root;
+    while (true) {
+      let largest = current;
+      const left = current * 2 + 1;
+      const right = current * 2 + 2;
+      add('int largest = root;', `Se revisa el subárbol con raíz en ${current}.`, 'heap-sort-heapify', { position: current, sortRange: heapSize ? [0, heapSize - 1] : null, variables: { heapSize, root: current, largest, left, right } });
+      if (left < heapSize) {
+        const larger = numeric(working[left]) > numeric(working[largest]);
+        add('if (left < heapSize && values[left] > values[largest]) {', `${working[left]} ${larger ? '>' : '≤'} ${working[largest]}.`, 'heap-sort-left', { position: left, sortRange: [0, heapSize - 1], sortComparePositions: [left, largest], variables: { heapSize, root: current, largest, left, right, condición: larger } });
+        if (larger) largest = left;
+      }
+      if (right < heapSize) {
+        const larger = numeric(working[right]) > numeric(working[largest]);
+        add('if (right < heapSize && values[right] > values[largest]) {', `${working[right]} ${larger ? '>' : '≤'} ${working[largest]}.`, 'heap-sort-right', { position: right, sortRange: [0, heapSize - 1], sortComparePositions: [right, largest], variables: { heapSize, root: current, largest, left, right, condición: larger } });
+        if (larger) largest = right;
+      }
+      const mustSwap = largest !== current;
+      add('if (largest == root) {', mustSwap ? `El mayor está en ${largest}; debe subir.` : 'La raíz ya es la mayor: heapify termina.', 'heap-sort-check', { position: current, sortRange: heapSize ? [0, heapSize - 1] : null, sortComparePositions: [current, largest], variables: { heapSize, root: current, largest, condición: !mustSwap } });
+      if (!mustSwap) return;
+      swap(current, largest, 'heap-sort', { sortRange: [0, heapSize - 1], variables: { heapSize, root: current, largest } });
+      current = largest;
+    }
+  };
+  add('void heapSort() {', 'Heap Sort primero construye un max-heap.', 'heap-sort-start');
+  for (let i = Math.floor(working.length / 2) - 1; i >= 0; i--) {
+    add('heapify(size, i);', `Se aplica heapify desde el nodo interno ${i}.`, 'heap-sort-build', { position: i, variables: { i, heapSize: working.length } });
+    heapify(working.length, i);
+  }
+  for (let end = working.length - 1; end > 0; end--) {
+    add('swap(0, end);', `La raíz máxima ${working[0]} pasa a la posición final ${end}.`, 'heap-sort-extract', { position: 0, sortRange: [0, end], sortSwapPositions: [0, end], variables: { end } });
+    swap(0, end, 'heap-sort', { sortRange: [0, end], variables: { end } });
+    fixed.add(end);
+    add('heapify(end, 0);', `Se restaura el max-heap usando solo [0..${end - 1}].`, 'heap-sort-restore', { position: 0, sortRange: end > 0 ? [0, end - 1] : null, variables: { end, heapSize: end } });
+    heapify(end, 0);
+  }
+  return trace.finish('Heap Sort terminó: cada máximo fue extraído a su posición definitiva.');
+}
+
+function countingSort(values, edges) {
+  const trace = createTrace(values, edges, 'counting');
+  const { working, add } = trace;
+  if (!working.length) return trace.finish('Counting Sort terminó: el arreglo vacío ya está ordenado.');
+  const min = Math.min(...working.map(numeric));
+  const max = Math.max(...working.map(numeric));
+  const range = max - min + 1;
+  if (!Number.isSafeInteger(range) || range > 4096) {
+    return { ok: false, message: 'Counting Sort necesita un rango entre mínimo y máximo de hasta 4096 posiciones para mantener segura esta demostración.' };
+  }
+  const count = new Array(range).fill(0);
+  add('int min = findMinimum();', `El mínimo es ${min}. Se usará como desplazamiento.`, 'counting-min', { variables: { min, max } });
+  add('int[] count = new int[max - min + 1];', `Se crean ${range} contadores, uno para cada valor entre ${min} y ${max}.`, 'counting-array', { sortAuxValues: count, sortAuxLabel: 'count', variables: { min, max, range } });
+  for (let i = 0; i < working.length; i++) {
+    const index = numeric(working[i]) - min;
+    count[index]++;
+    add('count[values[i] - min]++;', `${working[i]} incrementa count[${index}] a ${count[index]}.`, 'counting-count', { position: i, sortComparePositions: [i], sortAuxValues: count, sortAuxLabel: 'count', variables: { i, index, value: working[i], count: count[index] } });
+  }
+  let write = 0;
+  for (let index = 0; index < count.length; index++) {
+    while (count[index] > 0) {
+      const value = index + min;
+      working[write] = value;
+      count[index]--;
+      add('values[position] = index + min;', `${value} se escribe en values[${write}].`, 'counting-write', { position: write, sortWriteIndex: write, sortAuxValues: count, sortAuxLabel: 'count', variables: { index, position: write, value, count: count[index] } });
+      write++;
+    }
+  }
+  return trace.finish('Counting Sort terminó: los conteos reconstruyeron el arreglo de menor a mayor.');
+}
+
+function radixSort(values, edges) {
+  const trace = createTrace(values, edges, 'radix');
+  const { working, add } = trace;
+  if (!working.length) return trace.finish('Radix Sort terminó: el arreglo vacío ya está ordenado.');
+  const min = Math.min(...working.map(numeric));
+  const maxKey = Math.max(...working.map(value => numeric(value) - min));
+  add('int offset = findMinimum();', `Se usa ${min} como desplazamiento; value - offset será una clave no negativa.`, 'radix-offset', { variables: { offset: min, maxKey } });
+  for (let exp = 1; Math.floor(maxKey / exp) > 0; exp *= 10) {
+    const output = new Array(working.length);
+    const count = new Array(10).fill(0);
+    add('int[] count = new int[10];', `Se prepara el conteo estable para el dígito de posición ${exp}.`, 'radix-pass', { sortAuxValues: count, sortAuxLabel: `dígito ×${exp}`, variables: { exp } });
+    for (let i = 0; i < working.length; i++) {
+      const digit = Math.floor((numeric(working[i]) - min) / exp) % 10;
+      count[digit]++;
+      add('int digit = ((values[i] - offset) / exp) % 10;', `${working[i]} tiene dígito ${digit} en esta pasada.`, 'radix-digit', { position: i, sortComparePositions: [i], sortAuxValues: count, sortAuxLabel: `dígito ×${exp}`, variables: { exp, i, digit, value: working[i] } });
+    }
+    for (let i = 1; i < 10; i++) count[i] += count[i - 1];
+    add('count[i] += count[i - 1];', 'Los conteos acumulados indican la posición final de cada dígito.', 'radix-prefix', { sortAuxValues: count, sortAuxLabel: `acumulado ×${exp}`, variables: { exp } });
+    for (let i = working.length - 1; i >= 0; i--) {
+      const digit = Math.floor((numeric(working[i]) - min) / exp) % 10;
+      const position = --count[digit];
+      output[position] = working[i];
+      add('output[count[digit] - 1] = values[i];', `${working[i]} se coloca de forma estable en output[${position}].`, 'radix-output', { position: i, sortWriteIndex: position, sortAuxValues: output, sortAuxLabel: 'output', variables: { exp, i, digit, position } });
+    }
+    for (let i = 0; i < working.length; i++) {
+      working[i] = output[i];
+      add('values[i] = output[i];', `${working[i]} vuelve al índice ${i} después de esta pasada.`, 'radix-write', { position: i, sortWriteIndex: i, sortAuxValues: output, sortAuxLabel: 'output', variables: { exp, i } });
+    }
+    if (exp > Number.MAX_SAFE_INTEGER / 10) break;
+  }
+  return trace.finish('Radix Sort terminó: las pasadas estables por dígitos dejaron el arreglo ordenado.');
+}
+
+function bogoSort(values, edges) {
+  const trace = createTrace(values, edges, 'bogo');
+  const { working, add } = trace;
+  const ordered = () => working.every((value, index) => index === 0 || numeric(working[index - 1]) <= numeric(value));
+  const target = [...working].sort((a, b) => numeric(a) - numeric(b));
+  let seed = working.reduce((total, value, index) => (total + (numeric(value) || 0) * (index + 3)) >>> 0, 2166136261);
+  const random = () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  add('void bogoSort() {', 'Bogo Sort comprobará si el arreglo ya está ordenado.', 'bogo-start', { sortAttempt: 0, variables: { attempt: 0 } });
+  let attempt = 0;
+  while (!ordered() && attempt < 10) {
+    add('while (!isSorted()) {', `Intento ${attempt + 1}: el arreglo todavía no está ordenado.`, 'bogo-check', { sortAttempt: attempt, variables: { attempt, condición: true } });
+    for (let i = working.length - 1; i > 0; i--) {
+      const other = Math.floor(random() * (i + 1));
+      [working[i], working[other]] = [working[other], working[i]];
+    }
+    attempt++;
+    add('shuffle();', `Mezcla aleatoria ${attempt}: se vuelve a comprobar el orden.`, 'bogo-shuffle', { sortAttempt: attempt, variables: { attempt } });
+  }
+  if (!ordered()) {
+    working.splice(0, working.length, ...target);
+    attempt++;
+    add('shuffle();', `La simulación muestra una mezcla afortunada en el intento ${attempt}; se limita la espera para proteger la página.`, 'bogo-lucky', { sortAttempt: attempt, variables: { attempt }, delayMs: 600 });
+  }
+  add('while (!isSorted()) {', 'La condición ahora es falsa: Bogo Sort puede terminar.', 'bogo-check', { sortAttempt: attempt, variables: { attempt, condición: false } });
+  return trace.finish(`Bogo Sort terminó después de ${attempt} mezcla${attempt === 1 ? '' : 's'} mostrada${attempt === 1 ? '' : 's'}.`);
+}
+
+const SORT_EXECUTORS = {
+  'bubble-sort': bubbleSort,
+  'selection-sort': selectionSort,
+  'insertion-sort': insertionSort,
+  'shell-sort': shellSort,
+  'heap-sort': heapSort,
+  'counting-sort': countingSort,
+  'radix-sort': radixSort,
+  'bogo-sort': bogoSort,
+};
+
+export function executeEducationalSort(algorithmId, values, edges) {
+  return SORT_EXECUTORS[algorithmId]?.(values, edges) ?? null;
+}

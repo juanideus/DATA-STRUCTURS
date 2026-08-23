@@ -1285,80 +1285,87 @@ const indexInsideRange = (index, range) => (
 function SortVisual({ algorithm, step }) {
   const frame = algorithm.animationFrame;
   const values = algorithm.values;
+  const en = algorithm.language === 'en';
   const isQuick = algorithm.id === 'quick-sort';
-  const phaseLabel = isQuick
-    ? {
-        'quick-start': 'Preparar Quick Sort',
-        'quick-call': 'Llamada inicial',
-        'quick-recursion': 'Llamada recursiva',
-        'quick-base': 'Evaluar caso base',
-        'partition-call': 'Particionar rango',
-        'partition-start': 'Comenzar partición',
-        'pivot-selected': 'Elegir pivote',
-        'partition-boundary': 'Mover frontera de menores',
-        'partition-loop': 'Recorrer la partición',
-        'partition-loop-end': 'Finalizar recorrido',
-        'partition-compare': 'Comparar con pivote',
-        'quick-swap-call': 'Intercambiar',
-        'quick-swap-save': 'Guardar valor temporal',
-        'quick-swap-first': 'Mover primer valor',
-        'quick-swap-complete': 'Intercambio completo',
-        'pivot-fixed': 'Pivote en posición definitiva',
-        'quick-left-call': 'Ordenar lado izquierdo',
-        'quick-right-call': 'Ordenar lado derecho',
-        'quick-return': 'Regresar de la llamada',
-        'quick-complete': 'Quick Sort terminado',
-      }[frame?.sortPhase] ?? 'PARTICIÓN POR PIVOTE'
-    : {
-        'merge-start': 'Preparar Merge Sort',
-        'merge-help': 'Crear arreglo auxiliar',
-        'merge-call': 'Llamada inicial',
-        'merge-recursion': 'Llamada recursiva',
-        'merge-base': 'Evaluar caso base',
-        'merge-return': 'Regresar de la llamada',
-        'merge-divide': 'Dividir en mitades',
-        'merge-left-call': 'Ordenar mitad izquierda',
-        'merge-right-call': 'Ordenar mitad derecha',
-        'merge-call-halves': 'Mezclar mitades',
-        'merge-halves': 'Comenzar mezcla',
-        'merge-pointers': 'Preparar punteros',
-        'merge-loop': 'Recorrer ambas mitades',
-        'merge-loop-end': 'Una mitad se agotó',
-        'merge-compare': 'Comparar mitades',
-        'merge-copy-left': 'Copiar desde izquierda',
-        'merge-copy-right': 'Copiar desde derecha',
-        'merge-pointer-move': 'Avanzar puntero',
-        'merge-left-rest': 'Copiar resto izquierdo',
-        'merge-left-rest-end': 'Finalizar mitad izquierda',
-        'merge-right-rest': 'Copiar resto derecho',
-        'merge-right-rest-end': 'Finalizar mitad derecha',
-        'merge-write-loop': 'Recorrer arreglo auxiliar',
-        'merge-write': 'Escribir resultado',
-        'merge-range-complete': 'Mezcla completa',
-        'merge-complete': 'Merge Sort terminado',
-      }[frame?.sortPhase] ?? 'DIVIDIR Y MEZCLAR';
+  const isMerge = algorithm.id === 'merge-sort';
+  const phaseLabels = {
+    'quick-start': ['Preparar Quick Sort', 'Prepare Quick Sort'], 'quick-call': ['Llamada inicial', 'Initial call'],
+    'quick-recursion': ['Llamada recursiva', 'Recursive call'], 'quick-base': ['Evaluar caso base', 'Check base case'],
+    'partition-call': ['Particionar rango', 'Partition range'], 'partition-start': ['Comenzar partición', 'Start partition'],
+    'pivot-selected': ['Elegir pivote', 'Choose pivot'], 'partition-boundary': ['Mover frontera de menores', 'Move smaller boundary'],
+    'partition-loop': ['Recorrer la partición', 'Scan partition'], 'partition-loop-end': ['Finalizar recorrido', 'Finish scan'],
+    'partition-compare': ['Comparar con pivote', 'Compare with pivot'], 'quick-swap-call': ['Intercambiar', 'Swap'],
+    'quick-swap-save': ['Guardar temporal', 'Save temporary'], 'quick-swap-first': ['Mover primer valor', 'Move first value'],
+    'quick-swap-complete': ['Intercambio completo', 'Swap complete'], 'pivot-fixed': ['Pivote en posición definitiva', 'Pivot fixed in place'],
+    'quick-left-call': ['Ordenar lado izquierdo', 'Sort left side'], 'quick-right-call': ['Ordenar lado derecho', 'Sort right side'],
+    'quick-return': ['Regresar de la llamada', 'Return from call'], 'quick-complete': ['Quick Sort terminado', 'Quick Sort complete'],
+    'merge-start': ['Preparar Merge Sort', 'Prepare Merge Sort'], 'merge-help': ['Crear arreglo auxiliar', 'Create helper array'],
+    'merge-call': ['Llamada inicial', 'Initial call'], 'merge-recursion': ['Llamada recursiva', 'Recursive call'],
+    'merge-base': ['Evaluar caso base', 'Check base case'], 'merge-return': ['Regresar de la llamada', 'Return from call'],
+    'merge-divide': ['Dividir en mitades', 'Split into halves'], 'merge-left-call': ['Ordenar mitad izquierda', 'Sort left half'],
+    'merge-right-call': ['Ordenar mitad derecha', 'Sort right half'], 'merge-call-halves': ['Mezclar mitades', 'Merge halves'],
+    'merge-halves': ['Comenzar mezcla', 'Start merge'], 'merge-pointers': ['Preparar punteros', 'Prepare pointers'],
+    'merge-loop': ['Recorrer ambas mitades', 'Scan both halves'], 'merge-loop-end': ['Una mitad se agotó', 'One half is exhausted'],
+    'merge-compare': ['Comparar mitades', 'Compare halves'], 'merge-copy-left': ['Copiar desde izquierda', 'Copy from left'],
+    'merge-copy-right': ['Copiar desde derecha', 'Copy from right'], 'merge-pointer-move': ['Avanzar puntero', 'Move pointer'],
+    'merge-left-rest': ['Copiar resto izquierdo', 'Copy left remainder'], 'merge-left-rest-end': ['Finalizar mitad izquierda', 'Finish left half'],
+    'merge-right-rest': ['Copiar resto derecho', 'Copy right remainder'], 'merge-right-rest-end': ['Finalizar mitad derecha', 'Finish right half'],
+    'merge-write-loop': ['Recorrer arreglo auxiliar', 'Scan helper array'], 'merge-write': ['Escribir resultado', 'Write result'],
+    'merge-range-complete': ['Mezcla completa', 'Merge complete'], 'merge-complete': ['Merge Sort terminado', 'Merge Sort complete'],
+    'bubble-start': ['Preparar Bubble Sort', 'Prepare Bubble Sort'], 'bubble-pass': ['Nueva pasada', 'New pass'],
+    'bubble-compare': ['Comparar vecinos', 'Compare neighbors'], 'bubble-changed': ['Registrar intercambio', 'Record swap'],
+    'bubble-early-stop': ['Comprobar parada anticipada', 'Check early stop'], 'bubble-complete': ['Bubble Sort terminado', 'Bubble Sort complete'],
+    'selection-start': ['Preparar Selection Sort', 'Prepare Selection Sort'], 'selection-minimum': ['Elegir mínimo provisional', 'Choose current minimum'],
+    'selection-compare': ['Buscar un valor menor', 'Look for a smaller value'], 'selection-new-minimum': ['Actualizar mínimo', 'Update minimum'],
+    'selection-place': ['Colocar el mínimo', 'Place minimum'], 'selection-complete': ['Selection Sort terminado', 'Selection Sort complete'],
+    'insertion-start': ['Preparar Insertion Sort', 'Prepare Insertion Sort'], 'insertion-key': ['Guardar clave', 'Save key'],
+    'insertion-compare': ['Buscar posición', 'Find position'], 'insertion-shift': ['Desplazar valor', 'Shift value'],
+    'insertion-move': ['Retroceder índice', 'Move index left'], 'insertion-write': ['Insertar clave', 'Insert key'],
+    'insertion-complete': ['Insertion Sort terminado', 'Insertion Sort complete'],
+    'shell-start': ['Preparar Shell Sort', 'Prepare Shell Sort'], 'shell-gap': ['Cambiar salto', 'Change gap'],
+    'shell-key': ['Guardar valor', 'Save value'], 'shell-compare': ['Comparar con salto', 'Compare across gap'],
+    'shell-shift': ['Desplazar por salto', 'Shift by gap'], 'shell-move': ['Retroceder por salto', 'Move back by gap'],
+    'shell-write': ['Insertar valor', 'Insert value'], 'shell-complete': ['Shell Sort terminado', 'Shell Sort complete'],
+    'heap-sort-start': ['Construir max-heap', 'Build max-heap'], 'heap-sort-build': ['Heapificar nodo interno', 'Heapify internal node'],
+    'heap-sort-heapify': ['Revisar subárbol', 'Check subtree'], 'heap-sort-left': ['Comparar hijo izquierdo', 'Compare left child'],
+    'heap-sort-right': ['Comparar hijo derecho', 'Compare right child'], 'heap-sort-check': ['Comprobar raíz máxima', 'Check maximum root'],
+    'heap-sort-extract': ['Extraer máximo', 'Extract maximum'], 'heap-sort-restore': ['Restaurar max-heap', 'Restore max-heap'],
+    'heap-sort-complete': ['Heap Sort terminado', 'Heap Sort complete'],
+    'counting-min': ['Encontrar mínimo', 'Find minimum'], 'counting-array': ['Crear contadores', 'Create counters'],
+    'counting-count': ['Contar aparición', 'Count occurrence'], 'counting-write': ['Reconstruir arreglo', 'Rebuild array'],
+    'counting-complete': ['Counting Sort terminado', 'Counting Sort complete'],
+    'radix-offset': ['Preparar claves', 'Prepare keys'], 'radix-pass': ['Nueva pasada de dígito', 'New digit pass'],
+    'radix-digit': ['Leer dígito', 'Read digit'], 'radix-prefix': ['Acumular conteos', 'Accumulate counts'],
+    'radix-output': ['Distribuir establemente', 'Distribute stably'], 'radix-write': ['Copiar resultado', 'Copy result'],
+    'radix-complete': ['Radix Sort terminado', 'Radix Sort complete'],
+    'bogo-start': ['Preparar Bogo Sort', 'Prepare Bogo Sort'], 'bogo-check': ['Comprobar orden', 'Check order'],
+    'bogo-shuffle': ['Mezclar al azar', 'Shuffle randomly'], 'bogo-lucky': ['Mezcla afortunada', 'Lucky shuffle'],
+    'bogo-complete': ['Bogo Sort terminado', 'Bogo Sort complete'],
+  };
+  const phaseLabel = phaseLabels[frame?.sortPhase]?.[en ? 1 : 0]
+    ?? (en ? 'Sorting step' : 'Paso de ordenamiento');
 
   const cellLabel = index => {
-    if (isQuick) {
-      if (index === frame?.sortPivotIndex) return 'PIVOTE';
-      if (index === frame?.sortCompareIndex) return 'current';
-      if (frame?.sortSwapPositions?.includes(index)) return 'SWAP';
-      if (frame?.sortFixedPositions?.includes(index)) return 'FIJO';
-    } else {
-      if (index === frame?.sortWriteIndex) return 'k';
-      if (frame?.sortComparePositions?.[0] === index) return 'i';
-      if (frame?.sortComparePositions?.[1] === index) return 'j';
-      if (indexInsideRange(index, frame?.sortLeftRange)) return 'IZQ.';
-      if (indexInsideRange(index, frame?.sortRightRange)) return 'DER.';
-    }
+    if (index === frame?.sortPivotIndex) return en ? 'PIVOT' : 'PIVOTE';
+    if (index === frame?.sortCompareIndex) return 'current';
+    if (frame?.sortSwapPositions?.includes(index)) return 'SWAP';
+    if (index === frame?.sortWriteIndex) return 'write';
+    if (frame?.sortComparePositions?.[0] === index) return 'a';
+    if (frame?.sortComparePositions?.[1] === index) return 'b';
+    if (indexInsideRange(index, frame?.sortLeftRange)) return en ? 'LEFT' : 'IZQ.';
+    if (indexInsideRange(index, frame?.sortRightRange)) return en ? 'RIGHT' : 'DER.';
+    if (frame?.sortFixedPositions?.includes(index)) return en ? 'FIXED' : 'FIJO';
     return `i=${index}`;
   };
 
-  return <div className={`sort-visual ${isQuick ? 'quick-sort-visual' : 'merge-sort-visual'}`} role="img" aria-label={`Visualización real de ${algorithm.name}`}>
+  const auxiliary = frame?.sortAuxValues;
+  return <div className={`sort-visual sort-${algorithm.id}-visual`} role="img" aria-label={`${en ? 'Real visualization of' : 'Visualización real de'} ${algorithm.name}`}>
     <div className="sort-phase-label">
-      <span>{isQuick ? 'QUICK SORT' : 'MERGE SORT'}</span>
+      <span>{algorithm.name.toUpperCase()}</span>
       <strong>{phaseLabel}</strong>
-      {frame?.sortRange && <small>Rango [{frame.sortRange[0]}..{frame.sortRange[1]}]</small>}
+      {frame?.sortRange && <small>{en ? 'Range' : 'Rango'} [{frame.sortRange[0]}..{frame.sortRange[1]}]</small>}
+      {frame?.sortGap != null && <small>gap = {frame.sortGap}</small>}
+      {frame?.sortAttempt != null && <small>{en ? 'attempt' : 'intento'} = {frame.sortAttempt}</small>}
     </div>
     <div className="sort-array-row">
       <em>values</em>
@@ -1383,23 +1390,25 @@ function SortVisual({ algorithm, step }) {
         })}
       </div>
     </div>
-    {!isQuick && <div className="sort-array-row auxiliary-row">
-      <em>help</em>
+    {Array.isArray(auxiliary) && <div className="sort-array-row auxiliary-row">
+      <em>{frame?.sortAuxLabel ?? 'help'}</em>
       <div className="sort-cells">
-        {values.map((_, index) => <div
+        {auxiliary.map((auxValue, index) => <div
           className={`sort-cell auxiliary ${index === frame?.sortWriteIndex ? 'writing' : ''}`}
           data-aux-index={index}
           key={`aux-${index}`}
         >
-          <span>{frame?.sortAuxValues?.[index] ?? '·'}</span>
+          <span>{auxValue ?? '·'}</span>
           <small>{index}</small>
         </div>)}
       </div>
     </div>}
     <div className="sort-legend">
       {isQuick
-        ? <><span><i className="pivot-sample"/> pivote</span><span><i className="compare-sample"/> comparación</span><span><i className="fixed-sample"/> posición final</span></>
-        : <><span><i className="left-sample"/> mitad izquierda</span><span><i className="right-sample"/> mitad derecha</span><span><i className="write-sample"/> escritura</span></>}
+        ? <><span><i className="pivot-sample"/> {en ? 'pivot' : 'pivote'}</span><span><i className="compare-sample"/> {en ? 'comparison' : 'comparación'}</span><span><i className="fixed-sample"/> {en ? 'final position' : 'posición final'}</span></>
+        : isMerge
+          ? <><span><i className="left-sample"/> {en ? 'left half' : 'mitad izquierda'}</span><span><i className="right-sample"/> {en ? 'right half' : 'mitad derecha'}</span><span><i className="write-sample"/> {en ? 'write' : 'escritura'}</span></>
+          : <><span><i className="compare-sample"/> {en ? 'comparison' : 'comparación'}</span><span><i className="pivot-sample"/> {en ? 'movement' : 'movimiento'}</span><span><i className="fixed-sample"/> {en ? 'ordered position' : 'posición ordenada'}</span></>}
     </div>
   </div>;
 }

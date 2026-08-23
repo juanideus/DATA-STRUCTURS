@@ -9,6 +9,7 @@ import { linkedListJava } from './linkedListJava.js';
 import { getSparseMatrixJava } from './sparseMatrixJava.js';
 import { getPolynomialJava } from './polynomialJava.js';
 import { getTreeJava } from './treeJava.js';
+import { getSortingJava } from './sortingJava.js';
 
 const basic = {
   'add-start': `void addAtStart(int value) {
@@ -1268,8 +1269,9 @@ export function getBeginnerJava(algorithm, actionId) {
   const denseMatrixSource = sparseMatrixSource ? null : algorithm.id === 'matriz' ? getDenseMatrixJava(actionId) : null;
   const polynomialSource = sparseMatrixSource || denseMatrixSource ? null : algorithm.id === 'polinomios' ? getPolynomialJava(actionId) : null;
   const generalizedListSource = sparseMatrixSource || denseMatrixSource || polynomialSource ? null : algorithm.id === 'listas-generalizadas' ? getGeneralizedListJava(actionId) : null;
-  const specializedSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource ? null : getSpecializedJava(algorithm.id, actionId);
-  const graphSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || specializedSource ? null : getGraphJava(algorithm.id, actionId);
+  const sortingSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource ? null : getSortingJava(algorithm.id, actionId);
+  const specializedSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || sortingSource ? null : getSpecializedJava(algorithm.id, actionId);
+  const graphSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || sortingSource || specializedSource ? null : getGraphJava(algorithm.id, actionId);
   const astSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || graphSource ? null : algorithm.id === 'ast' ? getAstJava(actionId) : null;
   const linearSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || graphSource || astSource ? null : getLinearJava(algorithm.id, actionId);
   const treeSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || graphSource || astSource || linearSource ? null : getTreeJava(algorithm.id, actionId);
@@ -1281,6 +1283,8 @@ export function getBeginnerJava(algorithm, actionId) {
     source = polynomialSource;
   } else if (generalizedListSource) {
     source = generalizedListSource;
+  } else if (sortingSource) {
+    source = sortingSource;
   } else if (specializedSource) {
     source = specializedSource;
   } else if (graphSource) {

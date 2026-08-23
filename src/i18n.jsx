@@ -43,13 +43,13 @@ const ui = {
 
 export const categoryNames = {
   Fundamentos: 'Fundamentals', 'Estructuras lineales': 'Linear structures', 'Árboles': 'Trees', Hashing: 'Hashing',
-  Grafos: 'Graphs', 'Recursión': 'Recursion', Backtracking: 'Backtracking', Otros: 'Other topics',
+  Grafos: 'Graphs', 'Recursión': 'Recursion', Ordenamientos: 'Sorting', Backtracking: 'Backtracking', Otros: 'Other topics',
 };
 
 export const categoryDescriptions = {
   Fundamentos: 'Foundations for organizing and analyzing data', 'Estructuras lineales': 'Sequential foundations',
   'Árboles': 'Hierarchies and search', Hashing: 'Key-based access', Grafos: 'Networks and paths',
-  'Recursión': 'Divide and conquer', Backtracking: 'Exploring solutions', Otros: 'Specialized structures',
+  'Recursión': 'Recursive problem solving', Ordenamientos: 'Comparison, distribution, and ordering', Backtracking: 'Exploring solutions', Otros: 'Specialized structures',
 };
 
 const operationLabels = {
