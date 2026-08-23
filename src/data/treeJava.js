@@ -102,7 +102,9 @@ const completeBinaryRemove = animated(`Node remove(Node root, int target) {
 
 const bstFind = animated(`Node search(Node node, int target) {
     if (node == null || node.value == target) return node;
-    if (target < node.value) return search(node.left, target);
+    if (target < node.value) {
+        return search(node.left, target);
+    }
     return search(node.right, target);
 }`);
 
@@ -1082,7 +1084,50 @@ const kdTree = {
 }`, `int coordinate(int point, int axis) {
     return axis == 0 ? point / 10 : point % 10;
 }`),
-  'remove-value': bstRemove,
+  'remove-value': animated(`Node remove(Node node, int target, int depth) {
+    if (node == null) return null;
+    int axis = depth % DIMENSIONS;
+
+    if (node.value == target) {
+        if (node.right != null) {
+            Node replacement = findMin(node.right, axis, depth + 1);
+            node.value = replacement.value;
+            node.right = remove(node.right, replacement.value, depth + 1);
+        } else if (node.left != null) {
+            Node replacement = findMin(node.left, axis, depth + 1);
+            node.value = replacement.value;
+            node.right = remove(node.left, replacement.value, depth + 1);
+            node.left = null;
+        } else {
+            return null;
+        }
+    } else if (coordinate(target, axis) < coordinate(node.value, axis)) {
+        node.left = remove(node.left, target, depth + 1);
+    } else {
+        node.right = remove(node.right, target, depth + 1);
+    }
+    return node;
+}`, `Node findMin(Node node, int targetAxis, int depth) {
+    if (node == null) return null;
+    int axis = depth % DIMENSIONS;
+    if (axis == targetAxis && node.left == null) return node;
+    if (axis == targetAxis) return findMin(node.left, targetAxis, depth + 1);
+
+    Node leftMin = findMin(node.left, targetAxis, depth + 1);
+    Node rightMin = findMin(node.right, targetAxis, depth + 1);
+    return smallestCoordinate(node, leftMin, rightMin, targetAxis);
+}
+
+Node smallestCoordinate(Node first, Node second, Node third, int axis) {
+    Node minimum = first;
+    if (second != null && coordinate(second.value, axis) < coordinate(minimum.value, axis)) minimum = second;
+    if (third != null && coordinate(third.value, axis) < coordinate(minimum.value, axis)) minimum = third;
+    return minimum;
+}
+
+int coordinate(int point, int axis) {
+    return axis == 0 ? point / 10 : point % 10;
+}`),
   preorder: binaryTraversals.preorder,
 };
 

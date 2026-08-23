@@ -683,6 +683,67 @@ const queens = algorithms.find(item => item.id === 'n-reinas');
 const queensResult = run(queens, 'solve', { value: '8', second: '', index: '' });
 assert.ok(validQueens(queensResult.values), 'N-Reinas: la solución contiene conflictos.');
 assert.ok(queensResult.frames?.some(frame => frame.codeLine === 25), 'N-Reinas: isSafe no aparece en la animación.');
+assert.ok(queensResult.frames.length <= 850, 'N-Reinas: la animación repite demasiados intentos sin cambios visuales.');
+for (const codeNeedle of [
+  'boolean solveQueens(int boardSize) {',
+  'for (int row = 0; row < size; row++) {',
+  'boolean placeQueen(int row) {',
+  'if (row == size) return true;',
+  'for (int column = 0; column < size; column++) {',
+  'if (isSafe(row, column)) {',
+  'queens[row] = column;',
+  'if (placeQueen(row + 1)) return true;',
+  'queens[row] = -1;',
+  'boolean isSafe(int row, int column) {',
+  'int previousColumn = queens[previousRow];',
+  'if (previousColumn == column) return false;',
+  'int rowDistance = row - previousRow;',
+  'int columnDistance = Math.abs(column - previousColumn);',
+  'if (rowDistance == columnDistance) return false;',
+  'return true;',
+]) {
+  assert.ok(queensResult.frames.some(frame => frame.codeNeedle === codeNeedle), `N-Reinas: falta animar ${codeNeedle}`);
+}
+for (let index = 1; index < queensResult.frames.length; index++) {
+  if (JSON.stringify(queensResult.frames[index - 1].values) !== JSON.stringify(queensResult.frames[index].values)) {
+    assert.ok(
+      ['queens[row] = column;', 'backtracking'].includes(queensResult.frames[index].codeNeedle),
+      'N-Reinas: el tablero cambia sin iluminar la línea de elegir o deshacer.',
+    );
+  }
+}
+
+function assertKdTree(values, label) {
+  const coordinate = (point, axis) => axis === 0 ? Math.trunc(Number(point) / 10) : Number(point) % 10;
+  const visit = (index, depth, minimums = [-Infinity, -Infinity], maximums = [Infinity, Infinity]) => {
+    if (!occupiedTree(values, index)) return;
+    const axis = depth % 2;
+    const current = coordinate(values[index], axis);
+    assert.ok(current >= minimums[axis] && current < maximums[axis], `${label}: ${values[index]} rompe la partición del eje ${axis === 0 ? 'X' : 'Y'}.`);
+    const leftMaximums = [...maximums];
+    leftMaximums[axis] = Math.min(leftMaximums[axis], current);
+    const rightMinimums = [...minimums];
+    rightMinimums[axis] = Math.max(rightMinimums[axis], current);
+    visit(index * 2 + 1, depth + 1, minimums, leftMaximums);
+    visit(index * 2 + 2, depth + 1, rightMinimums, maximums);
+  };
+  visit(0, 0);
+}
+const queensJava = getBeginnerJava(queens, 'solve');
+const synchronizedQueensFrames = adaptFramesToCode(queensResult.frames, queensJava, true);
+const queensJavaLines = queensJava.split('\n');
+const chooseQueenLine = queensJavaLines.findIndex(line => line.includes('queens[row] = column'));
+const undoQueenLine = queensJavaLines.findIndex(line => line.includes('undo: backtracking'));
+const safeReturnLine = queensJavaLines.findIndex(line => line.trim() === 'return true;');
+assert.ok(synchronizedQueensFrames.some(frame => frame.codeLine === safeReturnLine), 'N-Reinas: isSafe debe iluminar su propio return true.');
+for (let index = 1; index < synchronizedQueensFrames.length; index++) {
+  if (JSON.stringify(synchronizedQueensFrames[index - 1].values) !== JSON.stringify(synchronizedQueensFrames[index].values)) {
+    assert.ok(
+      [chooseQueenLine, undoQueenLine].includes(synchronizedQueensFrames[index].codeLine),
+      'N-Reinas: elegir y deshacer deben iluminar sus líneas Java exactas.',
+    );
+  }
+}
 
 const maze = algorithms.find(item => item.id === 'laberinto');
 const mazeResult = run(maze, 'solve');
@@ -850,6 +911,26 @@ assert.ok(
   bstSearchFrames.filter(frame => frame.codeLine === bstSearchMethodLine).length >= 3,
   'BST: cada llamada recursiva debe volver a iluminar el inicio del método.',
 );
+const bstMissingResult = run(bst, 'find', { value: '99', second: '', index: '' });
+const bstMissingFrames = createTreeSynchronizedFrames({
+  algorithm: bst,
+  code: bstSearchCode,
+  actionId: 'find',
+  beforeValues: bst.values,
+  afterValues: bstMissingResult.values,
+  beforeEdges: edges(),
+  afterEdges: edges(),
+  finalStep: bstMissingResult.step,
+  finalMessage: bstMissingResult.message,
+  succeeded: bstMissingResult.ok,
+  inputValues: { value: '99', second: '', index: '' },
+});
+assert.ok(bstMissingFrames.length > 1, 'BST: una búsqueda fallida también debe mostrar el recorrido recursivo.');
+assert.equal(bstMissingFrames.at(-1).failed, true, 'BST: la llamada que llega a null debe marcar el resultado fallido.');
+assert.ok(
+  bstMissingFrames.some(frame => frame.variables?.some(variable => variable.name === 'condición' && variable.value === 'false')),
+  'BST: deben verse las comparaciones falsas que descartan una rama.',
+);
 
 const avl = algorithms.find(item => item.id === 'avl');
 const avlInsertOne = run(avl, 'tree-add', { value: '1', second: '', index: '' }, [...avl.values]);
@@ -868,6 +949,25 @@ assert.deepEqual(
 );
 assert.match(avlLlRotation.message, /rotación LL/i, 'AVL/insertar-0: debe explicar la rotación LL aplicada.');
 assertAvlBalance(avlLlRotation.values, 'AVL/rotación-LL');
+const avlInsertCode = getBeginnerJava(avl, 'tree-add');
+const avlLlFrames = createTreeSynchronizedFrames({
+  algorithm: avl,
+  code: avlInsertCode,
+  actionId: 'tree-add',
+  beforeValues: avlInsertOne.values,
+  afterValues: avlLlRotation.values,
+  beforeEdges: edges(),
+  afterEdges: edges(),
+  finalStep: avlLlRotation.step,
+  finalMessage: avlLlRotation.message,
+  succeeded: avlLlRotation.ok,
+  inputValues: { value: '0', second: '', index: '' },
+});
+const avlLines = avlInsertCode.split('\n');
+assert.ok(avlLlFrames.some(frame => /void updateHeight/.test(avlLines[frame.codeLine])), 'AVL: la animación debe entrar al método updateHeight mostrado.');
+assert.ok(avlLlFrames.some(frame => /int balanceOf/.test(avlLines[frame.codeLine])), 'AVL: la animación debe entrar al método balanceOf mostrado.');
+assert.ok(avlLlFrames.some(frame => /Node rotateRight/.test(avlLines[frame.codeLine])), 'AVL: una rotación LL debe recorrer rotateRight.');
+assert.deepEqual(avlLlFrames.at(-1).values, avlLlRotation.values, 'AVL: código y animación deben terminar en el mismo árbol balanceado.');
 let avlValues = [...avl.values];
 for (const value of [5, 15, 45, 60, 55]) {
   avlValues = run(avl, 'tree-add', { value: String(value), second: '', index: '' }, avlValues).values;
@@ -885,6 +985,35 @@ const splay = algorithms.find(item => item.id === 'splay-tree');
 const splayFindResult = run(splay, 'find', { value: '7', second: '', index: '' });
 assert.equal(splayFindResult.values[0], 7, 'Splay Tree: el nodo encontrado debe terminar en la raíz.');
 assert.match(getBeginnerJava(splay, 'find'), /Node splay/, 'Splay Tree: el código debe mostrar el método splay utilizado.');
+
+const kdTree = algorithms.find(item => item.id === 'kd-tree');
+assertKdTree(kdTree.values, 'KD-Tree/inicial');
+const kdInsertResult = run(kdTree, 'tree-add', { value: '47', second: '', index: '' });
+assertKdTree(kdInsertResult.values, 'KD-Tree/insertar');
+assert.ok(kdInsertResult.values.includes(47), 'KD-Tree: insertar debe conservar el punto nuevo.');
+const kdFindResult = run(kdTree, 'find', { value: '47', second: '', index: '' }, kdInsertResult.values);
+assert.equal(kdFindResult.ok, true, 'KD-Tree: buscar debe alternar ejes hasta encontrar el punto insertado.');
+const kdRemoveResult = run(kdTree, 'remove-value', { value: '25', second: '', index: '' });
+assert.ok(!kdRemoveResult.values.includes(25), 'KD-Tree: eliminar debe retirar el punto solicitado.');
+assertKdTree(kdRemoveResult.values, 'KD-Tree/eliminar');
+const kdInsertCode = getBeginnerJava(kdTree, 'tree-add');
+const kdInsertFrames = createTreeSynchronizedFrames({
+  algorithm: kdTree,
+  code: kdInsertCode,
+  actionId: 'tree-add',
+  beforeValues: kdTree.values,
+  afterValues: kdInsertResult.values,
+  beforeEdges: edges(),
+  afterEdges: edges(),
+  finalStep: kdInsertResult.step,
+  finalMessage: kdInsertResult.message,
+  succeeded: kdInsertResult.ok,
+  inputValues: { value: '47', second: '', index: '' },
+});
+const kdLines = kdInsertCode.split('\n');
+assert.ok(kdInsertFrames.some(frame => /int axis = depth % DIMENSIONS/.test(kdLines[frame.codeLine])), 'KD-Tree: la animación debe mostrar la alternancia de eje.');
+assert.ok(kdInsertFrames.some(frame => /int coordinate/.test(kdLines[frame.codeLine])), 'KD-Tree: la animación debe entrar al método coordinate mostrado.');
+assert.deepEqual(kdInsertFrames.at(-1).values, kdInsertResult.values, 'KD-Tree: código y visualización deben terminar en el mismo árbol espacial.');
 
 const segmentTree = algorithms.find(item => item.id === 'segment-tree');
 assert.match(getBeginnerJava(segmentTree, 'range-update'), /tree\[node\]/, 'Segment Tree: actualizar debe modificar los nodos del árbol.');
@@ -1187,6 +1316,23 @@ for (const [actionId, fields] of arrayCases) {
   assert.doesNotMatch(code, /\bsize\b/, `Array ${actionId}: no debe depender de un size sin declarar.`);
   assert.ok(indexes.every((value, index) => index === 0 || value >= indexes[index - 1]), `Array ${actionId}: el recorrido debe avanzar desde 0.`);
   assert.deepEqual(frames.at(-1)?.values, result.values, `Array ${actionId}: código y animación terminan en estados distintos.`);
+
+  if (actionId === 'add-index') {
+    const codeLines = code.split('\n');
+    const allocationLine = codeLines.findIndex(line => line.includes('new int[n + 1]'));
+    const shiftedDestinationLine = codeLines.findIndex(line => line.includes('destination = i + 1'));
+    const allocationFrame = frames.find(frame => frame.codeLine === allocationLine);
+    assert.ok(allocationFrame.values.every(value => value === undefined), 'Array/agregar-índice: el arreglo result debe comenzar vacío.');
+    assert.ok(
+      frames.filter(frame => frame.codeLine === shiftedDestinationLine).every(frame => Number(frame.iteration) >= Number(fields.index)),
+      'Array/agregar-índice: destination = i + 1 solo debe ejecutarse cuando i >= index.',
+    );
+    const branchOutcomes = frames
+      .flatMap(frame => frame.variables ?? [])
+      .filter(variable => variable.name === 'condición')
+      .map(variable => variable.value);
+    assert.ok(branchOutcomes.includes('true') && branchOutcomes.includes('false'), 'Array/agregar-índice: el panel debe mostrar ambos resultados reales del if.');
+  }
 }
 
 const sortingCases = [
