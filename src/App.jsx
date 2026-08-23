@@ -1,12 +1,17 @@
 import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, ArrowRight, BookOpen, Boxes, Brain, Bug, ChevronDown, CircleHelp, ClipboardCopy, Gauge,
-  Eraser, MapPin, Menu, PanelLeftClose, PanelLeftOpen, Pause, Play, RotateCcw, Search, Shuffle, Sparkles, X,
+  ArrowLeft, ArrowRight, BookOpen, Boxes, Brain, ChevronDown, CircleHelp, ClipboardCopy, Gauge,
+  Eraser, MapPin, Menu, PanelLeftOpen, Pause, Play, RotateCcw, Shuffle, Sparkles,
 } from 'lucide-react';
-import { algorithmIndexes, algorithms, algorithmsById, categories, categoryLabels, navigationIndexes } from './data/algorithms.js';
+import { algorithmIndexes, algorithms, algorithmsById, categoryLabels } from './data/algorithms.js';
 import { getGraphDesign, graphEdgesFor, graphPositionsFor } from './data/graphDesigns.js';
 import OperationsPanel from './components/OperationsPanel.jsx';
 import VariablesPanel from './components/VariablesPanel.jsx';
+import AccessibilityPanel from './components/AccessibilityPanel.jsx';
+import Sidebar from './components/Sidebar.jsx';
+import BugReporter from './components/BugReporter.jsx';
+import GuidedTour from './components/GuidedTour.jsx';
+import { useDialogFocus } from './accessibility/useDialogFocus.js';
 import {
   adaptFramesToCode,
   copyVisualValues,
@@ -39,7 +44,6 @@ const SUDOKU_START = [
 ];
 
 const NORMAL_FRAME_DELAY = 800;
-const REPORT_API_URL = String(import.meta.env.VITE_REPORT_API_URL || '').replace(/\/+$/, '');
 const STORAGE_KEYS = {
   introSeen: 'dsa-intro-seen',
   selectedAlgorithm: 'dsa-selected-algorithm',
@@ -2220,212 +2224,6 @@ function DescriptionFallback() {
   </section>;
 }
 
-const normalizeSidebarText = (value) => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es').trim();
-const sidebarGroupIds = new Map(categories.map(category => [category, `nav-group-${normalizeSidebarText(category).replace(/[^a-z0-9]+/g, '-')}`]));
-const initiallyClosedSidebarGroups = Object.fromEntries(categories.map(category => [category, category !== 'Estructuras lineales']));
-
-function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setMobileOpen, collapsed, onToggle }) {
-  const { language, setLanguage, t } = useLanguage();
-  const [closedGroups, setClosedGroups] = useState(() => initiallyClosedSidebarGroups);
-  const groupedAlgorithms = useMemo(() => {
-    const term = normalizeSidebarText(query);
-    const groups = new Map(categories.map(category => [category, []]));
-    for (const algorithm of algorithms) {
-      const localized = localizeAlgorithm(algorithm, language);
-      const searchable = normalizeSidebarText(`${algorithm.name} ${algorithm.navName ?? ''} ${localized.name} ${localized.navName ?? ''} ${algorithm.category} ${categoryNames[algorithm.category] ?? ''}`);
-      if (!term || searchable.includes(term)) groups.get(algorithm.category)?.push(algorithm);
-    }
-    return groups;
-  }, [query, language]);
-  const hasQuery = Boolean(query.trim());
-  const toggleGroup = useCallback((category) => setClosedGroups(current => ({ ...current, [category]: !current[category] })), []);
-  return <aside data-tour="sidebar" className={`sidebar ${mobileOpen ? 'open' : ''} ${collapsed ? 'collapsed' : ''}`}>
-    <div className="brand">
-      <a className="brand-home" href={seoPath(null, language)} onClick={event=>{event.preventDefault();onHome();setMobileOpen(false)}} aria-label={t('welcome')}>
-        <span className="brand-mark"><Boxes size={21}/></span>
-        <span className="brand-copy"><strong>DSA Lab</strong><span>{t('visualAlgorithms')}</span></span>
-      </a>
-      <button className="sidebar-collapse-button" onClick={onToggle} aria-label={t('hideMenu')} title={t('hideMenu')}><PanelLeftClose size={18}/></button>
-      <button className="close-mobile" onClick={()=>setMobileOpen(false)} aria-label={t('close')}><X/></button>
-    </div>
-    <div className="search"><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={t('search')}/></div>
-    <div className="language-switch" role="group" aria-label="Language / Idioma">
-      <button type="button" className={language === 'es' ? 'active' : ''} aria-pressed={language === 'es'} onClick={()=>setLanguage('es')}>ES</button>
-      <button type="button" className={language === 'en' ? 'active' : ''} aria-pressed={language === 'en'} onClick={()=>setLanguage('en')}>EN</button>
-    </div>
-    <nav>
-      {categories.map(category => {
-        const list = groupedAlgorithms.get(category) ?? [];
-        if (!list.length) return null;
-        const groupId = sidebarGroupIds.get(category);
-        const isClosed = !hasQuery && Boolean(closedGroups[category]);
-        return <div className="nav-group" key={category}>
-          <button type="button" className="nav-heading" onClick={()=>toggleGroup(category)} aria-expanded={!isClosed} aria-controls={groupId}>
-            <span className="nav-heading-label"><ChevronDown className="nav-chevron" size={14}/>{language === 'en' ? categoryNames[category] ?? category : category}</span>
-            <em>{String(list.length).padStart(2,'0')}</em>
-          </button>
-          <div id={groupId} className={`nav-items ${isClosed ? 'closed' : ''}`} aria-hidden={isClosed}>
-            <div className="nav-items-inner">
-              {list.map((a) => { const localized = localizeAlgorithm(a, language); return <a href={seoPath(a.id, language)} data-algorithm-id={a.id} className={`nav-item ${selected===a.id?'selected':''}`} onClick={event=>{event.preventDefault();onSelect(a.id);setMobileOpen(false)}} key={a.id}><span>{String((navigationIndexes.get(a.id) ?? 0)+1).padStart(2,'0')}</span>{localized.navName ?? localized.name}</a>; })}
-            </div>
-          </div>
-        </div>;
-      })}
-    </nav>
-    <div className="sidebar-foot">
-      <span><Sparkles size={14}/> {algorithms.length} {t('includedTopics')}</span>
-      <div className="author-credit"><small>{t('author')}</small><strong>Juan Zúñiga Maluenda</strong></div>
-    </div>
-  </aside>;
-}
-
-const MemoizedSidebar = memo(Sidebar);
-
-const TOUR_STEPS = [
-  {
-    selector: '[data-tour="sidebar"]',
-    title: 'Elige qué quieres aprender',
-    description: 'El menú reúne todos los temas por categoría. También puedes buscar una estructura o algoritmo por su nombre.',
-  },
-  {
-    selector: '[data-tour="visualizer"]',
-    title: 'Observa cómo cambia la estructura',
-    description: 'Aquí verás cada inserción, eliminación, recorrido o comparación. El elemento activo se destaca durante la ejecución.',
-  },
-  {
-    selector: '[data-tour="operations"]',
-    title: 'Experimenta con tus propios datos',
-    description: 'Escribe valores o índices y ejecuta las operaciones disponibles. El mensaje inferior explica el resultado.',
-  },
-  {
-    selector: '.player',
-    title: 'Controla la animación',
-    description: 'Avanza o retrocede paso a paso, pausa cuando quieras y ajusta la velocidad para estudiar con calma.',
-  },
-  {
-    selector: '[data-tour="code"]',
-    title: 'Relaciona la animación con el código',
-    description: 'La línea activa avanza junto con la visualización. Puedes alternar entre Java y pseudocódigo.',
-  },
-  {
-    selector: '[data-tour="variables"]',
-    title: 'Revisa las variables en tiempo real',
-    description: 'Este panel muestra valores, índices y decisiones internas para que comprendas qué está haciendo el algoritmo.',
-  },
-  {
-    selector: '[data-tour="test"]',
-    title: 'Comprueba lo aprendido',
-    description: 'Cuando termines de practicar, responde diez preguntas conceptuales sobre la materia de esta sección.',
-  },
-];
-
-function GuidedTour({ onClose, onStepChange }) {
-  const { language } = useLanguage();
-  const [stepIndex, setStepIndex] = useState(0);
-  const [targetRect, setTargetRect] = useState(null);
-  const [leaving, setLeaving] = useState(false);
-  const closeTimerRef = useRef(null);
-  const englishSteps = [
-    ['Choose what you want to learn','The menu groups every topic by category. You can also search for a structure or algorithm by name.'],
-    ['Watch the structure change','Here you will see every insertion, deletion, traversal, or comparison. The active element is highlighted during execution.'],
-    ['Experiment with your own data','Enter values or indices and run the available operations. The message below explains the result.'],
-    ['Control the animation','Move forward or backward step by step, pause whenever you want, and adjust the speed to study comfortably.'],
-    ['Connect the animation with the code','The active line advances with the visualization. You can switch between Java and pseudocode.'],
-    ['Inspect variables in real time','This panel shows values, indices, and internal decisions so you can understand what the algorithm is doing.'],
-    ['Check what you learned','After practicing, answer ten conceptual questions about this section.'],
-  ];
-  const sourceStep = TOUR_STEPS[stepIndex];
-  const step = language === 'en' ? { ...sourceStep, title: englishSteps[stepIndex][0], description: englishSteps[stepIndex][1] } : sourceStep;
-  const tc = language === 'en'
-    ? { close:'Close tour', label:'HOW IT WORKS', step:'Step', of:'of', skip:'Skip tour', back:'Back', finish:'Finish tour', next:'Next tour step', finishText:'Finish', nextText:'Next' }
-    : { close:'Cerrar recorrido', label:'CÓMO FUNCIONA', step:'Paso', of:'de', skip:'Omitir recorrido', back:'Atrás', finish:'Finalizar recorrido', next:'Siguiente paso del recorrido', finishText:'Finalizar', nextText:'Siguiente' };
-
-  const requestClose = useCallback(() => {
-    if (leaving) return;
-    setLeaving(true);
-    closeTimerRef.current = window.setTimeout(onClose, 220);
-  }, [leaving, onClose]);
-
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    const updateTarget = () => {
-      const target = document.querySelector(step.selector);
-      if (!target) return;
-      const rect = target.getBoundingClientRect();
-      setTargetRect({ left: rect.left, top: rect.top, width: rect.width, height: rect.height });
-    };
-    const target = document.querySelector(step.selector);
-    updateTarget();
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    target?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: step.selector.includes('sidebar') ? 'nearest' : 'center' });
-    const timer = window.setTimeout(updateTarget, reduceMotion ? 0 : 420);
-    window.addEventListener('resize', updateTarget);
-    window.addEventListener('scroll', updateTarget, true);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.clearTimeout(timer);
-      window.removeEventListener('resize', updateTarget);
-      window.removeEventListener('scroll', updateTarget, true);
-    };
-  }, [step]);
-
-  useEffect(() => {
-    const closeWithEscape = event => { if (event.key === 'Escape') requestClose(); };
-    window.addEventListener('keydown', closeWithEscape);
-    return () => window.removeEventListener('keydown', closeWithEscape);
-  }, [requestClose]);
-
-  useEffect(() => () => window.clearTimeout(closeTimerRef.current), []);
-
-  const moveTo = nextIndex => {
-    const boundedIndex = Math.max(0, Math.min(TOUR_STEPS.length - 1, nextIndex));
-    setStepIndex(boundedIndex);
-    onStepChange(boundedIndex);
-  };
-  const finishOrContinue = () => {
-    if (stepIndex === TOUR_STEPS.length - 1) requestClose();
-    else moveTo(stepIndex + 1);
-  };
-  const cardStyle = targetRect
-    ? {
-        left: `${Math.max(16, Math.min(window.innerWidth - 376, targetRect.left + targetRect.width + 18))}px`,
-        top: `${Math.max(16, Math.min(window.innerHeight - 280, targetRect.top + Math.min(28, targetRect.height / 3)))}px`,
-      }
-    : undefined;
-
-  return <div className={`guided-tour ${leaving ? 'is-leaving' : ''}`} role="dialog" aria-modal="true" aria-labelledby="guided-tour-title">
-    <button className="guided-tour-backdrop" type="button" onClick={requestClose} aria-label={tc.close}/>
-    {targetRect && (
-      <div className="guided-tour-spotlight" style={{
-        left: targetRect.left - 7,
-        top: targetRect.top - 7,
-        width: targetRect.width + 14,
-        height: targetRect.height + 14,
-      }}/>
-    )}
-    <section className="guided-tour-card" style={cardStyle}>
-      <header>
-        <span><CircleHelp size={16}/> {tc.label}</span>
-        <button type="button" onClick={requestClose} aria-label={tc.close}><X size={17}/></button>
-      </header>
-      <div className="guided-tour-progress" aria-label={`${tc.step} ${stepIndex + 1} ${tc.of} ${TOUR_STEPS.length}`}>
-        {TOUR_STEPS.map((_, index) => <i className={index <= stepIndex ? 'active' : ''} key={index}/>) }
-      </div>
-      <small>{tc.step} {stepIndex + 1} {tc.of} {TOUR_STEPS.length}</small>
-      <h2 id="guided-tour-title">{step.title}</h2>
-      <p>{step.description}</p>
-      <footer>
-        <button type="button" className="tour-skip" onClick={requestClose}>{tc.skip}</button>
-        <div>
-          {stepIndex > 0 && <button type="button" className="tour-previous" onClick={()=>moveTo(stepIndex - 1)}><ArrowLeft size={15}/> {tc.back}</button>}
-          <button type="button" className="tour-next" aria-label={stepIndex === TOUR_STEPS.length - 1 ? tc.finish : tc.next} onClick={finishOrContinue}>{stepIndex === TOUR_STEPS.length - 1 ? tc.finishText : tc.nextText}{stepIndex < TOUR_STEPS.length - 1 && <ArrowRight size={15}/>}</button>
-        </div>
-      </footer>
-    </section>
-  </div>;
-}
-
 function OpeningIntro({ onDone }) {
   const { language } = useLanguage();
   const [leaving, setLeaving] = useState(false);
@@ -2433,25 +2231,23 @@ function OpeningIntro({ onDone }) {
   const exitTimer = useRef(null);
   const finishTimer = useRef(null);
 
-  useEffect(() => { onDoneRef.current = onDone; }, [onDone]);
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    exitTimer.current = window.setTimeout(() => setLeaving(true), 7200);
-    finishTimer.current = window.setTimeout(() => onDoneRef.current(), 7850);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.clearTimeout(exitTimer.current);
-      window.clearTimeout(finishTimer.current);
-    };
-  }, []);
-
-  const enterNow = () => {
+  const enterNow = useCallback(() => {
     window.clearTimeout(exitTimer.current);
     window.clearTimeout(finishTimer.current);
     setLeaving(true);
     finishTimer.current = window.setTimeout(() => onDoneRef.current(), 620);
-  };
+  }, []);
+  const dialogRef = useDialogFocus({ onClose: enterNow });
+
+  useEffect(() => { onDoneRef.current = onDone; }, [onDone]);
+  useEffect(() => {
+    exitTimer.current = window.setTimeout(() => setLeaving(true), 7200);
+    finishTimer.current = window.setTimeout(() => onDoneRef.current(), 7850);
+    return () => {
+      window.clearTimeout(exitTimer.current);
+      window.clearTimeout(finishTimer.current);
+    };
+  }, []);
 
   const copy = language === 'en' ? {
     visual:'Visual algorithms', enter:'Enter now', kicker:'Inspired by better learning', titleA:'Understanding is easier', titleB:'when you can see it.',
@@ -2464,7 +2260,7 @@ function OpeningIntro({ onDone }) {
     see:'Visualiza', seeText:'Observa qué ocurre en cada paso.', understand:'Comprende', understandText:'Relaciona la animación con Java.', create:'Crea', createText:'Construye tus propios algoritmos.',
     preparing:'Preparando tu espacio de aprendizaje', motto:'El límite es tu imaginación',
   };
-  return <section className={`opening-intro ${leaving ? 'is-leaving' : ''}`} role="dialog" aria-modal="true" aria-labelledby="opening-title">
+  return <section ref={dialogRef} tabIndex="-1" className={`opening-intro ${leaving ? 'is-leaving' : ''}`} role="dialog" aria-modal="true" aria-labelledby="opening-title">
     <div className="opening-surface">
       <header className="opening-header">
         <div><span className="opening-logo"><Boxes size={22}/></span><p><strong>DSA Lab</strong><small>{copy.visual}</small></p></div>
@@ -2547,116 +2343,6 @@ function Welcome({ onStart, startName }) {
       <div><small>{c.s3}</small><strong>{c.s3t}</strong><p>{c.s3p}</p></div>
     </section>
   </div>;
-}
-
-function BugReporter({ section }) {
-  const { language, t } = useLanguage();
-  const [open, setOpen] = useState(false);
-  const [report, setReport] = useState({ name:'', email:'', title:'', type:'Algo no funciona', description:'', steps:'', website:'' });
-  const [copyStatus, setCopyStatus] = useState('');
-  const [sending, setSending] = useState(false);
-  const reportServiceWarmed = useRef(false);
-  const bc = language === 'en' ? {
-    name:'Your name', namePh:'E.g. Ana Torres', email:'Your email (optional)', emailPh:'So we can reply to you', summary:'Short summary', summaryPh:'E.g. The delete button does not respond',
-    type:'What kind of problem is it?', types:['Something does not work','It looks incorrect','Problem in the Java code','Content is difficult to understand','Another problem'],
-    happened:'Tell us what happened', happenedPh:'What did you do, what appeared, and what did you expect?', repeat:'How can we reproduce it?', repeatPh:'1. I opened the structure...\n2. I pressed the button...\n3. Then this happened...',
-    website:'Website', delivery:'The report will be sent directly to the DSA Lab team.', later:'Not now', copy:'Copy', sending:'Sending…', send:'Send report',
-  } : {
-    name:'Tu nombre', namePh:'Ej.: Ana Torres', email:'Tu correo (opcional)', emailPh:'Para poder responderte', summary:'Resumen corto', summaryPh:'Ej.: El botón eliminar no responde',
-    type:'¿Qué tipo de problema es?', types:['Algo no funciona','Se ve incorrecto','Problema en el código Java','Contenido difícil de entender','Otro problema'],
-    happened:'Cuéntanos qué ocurrió', happenedPh:'¿Qué hiciste, qué apareció y qué esperabas que ocurriera?', repeat:'¿Cómo podemos repetirlo?', repeatPh:'1. Entré a la estructura...\n2. Presioné el botón...\n3. Entonces ocurrió...',
-    website:'Sitio web', delivery:'El reporte se enviará directamente al equipo de DSA Lab.', later:'Ahora no', copy:'Copiar', sending:'Enviando…', send:'Enviar reporte',
-  };
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const closeWithEscape = event => { if (event.key === 'Escape') setOpen(false); };
-    window.addEventListener('keydown', closeWithEscape);
-    if (REPORT_API_URL && !reportServiceWarmed.current) {
-      reportServiceWarmed.current = true;
-      fetch(`${REPORT_API_URL}/health`, { mode: 'no-cors', cache: 'no-store' }).catch(() => {
-        reportServiceWarmed.current = false;
-      });
-    }
-    return () => window.removeEventListener('keydown', closeWithEscape);
-  }, [open]);
-
-  const update = (field, value) => setReport(current=>({...current,[field]:value}));
-  const reportBody = () => `# [Bug] ${report.title.trim()}\n\n## Nombre\n${report.name.trim()}\n\n## Correo\n${report.email.trim() || 'No proporcionado'}\n\n## Sección afectada\n${section}\n\n## Tipo de problema\n${report.type}\n\n## Descripción\n${report.description.trim()}\n\n## Pasos para reproducirlo\n${report.steps.trim() || 'No especificados.'}\n\n---\nReporte generado desde DSA Lab.`;
-  const resetReport = () => {
-    setOpen(false);
-    setCopyStatus('');
-    setSending(false);
-    setReport({ name:'', email:'', title:'', type:'Algo no funciona', description:'', steps:'', website:'' });
-  };
-  const copyReport = async () => {
-    if (!report.name.trim() || !report.title.trim() || !report.description.trim()) {
-      setCopyStatus('Completa tu nombre, el resumen y la descripción antes de copiar.');
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(reportBody());
-      setCopyStatus('Reporte copiado. Puedes enviarlo por correo, chat o el medio que prefieras.');
-    } catch {
-      setCopyStatus('El navegador no permitió copiar. Selecciona el texto e inténtalo nuevamente.');
-    }
-  };
-  const submit = async event => {
-    event.preventDefault();
-    if (sending) return;
-    if (!REPORT_API_URL) {
-      setCopyStatus('El envío todavía no está configurado. Agrega VITE_REPORT_API_URL en Vercel.');
-      return;
-    }
-    setSending(true);
-    setCopyStatus('Enviando reporte…');
-    const slowResponseNotice = window.setTimeout(() => {
-      setCopyStatus('El servicio se está iniciando. Mantén esta ventana abierta; tu reporte se enviará automáticamente.');
-    }, 8_000);
-    try {
-      const response = await fetch(`${REPORT_API_URL}/api/report`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...report,
-          section,
-          pageUrl: window.location.href,
-          userAgent: navigator.userAgent,
-        }),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.message || 'No fue posible enviar el reporte.');
-      setReport({ name:'', email:'', title:'', type:'Algo no funciona', description:'', steps:'', website:'' });
-      setCopyStatus('¡Gracias! El reporte fue enviado correctamente.');
-    } catch (error) {
-      setCopyStatus(error.message || 'No fue posible enviar el reporte. Comprueba tu conexión e inténtalo nuevamente.');
-    } finally {
-      window.clearTimeout(slowResponseNotice);
-      setSending(false);
-    }
-  };
-
-  return <>
-    <button className="bug-fab" onClick={()=>setOpen(true)} aria-label={t('reportProblem')}><Bug size={20}/><span>{t('reportProblem')}</span></button>
-    {open && <div className="bug-modal-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)setOpen(false)}}>
-      <section className="bug-modal" role="dialog" aria-modal="true" aria-labelledby="bug-report-title">
-        <header><div className="bug-modal-icon"><Bug size={20}/></div><div><span>{language === 'en' ? 'Help us improve' : 'Ayúdanos a mejorar'}</span><h2 id="bug-report-title">{language === 'en' ? 'Did you find something unusual?' : '¿Encontraste algo extraño?'}</h2></div><button type="button" onClick={()=>setOpen(false)} aria-label={t('closeForm')}><X size={18}/></button></header>
-        <p className="bug-intro">{language === 'en' ? 'Tell us what happened and how we can reproduce it. These details help us find and fix the problem.' : 'Cuéntanos qué pasó y cómo podemos repetirlo. Con esos datos será mucho más fácil encontrar y corregir el problema.'}</p>
-        <div className="bug-section-label"><small>{language === 'en' ? 'You were viewing' : 'Estabas viendo'}</small><strong>{section}</strong></div>
-        <form onSubmit={submit}>
-          <label><span>{bc.name}</span><input required minLength="2" maxLength="80" autoComplete="name" value={report.name} onChange={event=>update('name',event.target.value)} placeholder={bc.namePh}/></label>
-          <label><span>{bc.email}</span><input type="email" maxLength="254" autoComplete="email" value={report.email} onChange={event=>update('email',event.target.value)} placeholder={bc.emailPh}/></label>
-          <label className="bug-field-wide"><span>{bc.summary}</span><input required maxLength="120" value={report.title} onChange={event=>update('title',event.target.value)} placeholder={bc.summaryPh}/></label>
-          <label><span>{bc.type}</span><select value={report.type} onChange={event=>update('type',event.target.value)}>{bc.types.map(type=><option key={type}>{type}</option>)}</select></label>
-          <label className="bug-field-wide"><span>{bc.happened}</span><textarea required minLength="10" maxLength="3000" rows="4" value={report.description} onChange={event=>update('description',event.target.value)} placeholder={bc.happenedPh}/></label>
-          <label className="bug-field-wide"><span>{bc.repeat}</span><textarea maxLength="3000" rows="3" value={report.steps} onChange={event=>update('steps',event.target.value)} placeholder={bc.repeatPh}/></label>
-          <label className="bug-honeypot" aria-hidden="true"><span>{bc.website}</span><input tabIndex="-1" autoComplete="off" value={report.website} onChange={event=>update('website',event.target.value)}/></label>
-          {copyStatus && <p className="bug-copy-status" role="status">{copyStatus}</p>}
-          <div className="bug-form-actions"><p><Bug size={13}/> {bc.delivery}</p><button type="button" disabled={sending} onClick={()=>setOpen(false)}>{bc.later}</button><button className="copy-report" type="button" disabled={sending} onClick={copyReport}><ClipboardCopy size={15}/> {bc.copy}</button><button type="submit" disabled={sending}>{sending ? bc.sending : bc.send} <Bug size={15}/></button></div>
-        </form>
-      </section>
-    </div>}
-  </>;
 }
 
 function App() {
@@ -3104,10 +2790,11 @@ function App() {
   };
 
   return <div className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+    <a className="skip-link" href="#main-content">{language === 'en' ? 'Skip to main content' : 'Saltar al contenido principal'}</a>
     {showOpeningIntro && <OpeningIntro onDone={finishOpeningIntro}/>}
-    <MemoizedSidebar selected={showWelcome ? null : selectedId} onSelect={openAlgorithm} onHome={openWelcome} query={query} setQuery={setQuery} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} collapsed={sidebarCollapsed} onToggle={toggleSidebar}/>
+    <Sidebar selected={showWelcome ? null : selectedId} onSelect={openAlgorithm} onHome={openWelcome} query={query} setQuery={setQuery} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} collapsed={sidebarCollapsed} onToggle={toggleSidebar}/>
     {sidebarCollapsed && <div className="collapsed-tools"><button className="sidebar-reveal-button" onClick={()=>setSidebarCollapsed(false)} aria-label={t('showMenu')} title={t('showMenu')}><PanelLeftOpen size={20}/><span>{t('showMenu')}</span></button><button className="collapsed-language" onClick={()=>setLanguage(language === 'es' ? 'en' : 'es')} aria-label="Language / Idioma">{language === 'es' ? 'EN' : 'ES'}</button></div>}
-    <main className="workspace">
+    <main id="main-content" className="workspace" tabIndex="-1">
       <button className="menu-button mobile-menu-button" onClick={()=>setMobileOpen(true)} aria-label={t('openMenu')}><Menu/></button>
 
       {showWelcome ? <Welcome onStart={()=>openAlgorithm(selectedId)} startName={baseAlgorithm.name}/> : <>
@@ -3169,6 +2856,7 @@ function App() {
     </main>
     <button className="guided-tour-launch" type="button" onClick={startGuidedTour} aria-label={t('guidedTourLabel')}><CircleHelp size={19}/><span>{t('howItWorks')}</span></button>
     <BugReporter section={showWelcome ? t('welcome') : algorithm.name}/>
+    <AccessibilityPanel/>
     {tourOpen && <GuidedTour onClose={closeGuidedTour} onStepChange={handleTourStepChange}/>}
     {sectionTest && <Suspense fallback={null}><SectionTestModal
       algorithm={sectionTest.algorithm}

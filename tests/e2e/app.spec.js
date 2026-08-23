@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { algorithms } from '../../src/data/algorithms.js';
 import { getOperationDefinition } from '../../src/logic/operations.js';
+import { createSectionTest } from '../../src/logic/sectionTests.js';
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -1227,7 +1228,60 @@ test('muestra el formulario activo para informar un problema', async ({ page }) 
   await expect(page.locator('.bug-modal')).toHaveCount(0);
 });
 
+test('permite configurar accesibilidad, conserva preferencias y devuelve el foco al cerrar', async ({ page }) => {
+  const launch = page.getByRole('button', { name: 'Opciones de accesibilidad' });
+  await launch.focus();
+  await launch.press('Enter');
+
+  const dialog = page.getByRole('dialog', { name: 'Haz que DSA Lab sea cómodo para ti' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('radio')).toHaveCount(3);
+  await dialog.getByRole('radio', { name: /Grande/ }).click();
+  for (const preference of ['Contraste alto', 'Paleta apta para daltonismo', 'Reducir movimiento']) {
+    await dialog.getByLabel(preference).focus();
+    await page.keyboard.press('Space');
+  }
+
+  await expect(page.locator('html')).toHaveAttribute('data-font-scale', 'large');
+  await expect(page.locator('html')).toHaveAttribute('data-high-contrast', 'true');
+  await expect(page.locator('html')).toHaveAttribute('data-color-vision', 'true');
+  await expect(page.locator('html')).toHaveAttribute('data-reduce-motion', 'true');
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(launch).toBeFocused();
+
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-font-scale', 'large');
+  await expect(page.locator('html')).toHaveAttribute('data-high-contrast', 'true');
+  await expect(page.locator('html')).toHaveAttribute('data-color-vision', 'true');
+  await expect(page.locator('html')).toHaveAttribute('data-reduce-motion', 'true');
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('dsa-accessibility-preferences-v1') ?? '{}'));
+  expect(stored).toEqual({ fontScale: 'large', highContrast: true, colorVision: true, reduceMotion: true });
+});
+
+test('ofrece navegación por teclado para saltar al contenido principal', async ({ page }) => {
+  await page.keyboard.press('Tab');
+  const skipLink = page.getByRole('link', { name: 'Saltar al contenido principal' });
+  await expect(skipLink).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#main-content')).toBeFocused();
+});
+
+test('el menú móvil encierra el foco y vuelve al botón que lo abrió', async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith('mobile'), 'Comprobación específica para móvil.');
+  const menuButton = page.getByRole('button', { name: 'Abrir menú' });
+  await menuButton.focus();
+  await menuButton.press('Enter');
+  const navigationDialog = page.getByRole('dialog', { name: 'Navegación de algoritmos' });
+  await expect(navigationDialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(navigationDialog).toHaveCount(0);
+  await expect(menuButton).toBeFocused();
+});
+
 test('permite completar una prueba conceptual de diez preguntas por sección', async ({ page }) => {
+  const arrayTest = createSectionTest(algorithms.find(algorithm => algorithm.id === 'array'));
   await page.goto('/array');
   await page.getByRole('button', { name: 'Realizar prueba' }).click();
   const dialog = page.getByRole('dialog', { name: 'Prueba de Array' });
@@ -1237,11 +1291,18 @@ test('permite completar una prueba conceptual de diez preguntas por sección', a
   await expect(page.getByRole('button', { name: 'Cerrar prueba' })).toHaveCount(0);
 
   for (let question = 0; question < 10; question += 1) {
-    await dialog.getByRole('radio').first().check();
+    const incorrectChoiceIndex = arrayTest.questions[question].choices.findIndex(choice => !choice.correct);
+    await dialog.getByRole('radio').nth(incorrectChoiceIndex).check();
     await dialog.getByRole('button', { name: question === 9 ? 'Entregar prueba' : 'Siguiente pregunta' }).click();
   }
 
-  await expect(dialog.getByText('Prueba finalizada')).toBeVisible();
+  await expect(dialog.getByText('Prueba finalizada').first()).toBeVisible();
+  const review = dialog.locator('.section-test-review');
+  await expect(review.getByRole('heading', { name: 'Revisa tus respuestas' })).toBeVisible();
+  await expect(review.locator('li')).toHaveCount(10);
+  await expect(review).toContainText('Tu respuesta');
+  await expect(review).toContainText('Explicación');
+  await expect(review.locator('.correct-answer')).toHaveCount(10);
   const history = await page.evaluate(() => JSON.parse(localStorage.getItem('dsa-section-test-results-v1') ?? '[]'));
   expect(history.at(-1)).toMatchObject({ algorithmId: 'array', status: 'completed', total: 10 });
 });
