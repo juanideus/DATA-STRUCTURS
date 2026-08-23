@@ -105,7 +105,152 @@ function choices(correct, distractors, seed) {
 const profileFor = algorithm => ({ ...PROFILE_DEFAULT, ...(GROUP_PROFILES[operationGroup(algorithm)] ?? {}), ...(ID_PROFILES[algorithm.id] ?? {}) });
 const firstCodeLine = algorithm => algorithm.code.split('\n').map(line => line.trim()).find(Boolean) ?? algorithm.name;
 
+const COMPLEXITY_OPTIONS = ['O(1)', 'O(log n)', 'O(n)', 'O(n log n)', 'O(n²)'];
+
+function complexityCodeQuestion(id, prompt, promptEn, code, correct, explanation, explanationEn) {
+  return {
+    id,
+    prompt,
+    promptEn,
+    code,
+    explanation,
+    explanationEn,
+    choices: choices(correct, COMPLEXITY_OPTIONS.filter(option => option !== correct), `complejidad-algoritmica-${id}`),
+  };
+}
+
+function complexityQuestionPool(algorithm) {
+  const profile = profileFor(algorithm);
+  return [
+    {
+      id: 'visual-recognition',
+      visual: { type: profile.visual, caption: profile.visualCaption },
+      prompt: 'Observa el diagrama. ¿Qué tema representa mejor esta organización?',
+      promptEn: 'Look at the diagram. Which topic best represents these growth curves?',
+      explanation: 'Las curvas muestran cómo crece el costo de un algoritmo al aumentar n.',
+      explanationEn: 'The curves show how an algorithm cost grows as n increases.',
+      choices: choices(algorithm.name, ['Programación Orientada a Objetos', 'Árbol binario', 'Tabla hash'], `${algorithm.id}-visual`),
+    },
+    complexityCodeQuestion(
+      'code-constant',
+      '¿Cuál es la complejidad temporal del siguiente código?',
+      'What is the time complexity of the following code?',
+      `int first = values[0];
+System.out.println(first);`,
+      'O(1)',
+      'Se ejecuta una cantidad fija de operaciones, aunque n aumente.',
+      'It performs a fixed number of operations even when n grows.',
+    ),
+    complexityCodeQuestion(
+      'code-for-linear',
+      '¿Cuál es la complejidad temporal de este ciclo for?',
+      'What is the time complexity of this for loop?',
+      `for (int i = 0; i < n; i++) {
+    System.out.println(i);
+}`,
+      'O(n)',
+      'El ciclo avanza de uno en uno y ejecuta su bloque n veces.',
+      'The loop advances one by one and runs its body n times.',
+    ),
+    complexityCodeQuestion(
+      'code-while-linear',
+      '¿Cuál es la complejidad temporal de este ciclo while?',
+      'What is the time complexity of this while loop?',
+      `int i = 0;
+while (i < n) {
+    i++;
+}`,
+      'O(n)',
+      'i aumenta de uno en uno hasta llegar a n, por lo que hay n iteraciones.',
+      'i increases one by one until it reaches n, so there are n iterations.',
+    ),
+    complexityCodeQuestion(
+      'code-two-for',
+      '¿Cuál es la complejidad temporal de estos dos ciclos for anidados?',
+      'What is the time complexity of these two nested for loops?',
+      `for (int i = 0; i < n; i++) {
+    for (int j = 0; j < n; j++) {
+        System.out.println(i + j);
+    }
+}`,
+      'O(n²)',
+      'Por cada una de las n vueltas exteriores, el ciclo interior realiza n vueltas: n · n.',
+      'For each of the n outer iterations, the inner loop runs n times: n · n.',
+    ),
+    complexityCodeQuestion(
+      'code-two-while',
+      '¿Cuál es la complejidad temporal de estos dos ciclos while anidados?',
+      'What is the time complexity of these two nested while loops?',
+      `int i = 0;
+while (i < n) {
+    int j = 0;
+    while (j < n) {
+        j++;
+    }
+    i++;
+}`,
+      'O(n²)',
+      'Cada while recorre n posiciones y, al estar anidados, sus cantidades se multiplican.',
+      'Each while loop covers n positions and, because they are nested, their iteration counts multiply.',
+    ),
+    complexityCodeQuestion(
+      'code-consecutive-loops',
+      '¿Cuál es la complejidad temporal total de estos ciclos consecutivos?',
+      'What is the total time complexity of these consecutive loops?',
+      `for (int i = 0; i < n; i++) {
+    System.out.println(i);
+}
+for (int j = 0; j < n; j++) {
+    System.out.println(j);
+}`,
+      'O(n)',
+      'Los ciclos no están anidados: sus costos se suman, n + n = 2n, y la constante se elimina.',
+      'The loops are not nested: their costs add, n + n = 2n, and the constant is removed.',
+    ),
+    complexityCodeQuestion(
+      'code-logarithmic-while',
+      '¿Cuál es la complejidad temporal si el valor se divide por 2 en cada vuelta?',
+      'What is the time complexity when the value is divided by 2 on every iteration?',
+      `int size = n;
+while (size > 1) {
+    size = size / 2;
+}`,
+      'O(log n)',
+      'Dividir el problema por 2 en cada vuelta permite llegar a 1 en aproximadamente log₂(n) pasos.',
+      'Dividing the problem by 2 on every iteration reaches 1 in about log₂(n) steps.',
+    ),
+    complexityCodeQuestion(
+      'code-linear-logarithmic',
+      '¿Cuál es la complejidad temporal de estos ciclos anidados?',
+      'What is the time complexity of these nested loops?',
+      `for (int i = 0; i < n; i++) {
+    int value = n;
+    while (value > 1) {
+        value = value / 2;
+    }
+}`,
+      'O(n log n)',
+      'El for realiza n vueltas y en cada una el while divide por 2, realizando log n vueltas.',
+      'The for loop runs n times and, during each one, the while loop divides by 2 and runs log n times.',
+    ),
+    complexityCodeQuestion(
+      'code-triangular',
+      '¿Cuál es la complejidad temporal del recorrido triangular?',
+      'What is the time complexity of this triangular traversal?',
+      `for (int i = 0; i < n; i++) {
+    for (int j = 0; j <= i; j++) {
+        System.out.println(j);
+    }
+}`,
+      'O(n²)',
+      'El trabajo total es 1 + 2 + ... + n. Esa suma crece proporcionalmente a n².',
+      'The total work is 1 + 2 + ... + n. That sum grows proportionally to n².',
+    ),
+  ];
+}
+
 function questionPool(algorithm) {
+  if (algorithm.id === 'complejidad-algoritmica') return complexityQuestionPool(algorithm);
   const group = operationGroup(algorithm);
   const profile = profileFor(algorithm);
   const others = algorithms.filter(item => item.id !== algorithm.id);

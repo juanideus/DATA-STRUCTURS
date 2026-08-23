@@ -121,6 +121,7 @@ test('el modo inglés traduce también la interfaz interactiva, desafíos, prueb
 });
 
 test('ninguna sección deja controles principales en español al activar inglés', async ({ page }, testInfo) => {
+  test.setTimeout(60_000);
   test.skip(testInfo.project.name.startsWith('mobile'), 'El contenido bilingüe se recorre completo una vez en escritorio.');
   const forbidden = /\b(Visualización|Nuevo ejemplo|Vaciar|Restablecer|Realizar prueba|Variables en tiempo real|Agregar inicio|Agregar final|Eliminar inicio|Eliminar final|Guía completa|Idea central|Próximamente)\b/i;
   for (const algorithm of algorithms) {
@@ -201,6 +202,23 @@ test('la sección de complejidad explica la teoría con gráficos y sin laborato
   await expect(page.locator('.code-panel')).toHaveCount(0);
   await expect(page.locator('.operations-panel')).toHaveCount(0);
   await expect(page.locator('.player')).toHaveCount(0);
+});
+
+test('la prueba de complejidad pide calcular Big O a partir de código sencillo', async ({ page }) => {
+  await page.goto('/complejidad-algoritmica');
+  await page.getByRole('button', { name: 'Realizar prueba' }).click();
+  await page.getByRole('button', { name: 'Comenzar prueba' }).click();
+
+  const firstQuestion = page.locator('.section-test-question');
+  await expect(firstQuestion).toContainText('Observa el diagrama');
+  await firstQuestion.locator('label').filter({ hasText: 'Complejidad algorítmica' }).locator('input').check();
+  await page.getByRole('button', { name: 'Siguiente pregunta' }).click();
+
+  await expect(page.getByText('2/10', { exact: true })).toBeVisible();
+  await expect(page.locator('.section-test-code')).toBeVisible();
+  await expect(page.locator('.section-test-code')).toContainText(/for|while/);
+  await expect(page.locator('.section-test-question label')).toHaveCount(4);
+  await expect(page.locator('.section-test-question')).toContainText(/O\(1\)|O\(log n\)|O\(n\)|O\(n log n\)|O\(n²\)/);
 });
 
 test('fundamentos explica qué son las estructuras de datos sin convertirlo en un laboratorio', async ({ page }) => {

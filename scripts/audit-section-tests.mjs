@@ -22,6 +22,17 @@ for (const algorithm of algorithms) {
   }
   if (visualQuestions.length !== 1) failures.push(`${algorithm.id}: debe incluir exactamente una pregunta visual.`);
 
+  if (algorithm.id === 'complejidad-algoritmica') {
+    const codeQuestions = sectionTest.questions.filter(question => question.code);
+    const assessedComplexities = new Set(codeQuestions.flatMap(question => question.choices.filter(choice => choice.correct).map(choice => choice.label)));
+    if (codeQuestions.length !== 9) failures.push(`${algorithm.id}: debe incluir 9 ejercicios de análisis de código.`);
+    if (!codeQuestions.some(question => /for[\s\S]*for/.test(question.code))) failures.push(`${algorithm.id}: falta un ejemplo con for anidados.`);
+    if (!codeQuestions.some(question => /while[\s\S]*while/.test(question.code))) failures.push(`${algorithm.id}: falta un ejemplo con while anidados.`);
+    for (const expected of ['O(1)', 'O(log n)', 'O(n)', 'O(n log n)', 'O(n²)']) {
+      if (!assessedComplexities.has(expected)) failures.push(`${algorithm.id}: no evalúa ${expected} mediante código.`);
+    }
+  }
+
   for (const question of sectionTest.questions) {
     if (question.choices.length < 3) failures.push(`${algorithm.id}/${question.id}: tiene menos de 3 alternativas.`);
     if (question.choices.filter(choice => choice.correct).length !== 1) {

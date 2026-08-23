@@ -231,8 +231,9 @@ export default function SectionTestModal({ algorithm, externalViolation, onClose
         </header>
         <div className="section-test-progressbar"><span style={{ width: `${(questionIndex + 1) / test.questions.length * 100}%` }}/></div>
         <fieldset className="section-test-question">
-          <legend>{lt(question.prompt)}</legend>
+          <legend>{language === 'en' && question.promptEn ? question.promptEn : lt(question.prompt)}</legend>
           <QuestionVisual visual={question.visual} language={language}/>
+          {question.code && <pre className="section-test-code" aria-label={language === 'en' ? 'Code to analyze' : 'Código para analizar'}><code>{question.code}</code></pre>}
           {question.choices.map(choice => <label className={selectedChoice === choice.id ? 'selected' : ''} key={choice.id}>
             <input type="radio" name={question.id} checked={selectedChoice === choice.id} onChange={() => selectAnswer(choice.id)}/>
             <span>{lt(choice.label)}</span>
