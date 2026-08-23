@@ -1454,11 +1454,19 @@ for (const algorithmId of sortingAlgorithmIds) {
   if (algorithmId === 'counting-sort') {
     assert.match(java, /count\[values\[i\] - min\]\+\+;/, 'Counting Sort: debe contar frecuencias usando el desplazamiento del mínimo.');
     assert.match(java, /while \(count\[index\] > 0\)/, 'Counting Sort: debe reconstruir los valores desde sus frecuencias.');
+    const countSnapshots = trace
+      .filter(frame => frame.sortPhase === 'counting-count')
+      .map(frame => JSON.stringify(frame.sortAuxValues));
+    assert.ok(new Set(countSnapshots).size > 1, 'Counting Sort: cada fotograma debe conservar el conteo que existía en ese instante.');
   }
   if (algorithmId === 'radix-sort') {
     assert.match(java, /for \(int i = size - 1; i >= 0; i--\)/, 'Radix Sort: la distribución por dígito debe recorrerse desde el final para ser estable.');
     assert.match(java, /count\[digit\]--;/, 'Radix Sort: falta consumir la posición acumulada del dígito.');
     assert.ok(trace.some(frame => frame.sortPhase === 'radix-decrement'), 'Radix Sort: la animación no muestra la actualización del conteo acumulado.');
+    const outputSnapshots = trace
+      .filter(frame => frame.sortPhase === 'radix-output')
+      .map(frame => JSON.stringify(frame.sortAuxValues));
+    assert.ok(new Set(outputSnapshots).size > 1, 'Radix Sort: output debe crecer de forma progresiva en la animación.');
   }
   if (algorithmId === 'bogo-sort') {
     assert.match(java, /while \(!isSorted\(\)\)/, 'Bogo Sort: debe repetir mientras el arreglo no esté ordenado.');

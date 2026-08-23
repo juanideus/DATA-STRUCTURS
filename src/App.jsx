@@ -6,9 +6,7 @@ import {
 import { algorithmIndexes, algorithms, algorithmsById, categories, categoryLabels, navigationIndexes } from './data/algorithms.js';
 import { getGraphDesign, graphEdgesFor, graphPositionsFor } from './data/graphDesigns.js';
 import OperationsPanel from './components/OperationsPanel.jsx';
-import SectionTestModal from './components/SectionTestModal.jsx';
 import VariablesPanel from './components/VariablesPanel.jsx';
-import ComplexityGrowthChart from './components/ComplexityGrowthChart.jsx';
 import {
   adaptFramesToCode,
   copyVisualValues,
@@ -31,6 +29,8 @@ const EducationalDescription = lazy(() => import('./components/EducationalDescri
 const FoundationLesson = lazy(() => import('./components/FoundationLesson.jsx'));
 const ChallengePanel = lazy(() => import('./components/ChallengePanel.jsx'));
 const EnglishFoundationLesson = lazy(() => import('./components/EnglishFoundationLesson.jsx'));
+const ComplexityGrowthChart = lazy(() => import('./components/ComplexityGrowthChart.jsx'));
+const SectionTestModal = lazy(() => import('./components/SectionTestModal.jsx'));
 
 const SUDOKU_START = [
   5,3,0,0,7,0,0,0,0, 6,0,0,1,9,5,0,0,0, 0,9,8,0,0,0,0,6,0,
@@ -430,7 +430,7 @@ function ComplexityLesson() {
         <h3>Qué ocurre cuando n aumenta</h3>
         <p>El gráfico compara siete órdenes de crecimiento. O(log n) aumenta lentamente, mientras que O(n!) termina creciendo más rápido que O(2ⁿ).</p>
       </div>
-      <ComplexityGrowthChart language="es"/>
+      <Suspense fallback={null}><ComplexityGrowthChart language="es"/></Suspense>
     </article>
 
     <article className="complexity-order-table-card">
@@ -1282,13 +1282,7 @@ const indexInsideRange = (index, range) => (
   Array.isArray(range) && index >= range[0] && index <= range[1]
 );
 
-function SortVisual({ algorithm, step }) {
-  const frame = algorithm.animationFrame;
-  const values = algorithm.values;
-  const en = algorithm.language === 'en';
-  const isQuick = algorithm.id === 'quick-sort';
-  const isMerge = algorithm.id === 'merge-sort';
-  const phaseLabels = {
+const SORT_PHASE_LABELS = {
     'quick-start': ['Preparar Quick Sort', 'Prepare Quick Sort'], 'quick-call': ['Llamada inicial', 'Initial call'],
     'quick-recursion': ['Llamada recursiva', 'Recursive call'], 'quick-base': ['Evaluar caso base', 'Check base case'],
     'partition-call': ['Particionar rango', 'Partition range'], 'partition-start': ['Comenzar partición', 'Start partition'],
@@ -1355,8 +1349,15 @@ function SortVisual({ algorithm, step }) {
     'bogo-swap-save': ['Guardar temporal', 'Save temporary'], 'bogo-swap-first': ['Mover valor aleatorio', 'Move random value'],
     'bogo-swap-complete': ['Completar intercambio', 'Complete swap'],
     'bogo-complete': ['Bogo Sort terminado', 'Bogo Sort complete'],
-  };
-  const phaseLabel = phaseLabels[frame?.sortPhase]?.[en ? 1 : 0]
+};
+
+function SortVisual({ algorithm, step }) {
+  const frame = algorithm.animationFrame;
+  const values = algorithm.values;
+  const en = algorithm.language === 'en';
+  const isQuick = algorithm.id === 'quick-sort';
+  const isMerge = algorithm.id === 'merge-sort';
+  const phaseLabel = SORT_PHASE_LABELS[frame?.sortPhase]?.[en ? 1 : 0]
     ?? (en ? 'Sorting step' : 'Paso de ordenamiento');
 
   const cellLabel = index => {
@@ -2703,8 +2704,11 @@ function App() {
   const isTheoryPage = ['theory', 'complexity', 'oop', 'foundation'].includes(baseAlgorithm.type);
   const hideCodePanel = ['dijkstra','a-star'].includes(baseAlgorithm.id);
   const selectedIndex = algorithmIndexes.get(baseAlgorithm.id) ?? 0;
-  const operationDefinition = getOperationDefinition(baseAlgorithm);
-  const activeOperationLabel = translateOperationLabel(operationDefinition.actions.find(item=>item.id===activeOperation)?.label ?? t('operation'), language);
+  const operationDefinition = useMemo(() => getOperationDefinition(baseAlgorithm), [baseAlgorithm]);
+  const activeOperationLabel = useMemo(
+    () => translateOperationLabel(operationDefinition.actions.find(item => item.id === activeOperation)?.label ?? t('operation'), language),
+    [activeOperation, language, operationDefinition, t],
+  );
   const javaOverview = operationGroup(baseAlgorithm) === 'list'
     ? `El código muestra la clase Node, head, size y los enlaces next${baseAlgorithm.id.includes('doble') ? ' y prev' : ''}. No existe una variable de cola: cada recorrido parte en head y avanza del índice 0 hacia adelante. Cada if se evalúa antes de entrar únicamente al bloque que corresponde.`
     : baseAlgorithm.id === 'pila'
@@ -2726,13 +2730,15 @@ function App() {
       : baseAlgorithm.id === 'ast'
         ? 'El analizador lee una asignación Java con descenso recursivo. parseExpression procesa + y -, parseTerm respeta la prioridad de * y /, y parseFactor reconoce paréntesis, identificadores y números. Cada nodo que aparece corresponde a la línea iluminada.'
       : 'El código usa variables, arreglos, ciclos, condiciones y métodos pequeños. Cada línea iluminada corresponde al cambio mostrado en la estructura.';
-  const sourceCode = isTheoryPage
-    ? ''
-    : codeMode === 'java'
-      ? javaCodeFactory?.(baseAlgorithm, activeOperation) ?? '// Cargando código Java…'
-      : baseAlgorithm.code;
-  const displayedCode = translateCodeText(sourceCode, language);
-  const codeLines = displayedCode.split('\n');
+  const sourceCode = useMemo(() => (
+    isTheoryPage
+      ? ''
+      : codeMode === 'java'
+        ? javaCodeFactory?.(baseAlgorithm, activeOperation) ?? '// Cargando código Java…'
+        : baseAlgorithm.code
+  ), [activeOperation, baseAlgorithm, codeMode, isTheoryPage, javaCodeFactory]);
+  const displayedCode = useMemo(() => translateCodeText(sourceCode, language), [language, sourceCode]);
+  const codeLines = useMemo(() => displayedCode.split('\n'), [displayedCode]);
   const totalSteps = operationFrames.length || Math.max(algorithm.values.length, codeLines.length);
   const currentAnimationFrame = operationFrames[step] ?? null;
   const sectionTestLockedUntil = getSectionTestLockedUntil(baseAlgorithm.id, sectionTestClock);
@@ -3164,13 +3170,13 @@ function App() {
     <button className="guided-tour-launch" type="button" onClick={startGuidedTour} aria-label={t('guidedTourLabel')}><CircleHelp size={19}/><span>{t('howItWorks')}</span></button>
     <BugReporter section={showWelcome ? t('welcome') : algorithm.name}/>
     {tourOpen && <GuidedTour onClose={closeGuidedTour} onStepChange={handleTourStepChange}/>}
-    {sectionTest && <SectionTestModal
+    {sectionTest && <Suspense fallback={null}><SectionTestModal
       algorithm={sectionTest.algorithm}
       externalViolation={sectionTestViolation?.reason ?? null}
       onClose={closeSectionTest}
       onActiveChange={setSectionTestActive}
       onLockout={() => setSectionTestClock(Date.now())}
-    />}
+    /></Suspense>}
     {mobileOpen && <button className="scrim" onClick={()=>setMobileOpen(false)} aria-label={t('close')}/>}
   </div>;
 }
