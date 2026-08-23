@@ -1229,7 +1229,18 @@ test('muestra el formulario activo para informar un problema', async ({ page }) 
 });
 
 test('permite configurar accesibilidad, conserva preferencias y devuelve el foco al cerrar', async ({ page }) => {
+  await page.goto('/array');
   const launch = page.getByRole('button', { name: 'Opciones de accesibilidad' });
+  const [launchBox, complexityBox] = await Promise.all([
+    launch.boundingBox(),
+    page.locator('.complexity-card').boundingBox(),
+  ]);
+  const overlapsComplexity = launchBox && complexityBox
+    && launchBox.x < complexityBox.x + complexityBox.width
+    && launchBox.x + launchBox.width > complexityBox.x
+    && launchBox.y < complexityBox.y + complexityBox.height
+    && launchBox.y + launchBox.height > complexityBox.y;
+  expect(overlapsComplexity).toBeFalsy();
   await launch.focus();
   await launch.press('Enter');
 
