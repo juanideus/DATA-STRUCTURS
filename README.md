@@ -31,6 +31,7 @@
 - [Despliegue](#despliegue)
 - [Reporte de errores](#reporte-de-errores)
 - [Accesibilidad y diseño adaptable](#accesibilidad-y-diseño-adaptable)
+- [SEO y rastreo](#seo-y-rastreo)
 - [Contribuciones](#contribuciones)
 - [Hoja de ruta](#hoja-de-ruta)
 - [Autor](#autor)
@@ -565,6 +566,27 @@ El proyecto incorpora:
 
 Las visualizaciones son una ayuda educativa y deben complementarse con la explicación escrita y el código, especialmente para personas que no puedan percibir todos los cambios gráficos.
 
+## SEO y rastreo
+
+El build genera una versión HTML rastreable para la bienvenida y para cada tema en español e inglés. Esto permite que un buscador descubra contenido útil sin depender exclusivamente de la ejecución de React.
+
+- Las rutas en español usan el formato `/avl` y las rutas en inglés `/en/avl`.
+- Cada página posee título, descripción, URL canónica y metadatos Open Graph propios.
+- Las variantes de idioma se relacionan mediante `hreflang="es"`, `hreflang="en"` y `hreflang="x-default"`.
+- El contenido incluye datos estructurados `WebSite`, `SoftwareApplication`, `LearningResource` y `BreadcrumbList` según corresponda.
+- La navegación principal utiliza enlaces HTML rastreables.
+- `robots.txt` permite el rastreo y declara la ubicación del sitemap.
+- `sitemap.xml` se construye automáticamente con todas las rutas públicas bilingües.
+
+Para comprobar el resultado localmente:
+
+```bash
+npm run build
+npm run audit:seo
+```
+
+Después del despliegue, el propietario debe verificar el sitio en Google Search Console y enviar `https://data-structurs.vercel.app/sitemap.xml`. Si se adopta un dominio propio, también se debe actualizar `SITE_ORIGIN` en `src/seo.js`, volver a desplegar y registrar el nuevo dominio en Search Console.
+
 ## Contribuciones
 
 Las contribuciones son bienvenidas. Una forma recomendada de colaborar es:
@@ -610,7 +632,6 @@ Posibles mejoras futuras:
 - Crear un panel general de progreso y temas dominados.
 - Añadir pruebas unitarias y pruebas visuales automatizadas.
 - Mejorar la navegación por teclado y lectores de pantalla.
-- Agregar internacionalización.
 - Permitir exportar ejemplos y secuencias de ejecución.
 - Ampliar los árboles multicamino a más niveles visuales.
 - Incorporar nuevos algoritmos de ordenamiento, caminos mínimos y programación dinámica.

@@ -19,7 +19,11 @@ test('detecta inglés y traduce la guía completa cuando no existe una preferenc
     window.localStorage.removeItem('dsa-language');
     window.localStorage.setItem('dsa-intro-seen', 'true');
   });
-  await page.goto('/avl');
+  await page.goto('/');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page).toHaveURL(/\/en$/);
+
+  await page.goto('/en/avl');
 
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.getByRole('heading', { name: 'AVL Tree', level: 1 })).toBeVisible();
@@ -160,6 +164,28 @@ test('abre un tema mediante un enlace compartible', async ({ page }) => {
   await page.goto('/#/sudoku');
   await expect(page).toHaveURL(/\/sudoku$/);
   await expect(page.getByRole('heading', { name: 'Sudoku Solver 9×9', level: 1 })).toBeVisible();
+});
+
+test('expone rutas, enlaces y metadatos rastreables en ambos idiomas', async ({ page }) => {
+  await page.goto('/avl');
+  await expect(page).toHaveURL(/\/avl$/);
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://data-structurs.vercel.app/avl');
+  await expect(page.locator('link[hreflang="en"]')).toHaveAttribute('href', 'https://data-structurs.vercel.app/en/avl');
+  expect(await page.locator('#dsa-structured-data').textContent()).toContain('LearningResource');
+  await expect(page.locator('[data-algorithm-id="array"]')).toHaveAttribute('href', '/array');
+
+  const mobileMenu = page.getByRole('button', { name: 'Abrir menú' });
+  if (await mobileMenu.isVisible()) await mobileMenu.click();
+  await page.getByRole('button', { name: 'EN', exact: true }).click();
+  await expect(page).toHaveURL(/\/en\/avl$/);
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://data-structurs.vercel.app/en/avl');
+  await expect(page.locator('[data-algorithm-id="array"]')).toHaveAttribute('href', '/en/array');
+
+  await page.goto('/en/dijkstra');
+  await expect(page.getByRole('heading', { name: 'Dijkstra', level: 1 })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page).toHaveTitle(/Dijkstra: Visual Guide and Java/);
 });
 
 test('la sección de complejidad explica la teoría con gráficos y sin laboratorio ni código', async ({ page }) => {

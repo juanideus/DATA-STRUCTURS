@@ -24,7 +24,8 @@ import { createRandomPathMap, DEFAULT_PATH_MAP } from './logic/pathfindingMap.js
 import { formatPolynomial, polynomialTerms } from './logic/polynomial.js';
 import { buildRecursionCallTree } from './logic/recursionTrace.js';
 import { getSectionTestLockedUntil } from './logic/sectionTests.js';
-import { categoryDescriptions, categoryNames, localizeAlgorithm, siteMetadata, translateCodeText, translateLearningText, translateOperationLabel, useLanguage } from './i18n.jsx';
+import { categoryDescriptions, categoryNames, localizeAlgorithm, translateCodeText, translateLearningText, translateOperationLabel, useLanguage } from './i18n.jsx';
+import { algorithmIdFromPath, pageSeo, seoPath, seoUrl, SOCIAL_IMAGE_URL, structuredData } from './seo.js';
 
 const EducationalDescription = lazy(() => import('./components/EducationalDescription.jsx'));
 const FoundationLesson = lazy(() => import('./components/FoundationLesson.jsx'));
@@ -72,7 +73,7 @@ const legacyAlgorithmIds = new Map([
 const algorithmIdFromLocation = () => {
   if (typeof window === 'undefined') return null;
   try {
-    const pathCandidate = decodeURIComponent(window.location.pathname.replace(/^\/+|\/+$/g, '').trim());
+    const pathCandidate = algorithmIdFromPath(window.location.pathname);
     const resolvedPath = legacyAlgorithmIds.get(pathCandidate) ?? pathCandidate;
     if (algorithmsById.has(resolvedPath)) return resolvedPath;
 
@@ -2196,10 +2197,10 @@ function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setM
   const toggleGroup = useCallback((category) => setClosedGroups(current => ({ ...current, [category]: !current[category] })), []);
   return <aside data-tour="sidebar" className={`sidebar ${mobileOpen ? 'open' : ''} ${collapsed ? 'collapsed' : ''}`}>
     <div className="brand">
-      <button className="brand-home" onClick={()=>{onHome();setMobileOpen(false)}} aria-label={t('welcome')}>
+      <a className="brand-home" href={seoPath(null, language)} onClick={event=>{event.preventDefault();onHome();setMobileOpen(false)}} aria-label={t('welcome')}>
         <span className="brand-mark"><Boxes size={21}/></span>
         <span className="brand-copy"><strong>DSA Lab</strong><span>{t('visualAlgorithms')}</span></span>
-      </button>
+      </a>
       <button className="sidebar-collapse-button" onClick={onToggle} aria-label={t('hideMenu')} title={t('hideMenu')}><PanelLeftClose size={18}/></button>
       <button className="close-mobile" onClick={()=>setMobileOpen(false)} aria-label={t('close')}><X/></button>
     </div>
@@ -2221,7 +2222,7 @@ function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setM
           </button>
           <div id={groupId} className={`nav-items ${isClosed ? 'closed' : ''}`} aria-hidden={isClosed}>
             <div className="nav-items-inner">
-              {list.map((a) => { const localized = localizeAlgorithm(a, language); return <button data-algorithm-id={a.id} className={`nav-item ${selected===a.id?'selected':''}`} onClick={()=>{onSelect(a.id);setMobileOpen(false)}} key={a.id}><span>{String((navigationIndexes.get(a.id) ?? 0)+1).padStart(2,'0')}</span>{localized.navName ?? localized.name}</button>; })}
+              {list.map((a) => { const localized = localizeAlgorithm(a, language); return <a href={seoPath(a.id, language)} data-algorithm-id={a.id} className={`nav-item ${selected===a.id?'selected':''}`} onClick={event=>{event.preventDefault();onSelect(a.id);setMobileOpen(false)}} key={a.id}><span>{String((navigationIndexes.get(a.id) ?? 0)+1).padStart(2,'0')}</span>{localized.navName ?? localized.name}</a>; })}
             </div>
           </div>
         </div>;
@@ -2712,31 +2713,55 @@ function App() {
     writePreference(STORAGE_KEYS.codeMode, codeMode);
   }, [codeMode]);
   useEffect(() => {
+    const parameters = new URLSearchParams(window.location.search);
+    const hadLanguageParameter = parameters.has('lang');
+    parameters.delete('lang');
+    const search = parameters.toString();
+    const expectedPath = seoPath(showWelcome ? null : selectedId, language);
+    if (window.location.pathname === expectedPath && !hadLanguageParameter) return;
+    window.history.replaceState(
+      { dsaLab: showWelcome ? 'welcome' : selectedId },
+      '',
+      `${expectedPath}${search ? `?${search}` : ''}`,
+    );
+  }, [language, selectedId, showWelcome]);
+  useEffect(() => {
     document.documentElement.lang = language;
-    const site = siteMetadata[language];
-    const title = showWelcome ? site.title : `${baseAlgorithm.name} — DSA Lab`;
-    const description = showWelcome ? site.description : `${baseAlgorithm.description} ${language === 'en' ? 'Explore it step by step in DSA Lab.' : 'Explóralo paso a paso en DSA Lab.'}`;
-    const pageUrl = `${window.location.origin}${window.location.pathname}`;
+    const seo = pageSeo(showWelcome ? null : sourceAlgorithm, language);
+    const currentId = showWelcome ? null : sourceAlgorithm.id;
     const setMeta = (selector, value) => document.head.querySelector(selector)?.setAttribute('content', value);
-    document.title = title;
-    setMeta('meta[name="description"]', description);
-    setMeta('meta[itemprop="name"]', title);
-    setMeta('meta[itemprop="description"]', description);
-    setMeta('meta[property="og:locale"]', site.locale);
+    document.title = seo.title;
+    setMeta('meta[name="description"]', seo.description);
+    setMeta('meta[itemprop="name"]', seo.title);
+    setMeta('meta[itemprop="description"]', seo.description);
+    setMeta('meta[itemprop="image"]', SOCIAL_IMAGE_URL);
+    setMeta('meta[property="og:locale"]', language === 'en' ? 'en_US' : 'es_CL');
     setMeta('meta[property="og:locale:alternate"]', language === 'en' ? 'es_CL' : 'en_US');
-    setMeta('meta[property="og:title"]', title);
-    setMeta('meta[property="og:description"]', description);
-    setMeta('meta[property="og:url"]', pageUrl);
-    setMeta('meta[property="og:image:alt"]', site.imageAlt);
-    setMeta('meta[name="twitter:title"]', title);
-    setMeta('meta[name="twitter:description"]', description);
-    setMeta('meta[name="twitter:url"]', pageUrl);
-    setMeta('meta[name="twitter:image:alt"]', site.imageAlt);
-    document.head.querySelector('link[rel="canonical"]')?.setAttribute('href', pageUrl);
-    document.head.querySelector('link[hreflang="es"]')?.setAttribute('href', `${pageUrl}?lang=es`);
-    document.head.querySelector('link[hreflang="en"]')?.setAttribute('href', `${pageUrl}?lang=en`);
-    document.head.querySelector('link[hreflang="x-default"]')?.setAttribute('href', pageUrl);
-  }, [baseAlgorithm.description, baseAlgorithm.name, showWelcome, language]);
+    setMeta('meta[property="og:title"]', seo.title);
+    setMeta('meta[property="og:description"]', seo.description);
+    setMeta('meta[property="og:url"]', seo.url);
+    setMeta('meta[property="og:image"]', SOCIAL_IMAGE_URL);
+    setMeta('meta[property="og:image:url"]', SOCIAL_IMAGE_URL);
+    setMeta('meta[property="og:image:secure_url"]', SOCIAL_IMAGE_URL);
+    setMeta('meta[property="og:image:alt"]', seo.imageAlt);
+    setMeta('meta[name="twitter:title"]', seo.title);
+    setMeta('meta[name="twitter:description"]', seo.description);
+    setMeta('meta[name="twitter:url"]', seo.url);
+    setMeta('meta[name="twitter:image"]', SOCIAL_IMAGE_URL);
+    setMeta('meta[name="twitter:image:alt"]', seo.imageAlt);
+    document.head.querySelector('link[rel="canonical"]')?.setAttribute('href', seo.url);
+    document.head.querySelector('link[hreflang="es"]')?.setAttribute('href', seoUrl(currentId, 'es'));
+    document.head.querySelector('link[hreflang="en"]')?.setAttribute('href', seoUrl(currentId, 'en'));
+    document.head.querySelector('link[hreflang="x-default"]')?.setAttribute('href', seoUrl(currentId, 'es'));
+    let schema = document.head.querySelector('#dsa-structured-data');
+    if (!schema) {
+      schema = document.createElement('script');
+      schema.id = 'dsa-structured-data';
+      schema.type = 'application/ld+json';
+      document.head.appendChild(schema);
+    }
+    schema.textContent = JSON.stringify(structuredData(showWelcome ? null : sourceAlgorithm, language));
+  }, [language, showWelcome, sourceAlgorithm]);
   useEffect(() => {
     if (isTheoryPage || javaCodeFactory) return;
     let active = true;
@@ -2812,11 +2837,12 @@ function App() {
     openAlgorithm(algorithms[(index+delta+algorithms.length)%algorithms.length].id);
   };
   const updateRoute = useCallback(id => {
-    const nextUrl = id
-      ? `/${encodeURIComponent(id)}${window.location.search}`
-      : `/${window.location.search}`;
+    const parameters = new URLSearchParams(window.location.search);
+    parameters.delete('lang');
+    const search = parameters.toString();
+    const nextUrl = `${seoPath(id, language)}${search ? `?${search}` : ''}`;
     window.history.pushState({ dsaLab: id ?? 'welcome' }, '', nextUrl);
-  }, []);
+  }, [language]);
   const registerTestViolation = useCallback(reason => {
     if (!sectionTestActive) return;
     setSectionTestViolation({ reason, time: Date.now() });
@@ -3089,7 +3115,7 @@ function App() {
       </>}
 
       <section className="learning-strip"><div><BookOpen size={18}/><span><b>{language === 'en' ? categoryDescriptions[algorithm.category] ?? categoryLabels[algorithm.category] : categoryLabels[algorithm.category]}</b> · {algorithm.name}</span></div></section>
-      <footer className="algorithm-nav"><button onClick={()=>selectRelative(-1)}><ArrowLeft size={16}/><span><small>{t('previous')}</small>{localizeAlgorithm(algorithms[(selectedIndex-1+algorithms.length)%algorithms.length], language).name}</span></button><button onClick={()=>selectRelative(1)}><span><small>{t('next')}</small>{localizeAlgorithm(algorithms[(selectedIndex+1)%algorithms.length], language).name}</span><ArrowRight size={16}/></button></footer>
+      <footer className="algorithm-nav"><a href={seoPath(algorithms[(selectedIndex-1+algorithms.length)%algorithms.length].id, language)} onClick={event=>{event.preventDefault();selectRelative(-1)}}><ArrowLeft size={16}/><span><small>{t('previous')}</small>{localizeAlgorithm(algorithms[(selectedIndex-1+algorithms.length)%algorithms.length], language).name}</span></a><a href={seoPath(algorithms[(selectedIndex+1)%algorithms.length].id, language)} onClick={event=>{event.preventDefault();selectRelative(1)}}><span><small>{t('next')}</small>{localizeAlgorithm(algorithms[(selectedIndex+1)%algorithms.length], language).name}</span><ArrowRight size={16}/></a></footer>
       </>}
     </main>
     <button className="guided-tour-launch" type="button" onClick={startGuidedTour} aria-label={t('guidedTourLabel')}><CircleHelp size={19}/><span>{t('howItWorks')}</span></button>

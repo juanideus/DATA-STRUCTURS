@@ -14,15 +14,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/generate-seo.mjs",
     "preview": "vite preview",
     "audit": "node scripts/audit-functions.mjs",
     "audit:challenges": "node scripts/audit-challenges.mjs",
     "audit:section-tests": "node scripts/audit-section-tests.mjs",
     "audit:java": "node scripts/compile-java-audit.mjs",
     "audit:stress": "node scripts/stress-audit.mjs",
+    "audit:seo": "node scripts/audit-seo.mjs",
     "test:e2e": "node scripts/run-e2e.mjs",
-    "check": "npm run audit && npm run audit:challenges && npm run audit:section-tests && npm run audit:java && npm run audit:stress && npm run test:e2e"
+    "check": "npm run audit && npm run audit:challenges && npm run audit:section-tests && npm run audit:java && npm run audit:stress && npm run build && npm run audit:seo && npm run test:e2e"
   },
   "dependencies": {
     "@vercel/analytics": "2.0.1",
