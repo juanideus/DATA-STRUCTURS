@@ -1,4 +1,23 @@
 const numeric = value => Number(value);
+const EMPTY_POSITIONS = Object.freeze([]);
+
+function numericBounds(values) {
+  let minimum = numeric(values[0]);
+  let maximum = minimum;
+  for (let index = 1; index < values.length; index++) {
+    const value = numeric(values[index]);
+    if (value < minimum) minimum = value;
+    if (value > maximum) maximum = value;
+  }
+  return { minimum, maximum };
+}
+
+function valuesAreOrdered(values) {
+  for (let index = 1; index < values.length; index++) {
+    if (numeric(values[index - 1]) > numeric(values[index])) return false;
+  }
+  return true;
+}
 
 function variables(values, entries = {}) {
   return [
@@ -17,22 +36,33 @@ function createTrace(values, edges, algorithmId) {
   const working = [...values];
   const frames = [];
   const fixed = new Set();
+  const stableEdges = edges.map(edge => [...edge]);
+  const fullRange = working.length ? [0, working.length - 1] : null;
+  let fixedSnapshot = EMPTY_POSITIONS;
+  let fixedSnapshotSize = 0;
+  const currentFixedPositions = () => {
+    if (fixed.size !== fixedSnapshotSize) {
+      fixedSnapshot = [...fixed];
+      fixedSnapshotSize = fixed.size;
+    }
+    return fixedSnapshot;
+  };
   const add = (codeNeedle, message, sortPhase, options = {}) => {
     const length = working.length;
     const rawPosition = options.position ?? options.sortWriteIndex ?? options.sortComparePositions?.[0] ?? 0;
     frames.push({
       values: [...working],
-      edges: edges.map(edge => [...edge]),
+      edges: stableEdges,
       position: Math.max(0, Math.min(Math.max(0, length - 1), rawPosition)),
       codeNeedle,
       message,
       sortPhase,
-      sortRange: options.sortRange ?? (length ? [0, length - 1] : null),
-      sortComparePositions: options.sortComparePositions ?? [],
-      sortSwapPositions: options.sortSwapPositions ?? [],
-      sortFixedPositions: options.sortFixedPositions ?? [...fixed],
+      sortRange: options.sortRange ?? fullRange,
+      sortComparePositions: options.sortComparePositions ?? EMPTY_POSITIONS,
+      sortSwapPositions: options.sortSwapPositions ?? EMPTY_POSITIONS,
+      sortFixedPositions: options.sortFixedPositions ?? currentFixedPositions(),
       sortWriteIndex: options.sortWriteIndex ?? null,
-      sortAuxValues: options.sortAuxValues,
+      sortAuxValues: Array.isArray(options.sortAuxValues) ? [...options.sortAuxValues] : options.sortAuxValues,
       sortAuxLabel: options.sortAuxLabel,
       sortGap: options.sortGap,
       sortAttempt: options.sortAttempt,
@@ -58,7 +88,7 @@ function createTrace(values, edges, algorithmId) {
   const finish = message => {
     for (let i = 0; i < working.length; i++) fixed.add(i);
     add('return;', message, `${algorithmId}-complete`, { completed: true, delayMs: 500 });
-    return { ok: true, values: working, edges, message, step: 0, frames };
+    return { ok: true, values: working, edges: stableEdges, message, step: 0, frames };
   };
   return { working, frames, fixed, add, swap, finish };
 }
@@ -257,8 +287,7 @@ function countingSort(values, edges) {
   add('void countingSort() {', 'Counting Sort contará las frecuencias antes de reconstruir el arreglo.', 'counting-start');
   add('if (size < 2) return;', working.length < 2 ? 'Hay menos de dos valores: el arreglo ya está ordenado.' : 'Hay al menos dos valores: comienza el conteo.', 'counting-size-check', { variables: { condición: working.length < 2 } });
   if (working.length < 2) return trace.finish('Counting Sort terminó: no era necesario mover valores.');
-  const min = Math.min(...working.map(numeric));
-  const max = Math.max(...working.map(numeric));
+  const { minimum: min, maximum: max } = numericBounds(working);
   const range = max - min + 1;
   if (!Number.isSafeInteger(range) || range > 4096) {
     return { ok: false, message: 'Counting Sort necesita un rango entre mínimo y máximo de hasta 4096 posiciones para mantener segura esta demostración.' };
@@ -297,8 +326,8 @@ function radixSort(values, edges) {
   add('void radixSort() {', 'Radix Sort preparará claves no negativas y las ordenará dígito por dígito.', 'radix-start');
   add('if (size < 2) return;', working.length < 2 ? 'Hay menos de dos valores: el arreglo ya está ordenado.' : 'Hay al menos dos valores: comienzan las pasadas por dígito.', 'radix-size-check', { variables: { condición: working.length < 2 } });
   if (working.length < 2) return trace.finish('Radix Sort terminó: no era necesario mover valores.');
-  const min = Math.min(...working.map(numeric));
-  const maxKey = Math.max(...working.map(value => numeric(value) - min));
+  const { minimum: min, maximum: max } = numericBounds(working);
+  const maxKey = max - min;
   add('int offset = findMinimum();', `Se usa ${min} como desplazamiento; value - offset será una clave no negativa.`, 'radix-offset', { variables: { offset: min, maxKey } });
   add('int maxKey = findMaximum() - offset;', `La clave desplazada más grande es ${maxKey}.`, 'radix-maximum', { variables: { offset: min, maxKey } });
   const output = new Array(working.length);
@@ -340,23 +369,22 @@ function bogoSort(values, edges) {
   if (working.length > 7) {
     return { ok: false, message: 'Bogo Sort real se limita a 7 valores: su tiempo esperado crece como n! y una entrada mayor puede bloquear el navegador.' };
   }
-  const ordered = () => working.every((value, index) => index === 0 || numeric(working[index - 1]) <= numeric(value));
   let seed = working.reduce((total, value, index) => (total + (numeric(value) || 0) * (index + 3)) >>> 0, 2166136261);
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
     return seed / 4294967296;
   };
-  const checkOrder = (show, attempt) => {
+  const showOrderCheck = attempt => {
     for (let i = 1; i < working.length; i++) {
-      if (show) add('for (int i = 1; i < size; i++) {', `isSorted compara los índices ${i - 1} y ${i}.`, 'bogo-check-loop', { position: i, sortComparePositions: [i - 1, i], sortAttempt: attempt, variables: { attempt, i } });
+      add('for (int i = 1; i < size; i++) {', `isSorted compara los índices ${i - 1} y ${i}.`, 'bogo-check-loop', { position: i, sortComparePositions: [i - 1, i], sortAttempt: attempt, variables: { attempt, i } });
       const outOfOrder = numeric(working[i - 1]) > numeric(working[i]);
-      if (show) add('if (values[i - 1] > values[i]) {', `${working[i - 1]} ${outOfOrder ? '>' : '≤'} ${working[i]}.`, 'bogo-compare', { position: i, sortComparePositions: [i - 1, i], sortAttempt: attempt, variables: { attempt, i, condición: outOfOrder } });
+      add('if (values[i - 1] > values[i]) {', `${working[i - 1]} ${outOfOrder ? '>' : '≤'} ${working[i]}.`, 'bogo-compare', { position: i, sortComparePositions: [i - 1, i], sortAttempt: attempt, variables: { attempt, i, condición: outOfOrder } });
       if (outOfOrder) {
-        if (show) add('return false;', 'isSorted encuentra una inversión y devuelve false.', 'bogo-not-sorted', { position: i, sortComparePositions: [i - 1, i], sortAttempt: attempt, variables: { attempt, i } });
+        add('return false;', 'isSorted encuentra una inversión y devuelve false.', 'bogo-not-sorted', { position: i, sortComparePositions: [i - 1, i], sortAttempt: attempt, variables: { attempt, i } });
         return false;
       }
     }
-    if (show) add('return true;', 'No quedan inversiones: isSorted devuelve true.', 'bogo-sorted', { position: Math.max(0, working.length - 1), sortAttempt: attempt, variables: { attempt } });
+    add('return true;', 'No quedan inversiones: isSorted devuelve true.', 'bogo-sorted', { position: Math.max(0, working.length - 1), sortAttempt: attempt, variables: { attempt } });
     return true;
   };
   const shuffle = (show, attempt) => {
@@ -378,21 +406,24 @@ function bogoSort(values, edges) {
   const visibleAttempts = 8;
   const maximumAttempts = 250000;
   let omittedAttempts = 0;
+  let isOrdered = valuesAreOrdered(working);
   while (attempt < maximumAttempts) {
-    const showCheck = attempt < visibleAttempts || ordered();
-    const knownOrder = ordered();
-    if (showCheck) add('while (!isSorted()) {', knownOrder ? 'Se evalúa isSorted para confirmar que el arreglo ya está ordenado.' : `Se evalúa isSorted antes del intento ${attempt + 1}.`, 'bogo-check', { sortAttempt: attempt, variables: { attempt, condición: !knownOrder } });
-    const isOrdered = checkOrder(showCheck, attempt);
+    const showCheck = attempt < visibleAttempts || isOrdered;
+    if (showCheck) {
+      add('while (!isSorted()) {', isOrdered ? 'Se evalúa isSorted para confirmar que el arreglo ya está ordenado.' : `Se evalúa isSorted antes del intento ${attempt + 1}.`, 'bogo-check', { sortAttempt: attempt, variables: { attempt, condición: !isOrdered } });
+      showOrderCheck(attempt);
+    }
     if (isOrdered) break;
     attempt++;
     const showShuffle = attempt <= visibleAttempts;
     shuffle(showShuffle, attempt);
     if (!showShuffle) omittedAttempts++;
-    if (!showShuffle && ordered()) {
+    isOrdered = valuesAreOrdered(working);
+    if (!showShuffle && isOrdered) {
       add('shuffle();', `La mezcla aleatoria real ${attempt} produjo el orden; se omitieron ${omittedAttempts} intentos intermedios para que la animación sea utilizable.`, 'bogo-shuffle', { sortAttempt: attempt, variables: { attempt }, delayMs: 600 });
     }
   }
-  if (!ordered()) {
+  if (!isOrdered) {
     return { ok: false, message: `Bogo Sort realizó ${maximumAttempts} mezclas aleatorias reales sin encontrar el orden. Restablece o genera un ejemplo más pequeño para volver a intentarlo.` };
   }
   return trace.finish(`Bogo Sort terminó después de ${attempt} mezcla${attempt === 1 ? '' : 's'} aleatoria${attempt === 1 ? '' : 's'} real${attempt === 1 ? '' : 'es'}.`);

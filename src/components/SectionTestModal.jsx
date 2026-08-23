@@ -10,16 +10,16 @@ const violationLabels = {
   history: 'Se utilizó la navegación del navegador durante la prueba.',
   unload: 'Se cerró o recargó la página durante la prueba.',
 };
+const LINEAR_VISUAL_TYPES = new Set(['array', 'queue', 'deque', 'linked-list', 'skip-list', 'polynomial', 'cache']);
+const TREE_VISUAL_TYPES = new Set(['tree', 'general-tree', 'nary-tree', 'binary-tree', 'bst', 'avl', 'red-black', 'splay', 'threaded-tree', 'heap', 'range-tree', 'btree', 'merkle', 'trie', 'expression', 'ast']);
+const GRID_VISUAL_TYPES = new Set(['matrix', 'sparse-matrix', 'board', 'sudoku', 'maze', 'spatial']);
 
 function QuestionVisual({ visual, language }) {
   if (!visual) return null;
   const type = visual.type;
-  const linearTypes = new Set(['array', 'queue', 'deque', 'linked-list', 'skip-list', 'polynomial', 'cache']);
-  const treeTypes = new Set(['tree', 'general-tree', 'nary-tree', 'binary-tree', 'bst', 'avl', 'red-black', 'splay', 'threaded-tree', 'heap', 'range-tree', 'btree', 'merkle', 'trie', 'expression', 'ast']);
-  const gridTypes = new Set(['matrix', 'sparse-matrix', 'board', 'sudoku', 'maze', 'spatial']);
 
   let drawing;
-  if (linearTypes.has(type)) {
+  if (LINEAR_VISUAL_TYPES.has(type)) {
     drawing = <>
       {[0, 1, 2, 3].map(index => <g key={index}>
         <rect x={32 + index * 62} y={58 - (type === 'skip-list' && index % 2 ? 14 : 0)} width="44" height="38" rx="7"/>
@@ -33,7 +33,7 @@ function QuestionVisual({ visual, language }) {
     </>;
   } else if (type === 'stack') {
     drawing = <>{[0, 1, 2, 3].map(index => <g key={index}><rect x="112" y={104 - index * 28} width="76" height="24" rx="5"/><text x="150" y={121 - index * 28}>{String.fromCharCode(65 + index)}</text></g>)}<path d="M205 31 L190 31"/><text className="diagram-label" x="210" y="35">top</text></>;
-  } else if (treeTypes.has(type)) {
+  } else if (TREE_VISUAL_TYPES.has(type)) {
     const root = type === 'trie' ? 'P' : type === 'expression' ? '+' : type === 'ast' ? '=' : type === 'heap' ? '90' : type === 'bst' ? '50' : type === 'avl' ? '40' : type === 'splay' ? '↑' : 'R';
     drawing = <>
       <path d="M150 40 L92 77 M150 40 L208 77 M92 77 L60 112 M92 77 L120 112 M208 77 L180 112 M208 77 L240 112"/>
@@ -54,7 +54,7 @@ function QuestionVisual({ visual, language }) {
       {type === 'route' && <path className="diagram-route" d="M55 85 L120 38 L185 87 L250 45"/>}
       {type === 'route' && <><text className="diagram-label" x="82" y="55">2</text><text className="diagram-label" x="150" y="55">3</text></>}
     </>;
-  } else if (gridTypes.has(type)) {
+  } else if (GRID_VISUAL_TYPES.has(type)) {
     drawing = <>
       {[0,1,2,3].flatMap(row => [0,1,2,3].map(column => <rect key={`${row}-${column}`} className={(type === 'sparse-matrix' && ![[0,2],[2,1],[3,3]].some(([r,c])=>r===row&&c===column)) || (type === 'maze' && [[0,1],[1,1],[2,3]].some(([r,c])=>r===row&&c===column)) ? 'diagram-muted' : ''} x={91 + column*30} y={20 + row*30} width="28" height="28" rx="3"/>))}
       {type === 'board' && <><text x="105" y="42">♛</text><text x="195" y="102">♛</text></>}
