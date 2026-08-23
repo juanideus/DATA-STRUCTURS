@@ -585,7 +585,7 @@ npm run build
 npm run audit:seo
 ```
 
-Después del despliegue, el propietario debe verificar el sitio en Google Search Console y enviar `https://data-structurs.vercel.app/sitemap.xml`. Si se adopta un dominio propio, también se debe actualizar `SITE_ORIGIN` en `src/seo.js`, volver a desplegar y registrar el nuevo dominio en Search Console.
+Después del despliegue, el propietario debe verificar `dsalab.dev` como propiedad de dominio en Google Search Console y enviar `https://dsalab.dev/sitemap.xml`.
 
 ## Contribuciones
 

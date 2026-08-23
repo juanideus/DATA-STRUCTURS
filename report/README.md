@@ -37,7 +37,7 @@ Configura en **Environment**:
 ```env
 RESEND_API_KEY=re_xxxxxxxxx
 REPORT_EMAIL=correo-asociado-a-resend@ejemplo.com
-ALLOWED_ORIGINS=https://tu-proyecto.vercel.app,http://localhost:5173
+ALLOWED_ORIGINS=https://dsalab.dev,http://localhost:5173
 REPORT_FROM=DSA Lab <onboarding@resend.dev>
 NODE_ENV=production
 ```
