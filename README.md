@@ -1,664 +1,586 @@
 <div align="center">
-  <img src="./src/assets/favicon-dsa.svg" alt="Logo de DSA Lab" width="92" />
+  <img src="./src/assets/favicon-dsa.svg" alt="Logo de DSA Lab" width="96" />
 
   # DSA Lab
 
-  **Laboratorio interactivo para aprender estructuras de datos y algoritmos mediante visualizaciones, animaciones y código Java para principiantes.**
+  **Laboratorio bilingüe para visualizar, practicar y comprender estructuras de datos y algoritmos.**
 
+  [Abrir DSA Lab](https://www.dsalab.dev/) · [Informar un problema](https://www.dsalab.dev/)
+
+  [![Validación](https://github.com/juanideus/DATA-STRUCTURS/actions/workflows/ci.yml/badge.svg)](https://github.com/juanideus/DATA-STRUCTURS/actions/workflows/ci.yml)
   [![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)](https://react.dev/)
   [![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](https://vite.dev/)
-  [![JavaScript](https://img.shields.io/badge/JavaScript-ES_Modules-F7DF1E?logo=javascript&logoColor=111)](https://developer.mozilla.org/docs/Web/JavaScript)
-  [![License: MIT](https://img.shields.io/badge/License-MIT-2f6f5e.svg)](./LICENSE)
+  [![Vercel](https://img.shields.io/badge/Despliegue-Vercel-000?logo=vercel)](https://www.dsalab.dev/)
+  [![License: MIT](https://img.shields.io/badge/Licencia-MIT-365f87.svg)](./LICENSE)
 
-  Desarrollado por **Juan Zúñiga Maluenda**
+  Creado por **Juan Zúñiga Maluenda**
 </div>
 
 ---
 
-## Tabla de contenidos
+## Contenido
 
-- [Acerca del proyecto](#acerca-del-proyecto)
-- [Objetivos educativos](#objetivos-educativos)
-- [Características principales](#características-principales)
-- [Catálogo de contenidos](#catálogo-de-contenidos)
-- [Cómo funciona la experiencia](#cómo-funciona-la-experiencia)
+- [Qué es DSA Lab](#qué-es-dsa-lab)
+- [Estado actual](#estado-actual)
+- [Características](#características)
+- [Catálogo educativo](#catálogo-educativo)
+- [Cómo aprende un estudiante](#cómo-aprende-un-estudiante)
+- [Arquitectura](#arquitectura)
 - [Tecnologías](#tecnologías)
-- [Requisitos](#requisitos)
-- [Instalación](#instalación)
-- [Scripts disponibles](#scripts-disponibles)
-- [Estructura del proyecto](#estructura-del-proyecto)
-- [Auditoría y calidad](#auditoría-y-calidad)
+- [Instalación local](#instalación-local)
+- [Variables de entorno](#variables-de-entorno)
+- [Scripts y calidad](#scripts-y-calidad)
 - [Despliegue](#despliegue)
-- [Reporte de errores](#reporte-de-errores)
-- [Accesibilidad y diseño adaptable](#accesibilidad-y-diseño-adaptable)
-- [SEO y rastreo](#seo-y-rastreo)
+- [API de reportes](#api-de-reportes)
+- [Accesibilidad](#accesibilidad)
+- [Internacionalización](#internacionalización)
+- [SEO y dominio](#seo-y-dominio)
+- [Seguridad y privacidad](#seguridad-y-privacidad)
 - [Contribuciones](#contribuciones)
+- [Limitaciones conocidas](#limitaciones-conocidas)
 - [Hoja de ruta](#hoja-de-ruta)
-- [Autor](#autor)
 - [Licencia](#licencia)
 
-## Acerca del proyecto
+## Qué es DSA Lab
 
-**DSA Lab** es una aplicación web educativa que convierte estructuras de datos y algoritmos en experiencias visuales e interactivas. Su propósito es ayudar a estudiantes que están comenzando a comprender qué ocurre dentro de un algoritmo, en lugar de limitarse a observar su resultado final.
+DSA Lab es una aplicación web educativa para estudiantes que están comenzando con estructuras de datos y algoritmos. En lugar de mostrar únicamente el resultado, representa la ejecución paso a paso y relaciona cada cambio con el código Java que lo produce.
 
-La plataforma permite modificar ejemplos, ejecutar operaciones, reproducir animaciones paso a paso y comparar cada cambio visual con código Java sencillo. De esta forma, el estudiante puede usar la aplicación como punto de apoyo para comprender conceptos, experimentar sin miedo y desarrollar sus propias soluciones.
+El estudiante puede ingresar sus propios datos, ejecutar operaciones, pausar, avanzar o retroceder la animación, revisar variables en tiempo real y comparar el comportamiento visual con Java o pseudocódigo.
 
-La idea central del proyecto es:
+El objetivo no es reemplazar las clases ni convertirse en un IDE. Es un punto de apoyo para:
 
-> **Visualiza, comprende y crea. El límite es tu imaginación.**
+- Entender qué ocurre internamente en una estructura.
+- Relacionar teoría, código, variables y resultado.
+- Experimentar sin miedo a equivocarse.
+- Practicar antes de implementar un algoritmo desde cero.
+- Detectar visualmente decisiones, ciclos, recursión y backtracking.
 
-## Objetivos educativos
+> **Visualiza, comprende y crea. El límite es tu imaginación. Tú puedes.**
 
-DSA Lab fue creado para:
+## Estado actual
 
-- Facilitar el aprendizaje inicial de estructuras de datos y algoritmos.
-- Mostrar visualmente cómo cambia una estructura después de cada operación.
-- Relacionar la animación con las líneas de código que se están ejecutando.
-- Presentar Java de forma directa, evitando abstracciones innecesarias para principiantes.
-- Permitir que el estudiante agregue, elimine, busque y modifique datos.
-- Ayudar a comprender recursividad y backtracking mediante decisiones y retrocesos visibles.
-- Servir como referencia antes de implementar un algoritmo desde cero.
-- Promover la experimentación y el aprendizaje autónomo.
+| Indicador | Estado |
+|---|---:|
+| Temas educativos | 86 |
+| Laboratorios interactivos | 66 |
+| Secciones de fundamentos | 20 |
+| Operaciones disponibles | 310 |
+| Fragmentos Java compilados en auditoría | 310 |
+| Pruebas conceptuales | 10 preguntas por tema |
+| Idiomas | Español e inglés |
+| Páginas SEO generadas | 174 |
+| Despliegue web | Vercel |
+| API de reportes | Render + Resend |
+| Dominio canónico | [www.dsalab.dev](https://www.dsalab.dev/) |
 
-## Características principales
+La aplicación funciona sin cuentas de usuario ni base de datos para las actividades educativas. Las preferencias, avances de desafíos y resultados locales se guardan en el navegador.
 
-### Laboratorio visual interactivo
+## Características
 
-- Visualizaciones específicas para arrays, listas, árboles, heaps, grafos, hashing y otros temas.
-- Controles para insertar, eliminar, buscar, actualizar, recorrer y restablecer datos.
-- Botones **Nuevo ejemplo** y **Restablecer** en cada tema.
-- Reproductor con pasos anterior/siguiente, pausa y reproducción automática.
-- Velocidades de reproducción `0.5×`, `1×` y `2×`.
-- Mensajes que explican qué está ocurriendo durante la operación.
-- Sección teórica de complejidad algorítmica con notación O, Ω y Θ, casos, reglas de conteo, tabla comparativa y gráfico de crecimiento, sin código ni controles interactivos.
-- Polinomios enlazados con términos ordenados por exponente, agrupación de exponentes repetidos y suma visual mediante punteros.
-- Listas generalizadas con átomos, sublistas, niveles, referencias compartidas y enlaces `link`/`dlink`.
-- Matriz poco poblada con cabeceras AROW y ACOL, nodos compartidos y recorridos circulares invertidos.
+### Visualización y operaciones
+
+- Representaciones específicas para arrays, listas, árboles, grafos, hashing, matrices, recursión, backtracking y ordenamientos.
+- Inserción, eliminación, búsqueda, actualización y recorridos según las reglas de cada estructura.
+- Botón **Nuevo ejemplo** para generar otros datos.
+- Botón **Vaciar** para comenzar desde cero.
+- Botón **Restablecer** para recuperar el ejemplo original.
+- Límite suficiente para observar divisiones, promociones, rotaciones y rebalanceos.
+- Reproductor con paso anterior, reproducción, pausa, paso siguiente y velocidades `0.5×`, `1×` y `2×`.
 
 ### Código sincronizado
 
-- Panel de código Java para principiantes.
-- Pseudocódigo disponible como formato alternativo.
-- Resaltado de la línea que corresponde al paso actual de la animación.
-- Ejemplos deliberadamente sencillos, con variables, ciclos, condiciones, arreglos y métodos pequeños.
-- Botón para copiar el código mostrado.
+- Código Java directo y deliberadamente pedagógico.
+- Pseudocódigo como vista alternativa.
+- Línea activa sincronizada con el cambio visual.
+- Ciclos que muestran sus iteraciones y regresan a evaluar la condición.
+- Condiciones con resultado visible `true` o `false`.
+- Métodos auxiliares incluidos cuando el algoritmo los utiliza.
+- Variables en tiempo real asociadas al fotograma actual.
+- Botón para copiar el código.
 
-### Modo desafío guiado
+### Evaluaciones por tema
 
-- Preguntas de predicción construidas a partir del estado real de la estructura.
-- Disponible en los 66 laboratorios prácticos; cada desafío utiliza una operación real del tema y el estado actual del visualizador.
-- Tres respuestas posibles, pista opcional y explicación posterior al intento.
-- Botón para comprobar la predicción ejecutando la operación en el visualizador.
-- Progreso local con intentos, aciertos, porcentaje y uso de pistas, sin cuentas ni base de datos.
-- Preguntas especializadas para Array, Pila, Cola, Binary Search Tree y AVL, junto con predicciones de estado generadas para el resto de estructuras y algoritmos.
+- Prueba conceptual diferente para cada estructura o algoritmo.
+- Diez preguntas de materia por intento.
+- Diagramas y ejercicios de lectura de código cuando corresponde.
+- Puntaje, porcentaje y estado de aprobación.
+- Revisión final con la respuesta elegida, la correcta y una explicación.
+- Regla contra copia: abandonar la pestaña, ventana o sección cancela el intento y bloquea esa prueba durante 45 minutos.
+- El bloqueo y el historial se conservan localmente en el navegador.
 
-### Contenido educativo
+### Modo desafío
 
-Cada tema incluye una guía con:
+- Predicciones construidas desde el estado real del visualizador.
+- Pistas opcionales.
+- Explicación después de responder.
+- Comprobación mediante la misma operación que ejecuta el laboratorio.
+- Progreso local de intentos, aciertos y pistas utilizadas.
 
-- Definición de la estructura o algoritmo.
-- Explicación de su funcionamiento interno.
-- Ejemplo conceptual.
-- Operaciones principales.
-- Ventajas.
-- Limitaciones y cuidados.
-- Casos de uso reales.
-- Complejidad temporal o espacial principal.
-- Ejemplo básico en Java.
-- Una idea importante para recordar.
+### Experiencia de uso
 
-### Visualizaciones especiales
-
-- Árbol AVL con factor de balance.
-- Listas circulares con flechas de retorno.
-- Lista doble y lista circular doble con enlaces en ambos sentidos.
-- Prefix Tree con forma de árbol y nodos finales de palabra identificados.
-- B-Tree, B+ Tree y B* Tree con nodos multiclave.
-- B+ Tree con hojas enlazadas, división balanceada y promoción visible de separadores.
-- Sudoku `9×9` resuelto con recursividad y backtracking.
-- N-Reinas con visualización del método `isSafe`.
-- Laberinto con avance, choque, retroceso y caminos descartados.
-- Torres de Hanoi con movimientos animados.
-- Grafos con recorridos y aristas visibles.
-
-### Experiencia de usuario
-
-- Introducción animada al abrir la página.
-- Página de bienvenida con explicación del propósito del laboratorio.
-- Buscador de algoritmos en el menú lateral.
-- Navegación por categorías y entre temas anterior/siguiente.
+- Bienvenida e introducción animada.
+- Tour guiado mediante el botón **¿Cómo funciona?**.
+- Menú lateral plegable y categorías replegables.
+- Buscador por nombre, categoría o traducción.
+- Navegación anterior y siguiente entre temas.
+- Formulario para reportar problemas directamente al equipo.
 - Diseño adaptable para escritorio, tablet y móvil.
-- Favicon y marca visual de DSA Lab.
-- Crédito de autor visible en el menú lateral.
-- Formulario para enviar reportes directamente al equipo del proyecto.
+- Métricas de rendimiento con Vercel Analytics y Speed Insights.
 
-## Catálogo de contenidos
+### Visualizaciones destacadas
 
-La versión actual contiene **86 temas**, agrupados en nueve categorías.
+- AVL con alturas, factor de balance y rotaciones.
+- Heap con extracción completa, reemplazo de raíz y heapificación.
+- B-Tree, B+ Tree y B* Tree con nodos multiclave y promociones.
+- Árbol binario enhebrado con hijos e hilos diferenciados.
+- Prefix Tree con marcas de final de palabra.
+- Fibonacci y Factorial mediante árboles de llamadas.
+- Dijkstra y A* sobre mapas con origen y destino variables.
+- Quick Sort, Merge Sort y otros ocho ordenamientos con trazas propias.
+- Sudoku `9×9`, N-Reinas y Laberinto con backtracking visible.
+- Matriz poco poblada mediante cabeceras `AROW` y `ACOL` circulares e invertidas.
+- Polinomios y listas generalizadas basados en nodos enlazados.
+- AST con precedencia, tipos de nodo y recorrido recursivo.
 
-### 0. Fundamentos — 20 temas
+## Catálogo educativo
 
-- ¿Qué son las estructuras de datos?
-- Complejidad algorítmica
-- Programación Orientada a Objetos (POO)
-- Variables, tipos y operadores
-- Condiciones y ciclos
-- Métodos y parámetros
-- Punteros y referencias
-- Manejo de memoria en Java
-- Fundamentos de recursividad
-- Tipos de Datos Abstractos (TDA)
-- Genéricos en Java
-- Errores y excepciones
-- Comparación y ordenamiento de objetos
-- Diseño y representación de algoritmos
-- Correctitud de algoritmos
-- Pruebas y depuración
-- Fundamentos de Backtracking
-- Fundamentos de Búsqueda Binaria
-- Fundamentos de Divide y Vencerás
-- Fundamentos de Programación Dinámica
+La navegación está organizada en nueve categorías.
 
-### 1. Estructuras lineales — 9 temas
+| Categoría | Cantidad | Contenidos |
+|---|---:|---|
+| Estructuras lineales | 9 | Array, Stack, Queue, Deque, listas simple/doble/circulares y Skip List |
+| Árboles | 23 | Árboles generales, binarios, balanceados, multicamino, espaciales, de texto y sintaxis |
+| Hashing | 3 | Hash Table, Open Addressing y Separate Chaining |
+| Grafos | 8 | Grafos, BFS, DFS, Dijkstra, A*, Prim y Kruskal |
+| Recursión | 3 | Fibonacci, Factorial y Torres de Hanoi |
+| Ordenamientos | 10 | Bubble, Selection, Insertion, Merge, Quick, Shell, Heap, Counting, Radix y Bogo Sort |
+| Backtracking | 3 | N-Reinas, Laberinto y Sudoku `9×9` |
+| Otros | 7 | Matrices, polinomios, listas generalizadas, Union-Find, LRU y Bloom Filter |
+| Fundamentos | 20 | Bases de programación, algoritmos, memoria, complejidad, POO y paradigmas |
 
-1. Array
-2. Pila (Stack)
-3. Cola (Queue)
-4. Deque
-5. Lista simple
-6. Lista doble
-7. Lista circular simple
-8. Lista circular doble
-9. Skip List
+<details>
+<summary><strong>Ver los 23 árboles</strong></summary>
 
-### 2. Árboles — 23 temas
+1. Árbol general
+2. Árbol N-ario
+3. Árbol binario
+4. Árbol binario enhebrado
+5. Binary Search Tree
+6. Árbol AVL
+7. Árbol Rojo-Negro
+8. Splay Tree
+9. Heap binario
+10. Fibonacci Heap
+11. Prefix Tree
+12. Suffix Tree
+13. Segment Tree
+14. Fenwick Tree
+15. B-Tree
+16. B+ Tree
+17. B* Tree
+18. Merkle Tree
+19. KD-Tree
+20. QuadTree
+21. Octree
+22. Árbol de expresión
+23. AST (Abstract Syntax Tree)
 
-10. Árbol general
-11. Árbol N-ario
-12. Árbol binario
-13. Árbol binario enhebrado
-14. Binary Search Tree
-15. Árbol AVL
-16. Árbol Rojo-Negro
-17. Splay Tree
-18. Heap binario
-19. Fibonacci Heap
-20. Prefix Tree
-21. Suffix Tree
-22. Segment Tree
-23. Fenwick Tree
-24. B-Tree
-25. B+ Tree
-26. B* Tree
-27. Merkle Tree
-28. KD-Tree
-29. QuadTree
-30. Octree
-31. Árbol de expresión
-32. AST (Abstract Syntax Tree)
+</details>
 
-### 3. Hashing — 3 temas
+<details>
+<summary><strong>Ver los 20 fundamentos</strong></summary>
 
-33. Hash Table
-34. Open Addressing
-35. Separate Chaining
+1. Estructuras de datos
+2. Complejidad algorítmica
+3. Programación Orientada a Objetos
+4. Variables, tipos y operadores
+5. Condiciones y ciclos
+6. Métodos y parámetros
+7. Punteros y referencias
+8. Manejo de memoria
+9. Recursividad
+10. Tipos de Datos Abstractos
+11. Genéricos
+12. Errores y excepciones
+13. Comparación y ordenamiento de objetos
+14. Diseño y representación de algoritmos
+15. Correctitud de algoritmos
+16. Pruebas y depuración
+17. Backtracking
+18. Búsqueda binaria
+19. Divide y vencerás
+20. Programación dinámica
 
-### 4. Grafos — 8 temas
+</details>
 
-36. Grafo
-37. Grafo dirigido
-38. DFS
-39. BFS
-40. Dijkstra
-41. A* (A-Star)
-42. Prim
-43. Kruskal
+## Cómo aprende un estudiante
 
-### 5. Recursión — 3 temas
+1. Abre un tema desde el menú lateral o el buscador.
+2. Lee su definición, complejidad y guía educativa.
+3. Modifica los datos del ejemplo o vacía la estructura.
+4. Selecciona una operación.
+5. Observa el cambio visual y la línea Java resaltada.
+6. Revisa las variables del fotograma actual.
+7. Pausa, retrocede o cambia la velocidad si necesita más tiempo.
+8. Activa el modo desafío para predecir un resultado.
+9. Realiza la prueba conceptual de diez preguntas.
+10. Revisa sus respuestas y vuelve al contenido que necesita reforzar.
 
-44. Fibonacci
-45. Factorial
-46. Torres de Hanoi
-### 6. Ordenamientos — 10 temas
+## Arquitectura
 
-47. Bubble Sort
-48. Selection Sort
-49. Insertion Sort
-50. Merge Sort
-51. Quick Sort
-52. Shell Sort
-53. Heap Sort
-54. Counting Sort
-55. Radix Sort
-56. Bogo Sort
+```text
+DATA-STRUCTURS/
+├── .github/
+│   ├── dependabot.yml                 # Actualizaciones semanales agrupadas
+│   └── workflows/ci.yml               # Validación automática de PR y main
+├── public/
+│   ├── dsa-lab-social-v2.jpg          # Vista previa para redes sociales
+│   └── robots.txt                     # Directivas para buscadores
+├── report/                            # API independiente de reportes
+│   ├── src/
+│   │   ├── email.js                   # Envío mediante Resend
+│   │   ├── server.js                  # Servidor HTTP y endpoints
+│   │   └── validation.js              # Validación y límites de entrada
+│   └── test/                          # Pruebas de la API
+├── scripts/
+│   ├── audit-functions.mjs            # Contratos y sincronización del catálogo
+│   ├── audit-challenges.mjs           # Desafíos contra operaciones reales
+│   ├── audit-section-tests.mjs        # Preguntas y combinaciones por tema
+│   ├── compile-java-audit.mjs         # Compilación real con javac
+│   ├── stress-audit.mjs               # Entradas extremas y secuencias largas
+│   ├── generate-seo.mjs               # HTML, sitemap y rutas bilingües
+│   └── run-e2e.mjs                    # Build, preview y Playwright
+├── src/
+│   ├── accessibility/                 # Preferencias y gestión de foco
+│   ├── components/                    # Paneles, tour, pruebas y navegación
+│   ├── data/                          # Catálogo, traducciones y código Java
+│   ├── logic/                         # Operaciones y trazas algorítmicas
+│   ├── App.jsx                        # Coordinación principal del laboratorio
+│   ├── i18n.jsx                       # Idioma y traducciones de interfaz
+│   ├── seo.js                         # Metadatos dinámicos
+│   └── styles.css                     # Sistema visual y responsive
+├── tests/e2e/app.spec.js              # Recorridos reales de navegador
+├── .env.example                       # URL pública de la API de reportes
+├── index.html                         # Documento base y metadatos sociales
+├── package.json                       # Scripts y dependencias
+├── playwright.config.js               # Escritorio Chromium y Pixel 7
+├── vercel.json                        # Build, rutas limpias y seguridad
+└── vite.config.js                     # Configuración de Vite
+```
 
-### 7. Backtracking — 3 temas
+### Flujo de una operación
 
-57. N-Reinas
-58. Laberinto
-59. Sudoku Solver 9×9
+```text
+Interfaz
+   ↓
+OperationsPanel
+   ↓
+executeOperation
+   ↓
+resultado + fotogramas
+   ↓
+sincronización con beginnerJava
+   ↓
+visualizador + línea activa + variables
+```
 
-### 8. Otros — 7 temas
-
-60. Matriz
-61. Polinomios con listas
-62. Listas generalizadas
-63. Matriz poco poblada
-64. Union-Find
-65. LRU Cache
-66. Bloom Filter
-
-## Cómo funciona la experiencia
-
-1. **Elige un tema.** Usa el menú lateral o el buscador para abrir una estructura o algoritmo.
-2. **Revisa el ejemplo inicial.** La visualización muestra el estado actual de los datos.
-3. **Selecciona una función.** Dependiendo del tema, podrás insertar, eliminar, buscar, actualizar, recorrer o resolver.
-4. **Completa los campos.** Ingresa un valor, índice, clave, vértice u otro dato solicitado.
-5. **Ejecuta la operación.** La aplicación genera una secuencia de estados visuales.
-6. **Observa el código.** La línea correspondiente se resalta mientras avanza la animación.
-7. **Controla la reproducción.** Pausa, avanza, retrocede o cambia la velocidad.
-8. **Experimenta.** Genera un nuevo ejemplo o restablece el estado original.
-9. **Lee la guía.** Debajo del laboratorio encontrarás la descripción completa y un ejemplo Java.
+Las implementaciones especializadas —árboles, listas, grafos, ordenamientos, matrices, recursión y backtracking— generan trazas propias cuando una animación genérica no representa correctamente su lógica.
 
 ## Tecnologías
 
-| Tecnología | Uso en el proyecto |
+| Tecnología | Responsabilidad |
 |---|---|
 | React 19 | Componentes, estado y experiencia interactiva |
-| React DOM | Renderizado de la aplicación en el navegador |
-| Vite 8 | Servidor de desarrollo y compilación de producción |
-| JavaScript con ES Modules | Lógica, datos y operaciones |
-| CSS | Diseño, animaciones y adaptación responsive |
-| Lucide React | Iconografía de la interfaz |
-| Node.js | Ejecución de scripts, instalación y auditoría |
+| React DOM | Renderizado en el navegador |
+| Vite 8 | Desarrollo, optimización y build |
+| JavaScript ES Modules | Catálogo, operaciones y animaciones |
+| CSS | Diseño, responsive y preferencias visuales |
+| Lucide React | Iconografía |
+| Playwright | Pruebas reales de navegador |
+| Node.js | Auditorías, SEO y API de reportes |
+| Vercel | Frontend, Analytics y Speed Insights |
+| Render | Web Service de reportes |
+| Resend | Entrega de reportes por correo |
 
-El proyecto no necesita base de datos ni servidor de aplicación. Después de compilarse, se publica como un sitio estático.
+## Instalación local
 
-## Requisitos
+### Requisitos
 
-- **Node.js:** `^20.19.0` o `>=22.12.0`, según el motor requerido por la versión instalada de Vite.
-- **npm:** incluido normalmente con Node.js.
-- Un navegador moderno con soporte para ES Modules.
-- Git, únicamente si deseas clonar y contribuir al repositorio.
+- Node.js `^20.19.0` o `>=22.12.0`.
+- npm 10 o superior.
+- Git.
+- Java/JDK si se ejecutará `npm run audit:java`.
 
-Puedes revisar tus versiones con:
-
-```bash
-node --version
-npm --version
-git --version
-```
-
-## Instalación
-
-### 1. Clonar el repositorio
+### Frontend
 
 ```bash
 git clone https://github.com/juanideus/DATA-STRUCTURS.git
 cd DATA-STRUCTURS
-```
-
-### 2. Instalar dependencias
-
-Para reproducir exactamente las versiones registradas en `package-lock.json`:
-
-```bash
 npm ci
-```
-
-Durante desarrollo también puedes utilizar:
-
-```bash
-npm install
-```
-
-### 3. Iniciar el servidor de desarrollo
-
-```bash
 npm run dev
 ```
 
-Vite mostrará la dirección local en la terminal, normalmente:
+Vite mostrará una URL local, normalmente `http://localhost:5173/`.
 
-```text
-http://localhost:5173/
-```
-
-### 4. Crear una compilación de producción
+### Build de producción
 
 ```bash
 npm run build
-```
-
-Los archivos optimizados se generan en `dist/`.
-
-### 5. Probar la compilación localmente
-
-```bash
 npm run preview
 ```
 
-## Scripts disponibles
+El resultado se genera en `dist/` y no debe subirse al repositorio.
 
-| Comando | Descripción |
+## Variables de entorno
+
+### Frontend
+
+| Variable | Obligatoria | Descripción |
+|---|---|---|
+| `VITE_REPORT_API_URL` | Para enviar reportes | URL HTTPS del Web Service desplegado en Render, sin `/` final |
+
+Ejemplo:
+
+```env
+VITE_REPORT_API_URL=https://tu-api.onrender.com
+```
+
+Las variables que comienzan con `VITE_` son públicas y quedan incluidas en el frontend. Nunca guardes claves privadas en ellas.
+
+### API de reportes
+
+| Variable | Obligatoria | Descripción |
+|---|---|---|
+| `RESEND_API_KEY` | Sí | Clave privada creada en Resend |
+| `REPORT_EMAIL` | Sí | Correo receptor asociado a Resend |
+| `REPORT_FROM` | Sí | Remitente autorizado |
+| `ALLOWED_ORIGINS` | Sí | Orígenes del frontend separados por coma |
+| `NODE_ENV` | Producción | Debe ser `production` en Render |
+| `PORT` | Automática | Render la proporciona; localmente puede usarse `10000` |
+
+Los archivos `.env` están ignorados. Solo se versionan ejemplos sin credenciales.
+
+## Scripts y calidad
+
+| Comando | Qué comprueba |
 |---|---|
-| `npm run dev` | Inicia Vite en modo desarrollo con actualización automática |
-| `npm run build` | Genera la versión optimizada dentro de `dist/` |
-| `npm run preview` | Sirve localmente la compilación de producción |
-| `npm run audit` | Ejecuta la auditoría funcional y educativa del catálogo |
-| `npm run audit:challenges` | Genera desafíos y compara sus predicciones con las operaciones reales |
-| `npm run audit:java` | Compila con `javac` los 310 códigos Java visibles |
-| `npm run audit:stress` | Prueba entradas extremas y secuencias largas de operaciones |
-| `npm run test:e2e` | Ejecuta pruebas reales de navegador en escritorio y móvil |
-| `npm run check` | Ejecuta las auditorías funcional, de desafíos, Java y de estrés, además de las pruebas E2E |
+| `npm run dev` | Servidor de desarrollo |
+| `npm run build` | Build de Vite y generación de 174 páginas SEO |
+| `npm run preview` | Vista local del build |
+| `npm run audit` | 86 temas, 310 acciones, código, fotogramas y contratos |
+| `npm run audit:challenges` | Desafíos generados desde operaciones reales |
+| `npm run audit:section-tests` | 860 preguntas y diez preguntas por tema |
+| `npm run audit:java` | Compilación de 310 fragmentos con `javac` |
+| `npm run audit:stress` | Entradas extremas y operaciones encadenadas |
+| `npm run audit:seo` | Canonical, hreflang, JSON-LD, sitemap y robots |
+| `npm run test:e2e` | Flujos de escritorio y móvil con Playwright |
+| `npm run check` | Ejecuta la validación integral anterior |
 
-Flujo recomendado antes de subir cambios:
+Estado de la auditoría integral:
+
+- **3.100** pruebas funcionales.
+- **810** desafíos generados y verificados.
+- **860** preguntas revisadas.
+- **310** fragmentos Java compilados.
+- **15.520** pruebas de estrés.
+- **174** URLs bilingües verificadas.
+- **82** recorridos E2E aprobados; las omisiones restantes son deliberadas según dispositivo.
+
+Antes de abrir una PR:
 
 ```bash
 npm run check
 ```
 
-## Estructura del proyecto
-
-```text
-DSA/
-├── index.html                         # Documento HTML utilizado por Vite
-├── package.json                       # Dependencias y scripts
-├── package-lock.json                  # Versiones reproducibles
-├── playwright.config.js               # Pruebas E2E en escritorio y móvil
-├── vite.config.js                     # Configuración de React y compilación
-├── vercel.json                        # Despliegue y cabeceras en Vercel
-├── netlify.toml                       # Despliegue y cabeceras en Netlify
-├── tests/e2e/                         # Flujos críticos en navegador
-├── .github/
-│   ├── workflows/ci.yml               # Validación automática
-│   └── dependabot.yml                 # Actualizaciones controladas
-├── scripts/
-│   ├── audit-functions.mjs            # Auditoría automática del laboratorio
-│   ├── compile-java-audit.mjs          # Compilación real de cada código Java mostrado
-│   ├── stress-audit.mjs                # Entradas límite y operaciones encadenadas
-│   └── run-e2e.mjs                    # Build, servidor temporal y pruebas de navegador
-├── src/
-│   ├── App.jsx                        # Aplicación, navegación y visualizadores
-│   ├── main.jsx                       # Punto de entrada de React
-│   ├── styles.css                     # Estilos, animaciones y responsive design
-│   ├── assets/
-│   │   └── favicon-dsa.svg            # Favicon de DSA Lab
-│   ├── components/
-│   │   ├── AppErrorBoundary.jsx       # Recuperación ante errores inesperados
-│   │   ├── EducationalDescription.jsx # Guía educativa de cada tema
-│   │   ├── OperationsPanel.jsx        # Campos y botones de operaciones
-│   │   └── VariablesPanel.jsx         # Variables de la ejecución en tiempo real
-│   ├── data/
-│   │   ├── algorithms.js              # Catálogo de 86 temas
-│   │   ├── astJava.js                 # Parser AST y operaciones completas en Java
-│   │   ├── denseMatrixJava.js         # Operaciones de matriz densa en Java
-│   │   ├── beginnerJava.js            # Código Java por operación
-│   │   ├── educationalDescriptions.js # Contenido educativo detallado
-│   │   ├── generalizedListJava.js      # Lista generalizada completa en Java
-│   │   ├── graphDesigns.js             # Topologías visuales de los grafos
-│   │   ├── linkedListJava.js           # Listas enlazadas completas en Java
-│   │   ├── polynomialJava.js           # Polinomios enlazados completos en Java
-│   │   ├── guideJavaExamples.js        # Ejemplos Java de las guías
-│   │   ├── treeJava.js                 # Operaciones completas de árboles en Java
-│   │   ├── sparseMatrixJava.js         # Matriz circular AROW/ACOL completa en Java
-│   │   └── sortingJava.js              # Implementaciones completas de ordenamientos en Java
-│   ├── logic/
-│   │   ├── codeAnimation.js            # Sincronización entre código y animaciones
-│   │   ├── ast.js                      # Parser y disposición visual del AST
-│   │   ├── complexity.js               # Órdenes y valores para los gráficos teóricos
-│   │   ├── denseMatrix.js              # Dimensión, índices y transposición de matriz
-│   │   ├── generalizedList.js           # Parser y modelo de listas generalizadas
-│   │   ├── operations.js               # Implementación de las acciones interactivas
-│   │   ├── polynomial.js                # Modelo y operaciones de polinomios
-│   │   ├── pathfindingMap.js           # Mapas para Dijkstra y A*
-│   │   └── sortingAlgorithms.js        # Trazas reales de los diez ordenamientos
-├── .gitignore                         # Archivos excluidos del repositorio
-├── LICENSE                            # Licencia MIT
-└── README.md                          # Documentación del proyecto
-```
-
-### Responsabilidades principales
-
-- `src/data/algorithms.js` define la identidad, categoría, complejidad, descripción, pseudocódigo y valores iniciales de cada tema.
-- `src/logic/operations.js` recibe una acción del usuario y devuelve valores, aristas, mensajes y cuadros de animación.
-- `src/data/beginnerJava.js` entrega el código Java que corresponde a cada operación.
-- `src/App.jsx` coordina el estado general y selecciona el visualizador apropiado.
-- `src/components/OperationsPanel.jsx` construye los controles según el tipo de estructura.
-- `src/components/EducationalDescription.jsx` presenta la documentación extendida.
-- `scripts/audit-functions.mjs` verifica que el catálogo y las operaciones mantengan contratos válidos.
-- `scripts/audit-challenges.mjs` genera preguntas y verifica sus resultados con el mismo motor de operaciones utilizado por la interfaz.
-- `scripts/compile-java-audit.mjs` envuelve y compila cada fragmento educativo con `javac`.
-- `scripts/stress-audit.mjs` somete todas las acciones a datos vacíos, negativos, decimales, enormes, texto, Unicode y secuencias de uso prolongadas.
-
-## Auditoría y calidad
-
-El comando:
-
-```bash
-npm run audit
-```
-
-comprueba automáticamente, entre otros puntos:
-
-- Que existan los 86 temas esperados.
-- Que cada tema tenga descripción educativa suficiente.
-- Que cada sección práctica incluya un ejemplo Java; las guías de fundamentos son deliberadamente teóricas y no muestran código.
-- Que todas las acciones devuelvan valores, aristas y mensajes válidos.
-- Que exista código Java para cada operación disponible.
-- Que el Sudoku produzca una solución `9×9` válida.
-- Que N-Reinas no contenga conflictos y muestre `isSafe`.
-- Que el laberinto llegue a la salida y enseñe el retroceso.
-- Que Hash Table busque y elimine por clave.
-- Que Union-Find siga correctamente la cadena hacia la raíz.
-- Que BFS y DFS respeten sus recorridos esperados.
-- Que Dijkstra y A* encuentren la ruta mínima A-F con costo 12.
-- Que Torres de Hanoi complete todos sus movimientos.
-- Que B+ Tree acepte al menos 15 inserciones consecutivas y muestre una promoción al padre.
-- Que BST siga la ruta correcta y que AVL mantenga factores de balance válidos.
-- Que el árbol enhebrado conserve el orden BST, repare hilos al eliminar y recorra inorden sin pila ni recursión.
-- Que Splay lleve el nodo accedido a la raíz.
-- Que Merkle combine hashes por parejas y el árbol de expresión respete precedencia.
-- Que el AST distinga sentencias, identificadores, operadores y literales, respete precedencia y sincronice su recorrido recursivo.
-- Que la matriz densa acceda mediante fila y columna, recorra sus dos ejes y transponga sin repetir intercambios.
-- Que los polinomios mantengan exponentes descendentes, agrupen términos repetidos, eliminen coeficientes cero y sumen con punteros sincronizados.
-- Que las listas generalizadas distingan átomos, sublistas y cabeceras, calculen longitud y profundidad y mantengan referencias compartidas.
-- Que la matriz poco poblada inserte un único nodo en AROW y ACOL, recorra ambas listas en orden invertido y cierre sus enlaces circulares.
-
-La auditoría actual cubre **86 temas, 310 acciones, 3100 pruebas funcionales y 83 funciones distintas**. También valida desafíos generados desde el estado real de los **66 laboratorios prácticos**. La capa de estrés añade **15 520 comprobaciones** —11 560 entradas extremas y 3960 operaciones encadenadas—. Además, los **310 códigos Java visibles** se compilan realmente con `javac`.
-
-Además, Playwright verifica los recorridos críticos en Chromium de escritorio y móvil:
-
-- Enlaces compartibles como `/avl` y `/sudoku`.
-- Carga directa de los 86 temas y del tipo de contenido que corresponde a cada uno.
-- Veinte guías de Fundamentos sin visualizador interactivo, operaciones, reproductor ni panel de código.
-- Rechazo seguro de índices negativos, coordenadas fuera de rango, valores enormes y texto potencialmente peligroso.
-- Avance sincronizado de animación, línea Java, explicación y variables en arreglos, grafos, Hanoi y N-Reinas.
-- Persistencia del tema, velocidad y formato de código.
-- Operaciones y restablecimiento de estructuras.
-- Recorrido BST sincronizado entre nodo, línea Java y variables.
-- Árbol enhebrado con hijos sólidos, hilos discontinuos, inserción y recorrido inorden sincronizado.
-- Inserciones consecutivas en B+ con nodos de máximo tres claves, sin cruces ni solapamientos.
-- Código especializado visible para AVL, Suffix Tree y B+ Tree.
-- Introducción mostrada sólo durante la primera visita.
-- Copia de reportes sin necesidad de una cuenta de GitHub.
-- Ausencia de desbordamiento horizontal en móvil.
+GitHub Actions también ejecuta auditoría, revisión de vulnerabilidades, build y pruebas de navegador. `main` debe modificarse mediante Pull Request.
 
 ## Despliegue
 
-### Configuración general para alojamiento estático
+### Frontend en Vercel
 
-| Opción | Valor |
+| Ajuste | Valor |
 |---|---|
-| Comando de instalación | `npm ci` |
-| Comando de compilación | `npm run build` |
-| Directorio de salida | `dist` |
-| Versión recomendada de Node | `22.12.0`, registrada también en `.nvmrc` |
+| Root Directory | raíz del repositorio |
+| Framework | Vite |
+| Install Command | `npm ci` |
+| Build Command | `npm run build` |
+| Output Directory | `dist` |
+| Node.js | 22.12.0 o compatible |
 
-Las dependencias están fijadas a versiones exactas. Dependabot revisa actualizaciones semanalmente mediante pull requests y GitHub Actions ejecuta auditoría, build, revisión de vulnerabilidades y pruebas E2E antes de integrar cambios.
+Agrega `VITE_REPORT_API_URL` en **Settings → Environment Variables** y vuelve a desplegar si cambia.
 
-### Vercel
+`vercel.json` configura rutas limpias, cabeceras de seguridad, CSP y acceso HTTPS a Render.
 
-1. Importa el repositorio desde GitHub.
-2. Selecciona **Vite** como framework.
-3. Usa `npm run build` como comando de compilación.
-4. Usa `dist` como directorio de salida.
-5. Publica el proyecto.
+### API en Render
 
-`vercel.json` ya contiene el directorio de salida y las cabeceras de seguridad recomendadas.
+Crea un **Web Service** separado desde el mismo repositorio:
 
-### Netlify
+| Ajuste | Valor |
+|---|---|
+| Root Directory | `report` |
+| Runtime | Node |
+| Build Command | `npm ci` |
+| Start Command | `npm start` |
+| Health Check Path | `/health` |
 
-1. Conecta el repositorio.
-2. Define `npm run build` como *Build command*.
-3. Define `dist` como *Publish directory*.
-4. Ejecuta el despliegue.
+Configura las variables privadas únicamente en Render. No las copies al código, GitHub ni Vercel.
 
-`netlify.toml` ya contiene esta configuración y las cabeceras de seguridad.
+### Dominio
 
-### GitHub Pages
+El dominio `dsalab.dev` administra su DNS en Cloudflare y apunta al proyecto de Vercel. La aplicación usa `https://www.dsalab.dev` como origen canónico.
 
-Si el proyecto se publica bajo una ruta de repositorio como:
+## API de reportes
 
-```text
-https://usuario.github.io/DATA-STRUCTURS/
-```
+El formulario **Informar problema** envía los datos a la API de `report/`.
 
-Vite debe compilar los recursos usando esa ruta base. En ese caso, configura `base: '/DATA-STRUCTURS/'` en un archivo `vite.config.js` antes de generar `dist`. Si se publica en un dominio raíz, puede mantenerse la base predeterminada `/`.
+Endpoints:
 
-## Reporte de errores
+- `GET /health`: estado del servicio.
+- `POST /api/report`: validación y envío mediante Resend.
 
-La aplicación incluye un botón con icono de insecto para informar problemas. El formulario envía la información directamente a la API ubicada en `report/`, sin abrir GitHub ni exponer la clave de Resend en el navegador.
+Protecciones incluidas:
 
-El formulario solicita:
+- CORS limitado mediante `ALLOWED_ORIGINS`.
+- Honeypot contra bots.
+- Cuerpo máximo de 16 KB.
+- Límites de longitud por campo.
+- Escape del contenido HTML.
+- Cinco solicitudes por IP cada quince minutos.
+- Tiempo máximo para contactar a Resend.
+- Respuestas sin credenciales ni detalles internos.
 
-- Resumen corto.
-- Tipo de problema.
-- Descripción.
-- Pasos para reproducirlo.
-- Sección afectada.
-- Nombre y correo opcional para responder al usuario.
+Render puede tardar en despertar cuando el servicio está suspendido. El frontend mantiene el envío activo y comunica al usuario que debe conservar la ventana abierta.
 
-En Vercel se debe configurar `VITE_REPORT_API_URL` con la URL pública del Web Service de Render. En Render, `ALLOWED_ORIGINS` debe contener el dominio exacto del frontend.
+Consulta [report/README.md](./report/README.md) para la configuración completa.
 
-La política de seguridad de Vercel permite conexiones HTTPS hacia servicios `*.onrender.com`. Si la API se traslada a otro proveedor o a un dominio propio, ese origen también debe agregarse a `connect-src` en `vercel.json`.
+## Accesibilidad
 
-## Navegación y preferencias
+El botón **Opciones de accesibilidad** permite guardar en el navegador:
 
-Cada tema dispone de un enlace compartible basado en hash, compatible con alojamiento estático:
+- Tamaño de interfaz normal, grande o muy grande.
+- Contraste alto.
+- Paleta apta para daltonismo.
+- Reducción de movimiento.
 
-```text
-https://tu-dominio.cl/array
-https://tu-dominio.cl/avl
-https://tu-dominio.cl/sudoku
-```
+Además, DSA Lab incluye:
 
-El navegador conserva localmente:
+- Enlace de teclado para saltar al contenido principal.
+- Indicadores de foco visibles.
+- Foco atrapado y restaurado en modales.
+- Cierre con `Escape` cuando no contradice la regla de evaluación.
+- Menú móvil navegable por teclado.
+- Etiquetas accesibles en controles.
+- Estados acompañados por texto, iconos y forma, no solamente color.
+- Diseño sin desbordamiento horizontal en móvil.
+- Respeto por `prefers-reduced-motion`.
 
-- Último tema visitado.
-- Velocidad de reproducción.
-- Formato Java o pseudocódigo.
-- Estado del menú lateral.
-- Confirmación de que la introducción ya fue mostrada.
+Las visualizaciones complementan el material escrito y el código; no son la única fuente de información.
 
-La aplicación no almacena información personal ni envía estas preferencias a un servidor.
+## Internacionalización
 
-## Accesibilidad y diseño adaptable
+La interfaz, navegación, fundamentos, guías, pruebas, desafíos, tour, reportes y metadatos están disponibles en español e inglés.
 
-El proyecto incorpora:
+- Español: `/avl`
+- Inglés: `/en/avl`
 
-- Etiquetas accesibles en botones y controles importantes.
-- Navegación comprensible mediante nombres visibles.
-- Estados activos diferenciados por color, posición y forma.
-- Tamaños tipográficos adaptados para lectura educativa.
-- Diseño responsive para escritorio, tablet y móvil.
-- Alternativa de movimiento reducido mediante `prefers-reduced-motion`.
-- Mensajes textuales que acompañan los cambios visuales.
-- Código con numeración de líneas y resaltado del paso activo.
+Si el usuario no ha elegido un idioma, la aplicación utiliza la preferencia del navegador. La selección se guarda localmente.
 
-Las visualizaciones son una ayuda educativa y deben complementarse con la explicación escrita y el código, especialmente para personas que no puedan percibir todos los cambios gráficos.
+## SEO y dominio
 
-## SEO y rastreo
+El build genera HTML rastreable para la bienvenida y los 86 temas en ambos idiomas:
 
-El build genera una versión HTML rastreable para la bienvenida y para cada tema en español e inglés. Esto permite que un buscador descubra contenido útil sin depender exclusivamente de la ejecución de React.
+- 174 URLs públicas.
+- Título y descripción por página.
+- URL canónica bajo `https://www.dsalab.dev`.
+- Alternativas `hreflang="es"`, `hreflang="en"` y `hreflang="x-default"`.
+- Metadatos Open Graph y Twitter con imagen social absoluta.
+- Datos estructurados `WebSite`, `SoftwareApplication`, `LearningResource` y `BreadcrumbList`.
+- `sitemap.xml` generado durante el build.
+- `robots.txt` con referencia al sitemap.
+- Enlaces HTML rastreables en la navegación.
 
-- Las rutas en español usan el formato `/avl` y las rutas en inglés `/en/avl`.
-- Cada página posee título, descripción, URL canónica y metadatos Open Graph propios.
-- Las variantes de idioma se relacionan mediante `hreflang="es"`, `hreflang="en"` y `hreflang="x-default"`.
-- El contenido incluye datos estructurados `WebSite`, `SoftwareApplication`, `LearningResource` y `BreadcrumbList` según corresponda.
-- La navegación principal utiliza enlaces HTML rastreables.
-- `robots.txt` permite el rastreo y declara la ubicación del sitemap.
-- `sitemap.xml` se construye automáticamente con todas las rutas públicas bilingües.
-
-Para comprobar el resultado localmente:
+Validación local:
 
 ```bash
 npm run build
 npm run audit:seo
 ```
 
-Después del despliegue, el propietario debe verificar `dsalab.dev` como propiedad de dominio en Google Search Console y enviar `https://www.dsalab.dev/sitemap.xml`.
+En Google Search Console debe estar verificada la propiedad de dominio `dsalab.dev` y enviado `https://www.dsalab.dev/sitemap.xml`.
+
+## Seguridad y privacidad
+
+- No hay cuentas de estudiantes ni seguimiento personal en una base de datos.
+- Preferencias, desafíos y pruebas se almacenan en `localStorage`.
+- Los datos de un reporte solo se envían cuando el usuario pulsa **Enviar reporte**.
+- `RESEND_API_KEY` permanece exclusivamente en Render.
+- La CSP bloquea scripts, marcos, objetos y conexiones no autorizadas.
+- Cámara, micrófono y geolocalización están deshabilitados mediante cabeceras.
+- `.env`, builds, resultados de Playwright, logs y dependencias están excluidos por `.gitignore`.
 
 ## Contribuciones
 
-Las contribuciones son bienvenidas. Una forma recomendada de colaborar es:
-
-1. Crea un *fork* del repositorio.
-2. Crea una rama para tu cambio:
+1. Crea una rama con un nombre descriptivo:
 
    ```bash
    git switch -c feature/nombre-del-cambio
    ```
 
-3. Instala las dependencias con `npm ci`.
-4. Implementa el cambio manteniendo el enfoque educativo.
-5. Ejecuta las comprobaciones:
+2. Instala exactamente las dependencias registradas:
 
    ```bash
-   npm run audit
-   npm run build
+   npm ci
    ```
 
-6. Crea un commit descriptivo.
-7. Sube tu rama y abre un Pull Request.
+3. Implementa el cambio manteniendo el enfoque pedagógico.
+4. Añade o actualiza pruebas.
+5. Ejecuta:
 
-### Criterios para nuevas visualizaciones
+   ```bash
+   npm run check
+   ```
 
-Una contribución debería procurar:
+6. Abre una Pull Request hacia `main`.
 
-- Mostrar claramente el estado inicial y final.
-- Explicar las decisiones intermedias importantes.
-- Mantener sincronizados visualización y código.
-- Usar Java legible para estudiantes principiantes.
-- Incluir descripción, operaciones, ventajas, limitaciones y usos.
-- Funcionar en pantallas grandes y pequeñas.
-- Añadir o actualizar pruebas en la auditoría cuando corresponda.
+Una nueva estructura o algoritmo debe incluir, como mínimo:
+
+- Identidad, descripción, categoría y complejidad.
+- Visualización propia y adaptable.
+- Operaciones coherentes con la estructura.
+- Java completo y legible.
+- Métodos auxiliares utilizados.
+- Sincronización de línea, variables y cambio visual.
+- Guía educativa en español e inglés.
+- Diez preguntas específicas de materia.
+- Casos válidos, inválidos y extremos en auditoría.
+
+## Limitaciones conocidas
+
+- El código está diseñado para enseñar y no reemplaza una implementación de producción o una biblioteca estándar.
+- No existe autenticación ni sincronización de progreso entre dispositivos.
+- El sistema contra copia funciona en el navegador; no pretende reemplazar una plataforma formal de supervisión.
+- La API de Render puede presentar arranque en frío si el servicio entra en suspensión.
+- El rate limit de reportes se conserva en memoria y debe migrarse a almacenamiento compartido si se utilizan varias instancias.
 
 ## Hoja de ruta
 
-Posibles mejoras futuras:
-
-- Añadir más descripciones guiadas y ejercicios.
-- Permitir que el usuario escriba conjuntos de datos completos.
-- Incorporar niveles de dificultad al modo desafío disponible en todos los laboratorios prácticos.
-- Crear un panel general de progreso y temas dominados.
-- Añadir pruebas unitarias y pruebas visuales automatizadas.
-- Mejorar la navegación por teclado y lectores de pantalla.
-- Permitir exportar ejemplos y secuencias de ejecución.
-- Ampliar los árboles multicamino a más niveles visuales.
-- Incorporar nuevos algoritmos de ordenamiento, caminos mínimos y programación dinámica.
+- Panel de progreso por tema y recomendaciones de repaso.
+- Pruebas visuales automatizadas para detectar desplazamientos o cruces.
+- Exportación de ejemplos y secuencias de ejecución.
+- Más ejercicios graduados por dificultad.
+- Soporte educativo opcional para C++ y Python.
+- Mejoras continuas para lectores de pantalla.
+- Persistencia distribuida del límite de reportes si aumenta el tráfico.
 
 ## Autor
 
 **Juan Zúñiga Maluenda**
 
-DSA Lab es una iniciativa educativa enfocada en facilitar la comprensión de estructuras de datos y algoritmos. Los nombres, marcas y recursos visuales de terceros pertenecen a sus respectivos titulares.
+DSA Lab es una iniciativa educativa orientada a facilitar el aprendizaje inicial de estructuras de datos y algoritmos.
 
 ## Licencia
 
-Este proyecto se distribuye bajo la **Licencia MIT**. Puedes usar, copiar, modificar, fusionar, publicar y distribuir el software, siempre que conserves el aviso de copyright y el texto de la licencia.
-
-Consulta el archivo [LICENSE](./LICENSE) para leer los términos completos.
+Este proyecto se distribuye bajo la [Licencia MIT](./LICENSE). Puedes usar, copiar, modificar y distribuir el software conservando el aviso de copyright y el texto de la licencia.
 
 ---
 
