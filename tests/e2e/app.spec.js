@@ -169,6 +169,17 @@ test('abre un tema mediante un enlace compartible', async ({ page }) => {
 });
 
 test('expone rutas, enlaces y metadatos rastreables en ambos idiomas', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('meta[name="application-name"]')).toHaveAttribute('content', 'DSA Lab');
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/favicon.svg');
+  const structuredData = JSON.parse(await page.locator('#dsa-structured-data').textContent());
+  const website = structuredData['@graph'].find(item => item['@type'] === 'WebSite');
+  expect(website).toMatchObject({
+    name: 'DSA Lab',
+    url: 'https://www.dsalab.dev/',
+    alternateName: ['DSALab', 'Data Structures and Algorithms Lab'],
+  });
+
   await page.goto('/avl');
   await expect(page).toHaveURL(/\/avl$/);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://www.dsalab.dev/avl');

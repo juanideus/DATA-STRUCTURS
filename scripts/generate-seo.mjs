@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { algorithms, categories } from '../src/data/algorithms.js';
-import { localizedSeoAlgorithm, pageSeo, seoPath, seoUrl, SITE_ORIGIN, SOCIAL_IMAGE_URL, structuredData } from '../src/seo.js';
+import { localizedSeoAlgorithm, pageSeo, seoPath, seoUrl, SITE_NAME, SITE_ORIGIN, SOCIAL_IMAGE_URL, structuredData } from '../src/seo.js';
 
 const root = resolve(import.meta.dirname, '..');
 const dist = resolve(root, 'dist');
@@ -73,7 +73,7 @@ function renderPage(algorithm, language) {
   let html = template.replace(/<html\s+lang="[^"]*"/i, `<html lang="${language}"`);
   html = html.replace(/<title>.*?<\/title>/is, `<title>${escapeHtml(seo.title)}</title>`);
   html = replaceMeta(html, 'name', 'description', seo.description);
-  html = replaceMeta(html, 'itemprop', 'name', seo.title);
+  html = replaceMeta(html, 'itemprop', 'name', SITE_NAME);
   html = replaceMeta(html, 'itemprop', 'description', seo.description);
   html = replaceMeta(html, 'itemprop', 'image', SOCIAL_IMAGE_URL);
   html = replaceMeta(html, 'property', 'og:locale', language === 'en' ? 'en_US' : 'es_CL');
