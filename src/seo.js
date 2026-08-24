@@ -2,6 +2,9 @@ import { englishAlgorithmDescriptions, englishAlgorithmNames } from './data/algo
 import { translateComplexity } from './data/complexityTranslations.js';
 
 export const SITE_ORIGIN = 'https://www.dsalab.dev';
+export const SITE_HOME_URL = `${SITE_ORIGIN}/`;
+export const SITE_NAME = 'DSA Lab';
+export const SITE_ALTERNATE_NAMES = ['DSALab', 'Data Structures and Algorithms Lab'];
 export const SOCIAL_IMAGE_URL = `${SITE_ORIGIN}/dsa-lab-social-v2.jpg`;
 
 const HOME = {
@@ -106,8 +109,9 @@ export function structuredData(algorithm = null, language = 'es') {
     {
       '@type': 'WebSite',
       '@id': `${SITE_ORIGIN}/#website`,
-      url: SITE_ORIGIN,
-      name: 'DSA Lab',
+      url: SITE_HOME_URL,
+      name: SITE_NAME,
+      alternateName: SITE_ALTERNATE_NAMES,
       description: HOME[safeLanguage].description,
       inLanguage: safeLanguage === 'en' ? 'en-US' : 'es-CL',
       author: { '@id': `${SITE_ORIGIN}/#author` },
@@ -123,7 +127,7 @@ export function structuredData(algorithm = null, language = 'es') {
     graph.push({
       '@type': 'SoftwareApplication',
       '@id': `${SITE_ORIGIN}/#application`,
-      name: 'DSA Lab',
+      name: SITE_NAME,
       applicationCategory: 'EducationalApplication',
       operatingSystem: 'Web',
       url: homeUrl,
