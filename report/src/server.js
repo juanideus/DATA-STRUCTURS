@@ -1,5 +1,6 @@
 import http from 'node:http';
 import { sendReportEmail } from './email.js';
+import { allowedOrigins } from './origins.js';
 import { normalizeReport, validateReport } from './validation.js';
 
 const PORT = Number(process.env.PORT || 10000);
@@ -8,11 +9,6 @@ const RATE_WINDOW_MS = 15 * 60 * 1000;
 const RATE_MAXIMUM = 5;
 const requestsByAddress = new Map();
 let lastRateLimitCleanup = 0;
-
-const allowedOrigins = () => String(process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
-  .split(',')
-  .map(origin => origin.trim().replace(/\/$/, ''))
-  .filter(Boolean);
 
 const setSecurityHeaders = response => {
   response.setHeader('Content-Type', 'application/json; charset=utf-8');

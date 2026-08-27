@@ -37,12 +37,12 @@ Configura en **Environment**:
 ```env
 RESEND_API_KEY=re_xxxxxxxxx
 REPORT_EMAIL=correo-asociado-a-resend@ejemplo.com
-ALLOWED_ORIGINS=https://www.dsalab.dev,http://localhost:5173
+ALLOWED_ORIGINS=http://localhost:5173
 REPORT_FROM=DSA Lab <onboarding@resend.dev>
 NODE_ENV=production
 ```
 
-No agregues `RESEND_API_KEY` al frontend, a una variable `VITE_*`, al repositorio ni al archivo `.env.example`.
+No agregues `RESEND_API_KEY` al frontend, a una variable `VITE_*`, al repositorio ni al archivo `.env.example`. Los orígenes oficiales `https://www.dsalab.dev`, `https://dsalab.dev` y `https://data-structurs.vercel.app` ya están autorizados en el servicio; `ALLOWED_ORIGINS` permite añadir otros sin reemplazarlos.
 
 ## Solicitud de ejemplo
 
@@ -83,5 +83,5 @@ Antes del despliegue solamente deben reemplazarse:
 
 1. El correo asociado a la cuenta de Resend (`REPORT_EMAIL`).
 2. La API key creada en Resend (`RESEND_API_KEY`).
-3. La URL pública de DSA Lab (`ALLOWED_ORIGINS`).
+3. Cualquier origen adicional que necesite acceder a la API (`ALLOWED_ORIGINS`).
 4. Tras desplegar, la URL de Render que consumirá el frontend.

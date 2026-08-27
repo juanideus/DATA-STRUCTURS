@@ -539,7 +539,7 @@ El formulario solicita:
 - Sección afectada.
 - Nombre y correo opcional para responder al usuario.
 
-En Vercel se debe configurar `VITE_REPORT_API_URL` con la URL pública del Web Service de Render. En Render, `ALLOWED_ORIGINS` debe contener el dominio exacto del frontend.
+En Vercel se debe configurar `VITE_REPORT_API_URL` con la URL pública del Web Service de Render. La API autoriza los dominios oficiales de DSA Lab y `ALLOWED_ORIGINS` permite agregar otros orígenes exactos desde Render.
 
 La política de seguridad de Vercel permite conexiones HTTPS hacia servicios `*.onrender.com`. Si la API se traslada a otro proveedor o a un dominio propio, ese origen también debe agregarse a `connect-src` en `vercel.json`.
 
