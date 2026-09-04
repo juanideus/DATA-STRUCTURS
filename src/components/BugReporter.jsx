@@ -59,7 +59,7 @@ export default function BugReporter({ section }) {
     setSending(true);
     setCopyStatus(language === 'en' ? 'Sending report…' : 'Enviando reporte…');
     const slowResponseNotice = window.setTimeout(() => {
-      setCopyStatus(language === 'en' ? 'The service is starting. Keep this window open; your report will be sent automatically.' : 'El servicio se está iniciando. Mantén esta ventana abierta; tu reporte se enviará automáticamente.');
+      setCopyStatus(language === 'en' ? 'The delivery is taking a little longer. Keep this window open; your report will be sent automatically.' : 'El envío está tardando un poco más. Mantén esta ventana abierta; tu reporte se enviará automáticamente.');
     }, 8_000);
     try {
       const response = await fetch(`${REPORT_API_URL}/api/report`, {
