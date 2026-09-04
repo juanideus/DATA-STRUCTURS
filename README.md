@@ -539,9 +539,11 @@ El formulario solicita:
 - Sección afectada.
 - Nombre y correo opcional para responder al usuario.
 
-En Vercel se debe configurar `VITE_REPORT_API_URL` con la URL pública del Web Service de Render. La API autoriza los dominios oficiales de DSA Lab y `ALLOWED_ORIGINS` permite agregar otros orígenes exactos desde Render.
+En Vercel se debe configurar `VITE_REPORT_API_URL=https://api.dsalab.dev`. Ese subdominio apunta al servicio `report` desplegado en Railway. La API autoriza los dominios oficiales de DSA Lab y `ALLOWED_ORIGINS` permite agregar otros orígenes exactos desde Railway.
 
-La política de seguridad de Vercel permite conexiones HTTPS hacia servicios `*.onrender.com`. Si la API se traslada a otro proveedor o a un dominio propio, ese origen también debe agregarse a `connect-src` en `vercel.json`.
+La política de seguridad de Vercel permite conexiones HTTPS hacia `api.dsalab.dev` y hacia el dominio temporal `*.up.railway.app`. Las claves de Resend se configuran exclusivamente en Railway; nunca se guardan en el frontend ni en variables `VITE_*`.
+
+Los correos salen como `DSA Lab <reportes@dsalab.dev>` después de verificar `dsalab.dev` en Resend. `REPORT_EMAIL` contiene la dirección privada que recibirá cada reporte.
 
 ## Navegación y preferencias
 

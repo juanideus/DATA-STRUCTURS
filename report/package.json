@@ -2,7 +2,7 @@
   "name": "dsa-lab-report-api",
   "version": "1.0.0",
   "private": true,
-  "description": "API de reportes de DSA Lab preparada para Render y Resend.",
+  "description": "API de reportes de DSA Lab desplegada en Railway y conectada con Resend.",
   "type": "module",
   "scripts": {
     "start": "node src/server.js",

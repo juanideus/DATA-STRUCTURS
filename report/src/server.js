@@ -80,14 +80,14 @@ const readJson = request => new Promise((resolve, reject) => {
   request.on('error', reject);
 });
 
-const missingConfiguration = () => ['RESEND_API_KEY', 'REPORT_EMAIL']
+const missingConfiguration = () => ['RESEND_API_KEY', 'REPORT_EMAIL', 'REPORT_FROM']
   .filter(name => !process.env[name]);
 
 export const server = http.createServer(async (request, response) => {
   setSecurityHeaders(response);
   const url = new URL(request.url || '/', 'http://localhost');
 
-  if (request.method === 'GET' && url.pathname === '/health') {
+  if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/health')) {
     sendJson(response, 200, { ok: true, service: 'dsa-lab-report-api' });
     return;
   }
@@ -135,7 +135,7 @@ export const server = http.createServer(async (request, response) => {
 
     const result = await sendReportEmail({
       apiKey: process.env.RESEND_API_KEY,
-      from: process.env.REPORT_FROM || 'DSA Lab <onboarding@resend.dev>',
+      from: process.env.REPORT_FROM,
       to: process.env.REPORT_EMAIL,
       report,
     });

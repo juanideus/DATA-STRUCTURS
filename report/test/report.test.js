@@ -73,6 +73,30 @@ test('responde el preflight CORS para ambos dominios de DSA Lab', async t => {
   }
 });
 
+test('expone una ruta pública de estado compatible con Railway', async t => {
+  const previousNodeEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'test';
+  const { server } = await import('../src/server.js');
+  if (!server.listening) {
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', resolve);
+    });
+  }
+  t.after(async () => {
+    if (server.listening) await new Promise(resolve => server.close(resolve));
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+  });
+
+  const { port } = server.address();
+  for (const path of ['/', '/health']) {
+    const response = await fetch(`http://127.0.0.1:${port}${path}`);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { ok: true, service: 'dsa-lab-report-api' });
+  }
+});
+
 test('normaliza y valida un reporte correcto', () => {
   const report = normalizeReport(validInput);
   assert.deepEqual(validateReport(report), {});
