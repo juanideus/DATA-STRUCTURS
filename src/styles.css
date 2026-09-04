@@ -758,6 +758,14 @@ body{background:
 .bug-form-actions p svg{flex:0 0 auto;color:var(--green)}
 .bug-form-actions button{height:41px;padding:0 14px;border:1px solid #cbc7bd;border-radius:9px;background:#fff;color:var(--ink);font-size:11px;font-weight:800;cursor:pointer}
 .bug-form-actions button[type='submit']{border-color:var(--orange);display:flex;align-items:center;gap:7px;background:var(--orange);color:#fff}
+.bug-required{margin-left:4px;color:#a9442c;font-size:10px;font-weight:750}
+.bug-field-error{margin-top:-1px;color:#a63825;font-size:10.5px;font-weight:650;line-height:1.35}
+.bug-modal input[aria-invalid='true'],.bug-modal select[aria-invalid='true'],.bug-modal textarea[aria-invalid='true']{border-color:#c64b35;background:#fff9f7;box-shadow:0 0 0 2px rgba(198,75,53,.09)}
+.bug-modal input[aria-invalid='true']:focus,.bug-modal select[aria-invalid='true']:focus,.bug-modal textarea[aria-invalid='true']:focus{border-color:#b43d29;box-shadow:0 0 0 3px rgba(198,75,53,.15)}
+.bug-copy-status{margin:0;padding:9px 11px;border:1px solid transparent;border-radius:7px;font-size:11.5px;font-weight:650;line-height:1.45}
+.bug-copy-status-error{border-color:#e8b9af;background:#fff2ef;color:#973420}
+.bug-copy-status-success{border-color:#bdd5c7;background:#edf6f0;color:var(--green)}
+.bug-copy-status-info{border-color:var(--line);background:#f1f3f1;color:var(--muted)}
 @keyframes bugModalIn{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
 @media(max-width:600px){
   .bug-fab{right:15px;bottom:15px;width:46px;height:46px;padding:0;justify-content:center}
