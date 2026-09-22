@@ -16,3 +16,8 @@ updates:
           - vite
           - "@vitejs/plugin-react"
           - "@playwright/test"
+  - package-ecosystem: npm
+    directory: /report
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3

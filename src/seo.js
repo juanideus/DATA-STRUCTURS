@@ -10,11 +10,11 @@ export const SOCIAL_IMAGE_URL = `${SITE_ORIGIN}/dsa-lab-social-v2.jpg`;
 const HOME = {
   es: {
     title: 'DSA Lab — Estructuras de datos y algoritmos visuales',
-    description: 'Aprende estructuras de datos y algoritmos con visualizaciones, animaciones paso a paso, código Java, ejercicios y pruebas interactivas.',
+    description: 'Aprende estructuras de datos y algoritmos con visualizaciones, animaciones paso a paso, código Java y C++, ejercicios y pruebas interactivas.',
   },
   en: {
     title: 'DSA Lab — Visual Data Structures and Algorithms',
-    description: 'Learn data structures and algorithms with visualizations, step-by-step animations, Java code, exercises, and interactive assessments.',
+    description: 'Learn data structures and algorithms with visualizations, step-by-step animations, Java and C++ code, exercises, and interactive assessments.',
   },
 };
 
@@ -37,8 +37,8 @@ const trimDescription = value => {
 
 const topicTitle = (name, language) => {
   const detailed = language === 'en'
-    ? `${name}: Visual Guide and Java | DSA Lab`
-    : `${name}: visualización y Java | DSA Lab`;
+    ? `${name}: Visual Guide, Java and C++ | DSA Lab`
+    : `${name}: visualización, Java y C++ | DSA Lab`;
   return detailed.length <= 68 ? detailed : `${name} | DSA Lab`;
 };
 
@@ -89,8 +89,8 @@ export function pageSeo(algorithm = null, language = 'es') {
 
   const localized = localizedSeoAlgorithm(algorithm, safeLanguage);
   const suffix = safeLanguage === 'en'
-    ? 'Interactive visualization, Java code, operations, complexity, and a complete beginner-friendly explanation.'
-    : 'Visualización interactiva, código Java, operaciones, complejidad y explicación completa para aprender paso a paso.';
+    ? 'Interactive visualization, Java and C++ code, operations, complexity, and a complete beginner-friendly explanation.'
+    : 'Visualización interactiva, código Java y C++, operaciones, complejidad y explicación completa para aprender paso a paso.';
   return {
     title: topicTitle(localized.name, safeLanguage),
     description: trimDescription(`${localized.description} ${suffix}`),

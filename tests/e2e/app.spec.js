@@ -235,7 +235,7 @@ test('expone rutas, enlaces y metadatos rastreables en ambos idiomas', async ({ 
   await page.goto('/en/dijkstra');
   await expect(page.getByRole('heading', { name: 'Dijkstra', level: 1 })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-  await expect(page).toHaveTitle(/Dijkstra: Visual Guide and Java/);
+  await expect(page).toHaveTitle(/Dijkstra: Visual Guide, Java and C\+\+/);
 });
 
 test('la sección de complejidad explica la teoría con gráficos y sin laboratorio ni código', async ({ page }) => {
@@ -845,6 +845,174 @@ test('conserva tema, velocidad y lenguaje entre recargas', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Pseudocódigo' })).toHaveClass(/active/);
 });
 
+test('C++ usa punteros y memoria dinámica explícita', async ({ page }) => {
+  await page.goto('/array');
+  await page.getByRole('button', { name: 'C++', exact: true }).click();
+
+  const arrayCode = page.locator('.code-panel pre');
+  await expect(arrayCode).toContainText('int* values');
+  await expect(arrayCode).toContainText('new int[CAPACITY]');
+  await expect(arrayCode).toContainText('delete[] values');
+  await expect(arrayCode).toContainText('values[i] = values[i - 1]');
+  await expect(arrayCode).not.toContainText('vector');
+
+  await page.getByLabel('Valor').fill('99');
+  await page.getByRole('button', { name: 'Agregar inicio', exact: true }).click();
+  await expect(page.locator('.code-panel code.active')).toBeVisible();
+
+  await page.goto('/lista-simple');
+  await expect(page.getByRole('button', { name: 'C++', exact: true })).toHaveClass(/active/);
+  await page.getByRole('button', { name: 'Eliminar inicio', exact: true }).click();
+  const listCode = await page.locator('.code-panel pre').textContent();
+  expect(listCode).toContain('Node* removed = head');
+  expect(listCode).toContain('head = head->next');
+  expect(listCode).toContain('delete removed');
+
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'C++', exact: true })).toHaveClass(/active/);
+
+  await page.goto('/bst');
+  await expect(page.getByRole('button', { name: 'C++', exact: true })).toHaveClass(/active/);
+  await expect(page.locator('.code-panel pre')).toContainText('Node* insert(Node* node, int value)');
+
+  await page.goto('/bubble-sort');
+  await expect(page.getByRole('button', { name: 'C++', exact: true })).toHaveClass(/active/);
+  await page.getByRole('button', { name: 'Ordenar', exact: true }).click();
+  const sortingCode = await page.locator('.code-panel pre').textContent();
+  expect(sortingCode).toContain('int* values');
+  expect(sortingCode).toContain('delete[] values');
+  expect(sortingCode).toContain('for (int end = size - 1; end > 0; end--)');
+  expect(sortingCode).not.toContain('vector');
+
+  await page.goto('/rojo-negro');
+  await expect(page.getByRole('button', { name: 'C++', exact: true })).toHaveClass(/active/);
+  await expect(page.locator('.code-panel pre')).toContainText('class RedBlackTree');
+  await expect(page.locator('.code-panel pre')).toContainText('Node* nil');
+
+  await page.goto('/bstar-tree');
+  await expect(page.getByRole('button', { name: 'C++', exact: true })).toHaveClass(/active/);
+  await expect(page.locator('.code-panel pre')).toContainText('class BStarTree');
+  await expect(page.locator('.code-panel pre')).toContainText('int* keys');
+  await expect(page.locator('.code-panel pre')).toContainText('new int[MAX_KEYS + 1]');
+  await expect(page.locator('.code-panel pre')).toContainText('delete[] keys');
+  await page.getByLabel('Clave').fill('15');
+  await page.getByRole('button', { name: 'Eliminar clave', exact: true }).click();
+  await expect(page.locator('.code-panel pre')).toContainText('fixUnderflow');
+  await expect(page.locator('.code-panel pre')).not.toContainText('RawArraySorter');
+
+  await page.goto('/fibonacci-heap');
+  await page.getByTitle('Ejecutar: Vaciar').click();
+  await expect(page.locator('.code-panel pre')).toContainText('class FibonacciHeap');
+  await expect(page.locator('.code-panel pre')).toContainText('destroyCircular');
+
+  await page.goto('/matriz-dispersa');
+  await expect(page.locator('.code-panel pre')).toContainText('Node** AROW');
+  await expect(page.locator('.code-panel pre')).toContainText('Node** ACOL');
+  await expect(page.locator('.code-panel pre')).toContainText('int height');
+  await expect(page.locator('.code-panel pre')).toContainText('int width');
+  await expect(page.locator('.code-panel pre')).toContainText('SparseMatrix(int matrixHeight = 5, int matrixWidth = 6)');
+  await expect(page.locator('.code-panel pre')).toContainText('delete[] AROW');
+  await expect(page.locator('.code-panel pre')).toContainText('delete[] ACOL');
+});
+
+test('la animación C++ ilumina instrucciones reales y nunca el armazón de la clase', async ({ page }) => {
+  test.setTimeout(90_000);
+  const samples = [
+    { id: 'pila', field: ['Valor', '91'], action: 'Push', steps: 7 },
+    { id: 'bfs', field: ['Origen / vértice', 'A'], action: 'Ejecutar BFS', steps: 24 },
+    { id: 'hanoi', field: null, action: 'Resolver', steps: 24 },
+    { id: 'laberinto', field: null, action: 'Resolver recursivamente', steps: 40 },
+  ];
+
+  for (const sample of samples) {
+    await page.goto(`/${sample.id}`);
+    await page.getByRole('button', { name: 'C++', exact: true }).click();
+    if (sample.field) await page.getByLabel(sample.field[0]).fill(sample.field[1]);
+    await page.getByRole('button', { name: sample.action, exact: true }).click();
+    const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+    if (await pause.isVisible()) await pause.click();
+
+    const activeLines = new Set();
+    for (let step = 0; step < sample.steps; step++) {
+      const active = (await page.locator('.code-panel code.active').textContent())?.trim();
+      if (active) activeLines.add(active);
+      await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    }
+
+    expect(activeLines.size, `${sample.id}: C++ quedó detenido`).toBeGreaterThan(2);
+    for (const line of activeLines) {
+      expect(line, `${sample.id}: iluminó una declaración de clase`).not.toMatch(/^class\b/);
+      expect(line, `${sample.id}: iluminó un modificador de acceso`).not.toMatch(/^(public|private|protected):$/);
+      expect(['{', '}', '};']).not.toContain(line);
+    }
+  }
+});
+
+test('QuadTree y Octree insertan coordenadas reales coherentes con su código', async ({ page }) => {
+  const cases = [
+    { id: 'quadtree', coordinates: { 'Coordenada X': '91', 'Coordenada Y': '-84' }, point: '91,-84', dimensions: 2 },
+    { id: 'octree', coordinates: { 'Coordenada X': '-88', 'Coordenada Y': '79', 'Coordenada Z': '63' }, point: '-88,79,63', dimensions: 3 },
+  ];
+
+  for (const sample of cases) {
+    await page.goto(`/${sample.id}`);
+    for (const [label, value] of Object.entries(sample.coordinates)) await page.getByLabel(label).fill(value);
+    await page.getByRole('button', { name: 'Insertar punto', exact: true }).click();
+    const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+    if (await pause.isVisible()) await pause.click();
+    for (let step = 0; step < 15 && await page.locator('.spatial-point', { hasText: sample.point }).count() === 0; step++) {
+      await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    }
+    await expect(page.locator('.spatial-point', { hasText: sample.point })).toBeVisible();
+    await expect(page.locator('.operation-message')).toContainText(sample.point);
+
+    await page.getByRole('button', { name: 'C++', exact: true }).click();
+    const code = page.locator('.code-panel pre');
+    await expect(code).toContainText('struct Point');
+    await expect(code).toContainText('double x');
+    await expect(code).toContainText('double y');
+    if (sample.dimensions === 3) await expect(code).toContainText('double z');
+  }
+});
+
+test('los reinicios especializados muestran el estado que realmente restauran', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chromium', 'La implementación mostrada es la misma en ambos tamaños.');
+  test.setTimeout(60_000);
+  const samples = [
+    { id: 'hanoi', expected: 'resetTowers(int disks)' },
+    { id: 'n-reinas', expected: 'resetQueens(int boardSize)' },
+    { id: 'laberinto', expected: 'resetPath()' },
+    { id: 'sudoku', expected: 'resetBoard(int[][] initialBoard)' },
+    { id: 'union-find', expected: 'resetSets(int amount)' },
+  ];
+
+  for (const sample of samples) {
+    await page.goto(`/${sample.id}`);
+    await page.getByRole('button', { name: 'Java', exact: true }).click();
+    await page.getByTitle('Ejecutar: Restablecer').click();
+    const code = await page.locator('.code-panel pre').textContent();
+    expect(code).toContain(sample.expected);
+    expect(code).not.toContain('values[i] = initialValues[i]');
+  }
+});
+
+test('Counting y Radix C++ conservan los negativos mediante desplazamiento', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chromium', 'La ejecución nativa también está cubierta por la auditoría C++.');
+  const samples = [
+    { id: 'counting-sort', required: ['int minimum = values[0]', 'values[i] - minimum', 'offset + minimum'] },
+    { id: 'radix-sort', required: ['minimum < 0', 'countingByDigit(exponent, offset)', 'values[i] + offset'] },
+  ];
+
+  for (const sample of samples) {
+    await page.goto(`/${sample.id}`);
+    await page.getByRole('button', { name: 'C++', exact: true }).click();
+    await page.getByRole('button', { name: 'Ordenar', exact: true }).click();
+    const code = await page.locator('.code-panel pre').textContent();
+    for (const fragment of sample.required) expect(code).toContain(fragment);
+    expect(code).not.toContain('if (values[i] < 0) return false');
+  }
+});
+
 test('ejecuta y restablece una operación de lista enlazada', async ({ page }) => {
   await openAlgorithm(page, 'lista-doble');
   await page.getByLabel('Velocidad').selectOption('2');
@@ -1231,6 +1399,7 @@ test('la matriz poco poblada es circular y se recorre en el sentido enseñado', 
   await expect(page.getByRole('heading', { name: 'Matriz poco poblada', level: 1 })).toBeVisible();
   await expect(page.locator('.sparse-header.row-header')).toHaveCount(5);
   await expect(page.locator('.sparse-header.column-header')).toHaveCount(6);
+  await expect(page.locator('.sparse-axis-title.dimension-title')).toContainText('ALTO 5 · LARGO 6');
   await expect(page.locator('.sparse-node')).toHaveCount(10);
   await expect(page.locator('.sparse-row-links .row-return')).toHaveCount(5);
   await expect(page.locator('.sparse-column-links .column-return')).toHaveCount(6);

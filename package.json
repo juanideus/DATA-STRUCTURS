@@ -2,7 +2,7 @@
   "name": "dsa-lab",
   "private": true,
   "version": "1.0.0",
-  "description": "Laboratorio interactivo para aprender estructuras de datos y algoritmos mediante visualizaciones y código Java.",
+  "description": "Laboratorio interactivo para aprender estructuras de datos y algoritmos mediante visualizaciones y código Java y C++.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -20,10 +20,14 @@
     "audit:challenges": "node scripts/audit-challenges.mjs",
     "audit:section-tests": "node scripts/audit-section-tests.mjs",
     "audit:java": "node scripts/compile-java-audit.mjs",
+    "audit:cpp": "node scripts/compile-cpp-audit.mjs",
+    "audit:cpp-runtime": "node scripts/runtime-cpp-audit.mjs",
     "audit:stress": "node scripts/stress-audit.mjs",
     "audit:seo": "node scripts/audit-seo.mjs",
+    "audit:dependencies": "npm audit --omit=dev --audit-level=moderate && npm --prefix report audit --omit=dev --audit-level=moderate",
+    "test:report": "npm --prefix report test",
     "test:e2e": "node scripts/run-e2e.mjs",
-    "check": "npm run audit && npm run audit:challenges && npm run audit:section-tests && npm run audit:java && npm run audit:stress && npm run build && npm run audit:seo && npm run test:e2e"
+    "check": "npm run audit:dependencies && npm run test:report && npm run audit && npm run audit:challenges && npm run audit:section-tests && npm run audit:java && npm run audit:cpp && npm run audit:cpp-runtime && npm run audit:stress && npm run build && npm run audit:seo && npm run test:e2e"
   },
   "dependencies": {
     "@vercel/analytics": "2.0.1",

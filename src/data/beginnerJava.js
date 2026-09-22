@@ -406,6 +406,59 @@ const basic = {
 
 const special = {
   ...linkedListJava,
+  'dijkstra:reset': `void resetSearch(int[] map, int[] initialMap,
+                 int[] distance, int[] previous, boolean[] visited) {
+    for (int i = 0; i < distance.length; i++) {
+        map[i] = initialMap[i];
+        distance[i] = 999999;
+        previous[i] = -1;
+        visited[i] = false;
+    }
+}`,
+  'a-star:reset': `void resetSearch(int[] map, int[] initialMap,
+                 int[] g, int[] f, int[] previous,
+                 boolean[] open, boolean[] closed) {
+    for (int i = 0; i < g.length; i++) {
+        map[i] = initialMap[i];
+        g[i] = 999999;
+        f[i] = 999999;
+        previous[i] = -1;
+        open[i] = false;
+        closed[i] = false;
+    }
+}`,
+  'hanoi:reset': `void resetTowers(int disks) {
+    diskCount = disks;
+    for (int i = 0; i < source.length; i++) {
+        source[i] = i < disks ? disks - i : 0;
+        target[i] = 0;
+        help[i] = 0;
+    }
+}`,
+  'n-reinas:reset': `void resetQueens(int boardSize) {
+    size = boardSize;
+    queens = new int[size];
+    for (int row = 0; row < size; row++) queens[row] = -1;
+}`,
+  'laberinto:reset': `void resetPath() {
+    for (int row = 0; row < 6; row++) {
+        for (int column = 0; column < 6; column++) path[row][column] = false;
+    }
+}`,
+  'sudoku:reset': `void resetBoard(int[][] initialBoard) {
+    for (int row = 0; row < 9; row++) {
+        for (int column = 0; column < 9; column++) {
+            board[row][column] = initialBoard[row][column];
+        }
+    }
+}`,
+  'union-find:reset': `void resetSets(int amount) {
+    size = amount;
+    for (int value = 0; value < size; value++) {
+        parent[value] = value;
+        rank[value] = 0;
+    }
+}`,
   'merge-sort:sort': `void sort() {
     int[] help = new int[size];
     mergeSort(0, size - 1, help);

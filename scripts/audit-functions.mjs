@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { algorithms } from '../src/data/algorithms.js';
 import { completeJavaSnippet, getBeginnerJava } from '../src/data/beginnerJava.js';
+import { getBeginnerCpp } from '../src/data/beginnerCpp.js';
+import { supportsCpp } from '../src/data/cppCatalog.js';
 import { educationalDescriptions } from '../src/data/educationalDescriptions.js';
 import { GRAPH_DESIGNS, graphEdgesFor, graphPositionsFor } from '../src/data/graphDesigns.js';
 import { guideJavaExamples } from '../src/data/guideJavaExamples.js';
@@ -20,7 +22,7 @@ import {
   createTreeSynchronizedFrames,
   estimateLoopIterations,
 } from '../src/logic/codeAnimation.js';
-import { DEFAULT_PATH_MAP } from '../src/logic/pathfindingMap.js';
+import { DEFAULT_PATH_MAP, MAP_COLUMNS, MAP_ROWS } from '../src/logic/pathfindingMap.js';
 
 const edges = () => DEFAULT_GRAPH_EDGES.map(edge => [...edge]);
 const mojibake = /Ã|â€|â†|�/;
@@ -83,6 +85,15 @@ function fieldsFor(algorithm, actionId, trial = 0) {
   if (actionId === 'calculate') samples.value = String(trial % 10);
   if (actionId === 'hanoi-set') samples.value = String(1 + (trial % 7));
   if (algorithm.id === 'n-reinas') samples.value = String(4 + (trial % 5));
+  if (['quadtree', 'octree'].includes(algorithm.id)) {
+    const existing = String(first).split(',');
+    const coordinates = ['remove-value', 'find'].includes(actionId)
+      ? existing
+      : [String(80 - trial), String(-70 + trial), String(60 - trial)];
+    samples.value = coordinates[0];
+    samples.second = coordinates[1];
+    samples.index = algorithm.id === 'octree' ? coordinates[2] : '';
+  }
   if (actionId === 'union') Object.assign(samples, { value: String(trial % length), second: String((trial + 1) % length) });
   if (actionId === 'find-root') samples.value = String(trial % length);
   if (actionId === 'vertex-add') samples.value = String.fromCharCode(71 + trial);
@@ -157,6 +168,25 @@ function validQueens(queens) {
 assert.equal(algorithms.length, 86, 'El catálogo debe contener 86 temas.');
 assert.equal(new Set(algorithms.map(algorithm => algorithm.id)).size, algorithms.length, 'El catálogo contiene identificadores duplicados.');
 assert.equal(new Set(algorithms.map(algorithm => algorithm.name)).size, algorithms.length, 'El catálogo contiene nombres duplicados.');
+const specializedResetExpectations = new Map([
+  ['dijkstra', 'map[i] = initialMap[i]'],
+  ['a-star', 'map[i] = initialMap[i]'],
+  ['hanoi', 'resetTowers(int disks)'],
+  ['n-reinas', 'resetQueens(int boardSize)'],
+  ['laberinto', 'resetPath()'],
+  ['sudoku', 'resetBoard(int[][] initialBoard)'],
+  ['union-find', 'resetSets(int amount)'],
+]);
+for (const [algorithmId, expected] of specializedResetExpectations) {
+  const resetCode = getBeginnerJava(algorithms.find(item => item.id === algorithmId), 'reset');
+  assert.ok(resetCode.includes(expected), `${algorithmId}/reset: no restaura su estado especializado.`);
+  assert.ok(!resetCode.includes('values[i] = initialValues[i]'), `${algorithmId}/reset: todavía usa el reinicio genérico.`);
+}
+for (const algorithmId of ['dijkstra', 'a-star']) {
+  const pathfindingCpp = getBeginnerCpp(algorithms.find(item => item.id === algorithmId), 'shortest-path');
+  assert.ok(pathfindingCpp.includes(`static const int ROWS = ${MAP_ROWS};`), `${algorithmId}: C++ no usa las filas del mapa visual.`);
+  assert.ok(pathfindingCpp.includes(`static const int COLUMNS = ${MAP_COLUMNS};`), `${algorithmId}: C++ no usa las columnas del mapa visual.`);
+}
 assert.equal(Object.keys(educationalDescriptions).length, algorithms.length, 'La cantidad de descripciones no coincide con el catálogo.');
 const theoreticalTypes = new Set(['theory', 'complexity', 'oop', 'foundation']);
 assert.equal(Object.keys(guideJavaExamples).length, algorithms.filter(algorithm => !theoreticalTypes.has(algorithm.type)).length, 'Todas las secciones prácticas deben incluir ejemplo Java; las guías de Fundamentos no usan el panel práctico.');
@@ -266,6 +296,37 @@ for (const algorithm of algorithms) {
       assert.ok(frames.every(frame => Number.isInteger(frame.codeLine)), `${label}: una línea de código no está sincronizada.`);
       assert.ok(frames.every(frame => typeof frame.message === 'string' && frame.message.length > 0), `${label}: un fotograma no explica lo que ocurre.`);
       assert.deepEqual(frames.at(-1).values, result.values, `${label}: el último fotograma no coincide con el resultado.`);
+
+      if (trial === 0 && supportsCpp(algorithm.id)) {
+        const cpp = getBeginnerCpp(algorithm, action.id);
+        const cppFrames = usesCustomFrames
+          ? adaptFramesToCode(result.frames, cpp, true)
+          : frameFactory({
+              algorithm,
+              code: cpp,
+              actionId: action.id,
+              beforeValues: initialValues,
+              afterValues: result.values,
+              beforeEdges: initialEdges,
+              afterEdges: result.edges,
+              finalStep: result.step,
+              finalMessage: result.message,
+              succeeded: result.ok,
+              inputValues: fieldsFor(algorithm, action.id, trial),
+            });
+        const cppLines = cpp.split('\n');
+        assert.ok(cppFrames.every(frame => Number.isInteger(frame.codeLine)
+          && frame.codeLine >= 0
+          && frame.codeLine < cppLines.length), `${algorithm.id}/${action.id}: una línea C++ animada está fuera del código.`);
+        assert.ok(cppFrames.every(frame => {
+          const highlighted = cppLines[frame.codeLine].trim();
+          return highlighted
+            && !highlighted.startsWith('//')
+            && !/^class\b/.test(highlighted)
+            && !/^(?:public|private|protected):$/.test(highlighted)
+            && !['{', '}', '};'].includes(highlighted);
+        }), `${algorithm.id}/${action.id}: la animación C++ ilumina estructura auxiliar en vez de una instrucción.`);
+      }
 
       const valuesChanged = JSON.stringify(initialValues) !== JSON.stringify(result.values);
       const edgesChanged = JSON.stringify(initialEdges) !== JSON.stringify(result.edges);
