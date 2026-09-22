@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Bug, ClipboardCopy, X } from 'lucide-react';
 import { useDialogFocus } from '../accessibility/useDialogFocus.js';
 import { useLanguage } from '../i18n.jsx';
+import TurnstileWidget from './TurnstileWidget.jsx';
 
 const REPORT_API_URL = String(import.meta.env.VITE_REPORT_API_URL || '').replace(/\/+$/, '');
+const TURNSTILE_SITE_KEY = String(import.meta.env.VITE_TURNSTILE_SITE_KEY || '').trim();
 const EMPTY_REPORT = Object.freeze({ name:'', email:'', title:'', type:'', description:'', steps:'', website:'' });
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -51,6 +53,9 @@ export default function BugReporter({ section }) {
   const [statusTone, setStatusTone] = useState('info');
   const [errors, setErrors] = useState({});
   const [sending, setSending] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [turnstileError, setTurnstileError] = useState('');
+  const [turnstileReset, setTurnstileReset] = useState(0);
   const reportServiceWarmed = useRef(false);
   const formRef = useRef(null);
   const close = useCallback(() => setOpen(false), []);
@@ -59,12 +64,12 @@ export default function BugReporter({ section }) {
     name:'Your name', namePh:'E.g. Ana Torres', email:'Your email (optional)', emailPh:'So we can reply to you', summary:'Short summary', summaryPh:'E.g. The delete button does not respond',
     type:'What kind of problem is it?', typePh:'Select an option', types:['Something does not work','It looks incorrect','Problem in the Java code','Content is difficult to understand','Another problem'],
     happened:'Tell us what happened', happenedPh:'What did you do, what appeared, and what did you expect?', repeat:'How can we reproduce it?', repeatPh:'1. I opened the structure...\n2. I pressed the button...\n3. Then this happened...',
-    website:'Website', required:'Required', delivery:'The report will be sent directly to the DSA Lab team.', later:'Not now', copy:'Copy', sending:'Sending…', send:'Send report', review:'Review the marked fields before continuing.', fieldInvalid:'Check this field.',
+    website:'Website', required:'Required', delivery:'The report will be sent directly to the DSA Lab team.', later:'Not now', copy:'Copy', sending:'Sending…', send:'Send report', review:'Review the marked fields before continuing.', fieldInvalid:'Check this field.', securityRequired:'Complete the security verification before sending.', securityError:'The security verification could not be completed. Reload it and try again.',
   } : {
     name:'Tu nombre', namePh:'Ej.: Ana Torres', email:'Tu correo (opcional)', emailPh:'Para poder responderte', summary:'Resumen corto', summaryPh:'Ej.: El botón eliminar no responde',
     type:'¿Qué tipo de problema es?', typePh:'Selecciona una opción', types:['Algo no funciona','Se ve incorrecto','Problema en el código Java','Contenido difícil de entender','Otro problema'],
     happened:'Cuéntanos qué ocurrió', happenedPh:'¿Qué hiciste, qué apareció y qué esperabas que ocurriera?', repeat:'¿Cómo podemos repetirlo?', repeatPh:'1. Entré a la estructura...\n2. Presioné el botón...\n3. Entonces ocurrió...',
-    website:'Sitio web', required:'Obligatorio', delivery:'El reporte se enviará directamente al equipo de DSA Lab.', later:'Ahora no', copy:'Copiar', sending:'Enviando…', send:'Enviar reporte', review:'Revisa los campos marcados antes de continuar.', fieldInvalid:'Revisa este campo.',
+    website:'Sitio web', required:'Obligatorio', delivery:'El reporte se enviará directamente al equipo de DSA Lab.', later:'Ahora no', copy:'Copiar', sending:'Enviando…', send:'Enviar reporte', review:'Revisa los campos marcados antes de continuar.', fieldInvalid:'Revisa este campo.', securityRequired:'Completa la verificación de seguridad antes de enviar.', securityError:'No se pudo completar la verificación de seguridad. Recárgala e inténtalo nuevamente.',
   };
 
   useEffect(() => {
@@ -79,8 +84,18 @@ export default function BugReporter({ section }) {
     setErrors({});
     setCopyStatus('');
     setStatusTone('info');
+    setTurnstileToken('');
+    setTurnstileError('');
+    setTurnstileReset(value => value + 1);
     setOpen(true);
   };
+  const acceptTurnstileToken = useCallback(token => {
+    setTurnstileToken(token);
+    if (token) setTurnstileError('');
+  }, []);
+  const rejectTurnstile = useCallback(() => {
+    setTurnstileError(language === 'en' ? 'The security verification could not be completed. Reload it and try again.' : 'No se pudo completar la verificación de seguridad. Recárgala e inténtalo nuevamente.');
+  }, [language]);
   const applyFieldError = (field, fieldError) => {
     const nextErrors = { ...errors };
     if (fieldError) nextErrors[field] = fieldError;
@@ -107,10 +122,15 @@ export default function BugReporter({ section }) {
   const focusFirstError = () => window.requestAnimationFrame(() => {
     formRef.current?.querySelector('[aria-invalid="true"]')?.focus();
   });
-  const validateAndShowErrors = () => {
+  const validateAndShowErrors = (requireSecurity = false) => {
     const nextErrors = validateReportFields(report, language);
     setErrors(nextErrors);
-    if (!Object.keys(nextErrors).length) return true;
+    if (!Object.keys(nextErrors).length) {
+      if (!requireSecurity || !TURNSTILE_SITE_KEY || turnstileToken) return true;
+      setStatusTone('error');
+      setCopyStatus(turnstileError || bc.securityRequired);
+      return false;
+    }
     setStatusTone('error');
     setCopyStatus(bc.review);
     focusFirstError();
@@ -131,7 +151,7 @@ export default function BugReporter({ section }) {
   const submit = async event => {
     event.preventDefault();
     if (sending) return;
-    if (!validateAndShowErrors()) return;
+    if (!validateAndShowErrors(true)) return;
     if (!REPORT_API_URL) {
       setStatusTone('error');
       setCopyStatus(language === 'en' ? 'Sending is not configured yet. Add VITE_REPORT_API_URL in Vercel.' : 'El envío todavía no está configurado. Agrega VITE_REPORT_API_URL en Vercel.');
@@ -147,7 +167,7 @@ export default function BugReporter({ section }) {
       const response = await fetch(`${REPORT_API_URL}/api/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...report, section, pageUrl: window.location.href, userAgent: navigator.userAgent }),
+        body: JSON.stringify({ ...report, section, pageUrl: window.location.href, userAgent: navigator.userAgent, turnstileToken }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -159,6 +179,10 @@ export default function BugReporter({ section }) {
           }, {});
           setErrors(serverErrors);
           if (Object.keys(serverErrors).length) focusFirstError();
+          if (result.errors.turnstile) {
+            setTurnstileToken('');
+            setTurnstileReset(value => value + 1);
+          }
         }
         throw new Error(result.message || (language === 'en' ? 'The report could not be sent.' : 'No fue posible enviar el reporte.'));
       }
@@ -166,6 +190,8 @@ export default function BugReporter({ section }) {
       setErrors({});
       setStatusTone('success');
       setCopyStatus(language === 'en' ? 'Thank you! The report was sent successfully.' : '¡Gracias! El reporte fue enviado correctamente.');
+      setTurnstileToken('');
+      setTurnstileReset(value => value + 1);
     } catch (error) {
       setStatusTone('error');
       setCopyStatus(error.message || (language === 'en' ? 'The report could not be sent. Check your connection and try again.' : 'No fue posible enviar el reporte. Comprueba tu conexión e inténtalo nuevamente.'));
@@ -190,6 +216,9 @@ export default function BugReporter({ section }) {
           <label className="bug-field-wide"><span>{bc.happened} <small className="bug-required">{bc.required}</small></span><textarea required minLength="10" maxLength="3000" rows="4" value={report.description} onChange={event => update('description', event.target.value)} onBlur={() => validateField('description')} placeholder={bc.happenedPh} aria-invalid={Boolean(errors.description)} aria-describedby={errors.description ? 'bug-error-description' : undefined}/>{errors.description && <small id="bug-error-description" className="bug-field-error" role="alert">{errors.description}</small>}</label>
           <label className="bug-field-wide"><span>{bc.repeat}</span><textarea maxLength="3000" rows="3" value={report.steps} onChange={event => update('steps', event.target.value)} placeholder={bc.repeatPh}/></label>
           <label className="bug-honeypot" aria-hidden="true"><span>{bc.website}</span><input tabIndex="-1" autoComplete="off" value={report.website} onChange={event => update('website', event.target.value)}/></label>
+          {TURNSTILE_SITE_KEY && <div className="bug-turnstile" aria-label={language === 'en' ? 'Security verification' : 'Verificación de seguridad'}>
+            <TurnstileWidget siteKey={TURNSTILE_SITE_KEY} language={language} onToken={acceptTurnstileToken} onError={rejectTurnstile} resetSignal={turnstileReset}/>
+          </div>}
           {copyStatus && <p className={`bug-copy-status bug-copy-status-${statusTone}`} role="status" aria-live="polite">{copyStatus}</p>}
           <div className="bug-form-actions"><p><Bug size={13}/> {bc.delivery}</p><button type="button" disabled={sending} onClick={close}>{bc.later}</button><button className="copy-report" type="button" disabled={sending} onClick={copyReport}><ClipboardCopy size={15}/> {bc.copy}</button><button type="submit" disabled={sending}>{sending ? bc.sending : bc.send} <Bug size={15}/></button></div>
         </form>

@@ -748,6 +748,7 @@ body{background:
 .bug-modal form label{display:flex;flex-direction:column;gap:6px}
 .bug-modal form label.bug-field-wide{grid-column:1/-1}
 .bug-modal form label.bug-honeypot{position:absolute!important;left:-10000px!important;width:1px!important;height:1px!important;overflow:hidden!important}
+.bug-turnstile{grid-column:1/-1;min-height:65px;display:flex;align-items:center}.bug-turnstile-widget{min-height:65px;display:flex;align-items:center;gap:12px}.bug-turnstile-widget>small{color:var(--muted);font-size:10px}
 .bug-modal form label>span{font-size:11px;font-weight:750;color:#4f5c56}
 .bug-modal input,.bug-modal select,.bug-modal textarea{width:100%;border:1px solid #cbc7bd;border-radius:9px;background:#fff;color:var(--ink);padding:10px 11px;font-size:13px;outline:0;transition:border-color .15s,box-shadow .15s}
 .bug-modal input,.bug-modal select{height:43px}

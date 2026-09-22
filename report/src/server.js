@@ -1,12 +1,15 @@
 import http from 'node:http';
+import net from 'node:net';
 import { sendReportEmail } from './email.js';
 import { allowedOrigins } from './origins.js';
+import { verifyTurnstile } from './turnstile.js';
 import { normalizeReport, validateReport } from './validation.js';
 
 const PORT = Number(process.env.PORT || 10000);
 const MAX_BODY_SIZE = 16 * 1024;
 const RATE_WINDOW_MS = 15 * 60 * 1000;
 const RATE_MAXIMUM = 5;
+const MAX_TRACKED_ADDRESSES = 5_000;
 const requestsByAddress = new Map();
 let lastRateLimitCleanup = 0;
 
@@ -17,6 +20,8 @@ const setSecurityHeaders = response => {
   response.setHeader('Referrer-Policy', 'no-referrer');
   response.setHeader('X-Frame-Options', 'DENY');
   response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  response.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
+  response.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'");
 };
 
 const sendJson = (response, status, body) => {
@@ -36,9 +41,15 @@ const applyCors = (request, response) => {
   return !origin && process.env.NODE_ENV !== 'production';
 };
 
-const clientAddress = request => String(request.headers['x-forwarded-for'] || request.socket.remoteAddress || 'unknown')
-  .split(',')[0]
-  .trim();
+export const clientAddress = request => {
+  const railwayAddress = Array.isArray(request.headers['x-real-ip'])
+    ? request.headers['x-real-ip'][0]
+    : request.headers['x-real-ip'];
+  const candidate = String(railwayAddress || '').split(',')[0].trim();
+  if (net.isIP(candidate)) return candidate;
+  const socketAddress = String(request.socket.remoteAddress || '').trim();
+  return net.isIP(socketAddress) ? socketAddress : 'unknown';
+};
 
 const exceedsRateLimit = address => {
   const now = Date.now();
@@ -51,6 +62,10 @@ const exceedsRateLimit = address => {
     lastRateLimitCleanup = now;
   }
   const recent = (requestsByAddress.get(address) || []).filter(timestamp => now - timestamp < RATE_WINDOW_MS);
+  if (!requestsByAddress.has(address) && requestsByAddress.size >= MAX_TRACKED_ADDRESSES) {
+    const oldestAddress = requestsByAddress.keys().next().value;
+    if (oldestAddress) requestsByAddress.delete(oldestAddress);
+  }
   recent.push(now);
   requestsByAddress.set(address, recent);
   return recent.length > RATE_MAXIMUM;
@@ -58,17 +73,21 @@ const exceedsRateLimit = address => {
 
 const readJson = request => new Promise((resolve, reject) => {
   let body = '';
+  let tooLarge = false;
   request.setEncoding('utf8');
   request.on('data', chunk => {
+    if (tooLarge) return;
     body += chunk;
     if (Buffer.byteLength(body) > MAX_BODY_SIZE) {
+      tooLarge = true;
+      body = '';
       const error = new Error('El formulario supera el tamaño permitido.');
       error.status = 413;
       reject(error);
-      request.destroy();
     }
   });
   request.on('end', () => {
+    if (tooLarge) return;
     try {
       resolve(JSON.parse(body || '{}'));
     } catch {
@@ -116,7 +135,8 @@ export const server = http.createServer(async (request, response) => {
   }
 
   try {
-    const report = normalizeReport(await readJson(request));
+    const input = await readJson(request);
+    const report = normalizeReport(input);
     if (report.website) {
       sendJson(response, 200, { ok: true, message: 'Reporte recibido.' });
       return;
@@ -124,6 +144,19 @@ export const server = http.createServer(async (request, response) => {
     const errors = validateReport(report);
     if (Object.keys(errors).length) {
       sendJson(response, 422, { ok: false, message: 'Revisa los campos del formulario.', errors });
+      return;
+    }
+    const turnstile = await verifyTurnstile({
+      secret: process.env.TURNSTILE_SECRET_KEY,
+      token: input.turnstileToken,
+      remoteIp: clientAddress(request),
+    });
+    if (!turnstile.success) {
+      sendJson(response, 422, {
+        ok: false,
+        message: 'No se pudo completar la verificación de seguridad. Inténtalo nuevamente.',
+        errors: { turnstile: 'Completa nuevamente la verificación de seguridad.' },
+      });
       return;
     }
     const missing = missingConfiguration();

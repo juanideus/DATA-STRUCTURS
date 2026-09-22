@@ -3,7 +3,7 @@
 
   # DSA Lab
 
-  **Laboratorio interactivo para aprender estructuras de datos y algoritmos mediante visualizaciones, animaciones y código Java para principiantes.**
+  **Laboratorio interactivo para aprender estructuras de datos y algoritmos mediante visualizaciones, animaciones y código Java y C++ para principiantes.**
 
   [![React](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white)](https://react.dev/)
   [![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](https://vite.dev/)
@@ -41,7 +41,7 @@
 
 **DSA Lab** es una aplicación web educativa que convierte estructuras de datos y algoritmos en experiencias visuales e interactivas. Su propósito es ayudar a estudiantes que están comenzando a comprender qué ocurre dentro de un algoritmo, en lugar de limitarse a observar su resultado final.
 
-La plataforma permite modificar ejemplos, ejecutar operaciones, reproducir animaciones paso a paso y comparar cada cambio visual con código Java sencillo. De esta forma, el estudiante puede usar la aplicación como punto de apoyo para comprender conceptos, experimentar sin miedo y desarrollar sus propias soluciones.
+La plataforma permite modificar ejemplos, ejecutar operaciones, reproducir animaciones paso a paso y comparar cada cambio visual con código Java o C++. De esta forma, el estudiante puede usar la aplicación como punto de apoyo para comprender conceptos, experimentar sin miedo y desarrollar sus propias soluciones.
 
 La idea central del proyecto es:
 
@@ -54,7 +54,7 @@ DSA Lab fue creado para:
 - Facilitar el aprendizaje inicial de estructuras de datos y algoritmos.
 - Mostrar visualmente cómo cambia una estructura después de cada operación.
 - Relacionar la animación con las líneas de código que se están ejecutando.
-- Presentar Java de forma directa, evitando abstracciones innecesarias para principiantes.
+- Presentar Java y C++ de forma directa; en C++ se usan arreglos dinámicos `[]`, punteros crudos y gestión explícita con `new`/`new[]` y `delete`/`delete[]`.
 - Permitir que el estudiante agregue, elimine, busque y modifique datos.
 - Ayudar a comprender recursividad y backtracking mediante decisiones y retrocesos visibles.
 - Servir como referencia antes de implementar un algoritmo desde cero.
@@ -73,11 +73,11 @@ DSA Lab fue creado para:
 - Sección teórica de complejidad algorítmica con notación O, Ω y Θ, casos, reglas de conteo, tabla comparativa y gráfico de crecimiento, sin código ni controles interactivos.
 - Polinomios enlazados con términos ordenados por exponente, agrupación de exponentes repetidos y suma visual mediante punteros.
 - Listas generalizadas con átomos, sublistas, niveles, referencias compartidas y enlaces `link`/`dlink`.
-- Matriz poco poblada con cabeceras AROW y ACOL, nodos compartidos y recorridos circulares invertidos.
+- Matriz poco poblada de alto y largo independientes, con `Node** AROW`, `Node** ACOL`, nodos compartidos y recorridos circulares invertidos.
 
 ### Código sincronizado
 
-- Panel de código Java para principiantes.
+- Panel sincronizado de Java, C++ y pseudocódigo. C++ utiliza almacenamiento dinámico, punteros crudos y liberación explícita de memoria.
 - Pseudocódigo disponible como formato alternativo.
 - Resaltado de la línea que corresponde al paso actual de la animación.
 - Ejemplos deliberadamente sencillos, con variables, ciclos, condiciones, arreglos y métodos pequeños.
@@ -348,9 +348,13 @@ npm run preview
 | `npm run audit` | Ejecuta la auditoría funcional y educativa del catálogo |
 | `npm run audit:challenges` | Genera desafíos y compara sus predicciones con las operaciones reales |
 | `npm run audit:java` | Compila con `javac` los 310 códigos Java visibles |
+| `npm run audit:cpp` | Compila con `g++ -std=c++17` cada ejemplo C++ habilitado |
+| `npm run audit:cpp-runtime` | Ejecuta escenarios C++ reales para validar punteros, memoria e invariantes estructurales |
 | `npm run audit:stress` | Prueba entradas extremas y secuencias largas de operaciones |
+| `npm run audit:dependencies` | Revisa vulnerabilidades de producción del frontend y de la API de reportes |
+| `npm run test:report` | Ejecuta validación, CORS, cabeceras, límites y pruebas anti-bot de la API |
 | `npm run test:e2e` | Ejecuta pruebas reales de navegador en escritorio y móvil |
-| `npm run check` | Ejecuta las auditorías funcional, de desafíos, Java y de estrés, además de las pruebas E2E |
+| `npm run check` | Ejecuta todas las auditorías Java/C++, estrés, SEO, compilación y pruebas E2E |
 
 Flujo recomendado antes de subir cambios:
 
@@ -376,6 +380,8 @@ DSA/
 ├── scripts/
 │   ├── audit-functions.mjs            # Auditoría automática del laboratorio
 │   ├── compile-java-audit.mjs          # Compilación real de cada código Java mostrado
+│   ├── compile-cpp-audit.mjs           # Compilación estricta de los 310 códigos C++
+│   ├── runtime-cpp-audit.mjs           # Ejecución de invariantes y punteros C++ críticos
 │   ├── stress-audit.mjs                # Entradas límite y operaciones encadenadas
 │   └── run-e2e.mjs                    # Build, servidor temporal y pruebas de navegador
 ├── src/
@@ -422,13 +428,15 @@ DSA/
 
 - `src/data/algorithms.js` define la identidad, categoría, complejidad, descripción, pseudocódigo y valores iniciales de cada tema.
 - `src/logic/operations.js` recibe una acción del usuario y devuelve valores, aristas, mensajes y cuadros de animación.
-- `src/data/beginnerJava.js` entrega el código Java que corresponde a cada operación.
+- `src/data/beginnerJava.js` y `src/data/beginnerCpp.js` entregan el código que corresponde a cada operación.
 - `src/App.jsx` coordina el estado general y selecciona el visualizador apropiado.
 - `src/components/OperationsPanel.jsx` construye los controles según el tipo de estructura.
 - `src/components/EducationalDescription.jsx` presenta la documentación extendida.
 - `scripts/audit-functions.mjs` verifica que el catálogo y las operaciones mantengan contratos válidos.
 - `scripts/audit-challenges.mjs` genera preguntas y verifica sus resultados con el mismo motor de operaciones utilizado por la interfaz.
 - `scripts/compile-java-audit.mjs` envuelve y compila cada fragmento educativo con `javac`.
+- `scripts/compile-cpp-audit.mjs` compila cada fragmento con `g++ -std=c++17`, prohíbe `std::vector` y arreglos internos de capacidad fija, exige almacenamiento dinámico y evita que una operación reciba código de otra estructura.
+- `scripts/runtime-cpp-audit.mjs` ejecuta casos reales de árboles balanceados, heaps, árboles multicamino, parsers y listas recursivas.
 - `scripts/stress-audit.mjs` somete todas las acciones a datos vacíos, negativos, decimales, enormes, texto, Unicode y secuencias de uso prolongadas.
 
 ## Auditoría y calidad
@@ -465,7 +473,7 @@ comprueba automáticamente, entre otros puntos:
 - Que las listas generalizadas distingan átomos, sublistas y cabeceras, calculen longitud y profundidad y mantengan referencias compartidas.
 - Que la matriz poco poblada inserte un único nodo en AROW y ACOL, recorra ambas listas en orden invertido y cierre sus enlaces circulares.
 
-La auditoría actual cubre **86 temas, 310 acciones, 3100 pruebas funcionales y 83 funciones distintas**. También valida desafíos generados desde el estado real de los **66 laboratorios prácticos**. La capa de estrés añade **15 520 comprobaciones** —11 560 entradas extremas y 3960 operaciones encadenadas—. Además, los **310 códigos Java visibles** se compilan realmente con `javac`.
+La auditoría actual cubre **86 temas, 310 acciones, 3100 pruebas funcionales y 83 funciones distintas**. También valida desafíos generados desde el estado real de los **66 laboratorios prácticos**. La capa de estrés añade **15 520 comprobaciones** —11 560 entradas extremas y 3960 operaciones encadenadas—. Los **310 códigos Java** se compilan con `javac`, los **310 códigos C++** con `g++ -std=c++17` y 17 escenarios C++ adicionales ejecutan invariantes de punteros y balanceo.
 
 Además, Playwright verifica los recorridos críticos en Chromium de escritorio y móvil:
 
@@ -541,7 +549,9 @@ El formulario solicita:
 
 En Vercel se debe configurar `VITE_REPORT_API_URL=https://api.dsalab.dev`. Ese subdominio apunta al servicio `report` desplegado en Railway. La API autoriza los dominios oficiales de DSA Lab y `ALLOWED_ORIGINS` permite agregar otros orígenes exactos desde Railway.
 
-La política de seguridad de Vercel permite conexiones HTTPS hacia `api.dsalab.dev` y hacia el dominio temporal `*.up.railway.app`. Las claves de Resend se configuran exclusivamente en Railway; nunca se guardan en el frontend ni en variables `VITE_*`.
+El envío puede protegerse con Cloudflare Turnstile. La site key pública se configura en Vercel como `VITE_TURNSTILE_SITE_KEY`; la secret key se guarda únicamente en Railway como `TURNSTILE_SECRET_KEY`. Cuando ambas están configuradas, el navegador obtiene un token y la API valida en Cloudflare que sea auténtico, de un solo uso, perteneciente a un dominio oficial y asociado a la acción `report`.
+
+La política de seguridad de Vercel permite conexiones HTTPS hacia `api.dsalab.dev`, el dominio temporal `*.up.railway.app` y los scripts e iframes oficiales de Turnstile. Las claves secretas de Resend y Turnstile se configuran exclusivamente en Railway; nunca se guardan en el frontend ni en variables `VITE_*`.
 
 Los correos salen como `DSA Lab <reportes@dsalab.dev>` después de verificar `dsalab.dev` en Resend. `REPORT_EMAIL` contiene la dirección privada que recibirá cada reporte.
 
@@ -559,7 +569,7 @@ El navegador conserva localmente:
 
 - Último tema visitado.
 - Velocidad de reproducción.
-- Formato Java o pseudocódigo.
+- Formato Java, C++ nativo o pseudocódigo en los 66 laboratorios prácticos.
 - Estado del menú lateral.
 - Confirmación de que la introducción ya fue mostrada.
 

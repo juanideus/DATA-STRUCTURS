@@ -4,6 +4,7 @@ import {
   Eraser, MapPin, Menu, PanelLeftOpen, Pause, Play, RotateCcw, Shuffle, Sparkles,
 } from 'lucide-react';
 import { algorithmIndexes, algorithms, algorithmsById, categoryLabels } from './data/algorithms.js';
+import { supportsCpp } from './data/cppCatalog.js';
 import { getGraphDesign, graphEdgesFor, graphPositionsFor } from './data/graphDesigns.js';
 import OperationsPanel from './components/OperationsPanel.jsx';
 import VariablesPanel from './components/VariablesPanel.jsx';
@@ -20,6 +21,7 @@ import {
   createTreeSynchronizedFrames,
 } from './logic/codeAnimation.js';
 import { DEFAULT_GRAPH_EDGES, DEFAULT_GRAPH_POSITIONS, executeOperation, getOperationDefinition, getThreadedTreeLinks, operationGroup, SPARSE_MATRIX_COLUMNS, SPARSE_MATRIX_ROWS } from './logic/operations.js';
+import { getOperationPseudocode } from './data/operationPseudocode.js';
 import { AST_EXAMPLES, astValuesFromSource } from './logic/ast.js';
 import { DENSE_MATRIX_SIZE, normalizeDenseMatrixValues } from './logic/denseMatrix.js';
 import { GENERALIZED_LIST_EXAMPLES, generalizedListToString, generalizedListValuesFromSource } from './logic/generalizedList.js';
@@ -1039,6 +1041,7 @@ function GeneralizedListVisual({ algorithm }) {
 }
 
 function SparseMatrixVisual({ algorithm }) {
+  const en = algorithm.language === 'en';
   const frameState = algorithm.animationFrame?.sparseState ?? {};
   const cellKey = cell => `${cell.row}:${cell.column}`;
   const baseCells = algorithm.values
@@ -1179,6 +1182,9 @@ function SparseMatrixVisual({ algorithm }) {
 
       <text className="sparse-axis-title row-title" x="24" y="23">CABECERAS DE FILA</text>
       <text className="sparse-axis-title column-title" x="172" y="12">CABECERAS DE COLUMNA</text>
+      <text className="sparse-axis-title dimension-title" x="710" y="12" textAnchor="end">
+        {en ? `HEIGHT ${SPARSE_MATRIX_ROWS} · WIDTH ${SPARSE_MATRIX_COLUMNS}` : `ALTO ${SPARSE_MATRIX_ROWS} · LARGO ${SPARSE_MATRIX_COLUMNS}`}
+      </text>
 
       {Array.from({ length: SPARSE_MATRIX_COLUMNS }, (_, column) => <g
         className={`sparse-header column-header ${activeColumn === column ? 'active' : ''}`}
@@ -1695,9 +1701,18 @@ function FibonacciHeapDiagram({ algorithm, step }) {
 }
 
 function SpatialTreeDiagram({ algorithm, step }) {
-  const pointPositions = [[18,28],[66,18],[35,67],[78,72],[47,38],[12,82],[87,42],[58,88],[28,12],[72,54],[42,84],[91,16]];
-  if (algorithm.id==='octree') return <div className="octree-visual"><span className="tree-kind-label">8 OCTANTES · ESPACIO 3D</span>{Array.from({length:8},(_,index)=><div className={`octant octant-${index}`} key={index}>{index+1}</div>)}{algorithm.values.slice(0,12).map((value,index)=><span className={`spatial-point ${index===step%algorithm.values.length?'active':''}`} style={{left:`${pointPositions[index][0]}%`,top:`${pointPositions[index][1]}%`}} key={`point-${index}`}>{value}</span>)}</div>;
-  return <div className="quadtree-visual"><span className="tree-kind-label">4 CUADRANTES · ESPACIO 2D</span><div>NW</div><div>NE</div><div>SW</div><div>SE</div>{algorithm.values.slice(0,12).map((value,index)=><span className={`spatial-point ${index===step%algorithm.values.length?'active':''}`} style={{left:`${pointPositions[index][0]}%`,top:`${pointPositions[index][1]}%`}} key={`point-${index}`}>{value}</span>)}</div>;
+  const positionOf = value => {
+    const [x = 0, y = 0, z = 0] = String(value).split(',').map(Number);
+    const projectedX = algorithm.id === 'octree' ? x + z * 0.22 : x;
+    const projectedY = algorithm.id === 'octree' ? y - z * 0.16 : y;
+    return [
+      Math.max(7, Math.min(93, 50 + projectedX * 0.42)),
+      Math.max(12, Math.min(90, 52 - projectedY * 0.38)),
+    ];
+  };
+  const points = algorithm.values.slice(0,12).map((value,index) => ({ value, index, position: positionOf(value) }));
+  if (algorithm.id==='octree') return <div className="octree-visual"><span className="tree-kind-label">8 OCTANTES · ESPACIO 3D</span>{Array.from({length:8},(_,index)=><div className={`octant octant-${index}`} key={index}>{index+1}</div>)}{points.map(({value,index,position})=><span className={`spatial-point ${index===step%algorithm.values.length?'active':''}`} style={{left:`${position[0]}%`,top:`${position[1]}%`}} key={`point-${value}`}>{value}</span>)}</div>;
+  return <div className="quadtree-visual"><span className="tree-kind-label">4 CUADRANTES · ESPACIO 2D</span><div>NW</div><div>NE</div><div>SW</div><div>SE</div>{points.map(({value,index,position})=><span className={`spatial-point ${index===step%algorithm.values.length?'active':''}`} style={{left:`${position[0]}%`,top:`${position[1]}%`}} key={`point-${value}`}>{value}</span>)}</div>;
 }
 
 function TreeVisual({ algorithm, step }) {
@@ -2252,12 +2267,12 @@ function OpeningIntro({ onDone }) {
   const copy = language === 'en' ? {
     visual:'Visual algorithms', enter:'Enter now', kicker:'Inspired by better learning', titleA:'Understanding is easier', titleB:'when you can see it.',
     description:'This page was created to improve student learning: visualize every step, experiment with structures, and build your own algorithms more easily.',
-    see:'Visualize', seeText:'Observe what happens at every step.', understand:'Understand', understandText:'Connect the animation with Java.', create:'Create', createText:'Build your own algorithms.',
+    see:'Visualize', seeText:'Observe what happens at every step.', understand:'Understand', understandText:'Connect the animation with Java and C++.', create:'Create', createText:'Build your own algorithms.',
     preparing:'Preparing your learning space', motto:'Your imagination is the limit',
   } : {
     visual:'Algoritmos visuales', enter:'Entrar ahora', kicker:'Inspirada en aprender mejor', titleA:'Comprender es más fácil', titleB:'cuando puedes verlo.',
     description:'Esta página fue creada para mejorar el aprendizaje de los estudiantes: permite visualizar cada paso, experimentar con las estructuras y realizar sus propios algoritmos de una manera más sencilla.',
-    see:'Visualiza', seeText:'Observa qué ocurre en cada paso.', understand:'Comprende', understandText:'Relaciona la animación con Java.', create:'Crea', createText:'Construye tus propios algoritmos.',
+    see:'Visualiza', seeText:'Observa qué ocurre en cada paso.', understand:'Comprende', understandText:'Relaciona la animación con Java y C++.', create:'Crea', createText:'Construye tus propios algoritmos.',
     preparing:'Preparando tu espacio de aprendizaje', motto:'El límite es tu imaginación',
   };
   return <section ref={dialogRef} tabIndex="-1" className={`opening-intro ${leaving ? 'is-leaving' : ''}`} role="dialog" aria-modal="true" aria-labelledby="opening-title">
@@ -2290,20 +2305,20 @@ function Welcome({ onStart, startName }) {
   const { language } = useLanguage();
   const c = language === 'en' ? {
     hello:'Welcome to DSA Lab',learn:'Learn by practicing',title:'Algorithms you can see, touch, and understand.',
-    lead:'This is an educational laboratory for visualizing data structures and algorithms more simply. Students can modify examples, play every execution step by step, and use Java code as a guide to understand, practice, and develop their own algorithms.',
+    lead:'This is an educational laboratory for visualizing data structures and algorithms more simply. Students can modify examples, play every execution step by step, and use Java and C++ code as a guide to understand, practice, and develop their own algorithms.',
     continue:'Continue with',motto:'Your imagination is the limit.',you:'You can do it.',about:'About this project',aboutTitle:'A space to experiment without being afraid of mistakes',
     aboutText:'Every topic combines a visual representation, interactive controls, and simple code. The goal is to help students understand what happens internally and give them a clear foundation for building their own algorithms.',
     topics:'visual topics',topicsText:'From arrays and linked lists to trees, graphs, recursion, and backtracking.',practice:'Interactive practice',practiceText:'Add, remove, search, and traverse elements while watching every change.',
-    java:'Java for beginners',javaText:'Direct, readable code designed for students who are getting started.',s1:'Step 1',s1t:'Choose a topic',s1p:'Use the sidebar to open any structure or algorithm.',
-    s2:'Step 2',s2t:'Run an operation',s2p:'Fill in the fields and select an operation to modify the example.',s3:'Step 3',s3t:'Observe and learn',s3p:'Compare the animation with the highlighted Java code lines.',
+    java:'Java and C++',javaText:'Readable Java plus native C++ arrays and pointers, designed for students who are getting started.',s1:'Step 1',s1t:'Choose a topic',s1p:'Use the sidebar to open any structure or algorithm.',
+    s2:'Step 2',s2t:'Run an operation',s2p:'Fill in the fields and select an operation to modify the example.',s3:'Step 3',s3t:'Observe and learn',s3p:'Compare the animation with the highlighted Java or C++ code lines.',
   } : {
     hello:'Bienvenido a DSA Lab',learn:'Aprende practicando',title:'Algoritmos que puedes ver, tocar y entender.',
-    lead:'Esta página es un laboratorio educativo creado para visualizar estructuras de datos y algoritmos de una manera más sencilla. Los alumnos pueden modificar ejemplos, reproducir cada ejecución paso a paso y usar el código Java como punto de apoyo para comprender, practicar y desarrollar sus propios algoritmos.',
+    lead:'Esta página es un laboratorio educativo creado para visualizar estructuras de datos y algoritmos de una manera más sencilla. Los alumnos pueden modificar ejemplos, reproducir cada ejecución paso a paso y usar código Java y C++ como punto de apoyo para comprender, practicar y desarrollar sus propios algoritmos.',
     continue:'Continuar con',motto:'El límite es tu imaginación.',you:'Tú puedes.',about:'Sobre este proyecto',aboutTitle:'Un espacio para experimentar sin miedo a equivocarse',
     aboutText:'Cada tema combina una representación visual, controles interactivos y código sencillo. El objetivo es que los alumnos entiendan qué ocurre internamente y dispongan de una base clara desde la cual puedan construir sus propios algoritmos.',
     topics:'temas visuales',topicsText:'Desde arrays y listas hasta árboles, grafos, recursividad y backtracking.',practice:'Práctica interactiva',practiceText:'Agrega, elimina, busca y recorre elementos mientras observas cada cambio.',
-    java:'Java para principiantes',javaText:'Código directo y legible, pensado para estudiantes que están comenzando.',s1:'Paso 1',s1t:'Elige un tema',s1p:'Usa el menú lateral para entrar a cualquier estructura o algoritmo.',
-    s2:'Paso 2',s2t:'Ejecuta una función',s2p:'Completa los campos y pulsa una operación para modificar el ejemplo.',s3:'Paso 3',s3t:'Observa y aprende',s3p:'Compara la animación con las líneas destacadas del código Java.',
+    java:'Java y C++',javaText:'Java legible y C++ con arreglos nativos y punteros, pensados para estudiantes que están comenzando.',s1:'Paso 1',s1t:'Elige un tema',s1p:'Usa el menú lateral para entrar a cualquier estructura o algoritmo.',
+    s2:'Paso 2',s2t:'Ejecuta una función',s2p:'Completa los campos y pulsa una operación para modificar el ejemplo.',s3:'Paso 3',s3t:'Observa y aprende',s3p:'Compara la animación con las líneas destacadas del código Java o C++.',
   };
   return <div className="welcome-page">
     <section className="welcome-hero">
@@ -2361,7 +2376,10 @@ function App() {
   });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => readPreference('dsa-sidebar-collapsed', 'false') === 'true');
-  const [codeMode, setCodeMode] = useState(() => readPreference(STORAGE_KEYS.codeMode, 'java') === 'pseudo' ? 'pseudo' : 'java');
+  const [codeMode, setCodeMode] = useState(() => {
+    const stored = readPreference(STORAGE_KEYS.codeMode, 'java');
+    return ['java', 'cpp', 'pseudo'].includes(stored) ? stored : 'java';
+  });
   const [copied, setCopied] = useState(false);
   const codePanelRef = useRef(null);
   const sourceAlgorithm = algorithmsById.get(selectedId) ?? algorithms[0];
@@ -2378,6 +2396,7 @@ function App() {
   const [challengeMode, setChallengeMode] = useState(false);
   const [challengeScenarioKey, setChallengeScenarioKey] = useState(0);
   const [javaCodeFactory, setJavaCodeFactory] = useState(null);
+  const [cppCodeFactory, setCppCodeFactory] = useState(null);
   const [sectionTest, setSectionTest] = useState(null);
   const [sectionTestActive, setSectionTestActive] = useState(false);
   const [sectionTestViolation, setSectionTestViolation] = useState(null);
@@ -2421,8 +2440,10 @@ function App() {
       ? ''
       : codeMode === 'java'
         ? javaCodeFactory?.(baseAlgorithm, activeOperation) ?? '// Cargando código Java…'
-        : baseAlgorithm.code
-  ), [activeOperation, baseAlgorithm, codeMode, isTheoryPage, javaCodeFactory]);
+        : codeMode === 'cpp'
+          ? cppCodeFactory?.(baseAlgorithm, activeOperation) ?? '// Cargando código C++…'
+        : getOperationPseudocode(baseAlgorithm, activeOperation)
+  ), [activeOperation, baseAlgorithm, codeMode, isTheoryPage, javaCodeFactory, cppCodeFactory]);
   const displayedCode = useMemo(() => translateCodeText(sourceCode, language), [language, sourceCode]);
   const codeLines = useMemo(() => displayedCode.split('\n'), [displayedCode]);
   const totalSteps = operationFrames.length || Math.max(algorithm.values.length, codeLines.length);
@@ -2505,6 +2526,17 @@ function App() {
     });
     return () => { active = false; };
   }, [isTheoryPage, javaCodeFactory]);
+  useEffect(() => {
+    if (isTheoryPage || codeMode !== 'cpp' || cppCodeFactory || !supportsCpp(baseAlgorithm.id)) return;
+    let active = true;
+    import('./data/beginnerCpp.js').then(module => {
+      if (active) setCppCodeFactory(() => module.getBeginnerCpp);
+    });
+    return () => { active = false; };
+  }, [baseAlgorithm.id, codeMode, cppCodeFactory, isTheoryPage]);
+  useEffect(() => {
+    if (codeMode === 'cpp' && !supportsCpp(baseAlgorithm.id)) setCodeMode('java');
+  }, [baseAlgorithm.id, codeMode]);
   useEffect(() => {
     if (!sectionTestLockedUntil) return undefined;
     const timer = window.setInterval(() => setSectionTestClock(Date.now()), 1000);
@@ -2679,9 +2711,17 @@ function App() {
     setJavaCodeFactory(() => module.getBeginnerJava);
     return module.getBeginnerJava;
   };
+  const loadCppCodeFactory = async () => {
+    if (cppCodeFactory) return cppCodeFactory;
+    const module = await import('./data/beginnerCpp.js');
+    setCppCodeFactory(() => module.getBeginnerCpp);
+    return module.getBeginnerCpp;
+  };
   const copyCode = async () => {
     const code = codeMode === 'java'
       ? (await loadJavaCodeFactory())(baseAlgorithm, activeOperation)
+      : codeMode === 'cpp'
+        ? (await loadCppCodeFactory())(baseAlgorithm, activeOperation)
       : displayedCode;
     await navigator.clipboard.writeText(code);
     setCopied(true);
@@ -2697,7 +2737,9 @@ function App() {
     }
     const codeForAnimation = codeMode === 'java'
       ? (await loadJavaCodeFactory())(baseAlgorithm, actionId)
-      : baseAlgorithm.code;
+      : codeMode === 'cpp'
+        ? (await loadCppCodeFactory())(baseAlgorithm, actionId)
+      : getOperationPseudocode(baseAlgorithm, actionId);
     const pendingFinalFrame = operationStatus === 'success' ? operationFrames.at(-1) : null;
     const previousValues = copyVisualValues(pendingFinalFrame?.values ?? demoValues);
     const previousEdges = (pendingFinalFrame?.edges ?? demoEdges).map(edge => [...edge]);
@@ -2716,7 +2758,7 @@ function App() {
         ? createTreeSynchronizedFrames
         : createCodeSynchronizedFrames;
     const frames = result.frames?.length
-      ? adaptFramesToCode(result.frames, codeForAnimation, codeMode === 'java')
+      ? adaptFramesToCode(result.frames, codeForAnimation, codeMode !== 'pseudo')
       : synchronizedFrameFactory({
           algorithm: baseAlgorithm,
           code: codeForAnimation,
@@ -2828,10 +2870,11 @@ function App() {
 
         {!hideCodePanel && <article className="panel code-panel" data-tour="code">
           <div className="panel-head code-head">
-            <div><span className="panel-index">02</span><h2>{codeMode === 'java' ? activeOperationLabel : 'Pseudocódigo'}</h2></div>
+            <div><span className="panel-index">02</span><h2>{codeMode === 'pseudo' ? t('pseudocode') : activeOperationLabel}</h2></div>
             <div className="code-actions">
               <div className="code-tabs" aria-label={t('codeFormat')}>
                 <button className={codeMode === 'java' ? 'active' : ''} onClick={()=>setCodeMode('java')}>Java</button>
+                {supportsCpp(baseAlgorithm.id) && <button className={codeMode === 'cpp' ? 'active' : ''} onClick={()=>setCodeMode('cpp')}>C++</button>}
                 <button className={codeMode === 'pseudo' ? 'active' : ''} onClick={()=>setCodeMode('pseudo')}>{t('pseudocode')}</button>
               </div>
               <button className="copy-button" onClick={copyCode}>{copied ? t('copied') : t('copy')}</button>
@@ -2843,7 +2886,7 @@ function App() {
             return <code className={`${isActive?'active':''} ${isHelperLabel?'helper-method-label':''}`.trim()} key={i}><i>{String(i+1).padStart(2,'0')}</i>{line || ' '}</code>;
           })}</pre>
           <VariablesPanel frame={currentAnimationFrame} algorithm={algorithm} step={step} playing={playing}/>
-          <div className="note"><CircleHelp size={17}/><p><strong>{codeMode === 'java' ? `${language === 'en' ? 'Basic Java' : 'Java básico'} · ${activeOperationLabel}` : language === 'en' ? 'What happens here?' : '¿Qué ocurre aquí?'}</strong><span>{codeMode === 'java' ? currentAnimationFrame?.iteration != null ? language === 'en' ? `The loop is at iteration ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} of ${currentAnimationFrame.totalIterations}. The highlighted line and active element advance together.` : `El ciclo está en la iteración ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} de ${currentAnimationFrame.totalIterations}. La línea iluminada y el elemento activo avanzan juntos.` : language === 'en' ? 'The code uses small variables, arrays, loops, conditions, and methods. Each highlighted line matches the visible change in the structure.' : javaOverview : step === 0 ? translateLearningText('Se prepara el estado inicial y la estructura auxiliar.', language) : step >= totalSteps-1 ? translateLearningText('El algoritmo completa la operación y devuelve el resultado.', language) : language === 'en' ? `The active element at step ${step+1} is processed and the state is updated.` : `Se procesa el elemento activo del paso ${step+1} y se actualiza el estado.`}</span></p></div>
+          <div className="note"><CircleHelp size={17}/><p><strong>{codeMode === 'java' ? `${language === 'en' ? 'Basic Java' : 'Java básico'} · ${activeOperationLabel}` : codeMode === 'cpp' ? `C++ · ${activeOperationLabel}` : language === 'en' ? 'What happens here?' : '¿Qué ocurre aquí?'}</strong><span>{codeMode !== 'pseudo' ? currentAnimationFrame?.iteration != null ? language === 'en' ? `The loop is at iteration ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} of ${currentAnimationFrame.totalIterations}. The highlighted line and active element advance together.` : `El ciclo está en la iteración ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} de ${currentAnimationFrame.totalIterations}. La línea iluminada y el elemento activo avanzan juntos.` : codeMode === 'cpp' ? language === 'en' ? 'This implementation uses native arrays, raw pointers, nullptr, new and delete so every visible link corresponds to a real memory reference.' : 'Esta implementación usa arreglos nativos, punteros crudos, nullptr, new y delete para que cada enlace visible corresponda a una referencia real de memoria.' : language === 'en' ? 'The code uses small variables, arrays, loops, conditions, and methods. Each highlighted line matches the visible change in the structure.' : javaOverview : step === 0 ? translateLearningText('Se prepara el estado inicial y la estructura auxiliar.', language) : step >= totalSteps-1 ? translateLearningText('El algoritmo completa la operación y devuelve el resultado.', language) : language === 'en' ? `The active element at step ${step+1} is processed and the state is updated.` : `Se procesa el elemento activo del paso ${step+1} y se actualiza el estado.`}</span></p></div>
         </article>}
       </section>
 

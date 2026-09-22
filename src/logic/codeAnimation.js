@@ -7,6 +7,9 @@ export function executableCodeLines(code) {
     .map((text, index) => ({ index, text: text.trim() }))
     .filter(line => line.text
       && !line.text.startsWith('//')
+      && !/^class\b/.test(line.text)
+      && !/^(?:public|private|protected):$/.test(line.text)
+      && line.text !== '{'
       && line.text !== '}'
       && line.text !== '};');
 }
@@ -16,6 +19,85 @@ const isDoLoop = text => /^\s*do\s*\{/.test(text);
 const isCondition = text => /\b(?:if|else if|for|while)\s*\(/.test(text) || /^\s*do\s*\{/.test(text);
 const openingBraces = text => (text.match(/{/g) ?? []).length;
 const closingBraces = text => (text.match(/}/g) ?? []).length;
+
+// Los sincronizadores semánticos nacieron con los ejemplos Java. Esta vista
+// normalizada permite que las mismas reglas encuentren las líneas equivalentes
+// de C++ sin alterar el código que ve el estudiante.
+const normalizeCodeForMatching = text => text
+  .replaceAll('->', '.')
+  .replace(/\bnullptr\b/g, 'null')
+  .replace(/\bbool\b/g, 'boolean')
+  .replace(/\bNode\s*\*/g, 'Node')
+  .replace(/\bTrieNode\s*\*/g, 'TrieNode')
+  .replace(/\bLeaf\s*\*/g, 'Leaf');
+
+const normalizedSyntax = text => normalizeCodeForMatching(text).replace(/\s+/g, ' ').trim();
+
+// Reduce Java/C++ syntax differences before comparing an animation needle with
+// the code shown in the panel. Exact matches are still preferred; this is only
+// used when the frame was authored from the equivalent implementation in the
+// other language.
+const semanticCodeText = text => normalizeCodeForMatching(text)
+  .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+  .replace(/\b(?:public|private|protected|static|final|const|explicit)\b/g, ' ')
+  .replace(/\bstd::/g, '')
+  .replace(/\bSystem\.out\.println\s*\([^)]*\)/g, 'visit current')
+  .replace(/\bMath\./g, '')
+  .replace(/\bthis\./g, '')
+  .replace(/\bMAX_SIZE\b/g, 'CAPACITY')
+  .replace(/\b(?:Integer|String)\b/g, 'value')
+  .replace(/\b(?:int|boolean|char|void|long|double|float)\b/g, ' ')
+  .replace(/\b(?:new|delete)\b/g, ' ')
+  .replace(/\+\+/g, ' increment ')
+  .replace(/--/g, ' decrement ')
+  .replace(/[^\p{L}\p{N}_]+/gu, ' ')
+  .replace(/\s+/g, ' ')
+  .trim()
+  .toLowerCase();
+
+const ignoredSemanticTokens = new Set([
+  'a', 'an', 'and', 'as', 'at', 'by', 'class', 'else', 'false', 'for', 'if',
+  'in', 'is', 'null', 'of', 'or', 'return', 'the', 'true', 'while',
+]);
+
+const semanticTokens = text => semanticCodeText(text)
+  .split(' ')
+  .filter(token => token.length > 1 && !ignoredSemanticTokens.has(token));
+
+function semanticLineScore(needle, line, inSelectedOperation) {
+  const normalizedNeedle = semanticCodeText(needle);
+  const normalizedLine = semanticCodeText(line);
+  const wanted = semanticTokens(needle);
+  const available = new Set(semanticTokens(line));
+  if (!wanted.length || !available.size) return 0;
+  let shared = 0;
+  for (const token of wanted) {
+    if (available.has(token)) shared++;
+    else if (token === 'length' && available.has('size')) shared++;
+    else if (token === 'offer' && (available.has('enqueue') || available.has('rear'))) shared++;
+    else if (token === 'poll' && (available.has('dequeue') || available.has('front'))) shared++;
+    else if (token === 'temp' && available.has('temporary')) shared++;
+  }
+  const coverage = shared / wanted.length;
+  let aliasBonus = 0;
+  if (normalizedNeedle.startsWith('solve maze') && normalizedLine.startsWith('solve start row')) aliasBonus += 0.8;
+  if (normalizedNeedle.startsWith('if solve maze') && normalizedLine.startsWith('if explore')) aliasBonus += 0.8;
+  if (normalizedNeedle.includes('place queen') && normalizedLine.includes('place row')) aliasBonus += 0.35;
+  if (/return row \d+ column \d+/.test(normalizedNeedle)
+      && normalizedLine.startsWith('return row exit row') && normalizedLine.includes('exit column')) aliasBonus += 0.8;
+  return coverage + (shared >= 2 ? 0.25 : 0) + aliasBonus + (inSelectedOperation ? 0.03 : 0);
+}
+
+const isUsefulAnimationLine = text => {
+  const trimmed = text.trim();
+  return trimmed
+    && !trimmed.startsWith('//')
+    && !/^class\b/.test(trimmed)
+    && !/^(?:public|private|protected):$/.test(trimmed)
+    && trimmed !== '{'
+    && trimmed !== '}'
+    && trimmed !== '};';
+};
 
 function blockEnd(lines, loopIndex, maximum) {
   let balance = 0;
@@ -433,7 +515,7 @@ export function createLinkedListSynchronizedFrames({
   const lineOf = (pattern, occurrence = 0) => {
     let seen = 0;
     for (let index = firstLine; index < sourceLines.length; index++) {
-      if (!pattern.test(sourceLines[index].trim())) continue;
+      if (!pattern.test(normalizeCodeForMatching(sourceLines[index].trim()))) continue;
       if (seen === occurrence) return index;
       seen++;
     }
@@ -1251,7 +1333,7 @@ function findSourceLine(range, pattern, helpersOnly = false) {
   const start = helpersOnly ? range.helpersStart : range.start;
   const end = helpersOnly ? range.lines.length - 1 : range.end;
   for (let index = start; index <= end; index++) {
-    if (pattern.test(range.lines[index])) return index;
+    if (pattern.test(normalizeCodeForMatching(range.lines[index]))) return index;
   }
   return -1;
 }
@@ -1648,6 +1730,12 @@ export function adaptFramesToCode(frames, code, keepOriginalLines) {
   ));
   const selectedStart = operationMarker >= 0 ? operationMarker + 1 : 0;
   const selectedEnd = operationEndMarker >= 0 ? operationEndMarker - 1 : sourceLines.length - 1;
+  const usefulLines = sourceLines
+    .map((text, index) => ({ index, text }))
+    .filter(line => isUsefulAnimationLine(line.text));
+  const selectedUsefulLines = usefulLines.filter(line => (
+    line.index >= selectedStart && line.index <= selectedEnd
+  ));
   const phasePatterns = {
     search: [/findLeaf\(/, /Node leaf\s*=/],
     insert: [/insertInOrder\(/, /insertNonFull\(/],
@@ -1674,6 +1762,68 @@ export function adaptFramesToCode(frames, code, keepOriginalLines) {
         if (matchedLine < 0) {
           matchedLine = sourceLines.findIndex(line => line.includes(frame.codeNeedle));
         }
+        if (matchedLine < 0) {
+          const syntaxNeedle = normalizedSyntax(frame.codeNeedle);
+          matchedLine = sourceLines.findIndex((line, sourceIndex) => (
+            sourceIndex >= selectedStart
+            && sourceIndex <= selectedEnd
+            && normalizedSyntax(line) === syntaxNeedle
+          ));
+          if (matchedLine < 0) matchedLine = sourceLines.findIndex(line => normalizedSyntax(line) === syntaxNeedle);
+        }
+        if (matchedLine < 0) {
+          const languageAliases = [
+            frame.codeNeedle.replaceAll('solveMaze', 'explore'),
+            frame.codeNeedle.replaceAll('placeQueen', 'placeRow'),
+            frame.codeNeedle === 'backtracking' ? 'queens[row] = -1;' : frame.codeNeedle,
+            frame.codeNeedle.startsWith('void hanoi(')
+              ? 'void moveTower(int amount, int from[], int& fromSize, int to[], int& toSize, int help[], int& helpSize) {'
+              : frame.codeNeedle,
+            frame.codeNeedle === 'if (disks == 0) return;' ? 'if (amount == 0) return;' : frame.codeNeedle,
+            frame.codeNeedle === 'hanoi(disks - 1, from, help, to);'
+              ? 'moveTower(amount - 1, from, fromSize, help, helpSize, to, toSize);'
+              : frame.codeNeedle,
+            frame.codeNeedle.startsWith('System.out.println("Move "')
+              ? 'to[toSize++] = from[--fromSize];'
+              : frame.codeNeedle,
+            frame.codeNeedle === 'hanoi(disks - 1, help, to, from);'
+              ? 'moveTower(amount - 1, help, helpSize, to, toSize, from, fromSize);'
+              : frame.codeNeedle,
+          ].filter(alias => alias !== frame.codeNeedle);
+          for (const alias of languageAliases) {
+            matchedLine = sourceLines.findIndex(line => line.trim() === alias.trim());
+            if (matchedLine < 0) matchedLine = sourceLines.findIndex(line => line.includes(alias));
+            if (matchedLine < 0) matchedLine = sourceLines.findIndex(line => normalizedSyntax(line) === normalizedSyntax(alias));
+            if (matchedLine >= 0) break;
+          }
+        }
+        if (matchedLine < 0) {
+          const normalizedNeedle = semanticCodeText(frame.codeNeedle);
+          matchedLine = sourceLines.findIndex((line, sourceIndex) => (
+            sourceIndex >= selectedStart
+            && sourceIndex <= selectedEnd
+            && normalizedNeedle
+            && semanticCodeText(line).includes(normalizedNeedle)
+          ));
+        }
+        if (matchedLine < 0) {
+          let bestScore = 0;
+          for (const candidate of usefulLines) {
+            const score = semanticLineScore(
+              frame.codeNeedle,
+              candidate.text,
+              candidate.index >= selectedStart && candidate.index <= selectedEnd,
+            );
+            if (score > bestScore) {
+              bestScore = score;
+              matchedLine = candidate.index;
+            }
+          }
+          // A single coincidental token is not enough to claim a semantic
+          // match. The progress fallback below is safer and never highlights
+          // class declarations or other scaffolding.
+          if (bestScore < 0.5) matchedLine = -1;
+        }
         if (matchedLine >= 0) return { ...frame, codeLine: matchedLine };
       }
       if (frame.treePhase) {
@@ -1684,12 +1834,20 @@ export function adaptFramesToCode(frames, code, keepOriginalLines) {
           if (matchedLine >= 0) break;
         }
         if (frame.treePhase === 'settled') {
-          const endMarker = sourceLines.findIndex(line => line.trim() === '// End of the selected operation');
-          if (endMarker > 0) matchedLine = endMarker - 1;
+          matchedLine = selectedUsefulLines.at(-1)?.index ?? matchedLine;
         }
         if (matchedLine >= 0) return { ...frame, codeLine: matchedLine };
       }
-      return { ...frame, codeLine: Math.min(lastCodeLine, Math.max(0, frame.codeLine ?? 0)) };
+      const candidates = selectedUsefulLines.length ? selectedUsefulLines : usefulLines;
+      const progress = frames.length <= 1 ? 1 : index / (frames.length - 1);
+      const candidate = candidates[Math.min(
+        Math.max(0, candidates.length - 1),
+        Math.round(progress * Math.max(0, candidates.length - 1)),
+      )];
+      return {
+        ...frame,
+        codeLine: candidate?.index ?? Math.min(lastCodeLine, Math.max(0, frame.codeLine ?? 0)),
+      };
     }
     const progress = frames.length <= 1 ? 1 : index / (frames.length - 1);
     const line = lines[Math.min(lines.length - 1, Math.round(progress * Math.max(0, lines.length - 1)))];

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createReportEmail, sendReportEmail } from '../src/email.js';
 import { allowedOrigins, OFFICIAL_FRONTEND_ORIGINS } from '../src/origins.js';
+import { normalizeTurnstileToken, verifyTurnstile } from '../src/turnstile.js';
 import { escapeHtml, normalizeReport, validateReport } from '../src/validation.js';
 
 const validInput = {
@@ -93,8 +94,113 @@ test('expone una ruta pública de estado compatible con Railway', async t => {
   for (const path of ['/', '/health']) {
     const response = await fetch(`http://127.0.0.1:${port}${path}`);
     assert.equal(response.status, 200);
+    assert.equal(response.headers.get('strict-transport-security'), 'max-age=63072000; includeSubDomains');
+    assert.match(response.headers.get('content-security-policy'), /default-src 'none'/);
     assert.deepEqual(await response.json(), { ok: true, service: 'dsa-lab-report-api' });
   }
+});
+
+test('usa X-Real-IP de Railway e ignora X-Forwarded-For controlado por el cliente', async () => {
+  const previousNodeEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'test';
+  const { clientAddress } = await import('../src/server.js');
+  const address = clientAddress({
+    headers: {
+      'x-real-ip': '203.0.113.8',
+      'x-forwarded-for': '198.51.100.44',
+    },
+    socket: { remoteAddress: '127.0.0.1' },
+  });
+  assert.equal(address, '203.0.113.8');
+  if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+  else process.env.NODE_ENV = previousNodeEnv;
+});
+
+test('responde 413 sin cortar la conexión cuando el cuerpo supera el límite', async t => {
+  const previousNodeEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'test';
+  const { server } = await import('../src/server.js');
+  if (!server.listening) {
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', resolve);
+    });
+  }
+  t.after(async () => {
+    if (server.listening) await new Promise(resolve => server.close(resolve));
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+  });
+
+  const response = await fetch(`http://127.0.0.1:${server.address().port}/api/report`, {
+    method: 'POST',
+    headers: {
+      Origin: 'https://www.dsalab.dev',
+      'Content-Type': 'application/json',
+      'X-Real-IP': '203.0.113.9',
+    },
+    body: JSON.stringify({ description: 'x'.repeat(20_000) }),
+  });
+  assert.equal(response.status, 413);
+  assert.match((await response.json()).message, /tamaño permitido/);
+});
+
+test('el rate limit no se evade falsificando X-Forwarded-For', async t => {
+  const previousNodeEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'test';
+  const { server } = await import('../src/server.js');
+  if (!server.listening) {
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', resolve);
+    });
+  }
+  t.after(async () => {
+    if (server.listening) await new Promise(resolve => server.close(resolve));
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+  });
+
+  const statuses = [];
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/api/report`, {
+      method: 'POST',
+      headers: {
+        Origin: 'https://www.dsalab.dev',
+        'Content-Type': 'application/json',
+        'X-Forwarded-For': `198.51.100.${attempt + 1}`,
+      },
+      body: '{}',
+    });
+    statuses.push(response.status);
+  }
+
+  assert.deepEqual(statuses, [422, 422, 422, 422, 422, 429]);
+});
+
+test('rechaza solicitudes sin Origin cuando la API está en producción', async t => {
+  const previousNodeEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'test';
+  const { server } = await import('../src/server.js');
+  if (!server.listening) {
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', resolve);
+    });
+  }
+  process.env.NODE_ENV = 'production';
+  t.after(async () => {
+    if (server.listening) await new Promise(resolve => server.close(resolve));
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+  });
+
+  const response = await fetch(`http://127.0.0.1:${server.address().port}/api/report`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  assert.equal(response.status, 403);
 });
 
 test('normaliza y valida un reporte correcto', () => {
@@ -147,4 +253,50 @@ test('no expone el mensaje interno entregado por Resend', async () => {
     sendReportEmail({ apiKey: 'secreto', from: 'a@example.com', to: 'b@example.com', report: normalizeReport(validInput), fetchImpl }),
     error => error.status === 502 && error.message === 'El proveedor de correo rechazó el envío.' && error.providerStatus === 401,
   );
+});
+
+test('valida Turnstile, el hostname y la acción antes de aceptar el reporte', async () => {
+  let submittedBody;
+  const fetchImpl = async (_url, options) => {
+    submittedBody = String(options.body);
+    return {
+      ok: true,
+      json: async () => ({ success: true, hostname: 'www.dsalab.dev', action: 'report' }),
+    };
+  };
+  const result = await verifyTurnstile({
+    secret: 'secret-test',
+    token: 'token-test',
+    remoteIp: '203.0.113.10',
+    fetchImpl,
+  });
+
+  assert.equal(result.success, true);
+  assert.match(submittedBody, /secret=secret-test/);
+  assert.match(submittedBody, /response=token-test/);
+  assert.match(submittedBody, /remoteip=203.0.113.10/);
+});
+
+test('rechaza tokens Turnstile ausentes, hostnames ajenos y acciones incorrectas', async () => {
+  assert.deepEqual(
+    await verifyTurnstile({ secret: 'secret-test', token: '' }),
+    { success: false, reason: 'missing-token' },
+  );
+
+  const wrongHostname = await verifyTurnstile({
+    secret: 'secret-test',
+    token: 'token-test',
+    fetchImpl: async () => ({ ok: true, json: async () => ({ success: true, hostname: 'evil.example', action: 'report' }) }),
+  });
+  const wrongAction = await verifyTurnstile({
+    secret: 'secret-test',
+    token: 'token-test',
+    fetchImpl: async () => ({ ok: true, json: async () => ({ success: true, hostname: 'www.dsalab.dev', action: 'login' }) }),
+  });
+
+  assert.equal(wrongHostname.success, false);
+  assert.equal(wrongHostname.reason, 'invalid-hostname');
+  assert.equal(wrongAction.success, false);
+  assert.equal(wrongAction.reason, 'invalid-action');
+  assert.equal(normalizeTurnstileToken(`  ${'a'.repeat(2100)}  `).length, 2048);
 });

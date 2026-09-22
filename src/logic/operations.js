@@ -277,6 +277,22 @@ export function operationGroup(algorithm) {
 export function getOperationDefinition(algorithm) {
   const group = operationGroup(algorithm);
   const definition = definitions[group];
+  if (group === 'spatial' && algorithm.id === 'quadtree') {
+    return {
+      ...definition,
+      fields: [field('value', 'Coordenada X', 'number'), field('second', 'Coordenada Y', 'number')],
+    };
+  }
+  if (group === 'spatial' && algorithm.id === 'octree') {
+    return {
+      ...definition,
+      fields: [
+        field('value', 'Coordenada X', 'number'),
+        field('second', 'Coordenada Y', 'number'),
+        field('index', 'Coordenada Z', 'number'),
+      ],
+    };
+  }
   if (group === 'graph') {
     const editingActions = definition.actions.slice(0, 4);
     const fields = algorithm.type === 'weighted'
@@ -1811,12 +1827,20 @@ const solveHanoiWithTrace = diskValues => {
   const frames = [];
   const names = ['A', 'B', 'C'];
   let moveCount = 0;
+  const codeNeedles = [
+    'void hanoi(int disks, char from, char to, char help) {',
+    'if (disks == 0) return;',
+    'hanoi(disks - 1, from, help, to);',
+    'System.out.println("Move " + disks + " from " + from + " to " + to);',
+    'hanoi(disks - 1, help, to, from);',
+  ];
 
   const addFrame = ({ amount, from, to, help, depth, codeLine, phase, message, delayMs = 150 }) => {
     frames.push({
       values: positions.map(item => ({ ...item })),
       position: amount,
       codeLine,
+      codeNeedle: codeNeedles[codeLine],
       delayMs,
       message,
       hanoiState: {
@@ -3190,6 +3214,8 @@ const sortSparseCells = cells => [...cells]
 
 function sparseVariables({ row, column, value, previousRow, currentRow, previousColumn, currentColumn, count }) {
   const variables = [
+    { name: 'alto', value: SPARSE_MATRIX_ROWS, role: 'size' },
+    { name: 'largo', value: SPARSE_MATRIX_COLUMNS, role: 'size' },
     { name: 'fila', value: row, role: 'input' },
     { name: 'columna', value: column, role: 'input' },
   ];
@@ -3309,14 +3335,14 @@ function executeSparseMatrixOperation({ actionId, fields, values, edges }) {
         codeNeedle: 'AROW[row].left = AROW[row];',
         phase: 'clear-rows',
         extraState: { clearedRows: true },
-        variables: [{ name: 'fila', value: `0…${SPARSE_MATRIX_ROWS - 1}`, role: 'index' }, { name: 'noCeros', value: before.length, role: 'size' }],
+        variables: [{ name: 'alto', value: SPARSE_MATRIX_ROWS, role: 'size' }, { name: 'largo', value: SPARSE_MATRIX_COLUMNS, role: 'size' }, { name: 'fila', value: `0…${SPARSE_MATRIX_ROWS - 1}`, role: 'index' }, { name: 'noCeros', value: before.length, role: 'size' }],
       }),
       makeFrame({
         message: 'Cada cabecera ACOL vuelve a apuntarse a sí misma.',
         codeNeedle: 'ACOL[column].up = ACOL[column];',
         phase: 'clear-columns',
         extraState: { clearedRows: true, clearedColumns: true },
-        variables: [{ name: 'columna', value: `0…${SPARSE_MATRIX_COLUMNS - 1}`, role: 'index' }, { name: 'noCeros', value: before.length, role: 'size' }],
+        variables: [{ name: 'alto', value: SPARSE_MATRIX_ROWS, role: 'size' }, { name: 'largo', value: SPARSE_MATRIX_COLUMNS, role: 'size' }, { name: 'columna', value: `0…${SPARSE_MATRIX_COLUMNS - 1}`, role: 'index' }, { name: 'noCeros', value: before.length, role: 'size' }],
       }),
     ];
     return done([], 'La matriz quedó vacía y todas sus cabeceras siguen siendo circulares.', frames, null);
@@ -5154,7 +5180,16 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
   if (group === 'queue') return executeQueueOperation({ actionId, fields, values, edges });
   const next = [...values];
   const forceText = ['merkle', 'hash', 'cache'].includes(group) || (group === 'spatial' && algorithm.id !== 'kd-tree');
-  const value = numericValue(fields.value ?? '', values, forceText);
+  let value = numericValue(fields.value ?? '', values, forceText);
+  if (group === 'spatial' && ['quadtree', 'octree'].includes(algorithm.id) && actionId !== 'preorder') {
+    const coordinates = [Number(fields.value), Number(fields.second)];
+    if (algorithm.id === 'octree') coordinates.push(Number(fields.index));
+    const provided = [fields.value, fields.second, ...(algorithm.id === 'octree' ? [fields.index] : [])]
+      .every(coordinate => String(coordinate ?? '').trim() !== '');
+    const valid = provided && coordinates.every(coordinate => Number.isFinite(coordinate)
+      && coordinate >= -100 && coordinate < 100);
+    value = valid ? coordinates.join(',') : null;
+  }
   const index = validIndex(fields.index ?? '', values.length, actionId === 'add-index');
   const fail = message => ({ ok: false, values, edges, message, step: 0 });
   const done = (updated, message, step = Math.max(0, updated.length - 1), updatedEdges = edges) => ({ ok: true, values: updated, edges: updatedEdges, message, step });
@@ -5314,6 +5349,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     case 'tree-add': {
       const maximum = ['arbol-general','arbol-nario'].includes(algorithm.id) ? 10 : group === 'spatial' ? 12 : 15;
       if (compactTreeValues(next).length >= maximum) return fail(`La demostración admite hasta ${maximum} nodos visibles.`);
+      if (group === 'spatial' && next.includes(value)) return fail(`El punto (${value}) ya existe.`);
       if (orderedBinaryTreeIds.has(algorithm.id)) {
         if (compactTreeValues(next).some(item => Number(item) === Number(value))) return fail(`${value} ya existe en el árbol.`);
         if (algorithm.id === 'avl') {

@@ -8,7 +8,7 @@ export const TOUR_STEPS = Object.freeze([
   { selector:'[data-tour="visualizer"]', title:'Observa cómo cambia la estructura', description:'Aquí verás cada inserción, eliminación, recorrido o comparación. El elemento activo se destaca durante la ejecución.' },
   { selector:'[data-tour="operations"]', title:'Experimenta con tus propios datos', description:'Escribe valores o índices y ejecuta las operaciones disponibles. El mensaje inferior explica el resultado.' },
   { selector:'.player', title:'Controla la animación', description:'Avanza o retrocede paso a paso, pausa cuando quieras y ajusta la velocidad para estudiar con calma.' },
-  { selector:'[data-tour="code"]', title:'Relaciona la animación con el código', description:'La línea activa avanza junto con la visualización. Puedes alternar entre Java y pseudocódigo.' },
+  { selector:'[data-tour="code"]', title:'Relaciona la animación con el código', description:'La línea activa avanza junto con la visualización. Puedes alternar entre Java, C++ cuando esté disponible y pseudocódigo.' },
   { selector:'[data-tour="variables"]', title:'Revisa las variables en tiempo real', description:'Este panel muestra valores, índices y decisiones internas para que comprendas qué está haciendo el algoritmo.' },
   { selector:'[data-tour="test"]', title:'Comprueba lo aprendido', description:'Cuando termines de practicar, responde diez preguntas conceptuales sobre la materia de esta sección.' },
 ]);
@@ -18,7 +18,7 @@ const ENGLISH_STEPS = [
   ['Watch the structure change','Here you will see every insertion, deletion, traversal, or comparison. The active element is highlighted during execution.'],
   ['Experiment with your own data','Enter values or indices and run the available operations. The message below explains the result.'],
   ['Control the animation','Move forward or backward step by step, pause whenever you want, and adjust the speed to study comfortably.'],
-  ['Connect the animation with the code','The active line advances with the visualization. You can switch between Java and pseudocode.'],
+  ['Connect the animation with the code','The active line advances with the visualization. You can switch between Java, C++ when available, and pseudocode.'],
   ['Inspect variables in real time','This panel shows values, indices, and internal decisions so you can understand what the algorithm is doing.'],
   ['Check what you learned','After practicing, answer ten conceptual questions about this section.'],
 ];
