@@ -64,7 +64,7 @@ public:
     int** values;
 
     explicit DenseMatrix(int dimension = 4)
-        : size(dimension), values(new int*[dimension]{}) {
+        : size(dimension > 0 ? dimension : 1), values(new int*[size]{}) {
         for (int row = 0; row < size; row++) values[row] = new int[size]{};
     }
     DenseMatrix(const DenseMatrix&) = delete;
@@ -84,7 +84,10 @@ ${needsValidation ? `\n    // Auxiliary method used above\n${indent(validPositio
 const sparseOperations = {
   'matrix-insert': `bool insert(int value, int row, int column) {
     if (!validPosition(row, column)) return false;
-    if (value == 0) return remove(row, column);
+    if (value == 0) {
+        remove(row, column);
+        return true;
+    }
 
     Node* rowHeader = AROW[row];
     Node* previousRow = rowHeader;

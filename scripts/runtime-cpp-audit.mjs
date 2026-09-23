@@ -10,6 +10,163 @@ const algorithm = id => algorithms.find(item => item.id === id);
 
 const cases = [
   {
+    label: 'Array insertion at boundaries and capacity', id: 'array', action: 'add-index',
+    main: `
+int main() {
+    RawArray array;
+    assert(!array.addAtIndex(5, -1));
+    assert(!array.addAtIndex(5, 1));
+    for (int value = 0; value < 100; value++) assert(array.addAtIndex(value, 0));
+    assert(array.size == RawArray::CAPACITY);
+    for (int index = 0; index < array.size; index++) assert(array.values[index] == 99 - index);
+    assert(!array.addAtIndex(100, 0));
+}`,
+  },
+  {
+    label: 'Array indexed deletion shifts values', id: 'array', action: 'remove-index',
+    main: `
+int main() {
+    RawArray array;
+    assert(!array.removeAtIndex(0));
+    array.size = 5;
+    for (int index = 0; index < array.size; index++) array.values[index] = index + 1;
+    assert(array.removeAtIndex(2));
+    assert(array.size == 4 && array.values[2] == 4 && array.values[3] == 5);
+    assert(array.removeAtIndex(0));
+    assert(array.removeAtIndex(2));
+    assert(array.size == 2 && array.values[0] == 2 && array.values[1] == 4);
+    assert(!array.removeAtIndex(-1) && !array.removeAtIndex(2));
+}`,
+  },
+  {
+    label: 'Dense matrix clamps invalid dimensions and validates coordinates', id: 'matriz', action: 'matrix-set',
+    main: `
+int main() {
+    DenseMatrix empty(0);
+    DenseMatrix negative(-3);
+    assert(empty.size == 1 && negative.size == 1);
+    assert(empty.values[0][0] == 0 && negative.values[0][0] == 0);
+    assert(!empty.set(-1, 0, 7));
+    assert(!empty.set(1, 0, 7));
+    assert(!empty.set(0, 1, 7));
+    assert(empty.set(0, 0, 7));
+    assert(empty.values[0][0] == 7);
+    DenseMatrix matrix(3);
+    assert(matrix.size == 3);
+    assert(matrix.set(2, 1, 9));
+    assert(matrix.values[2][1] == 9);
+}`,
+  },
+  {
+    label: 'Dense matrix transpose preserves non-symmetric entries', id: 'matriz', action: 'matrix-transpose',
+    main: `
+int main() {
+    DenseMatrix matrix(3);
+    for (int row = 0; row < 3; row++) {
+        for (int column = 0; column < 3; column++) {
+            matrix.values[row][column] = row * 10 + column;
+        }
+    }
+    matrix.transpose();
+    for (int row = 0; row < 3; row++) {
+        for (int column = 0; column < 3; column++) {
+            assert(matrix.values[row][column] == column * 10 + row);
+        }
+    }
+}`,
+  },
+  {
+    label: 'Queue FIFO insertion and capacity', id: 'cola', action: 'enqueue',
+    main: `
+int main() {
+    LinkedQueue queue;
+    for (int value = 0; value < LinkedQueue::CAPACITY; value++) assert(queue.enqueue(value));
+    assert(!queue.enqueue(99));
+    assert(queue.size == LinkedQueue::CAPACITY && queue.front->value == 0 && queue.rear->value == 14);
+    auto* current = queue.front;
+    for (int value = 0; value < queue.size; value++) {
+        assert(current != nullptr && current->value == value);
+        current = current->next;
+    }
+    assert(current == nullptr);
+}`,
+  },
+  {
+    label: 'Queue deletion resets both pointers', id: 'cola', action: 'dequeue',
+    main: `
+int main() {
+    LinkedQueue queue;
+    int removed = -1;
+    assert(!queue.dequeue(removed));
+    queue.front = new LinkedQueue::Node(7);
+    queue.front->next = new LinkedQueue::Node(8);
+    queue.rear = queue.front->next;
+    queue.size = 2;
+    assert(queue.dequeue(removed) && removed == 7);
+    assert(queue.front == queue.rear && queue.front->value == 8 && queue.size == 1);
+    assert(queue.dequeue(removed) && removed == 8);
+    assert(queue.front == nullptr && queue.rear == nullptr && queue.size == 0);
+    assert(!queue.dequeue(removed));
+}`,
+  },
+  {
+    label: 'Circular doubly linked singleton has both links', id: 'lista-circular-doble', action: 'add-end',
+    main: `
+int main() {
+    CircularDoublyLinkedList list;
+    list.addAtEnd(42);
+    assert(list.size == 1 && list.head->next == list.head && list.head->prev == list.head);
+    list.addAtEnd(9);
+    assert(list.size == 2 && list.head->next->value == 9);
+    assert(list.head->next->next == list.head && list.head->prev == list.head->next);
+}`,
+  },
+  {
+    label: 'Circular doubly linked deletion repairs singleton', id: 'lista-circular-doble', action: 'remove-end',
+    main: `
+int main() {
+    CircularDoublyLinkedList list;
+    assert(!list.removeFromEnd());
+    auto* first = new CircularDoublyLinkedList::Node(4);
+    auto* second = new CircularDoublyLinkedList::Node(7);
+    first->next = second; first->prev = second;
+    second->next = first; second->prev = first;
+    list.head = first; list.size = 2;
+    assert(list.removeFromEnd());
+    assert(list.size == 1 && list.head->value == 4);
+    assert(list.head->next == list.head && list.head->prev == list.head);
+    assert(list.removeFromEnd());
+    assert(list.head == nullptr && list.size == 0);
+}`,
+  },
+  {
+    label: 'Max heap insertion preserves complete-tree order', id: 'heap', action: 'heap-add',
+    main: `
+int main() {
+    MaxHeap heap;
+    int values[] = {4, 15, 9, 21, -3, 7, 21, 0};
+    for (int value : values) assert(heap.insertHeap(value));
+    assert(heap.size == 8 && heap.heap[0] == 21);
+    for (int index = 1; index < heap.size; index++) assert(heap.heap[(index - 1) / 2] >= heap.heap[index]);
+}`,
+  },
+  {
+    label: 'Max heap extraction replaces root and heapifies', id: 'heap', action: 'heap-extract',
+    main: `
+int main() {
+    MaxHeap heap;
+    int values[] = {21, 15, 21, 4, -3, 7, 9, 0};
+    heap.size = 8;
+    for (int index = 0; index < heap.size; index++) heap.heap[index] = values[index];
+    int removed = -1;
+    assert(heap.removeRoot(removed) && removed == 21);
+    assert(heap.size == 7 && heap.heap[0] == 21);
+    for (int index = 1; index < heap.size; index++) assert(heap.heap[(index - 1) / 2] >= heap.heap[index]);
+    for (int remaining = 7; remaining > 0; remaining--) assert(heap.removeRoot(removed));
+    assert(heap.size == 0 && !heap.removeRoot(removed));
+}`,
+  },
+  {
     label: 'red-black insertion invariants', id: 'rojo-negro', action: 'tree-add',
     main: `
 int blackHeight(RedBlackTree& tree, RedBlackTree::Node* node) {
@@ -261,6 +418,53 @@ int main() {
 }`,
   },
   {
+    label: 'Radix Sort near minimum integer', id: 'radix-sort', action: 'sort',
+    main: `
+int main() {
+    RawArraySorter sorter;
+    sorter.size = 4;
+    sorter.values[0] = -2147483647 - 1;
+    sorter.values[1] = -2147483646;
+    sorter.values[2] = -2147483647;
+    sorter.values[3] = -2147483646;
+    assert(sorter.sort());
+    assert(sorter.values[0] == -2147483647 - 1);
+    assert(sorter.values[1] == -2147483647);
+    assert(sorter.values[2] == -2147483646);
+    assert(sorter.values[3] == -2147483646);
+}`,
+  },
+  {
+    label: 'Radix Sort at maximum supported key span', id: 'radix-sort', action: 'sort',
+    main: `
+int main() {
+    RawArraySorter sorter;
+    sorter.size = 4;
+    sorter.values[0] = -1;
+    sorter.values[1] = -2147483647 - 1;
+    sorter.values[2] = -2147483647;
+    sorter.values[3] = -2;
+    assert(sorter.sort());
+    assert(sorter.values[0] == -2147483647 - 1);
+    assert(sorter.values[1] == -2147483647);
+    assert(sorter.values[2] == -2);
+    assert(sorter.values[3] == -1);
+}`,
+  },
+  {
+    label: 'Radix Sort rejects excessive key span without mutation', id: 'radix-sort', action: 'sort',
+    main: `
+int main() {
+    RawArraySorter sorter;
+    sorter.size = 2;
+    sorter.values[0] = 2147483647;
+    sorter.values[1] = -1;
+    assert(!sorter.sort());
+    assert(sorter.values[0] == 2147483647);
+    assert(sorter.values[1] == -1);
+}`,
+  },
+  {
     label: 'N-Queens dynamic board size', id: 'n-reinas', action: 'solve',
     main: `
 int main() {
@@ -362,7 +566,116 @@ int main() {
     assert(matrix.nonZeroCount == 1);
 }`,
   },
+  {
+    label: 'Sparse matrix zero insertion is an idempotent no-op', id: 'matriz-dispersa', action: 'matrix-insert',
+    main: `
+int main() {
+    SparseMatrix matrix(2, 3);
+    assert(matrix.insert(0, 0, 1));
+    assert(matrix.nonZeroCount == 0);
+    assert(matrix.AROW[0]->left == matrix.AROW[0]);
+    assert(matrix.ACOL[1]->up == matrix.ACOL[1]);
+    assert(matrix.insert(7, 0, 1));
+    assert(matrix.insert(0, 0, 1));
+    assert(matrix.nonZeroCount == 0);
+    assert(matrix.insert(0, 0, 1));
+    assert(matrix.AROW[0]->left == matrix.AROW[0]);
+    assert(matrix.ACOL[1]->up == matrix.ACOL[1]);
+}`,
+  },
+  {
+    label: 'Sparse matrix row and column links survive repeated updates', id: 'matriz-dispersa', action: 'matrix-insert',
+    main: `
+int main() {
+    SparseMatrix matrix(3, 4);
+    int expected[3][4]{};
+    assert(!matrix.insert(9, -1, 0));
+    assert(!matrix.insert(9, 3, 0));
+    assert(!matrix.insert(9, 0, 4));
+    for (int step = 0; step < 120; step++) {
+        int row = (step * 7) % 3;
+        int column = (step * 11) % 4;
+        int value = step % 5 == 0 ? 0 : step - 50;
+        assert(matrix.insert(value, row, column));
+        expected[row][column] = value;
+
+        SparseMatrix::Node* located[3][4]{};
+        int count = 0;
+        for (int r = 0; r < 3; r++) {
+            SparseMatrix::Node* header = matrix.AROW[r];
+            SparseMatrix::Node* current = header->left;
+            int previousColumn = 4;
+            while (current != header) {
+                assert(current->row == r);
+                assert(current->column >= 0 && current->column < previousColumn);
+                assert(current->value == expected[r][current->column]);
+                assert(current->value != 0);
+                located[r][current->column] = current;
+                previousColumn = current->column;
+                current = current->left;
+                count++;
+                assert(count <= 12);
+            }
+        }
+        assert(count == matrix.nonZeroCount);
+        for (int c = 0; c < 4; c++) {
+            SparseMatrix::Node* header = matrix.ACOL[c];
+            SparseMatrix::Node* current = header->up;
+            int previousRow = 3;
+            while (current != header) {
+                assert(current->column == c);
+                assert(current->row >= 0 && current->row < previousRow);
+                assert(located[current->row][c] == current);
+                previousRow = current->row;
+                current = current->up;
+            }
+        }
+        for (int r = 0; r < 3; r++) {
+            for (int c = 0; c < 4; c++) {
+                assert((located[r][c] != nullptr) == (expected[r][c] != 0));
+            }
+        }
+    }
+}`,
+  },
 ];
+
+for (const id of [
+  'bubble-sort', 'selection-sort', 'insertion-sort', 'merge-sort',
+  'quick-sort', 'shell-sort', 'heap-sort', 'counting-sort', 'radix-sort',
+]) {
+  cases.push({
+    label: `${id} matches independently sorted raw arrays`, id, action: 'sort',
+    main: `
+void referenceSort(int* values, int size) {
+    for (int index = 1; index < size; index++) {
+        int current = values[index];
+        int previous = index - 1;
+        while (previous >= 0 && values[previous] > current) {
+            values[previous + 1] = values[previous];
+            previous--;
+        }
+        values[previous + 1] = current;
+    }
+}
+int main() {
+    RawArraySorter sorter;
+    unsigned int seed = 42;
+    for (int size : {0, 1, 2, 15, 99}) {
+        int expected[100]{};
+        sorter.size = size;
+        for (int index = 0; index < size; index++) {
+            seed = seed * 1664525u + 1013904223u;
+            sorter.values[index] = static_cast<int>(seed % 41u) - 20;
+            expected[index] = sorter.values[index];
+        }
+        referenceSort(expected, size);
+        ${['counting-sort', 'radix-sort'].includes(id) ? 'assert(sorter.sort());' : 'sorter.sort();'}
+        for (int index = 0; index < size; index++) assert(sorter.values[index] == expected[index]);
+    }
+}`,
+  });
+}
 
 await rm(workspace, { recursive: true, force: true });
 await mkdir(workspace, { recursive: true });
@@ -374,7 +687,7 @@ try {
     const sourcePath = path.join(workspace, `case-${index}.cpp`);
     const executablePath = path.join(workspace, `case-${index}.exe`);
     await writeFile(sourcePath, `#include <cassert>\n#include <cstddef>\n#include <string>\n\n${source}\n\n${testCase.main}\n`, 'utf8');
-    const compilation = spawnSync('g++', ['-std=c++17', '-Wall', '-Wextra', '-pedantic', sourcePath, '-o', executablePath], {
+    const compilation = spawnSync('g++', ['-std=c++17', '-Wall', '-Wextra', '-pedantic', '-ftrapv', sourcePath, '-o', executablePath], {
       encoding: 'utf8', timeout: 30_000, windowsHide: true,
     });
     if (compilation.status !== 0) {
