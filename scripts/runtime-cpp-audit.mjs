@@ -7,7 +7,6 @@ import { getBeginnerCpp } from '../src/data/beginnerCpp.js';
 const workspace = path.resolve('.tmp-cpp-runtime');
 const failures = [];
 const algorithm = id => algorithms.find(item => item.id === id);
-const overflowFlags = process.env.CPP_TRAP_OVERFLOW === '1' ? ['-ftrapv'] : [];
 
 const cases = [
   {
@@ -37,6 +36,43 @@ int main() {
     assert(array.removeAtIndex(2));
     assert(array.size == 2 && array.values[0] == 2 && array.values[1] == 4);
     assert(!array.removeAtIndex(-1) && !array.removeAtIndex(2));
+}`,
+  },
+  {
+    label: 'Dense matrix clamps invalid dimensions and validates coordinates', id: 'matriz', action: 'matrix-set',
+    main: `
+int main() {
+    DenseMatrix empty(0);
+    DenseMatrix negative(-3);
+    assert(empty.size == 1 && negative.size == 1);
+    assert(empty.values[0][0] == 0 && negative.values[0][0] == 0);
+    assert(!empty.set(-1, 0, 7));
+    assert(!empty.set(1, 0, 7));
+    assert(!empty.set(0, 1, 7));
+    assert(empty.set(0, 0, 7));
+    assert(empty.values[0][0] == 7);
+    DenseMatrix matrix(3);
+    assert(matrix.size == 3);
+    assert(matrix.set(2, 1, 9));
+    assert(matrix.values[2][1] == 9);
+}`,
+  },
+  {
+    label: 'Dense matrix transpose preserves non-symmetric entries', id: 'matriz', action: 'matrix-transpose',
+    main: `
+int main() {
+    DenseMatrix matrix(3);
+    for (int row = 0; row < 3; row++) {
+        for (int column = 0; column < 3; column++) {
+            matrix.values[row][column] = row * 10 + column;
+        }
+    }
+    matrix.transpose();
+    for (int row = 0; row < 3; row++) {
+        for (int column = 0; column < 3; column++) {
+            assert(matrix.values[row][column] == column * 10 + row);
+        }
+    }
 }`,
   },
   {
@@ -530,11 +566,83 @@ int main() {
     assert(matrix.nonZeroCount == 1);
 }`,
   },
+  {
+    label: 'Sparse matrix zero insertion is an idempotent no-op', id: 'matriz-dispersa', action: 'matrix-insert',
+    main: `
+int main() {
+    SparseMatrix matrix(2, 3);
+    assert(matrix.insert(0, 0, 1));
+    assert(matrix.nonZeroCount == 0);
+    assert(matrix.AROW[0]->left == matrix.AROW[0]);
+    assert(matrix.ACOL[1]->up == matrix.ACOL[1]);
+    assert(matrix.insert(7, 0, 1));
+    assert(matrix.insert(0, 0, 1));
+    assert(matrix.nonZeroCount == 0);
+    assert(matrix.insert(0, 0, 1));
+    assert(matrix.AROW[0]->left == matrix.AROW[0]);
+    assert(matrix.ACOL[1]->up == matrix.ACOL[1]);
+}`,
+  },
+  {
+    label: 'Sparse matrix row and column links survive repeated updates', id: 'matriz-dispersa', action: 'matrix-insert',
+    main: `
+int main() {
+    SparseMatrix matrix(3, 4);
+    int expected[3][4]{};
+    assert(!matrix.insert(9, -1, 0));
+    assert(!matrix.insert(9, 3, 0));
+    assert(!matrix.insert(9, 0, 4));
+    for (int step = 0; step < 120; step++) {
+        int row = (step * 7) % 3;
+        int column = (step * 11) % 4;
+        int value = step % 5 == 0 ? 0 : step - 50;
+        assert(matrix.insert(value, row, column));
+        expected[row][column] = value;
+
+        SparseMatrix::Node* located[3][4]{};
+        int count = 0;
+        for (int r = 0; r < 3; r++) {
+            SparseMatrix::Node* header = matrix.AROW[r];
+            SparseMatrix::Node* current = header->left;
+            int previousColumn = 4;
+            while (current != header) {
+                assert(current->row == r);
+                assert(current->column >= 0 && current->column < previousColumn);
+                assert(current->value == expected[r][current->column]);
+                assert(current->value != 0);
+                located[r][current->column] = current;
+                previousColumn = current->column;
+                current = current->left;
+                count++;
+                assert(count <= 12);
+            }
+        }
+        assert(count == matrix.nonZeroCount);
+        for (int c = 0; c < 4; c++) {
+            SparseMatrix::Node* header = matrix.ACOL[c];
+            SparseMatrix::Node* current = header->up;
+            int previousRow = 3;
+            while (current != header) {
+                assert(current->column == c);
+                assert(current->row >= 0 && current->row < previousRow);
+                assert(located[current->row][c] == current);
+                previousRow = current->row;
+                current = current->up;
+            }
+        }
+        for (int r = 0; r < 3; r++) {
+            for (int c = 0; c < 4; c++) {
+                assert((located[r][c] != nullptr) == (expected[r][c] != 0));
+            }
+        }
+    }
+}`,
+  },
 ];
 
 for (const id of [
   'bubble-sort', 'selection-sort', 'insertion-sort', 'merge-sort',
-  'quick-sort', 'shell-sort', 'heap-sort',
+  'quick-sort', 'shell-sort', 'heap-sort', 'counting-sort', 'radix-sort',
 ]) {
   cases.push({
     label: `${id} matches independently sorted raw arrays`, id, action: 'sort',
@@ -562,7 +670,7 @@ int main() {
             expected[index] = sorter.values[index];
         }
         referenceSort(expected, size);
-        sorter.sort();
+        ${['counting-sort', 'radix-sort'].includes(id) ? 'assert(sorter.sort());' : 'sorter.sort();'}
         for (int index = 0; index < size; index++) assert(sorter.values[index] == expected[index]);
     }
 }`,
@@ -579,7 +687,7 @@ try {
     const sourcePath = path.join(workspace, `case-${index}.cpp`);
     const executablePath = path.join(workspace, `case-${index}.exe`);
     await writeFile(sourcePath, `#include <cassert>\n#include <cstddef>\n#include <string>\n\n${source}\n\n${testCase.main}\n`, 'utf8');
-    const compilation = spawnSync('g++', ['-std=c++17', '-Wall', '-Wextra', '-pedantic', ...overflowFlags, sourcePath, '-o', executablePath], {
+    const compilation = spawnSync('g++', ['-std=c++17', '-Wall', '-Wextra', '-pedantic', '-ftrapv', sourcePath, '-o', executablePath], {
       encoding: 'utf8', timeout: 30_000, windowsHide: true,
     });
     if (compilation.status !== 0) {
