@@ -133,9 +133,8 @@ const sortOperations = {
     long long offsetValue = minimum < 0 ? -static_cast<long long>(minimum) : 0;
     long long maximumKey = static_cast<long long>(maximum) + offsetValue;
     if (maximumKey > 2147483647LL) return false;
-    int offset = static_cast<int>(offsetValue);
     for (int exponent = 1; maximumKey / exponent > 0;) {
-        countingByDigit(exponent, offset);
+        countingByDigit(exponent, offsetValue);
         if (exponent > maximumKey / 10) break;
         exponent *= 10;
     }
@@ -213,13 +212,17 @@ int partition(int low, int high) {
         root = largest;
     }
 }`,
-  radix: `void countingByDigit(int exponent, int offset) {
+  radix: `void countingByDigit(int exponent, long long offset) {
     int* output = new int[CAPACITY]{};
     int* count = new int[10]{};
-    for (int i = 0; i < size; i++) count[((values[i] + offset) / exponent) % 10]++;
+    for (int i = 0; i < size; i++) {
+        long long key = static_cast<long long>(values[i]) + offset;
+        count[(key / exponent) % 10]++;
+    }
     for (int digit = 1; digit < 10; digit++) count[digit] += count[digit - 1];
     for (int i = size - 1; i >= 0; i--) {
-        int digit = ((values[i] + offset) / exponent) % 10;
+        long long key = static_cast<long long>(values[i]) + offset;
+        int digit = static_cast<int>((key / exponent) % 10);
         output[--count[digit]] = values[i];
     }
     for (int i = 0; i < size; i++) values[i] = output[i];

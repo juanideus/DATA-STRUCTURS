@@ -1000,7 +1000,7 @@ test('Counting y Radix C++ conservan los negativos mediante desplazamiento', asy
   test.skip(testInfo.project.name === 'mobile-chromium', 'La ejecución nativa también está cubierta por la auditoría C++.');
   const samples = [
     { id: 'counting-sort', required: ['int minimum = values[0]', 'values[i] - minimum', 'offset + minimum'] },
-    { id: 'radix-sort', required: ['minimum < 0', 'countingByDigit(exponent, offset)', 'values[i] + offset'] },
+    { id: 'radix-sort', required: ['minimum < 0', 'countingByDigit(exponent, offsetValue)', 'static_cast<long long>(values[i]) + offset'] },
   ];
 
   for (const sample of samples) {
