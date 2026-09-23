@@ -76,6 +76,206 @@ int main() {
 }`,
   },
   {
+    label: 'Polynomial insertion groups, cancels and orders dynamic nodes', id: 'polinomios', action: 'poly-insert-a',
+    main: `
+int main() {
+    LinkedPolynomial polynomial;
+    polynomial.insertA(3, 2);
+    polynomial.insertA(5, 5);
+    polynomial.insertA(2, 3);
+    polynomial.insertA(0, 9);
+    assert(polynomial.A->exponent == 5 && polynomial.A->coefficient == 5);
+    assert(polynomial.A->next->exponent == 3 && polynomial.A->next->coefficient == 2);
+    assert(polynomial.A->next->next->exponent == 2);
+    polynomial.insertA(-3, 2);
+    assert(polynomial.A->next->next == nullptr);
+    polynomial.insertA(-5, 5);
+    assert(polynomial.A->exponent == 3 && polynomial.A->next == nullptr);
+    polynomial.insertA(-2, 3);
+    assert(polynomial.A == nullptr);
+}`,
+  },
+  {
+    label: 'Polynomial addition merges terms and discards cancellation', id: 'polinomios', action: 'poly-add',
+    main: `
+int main() {
+    LinkedPolynomial polynomial;
+    polynomial.A = new LinkedPolynomial::Node(3, 4);
+    polynomial.A->next = new LinkedPolynomial::Node(2, 2);
+    polynomial.B = new LinkedPolynomial::Node(-3, 4);
+    polynomial.B->next = new LinkedPolynomial::Node(5, 3);
+    polynomial.C = new LinkedPolynomial::Node(99, 0);
+    polynomial.sumPolynomials();
+    assert(polynomial.C->coefficient == 5 && polynomial.C->exponent == 3);
+    assert(polynomial.C->next->coefficient == 2 && polynomial.C->next->exponent == 2);
+    assert(polynomial.C->next->next == nullptr);
+    assert(polynomial.A->coefficient == 3 && polynomial.B->coefficient == -3);
+    polynomial.sumPolynomials();
+    assert(polynomial.C->coefficient == 5 && polynomial.C->next->coefficient == 2);
+}`,
+  },
+  {
+    label: 'Open addressing resolves collisions and updates before capacity', id: 'hash-open', action: 'hash-put',
+    main: `
+int main() {
+    OpenAddressingTable table;
+    assert(table.put("a", "one"));
+    assert(table.put("m", "two"));
+    assert(table.put("y", "three"));
+    assert(table.size == 3);
+    assert(table.put("m", "updated"));
+    assert(table.size == 3);
+    bool found = false;
+    for (int index = 0; index < table.CAPACITY; index++) {
+        if (table.states[index] == table.OCCUPIED && table.keys[index] == "m") {
+            assert(table.values[index] == "updated");
+            found = true;
+        }
+    }
+    assert(found);
+    for (int index = 0; index < table.CAPACITY; index++) {
+        assert(table.put(std::to_string(index), "value"));
+        if (table.size == table.CAPACITY) break;
+    }
+    assert(table.size == table.CAPACITY);
+    assert(!table.put("extra", "value"));
+    assert(table.put("m", "full-table-update"));
+    assert(table.size == table.CAPACITY);
+}`,
+  },
+  {
+    label: 'Open addressing deletion preserves a collision chain', id: 'hash-open', action: 'remove-value',
+    main: `
+int main() {
+    OpenAddressingTable table;
+    int first = table.hash("a");
+    int second = (first + 1) % table.CAPACITY;
+    table.keys[first] = "a";
+    table.states[first] = table.OCCUPIED;
+    table.keys[second] = "m";
+    table.states[second] = table.OCCUPIED;
+    table.size = 2;
+    assert(table.remove("a"));
+    assert(table.states[first] == table.DELETED);
+    assert(table.keys[second] == "m" && table.size == 1);
+    assert(table.remove("m"));
+    assert(table.size == 0);
+    assert(!table.remove("missing"));
+}`,
+  },
+  {
+    label: 'Separate chaining updates collided nodes without duplication', id: 'hash-chaining', action: 'hash-put',
+    main: `
+int main() {
+    SeparateChainingTable table;
+    table.put("a", "one");
+    table.put("i", "two");
+    table.put("q", "three");
+    assert(table.size == 3);
+    assert(table.hash("a") == table.hash("i"));
+    assert(table.hash("i") == table.hash("q"));
+    table.put("i", "updated");
+    assert(table.size == 3);
+    SeparateChainingTable::Node* current = table.buckets[table.hash("a")];
+    int count = 0;
+    while (current != nullptr) {
+        if (current->key == "i") assert(current->value == "updated");
+        current = current->next;
+        count++;
+        assert(count <= 3);
+    }
+    assert(count == 3);
+}`,
+  },
+  {
+    label: 'Undirected vertex removal clears the retired adjacency slot', id: 'grafo', action: 'vertex-remove',
+    main: `
+int main() {
+    Graph graph;
+    graph.vertexNames[0] = 'A';
+    graph.vertexNames[1] = 'B';
+    graph.vertexNames[2] = 'C';
+    graph.vertexCount = 3;
+    graph.adjacency[0][2] = graph.adjacency[2][0] = true;
+    graph.adjacency[1][2] = graph.adjacency[2][1] = true;
+    assert(graph.removeVertex('B'));
+    assert(graph.vertexCount == 2 && graph.vertexNames[1] == 'C');
+    assert(graph.adjacency[0][1] && graph.adjacency[1][0]);
+    graph.vertexNames[2] = 'D';
+    graph.vertexCount++;
+    for (int vertex = 0; vertex < graph.vertexCount; vertex++) {
+        assert(!graph.adjacency[2][vertex]);
+        assert(!graph.adjacency[vertex][2]);
+    }
+}`,
+  },
+  {
+    label: 'Directed vertex removal preserves orientation without phantom edges', id: 'grafo-dirigido', action: 'vertex-remove',
+    main: `
+int main() {
+    DirectedGraph graph;
+    graph.vertexNames[0] = 'A';
+    graph.vertexNames[1] = 'B';
+    graph.vertexNames[2] = 'C';
+    graph.vertexCount = 3;
+    graph.adjacency[0][2] = true;
+    graph.adjacency[2][1] = true;
+    assert(graph.removeVertex('B'));
+    assert(graph.adjacency[0][1]);
+    assert(!graph.adjacency[1][0]);
+    graph.vertexNames[2] = 'D';
+    graph.vertexCount++;
+    for (int vertex = 0; vertex < graph.vertexCount; vertex++) {
+        assert(!graph.adjacency[2][vertex]);
+        assert(!graph.adjacency[vertex][2]);
+    }
+}`,
+  },
+  {
+    label: 'Weighted vertex removal clears the retired weight slot', id: 'prim', action: 'vertex-remove',
+    main: `
+int main() {
+    PrimGraph graph;
+    graph.vertexNames[0] = 'A';
+    graph.vertexNames[1] = 'B';
+    graph.vertexNames[2] = 'C';
+    graph.vertexCount = 3;
+    graph.weights[0][2] = graph.weights[2][0] = 7;
+    graph.weights[1][2] = graph.weights[2][1] = 9;
+    assert(graph.removeVertex('B'));
+    assert(graph.vertexCount == 2 && graph.vertexNames[1] == 'C');
+    assert(graph.weights[0][1] == 7 && graph.weights[1][0] == 7);
+    graph.vertexNames[2] = 'D';
+    graph.vertexCount++;
+    for (int vertex = 0; vertex < graph.vertexCount; vertex++) {
+        assert(graph.weights[2][vertex] == 0);
+        assert(graph.weights[vertex][2] == 0);
+    }
+}`,
+  },
+  {
+    label: 'Kruskal updates an existing edge even at capacity', id: 'kruskal', action: 'edge-add',
+    main: `
+int main() {
+    KruskalGraph graph;
+    graph.vertexCount = 15;
+    for (int vertex = 0; vertex < graph.vertexCount; vertex++) {
+        graph.vertexNames[vertex] = static_cast<char>('A' + vertex);
+    }
+    for (int from = 0; from < graph.vertexCount && graph.edgeCount < graph.MAX_EDGES; from++) {
+        for (int to = from + 1; to < graph.vertexCount && graph.edgeCount < graph.MAX_EDGES; to++) {
+            graph.edges[graph.edgeCount] = {from, to, 5};
+            graph.edgeCount++;
+        }
+    }
+    assert(graph.edgeCount == graph.MAX_EDGES);
+    assert(graph.addEdge('A', 'B', 7));
+    assert(graph.edges[0].weight == 7);
+    assert(graph.edgeCount == graph.MAX_EDGES);
+    assert(!graph.addEdge('N', 'O', 9));
+}`,
+  },
+  {
     label: 'Queue FIFO insertion and capacity', id: 'cola', action: 'enqueue',
     main: `
 int main() {
