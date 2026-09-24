@@ -32,6 +32,10 @@ const unweightedOperations = {
         }
     }
     vertexCount--;
+    for (int vertex = 0; vertex < MAX_VERTICES; vertex++) {
+        adjacency[vertexCount][vertex] = false;
+        adjacency[vertex][vertexCount] = false;
+    }
     return true;
 }`,
   'edge-add-undirected': `bool addEdge(char fromName, char toName) {
@@ -171,6 +175,10 @@ const weightedCommon = {
         }
     }
     vertexCount--;
+    for (int vertex = 0; vertex < MAX_VERTICES; vertex++) {
+        weights[vertexCount][vertex] = 0;
+        weights[vertex][vertexCount] = 0;
+    }
     return true;
 }`,
   'edge-add': `bool addEdge(char fromName, char toName, int weight) {
@@ -214,7 +222,7 @@ const kruskalOperations = {
   'edge-add': `bool addEdge(char fromName, char toName, int weight) {
     int from = findVertex(fromName);
     int to = findVertex(toName);
-    if (from == -1 || to == -1 || from == to || weight <= 0 || edgeCount == MAX_EDGES) return false;
+    if (from == -1 || to == -1 || from == to || weight <= 0) return false;
     for (int i = 0; i < edgeCount; i++) {
         bool sameEdge = (edges[i].from == from && edges[i].to == to)
             || (edges[i].from == to && edges[i].to == from);
@@ -223,6 +231,7 @@ const kruskalOperations = {
             return true;
         }
     }
+    if (edgeCount == MAX_EDGES) return false;
     edges[edgeCount] = {from, to, weight};
     edgeCount++;
     return true;
