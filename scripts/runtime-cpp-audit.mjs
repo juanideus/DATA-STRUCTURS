@@ -367,6 +367,114 @@ int main() {
 }`,
   },
   {
+    label: 'Threaded tree insertion maintains full inorder traversal', id: 'arbol-enhebrado', action: 'tree-add',
+    main: `
+int main() {
+    ThreadedBinaryTree tree;
+    int input[] = {50, 30, 70, 20, 40, 60, 80, 35, 45, 55, 65};
+    for (int value : input) assert(tree.insert(value));
+    assert(!tree.insert(40));
+    int expected[] = {20, 30, 35, 40, 45, 50, 55, 60, 65, 70, 80};
+    ThreadedBinaryTree::Node* current = tree.leftMost(tree.root);
+    for (int value : expected) {
+        assert(current != nullptr && current->value == value);
+        current = current->rightThread ? current->right : tree.leftMost(current->right);
+    }
+    assert(current == nullptr);
+}`,
+  },
+  {
+    label: 'Threaded tree deletion repairs threads for every node shape', id: 'arbol-enhebrado', action: 'remove-value',
+    main: `
+int main() {
+    ThreadedBinaryTree tree;
+    ThreadedBinaryTree::Node* nodes[8]{};
+    for (int value = 1; value <= 7; value++) nodes[value] = new ThreadedBinaryTree::Node(value);
+    nodes[1]->right = nodes[2];
+    nodes[2]->left = nodes[1]; nodes[2]->leftThread = false;
+    nodes[2]->right = nodes[3]; nodes[2]->rightThread = false;
+    nodes[3]->left = nodes[2]; nodes[3]->right = nodes[4];
+    nodes[4]->left = nodes[2]; nodes[4]->leftThread = false;
+    nodes[4]->right = nodes[6]; nodes[4]->rightThread = false;
+    nodes[5]->left = nodes[4]; nodes[5]->right = nodes[6];
+    nodes[6]->left = nodes[5]; nodes[6]->leftThread = false;
+    nodes[6]->right = nodes[7]; nodes[6]->rightThread = false;
+    nodes[7]->left = nodes[6];
+    tree.root = nodes[4];
+
+    auto check = [&](const int* expected, int expectedSize) {
+        ThreadedBinaryTree::Node* current = tree.leftMost(tree.root);
+        int count = 0;
+        while (current != nullptr) {
+            assert(count < expectedSize);
+            assert(current->value == expected[count]);
+            current = current->rightThread ? current->right : tree.leftMost(current->right);
+            count++;
+        }
+        assert(count == expectedSize);
+    };
+    int initial[] = {1, 2, 3, 4, 5, 6, 7};
+    check(initial, 7);
+    assert(!tree.remove(99));
+    assert(tree.remove(4));
+    int afterRoot[] = {1, 2, 3, 5, 6, 7};
+    check(afterRoot, 6);
+    assert(tree.remove(6));
+    int afterOneChild[] = {1, 2, 3, 5, 7};
+    check(afterOneChild, 5);
+    assert(tree.remove(2));
+    int afterTwoChildren[] = {1, 3, 5, 7};
+    check(afterTwoChildren, 4);
+    assert(tree.remove(7));
+    int afterLeaf[] = {1, 3, 5};
+    check(afterLeaf, 3);
+    assert(tree.remove(1));
+    int afterSecondLeaf[] = {3, 5};
+    check(afterSecondLeaf, 2);
+    assert(tree.remove(3));
+    int singleton[] = {5};
+    check(singleton, 1);
+    assert(tree.remove(5));
+    check(nullptr, 0);
+    assert(!tree.remove(5));
+}`,
+  },
+  {
+    label: 'Binary tree recursively inserts at first available position', id: 'arbol-binario', action: 'tree-add',
+    main: `
+int main() {
+    BinaryTree tree;
+    for (int value = 1; value <= 7; value++) tree.root = tree.insert(tree.root, value);
+    assert(tree.root->value == 1);
+    assert(tree.root->left->value == 2 && tree.root->right->value == 3);
+    assert(tree.root->left->left->value == 4 && tree.root->left->right->value == 5);
+    assert(tree.root->right->left->value == 6 && tree.root->right->right->value == 7);
+    BinaryTree::Node* unchanged = tree.insert(tree.root, 2);
+    assert(unchanged == tree.root && tree.root->left->left->value == 4);
+}`,
+  },
+  {
+    label: 'Binary tree deletion uses the deepest rightmost node', id: 'arbol-binario', action: 'remove-value',
+    main: `
+int main() {
+    BinaryTree tree;
+    tree.root = new BinaryTree::Node(1);
+    tree.root->left = new BinaryTree::Node(2);
+    tree.root->right = new BinaryTree::Node(3);
+    tree.root->left->left = new BinaryTree::Node(4);
+    tree.root->left->right = new BinaryTree::Node(5);
+    tree.root->right->left = new BinaryTree::Node(6);
+    tree.root->right->right = new BinaryTree::Node(7);
+    assert(tree.remove(tree.root, 99) == tree.root);
+    tree.root = tree.remove(tree.root, 2);
+    assert(tree.root->left->value == 7);
+    assert(tree.root->left->left->value == 4 && tree.root->left->right->value == 5);
+    assert(tree.root->right->left->value == 6 && tree.root->right->right == nullptr);
+    tree.root = tree.remove(tree.root, 1);
+    assert(tree.root->value == 6 && tree.root->right->left == nullptr);
+}`,
+  },
+  {
     label: 'red-black insertion invariants', id: 'rojo-negro', action: 'tree-add',
     main: `
 int blackHeight(RedBlackTree& tree, RedBlackTree::Node* node) {

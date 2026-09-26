@@ -210,8 +210,8 @@ int maximumDepth(Node* node) const {
 Node* nodeAtDepth(Node* node, int depth) const {
     if (node == nullptr) return nullptr;
     if (depth == 0) return node;
-    Node* left = nodeAtDepth(node->left, depth - 1);
-    return left != nullptr ? left : nodeAtDepth(node->right, depth - 1);
+    Node* right = nodeAtDepth(node->right, depth - 1);
+    return right != nullptr ? right : nodeAtDepth(node->left, depth - 1);
 }
 
 bool removeNode(Node*& node, Node* target) {
