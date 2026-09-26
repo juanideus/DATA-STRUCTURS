@@ -1250,6 +1250,20 @@ test('árbol binario rechaza el 1 repetido y luego inserta correctamente el 2', 
   await expect(page.locator('.operation-message')).toContainText('insertado recursivamente');
 });
 
+test('árbol binario C++ elimina usando el nodo más profundo a la derecha', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chromium', 'La lógica C++ se comprueba también con ejecución nativa.');
+  await page.goto('/arbol-binario');
+  await page.getByRole('button', { name: 'C++', exact: true }).click();
+  await page.getByLabel('Valor').fill('3');
+  await page.getByRole('button', { name: 'Eliminar nodo', exact: true }).click();
+  await expect(page.locator('.code-panel pre')).toContainText('Node* right = nodeAtDepth(node->right, depth - 1);');
+  await expect(page.locator('.operation-message')).toContainText('eliminado', { timeout: 30_000 });
+  const valuesByIndex = await page.locator('.tree-arbol-binario .tree-node').evaluateAll(nodes => (
+    nodes.map(node => [Number(node.dataset.treeIndex), Number(node.querySelector('.tree-value')?.textContent)])
+  ));
+  expect(valuesByIndex).toEqual([[0, 8], [1, 15], [2, 12], [3, 1], [4, 5], [5, 10]]);
+});
+
 test('árbol enhebrado distingue hijos, sigue hilos e inserta correctamente', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === 'mobile-chromium', 'La estructura se valida completa en escritorio y comparte la misma lógica en móvil.');
   test.setTimeout(45_000);
