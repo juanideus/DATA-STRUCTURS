@@ -996,6 +996,21 @@ test('los reinicios especializados muestran el estado que realmente restauran', 
   }
 });
 
+test('Segment Tree y Fenwick C++ reconstruyen sus índices al restablecer', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chromium', 'La ejecución nativa C++ comprueba los valores y los índices internos.');
+  const samples = [
+    { id: 'segment-tree', required: ['tree[i] = 0;', 'minimumTree[i] = INF;', 'build(1, 0, size - 1);'] },
+    { id: 'fenwick-tree', required: ['bit[i] = 0;', 'bit[index] += values[i];', 'index += index & -index;'] },
+  ];
+  for (const sample of samples) {
+    await page.goto(`/${sample.id}`);
+    await page.getByRole('button', { name: 'C++', exact: true }).click();
+    await page.getByTitle('Ejecutar: Restablecer').click();
+    const code = await page.locator('.code-panel pre').textContent();
+    for (const fragment of sample.required) expect(code).toContain(fragment);
+  }
+});
+
 test('Counting y Radix C++ conservan los negativos mediante desplazamiento', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === 'mobile-chromium', 'La ejecución nativa también está cubierta por la auditoría C++.');
   const samples = [
