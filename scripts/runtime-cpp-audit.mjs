@@ -76,6 +76,76 @@ int main() {
 }`,
   },
   {
+    label: 'Segment tree reset rebuilds sums and minima', id: 'segment-tree', action: 'reset',
+    main: `
+int main() {
+    SegmentTree tree;
+    tree.initialSize = 4;
+    int initial[] = {2, 5, 1, 7};
+    for (int index = 0; index < 4; index++) {
+        tree.initialValues[index] = initial[index];
+        tree.values[index] = 99;
+    }
+    tree.size = 4;
+    for (int index = 0; index < tree.CAPACITY * 4; index++) {
+        tree.tree[index] = 99;
+        tree.minimumTree[index] = 99;
+    }
+    tree.reset();
+    assert(tree.size == 4);
+    for (int index = 0; index < 4; index++) assert(tree.values[index] == initial[index]);
+    assert(tree.tree[1] == 15 && tree.minimumTree[1] == 1);
+    assert(tree.tree[2] == 7 && tree.tree[3] == 8);
+    tree.initialSize = 0;
+    tree.reset();
+    assert(tree.size == 0 && tree.tree[1] == 0);
+}`,
+  },
+  {
+    label: 'Segment tree update keeps its backing array synchronized', id: 'segment-tree', action: 'range-update',
+    main: `
+int main() {
+    SegmentTree tree;
+    tree.size = 4;
+    int input[] = {2, 5, 1, 7};
+    for (int index = 0; index < 4; index++) tree.values[index] = input[index];
+    tree.tree[1] = 15; tree.minimumTree[1] = 1;
+    tree.tree[2] = 7; tree.minimumTree[2] = 2;
+    tree.tree[3] = 8; tree.minimumTree[3] = 1;
+    tree.tree[4] = 2; tree.minimumTree[4] = 2;
+    tree.tree[5] = 5; tree.minimumTree[5] = 5;
+    tree.tree[6] = 1; tree.minimumTree[6] = 1;
+    tree.tree[7] = 7; tree.minimumTree[7] = 7;
+    tree.update(1, 0, 3, 2, 9);
+    assert(tree.values[2] == 9);
+    assert(tree.tree[1] == 23 && tree.minimumTree[1] == 2);
+    assert(tree.tree[3] == 16 && tree.minimumTree[3] == 7);
+}`,
+  },
+  {
+    label: 'Fenwick reset rebuilds the binary indexed tree', id: 'fenwick-tree', action: 'reset',
+    main: `
+int main() {
+    FenwickTree tree;
+    tree.initialSize = 4;
+    int initial[] = {3, 2, 5, 1};
+    for (int index = 0; index < 4; index++) {
+        tree.initialValues[index] = initial[index];
+        tree.values[index] = 99;
+    }
+    tree.size = 4;
+    for (int index = 0; index <= tree.CAPACITY; index++) tree.bit[index] = 99;
+    tree.reset();
+    assert(tree.size == 4);
+    for (int index = 0; index < 4; index++) assert(tree.values[index] == initial[index]);
+    assert(tree.bit[1] == 3 && tree.bit[2] == 5);
+    assert(tree.bit[3] == 5 && tree.bit[4] == 11);
+    tree.initialSize = 0;
+    tree.reset();
+    assert(tree.size == 0 && tree.bit[1] == 0);
+}`,
+  },
+  {
     label: 'Polynomial insertion groups, cancels and orders dynamic nodes', id: 'polinomios', action: 'poly-insert-a',
     main: `
 int main() {
@@ -985,7 +1055,7 @@ int main() {
   });
 }
 
-await rm(workspace, { recursive: true, force: true });
+await rm(workspace, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 await mkdir(workspace, { recursive: true });
 
 try {
@@ -1008,7 +1078,7 @@ try {
     }
   }
 } finally {
-  await rm(workspace, { recursive: true, force: true });
+  await rm(workspace, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 }
 
 if (failures.length) {

@@ -167,6 +167,7 @@ private:
 const segmentOperations = {
   'range-update': `void update(int node, int left, int right, int index, int value) {
     if (left == right) {
+        values[index] = value;
         tree[node] = value;
         minimumTree[node] = value;
         return;
@@ -196,8 +197,27 @@ const segmentOperations = {
   reset: `void reset() {
     size = initialSize;
     for (int i = 0; i < size; i++) values[i] = initialValues[i];
+    for (int i = 0; i < CAPACITY * 4; i++) {
+        tree[i] = 0;
+        minimumTree[i] = INF;
+    }
+    if (size > 0) build(1, 0, size - 1);
 }`,
 };
+
+const segmentBuild = `void build(int node, int left, int right) {
+    if (left == right) {
+        tree[node] = values[left];
+        minimumTree[node] = values[left];
+        return;
+    }
+    int middle = left + (right - left) / 2;
+    build(node * 2, left, middle);
+    build(node * 2 + 1, middle + 1, right);
+    tree[node] = tree[node * 2] + tree[node * 2 + 1];
+    minimumTree[node] = minimumTree[node * 2] < minimumTree[node * 2 + 1]
+        ? minimumTree[node * 2] : minimumTree[node * 2 + 1];
+}`;
 
 function segmentCpp(actionId) {
   const operation = segmentOperations[actionId];
@@ -228,6 +248,9 @@ public:
     // Start of the selected operation
 ${indent(operation)}
     // End of the selected operation
+${actionId === 'reset' ? `
+    // Rebuild aggregates after restoring values
+${indent(segmentBuild)}` : ''}
 };`;
 }
 
@@ -256,7 +279,18 @@ const fenwickOperations = {
     }
     return minimum;
 }`,
-  reset: segmentOperations.reset,
+  reset: `void reset() {
+    size = initialSize;
+    for (int i = 0; i <= CAPACITY; i++) bit[i] = 0;
+    for (int i = 0; i < size; i++) {
+        values[i] = initialValues[i];
+        int index = i + 1;
+        while (index <= size) {
+            bit[index] += values[i];
+            index += index & -index;
+        }
+    }
+}`,
 };
 
 function fenwickCpp(actionId) {
