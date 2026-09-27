@@ -21,7 +21,12 @@ import {
   polynomialTerms,
 } from './polynomial.js';
 import { createRecursionCallTrace } from './recursionTrace.js';
+import { createFibonacciForest } from './fibonacciHeap.js';
+import { createMultiwayTree } from './multiwayTree.js';
+import { initialNaryParents, naryChildren, naryTraversal, removeNarySubtree } from './naryTree.js';
 import { executeEducationalSort } from './sortingAlgorithms.js';
+import { createRedBlackTree } from './redBlackTree.js';
+import { formatMerkleHash, merkleLevels } from './merkle.js';
 
 export const DEFAULT_GRAPH_EDGES = [
   [0, 1, 4], [1, 2, 2], [0, 3, 7], [1, 3, 3], [1, 4, 5],
@@ -277,6 +282,9 @@ export function operationGroup(algorithm) {
 export function getOperationDefinition(algorithm) {
   const group = operationGroup(algorithm);
   const definition = definitions[group];
+  if (['arbol-general', 'arbol-nario'].includes(algorithm.id)) {
+    return { ...definition, fields: [field('value', 'Valor', 'number'), field('second', 'Valor del padre', 'number')] };
+  }
   if (group === 'spatial' && algorithm.id === 'quadtree') {
     return {
       ...definition,
@@ -446,7 +454,6 @@ const binaryRecursiveInsertionFrames = (before, after, value, insertedAt) => {
 };
 
 const orderedBinaryTreeIds = new Set(['bst', 'avl', 'rojo-negro', 'splay-tree', 'kd-tree']);
-const balancedBinaryTreeIds = new Set(['avl', 'rojo-negro']);
 const compactTreeValues = values => values.filter(value => value !== undefined && value !== null);
 
 const trimTreeSlots = values => {
@@ -619,22 +626,70 @@ const removeFromAvl = (values, value) => {
   return { ...avlToTreeSlots(root), rotations };
 };
 
-const buildSplayedBinaryTree = (values, rootValue) => {
-  const numericRoot = Number(rootValue);
-  const remaining = [...values].filter(value => Number(value) !== numericRoot);
-  const lower = remaining.filter(value => Number(value) < numericRoot);
-  const higher = remaining.filter(value => Number(value) > numericRoot);
-  const tree = [rootValue];
-  const place = (items, index) => {
-    if (!items.length || index >= 15) return;
-    const middle = Math.floor((items.length - 1) / 2);
-    tree[index] = items[middle];
-    place(items.slice(0, middle), index * 2 + 1);
-    place(items.slice(middle + 1), index * 2 + 2);
-  };
-  place(lower.sort((a, b) => Number(a) - Number(b)), 1);
-  place(higher.sort((a, b) => Number(a) - Number(b)), 2);
-  return trimTreeSlots(tree);
+const rotatePlainRight = root => {
+  const next = root.left;
+  root.left = next.right;
+  next.right = root;
+  return next;
+};
+
+const rotatePlainLeft = root => {
+  const next = root.right;
+  root.right = next.left;
+  next.left = root;
+  return next;
+};
+
+// Same top-down cases shown by the Java and C++ splay helpers: zig-zig and zig-zag.
+const splayPlainNode = (node, target) => {
+  if (!node || Number(node.value) === Number(target)) return node;
+  if (Number(target) < Number(node.value)) {
+    if (!node.left) return node;
+    if (Number(target) < Number(node.left.value)) {
+      node.left.left = splayPlainNode(node.left.left, target);
+      node = rotatePlainRight(node);
+    } else if (Number(target) > Number(node.left.value)) {
+      node.left.right = splayPlainNode(node.left.right, target);
+      if (node.left.right) node.left = rotatePlainLeft(node.left);
+    }
+    return node.left ? rotatePlainRight(node) : node;
+  }
+  if (!node.right) return node;
+  if (Number(target) > Number(node.right.value)) {
+    node.right.right = splayPlainNode(node.right.right, target);
+    node = rotatePlainLeft(node);
+  } else if (Number(target) < Number(node.right.value)) {
+    node.right.left = splayPlainNode(node.right.left, target);
+    if (node.right.left) node.right = rotatePlainRight(node.right);
+  }
+  return node.right ? rotatePlainLeft(node) : node;
+};
+
+const insertIntoSplay = (values, value) => {
+  let root = treeSlotsToPlainNode(values);
+  if (!root) return plainNodeToTreeSlots({ value, left: null, right: null });
+  root = splayPlainNode(root, value);
+  const inserted = { value, left: null, right: null };
+  if (Number(value) < Number(root.value)) {
+    inserted.left = root.left;
+    inserted.right = root;
+    root.left = null;
+  } else {
+    inserted.right = root.right;
+    inserted.left = root;
+    root.right = null;
+  }
+  return plainNodeToTreeSlots(inserted);
+};
+
+const removeFromSplay = (values, target) => {
+  let root = splayPlainNode(treeSlotsToPlainNode(values), target);
+  if (!root || Number(root.value) !== Number(target)) return plainNodeToTreeSlots(root);
+  if (!root.left) return plainNodeToTreeSlots(root.right);
+  const right = root.right;
+  root = splayPlainNode(root.left, target);
+  root.right = right;
+  return plainNodeToTreeSlots(root);
 };
 
 const binarySearchPosition = (values, target) => {
@@ -3230,6 +3285,9 @@ function sparseVariables({ row, column, value, previousRow, currentRow, previous
 
 function executeSparseMatrixOperation({ actionId, fields, values, edges }) {
   const before = sortSparseCells(values);
+  const hasRow = String(fields.second ?? '').trim() !== '';
+  const hasColumn = String(fields.index ?? '').trim() !== '';
+  const hasValue = String(fields.value ?? '').trim() !== '';
   const row = Number(fields.second);
   const column = Number(fields.index);
   const value = Number(fields.value);
@@ -3278,9 +3336,9 @@ function executeSparseMatrixOperation({ actionId, fields, values, edges }) {
       phase: 'error',
       failed: true,
       variables: sparseVariables({
-        row: Number.isFinite(row) ? row : '—',
-        column: Number.isFinite(column) ? column : '—',
-        value: Number.isFinite(value) ? value : undefined,
+        row: hasRow && Number.isFinite(row) ? row : '—',
+        column: hasColumn && Number.isFinite(column) ? column : '—',
+        value: hasValue && Number.isFinite(value) ? value : undefined,
         count: before.length,
       }),
     })],
@@ -3297,9 +3355,7 @@ function executeSparseMatrixOperation({ actionId, fields, values, edges }) {
         ? 'nonZeroCount = 0;'
         : actionId === 'matrix-get'
           ? activeCell ? 'return current.value;' : 'return 0;'
-          : actionId === 'matrix-row'
-            ? 'current = current.left;'
-            : 'current = current.up;';
+          : 'while (current !=';
   const done = (cells, message, frames, activeCell = null) => {
     const updated = sortSparseCells(cells);
     return {
@@ -3348,6 +3404,10 @@ function executeSparseMatrixOperation({ actionId, fields, values, edges }) {
     return done([], 'La matriz quedó vacía y todas sus cabeceras siguen siendo circulares.', frames, null);
   }
 
+  if (actionId !== 'matrix-column' && !hasRow) return fail('Ingresa la fila de la matriz.');
+  if (actionId !== 'matrix-row' && !hasColumn) return fail('Ingresa la columna de la matriz.');
+  if (actionId === 'matrix-insert' && !hasValue) return fail('Ingresa el valor que quieres insertar.');
+
   if (actionId === 'matrix-row') {
     if (!validRow) return fail(`La fila debe estar entre 0 y ${SPARSE_MATRIX_ROWS - 1}.`, 'if (row < 0 || row >= rowCount)');
     const rowCells = before.filter(cell => cell.row === row).sort((a, b) => b.column - a.column);
@@ -3357,21 +3417,33 @@ function executeSparseMatrixOperation({ actionId, fields, values, edges }) {
       phase: 'row-header',
       variables: sparseVariables({ row, column: '—', count: before.length }),
     })];
-    rowCells.forEach((cell, index) => frames.push(makeFrame({
-      message: `left visita ${sparseCellLabel(cell)} de derecha a izquierda; nodo ${index + 1} de ${rowCells.length}.`,
-      codeNeedle: 'current = current.left;',
-      phase: 'row-scan',
-      activeCell: cell,
-      extraState: { visitedRowKeys: rowCells.slice(0, index + 1).map(sparseCellKey) },
-      variables: sparseVariables({ row, column: cell.column, currentRow: sparseCellLabel(cell), count: before.length }),
-    })));
+    rowCells.forEach((cell, index) => {
+      const nextCell = rowCells[index + 1] ?? null;
+      const visitedRowKeys = rowCells.slice(0, index + 1).map(sparseCellKey);
+      frames.push(makeFrame({
+        message: `left visita ${sparseCellLabel(cell)} de derecha a izquierda; nodo ${index + 1} de ${rowCells.length}.`,
+        codeNeedle: 'current.value',
+        phase: 'row-scan',
+        activeCell: cell,
+        extraState: { visitedRowKeys },
+        variables: sparseVariables({ row, column: cell.column, currentRow: sparseCellLabel(cell), count: before.length }),
+      }));
+      frames.push(makeFrame({
+        message: nextCell ? `left avanza a ${sparseCellLabel(nextCell)}.` : `left vuelve a la cabecera AROW[${row}].`,
+        codeNeedle: 'current = current.left;',
+        phase: nextCell ? 'row-advance' : 'row-return',
+        activeCell: nextCell,
+        extraState: { visitedRowKeys },
+        variables: sparseVariables({ row, column: nextCell?.column ?? '—', currentRow: sparseCellLabel(nextCell), count: before.length }),
+      }));
+    });
     return done(
       before,
       rowCells.length
         ? `AROW[${row}]: ${rowCells.map(cell => cell.value).join(' ← ')} y vuelve a su cabecera.`
         : `AROW[${row}] no contiene datos y se apunta a sí misma.`,
       frames,
-      rowCells.at(-1) ?? null,
+      null,
     );
   }
 
@@ -3384,21 +3456,33 @@ function executeSparseMatrixOperation({ actionId, fields, values, edges }) {
       phase: 'column-header',
       variables: sparseVariables({ row: '—', column, count: before.length }),
     })];
-    columnCells.forEach((cell, index) => frames.push(makeFrame({
-      message: `up visita ${sparseCellLabel(cell)} de abajo hacia arriba; nodo ${index + 1} de ${columnCells.length}.`,
-      codeNeedle: 'current = current.up;',
-      phase: 'column-scan',
-      activeCell: cell,
-      extraState: { visitedColumnKeys: columnCells.slice(0, index + 1).map(sparseCellKey) },
-      variables: sparseVariables({ row: cell.row, column, currentColumn: sparseCellLabel(cell), count: before.length }),
-    })));
+    columnCells.forEach((cell, index) => {
+      const nextCell = columnCells[index + 1] ?? null;
+      const visitedColumnKeys = columnCells.slice(0, index + 1).map(sparseCellKey);
+      frames.push(makeFrame({
+        message: `up visita ${sparseCellLabel(cell)} de abajo hacia arriba; nodo ${index + 1} de ${columnCells.length}.`,
+        codeNeedle: 'current.value',
+        phase: 'column-scan',
+        activeCell: cell,
+        extraState: { visitedColumnKeys },
+        variables: sparseVariables({ row: cell.row, column, currentColumn: sparseCellLabel(cell), count: before.length }),
+      }));
+      frames.push(makeFrame({
+        message: nextCell ? `up avanza a ${sparseCellLabel(nextCell)}.` : `up vuelve a la cabecera ACOL[${column}].`,
+        codeNeedle: 'current = current.up;',
+        phase: nextCell ? 'column-advance' : 'column-return',
+        activeCell: nextCell,
+        extraState: { visitedColumnKeys },
+        variables: sparseVariables({ row: nextCell?.row ?? '—', column, currentColumn: sparseCellLabel(nextCell), count: before.length }),
+      }));
+    });
     return done(
       before,
       columnCells.length
         ? `ACOL[${column}]: ${columnCells.map(cell => cell.value).join(' ↑ ')} y vuelve a su cabecera.`
         : `ACOL[${column}] no contiene datos y se apunta a sí misma.`,
       frames,
-      columnCells.at(-1) ?? null,
+      null,
     );
   }
 
@@ -5168,7 +5252,7 @@ function executeAstOperation({ actionId, fields, values, edges }) {
   return null;
 }
 
-export function executeOperation({ algorithm, actionId, fields, values, edges, initialValues, initialEdges = DEFAULT_GRAPH_EDGES }) {
+export function executeOperation({ algorithm, actionId, fields, values, edges, initialValues, initialEdges = DEFAULT_GRAPH_EDGES, treeColors = null, fibonacciForest = null, multiwayTree = null, treeParents = null }) {
   const group = operationGroup(algorithm);
   if (group === 'polynomial') return executePolynomialOperation({ actionId, fields, values, edges });
   if (group === 'generalizedList') return executeGeneralizedListOperation({ actionId, fields, values, edges });
@@ -5194,8 +5278,22 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
   const fail = message => ({ ok: false, values, edges, message, step: 0 });
   const done = (updated, message, step = Math.max(0, updated.length - 1), updatedEdges = edges) => ({ ok: true, values: updated, edges: updatedEdges, message, step });
 
-  if (actionId === 'reset') return done([...initialValues], 'Estructura restablecida a su estado inicial.', 0, initialEdges.map(edge => [...edge]));
-  if (actionId === 'clear') return done([], 'Estructura vaciada.', 0);
+  if (actionId === 'reset') {
+    const result = done([...initialValues], 'Estructura restablecida a su estado inicial.', 0, initialEdges.map(edge => [...edge]));
+    if (algorithm.id === 'fibonacci-heap') return { ...result, fibonacciForest: createFibonacciForest(initialValues).snapshot() };
+    if (group === 'btree') return { ...result, multiwayTree: createMultiwayTree(algorithm.id, initialValues).snapshot() };
+    if (['arbol-general', 'arbol-nario'].includes(algorithm.id)) return { ...result, treeParents: initialNaryParents(algorithm.id, initialValues) };
+    return algorithm.id === 'rojo-negro'
+      ? { ...result, treeColors: createRedBlackTree(initialValues).snapshot().colors }
+      : result;
+  }
+  if (actionId === 'clear') return algorithm.id === 'fibonacci-heap'
+    ? { ...done([], 'Estructura vaciada.', 0), fibonacciForest: createFibonacciForest().snapshot() }
+    : group === 'btree'
+      ? { ...done([], 'Estructura vaciada.', 0), multiwayTree: createMultiwayTree(algorithm.id).snapshot() }
+    : ['arbol-general', 'arbol-nario'].includes(algorithm.id)
+      ? { ...done([], 'Estructura vaciada.', 0), treeParents: [] }
+    : done([], 'Estructura vaciada.', 0);
   if (actionId === 'clear-bits') return done(values.map(() => 0), 'Todos los bits fueron limpiados.', 0);
   if (['add-start','add-end','add-index','push','enqueue','sorted-add','tree-add','heap-add'].includes(actionId) && value === null) return fail('Ingresa un valor válido antes de ejecutar la operación.');
   if (group === 'merkle' && actionId === 'add-end' && next.length >= 8) return fail('La demostración Merkle admite hasta 8 bloques visibles.');
@@ -5225,6 +5323,13 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       if (actionId === 'heap-extract' && algorithm.id === 'heap') {
         return extractBinaryMaxHeap(next, edges);
       }
+      if (actionId === 'heap-extract' && algorithm.id === 'fibonacci-heap') {
+        const extraction = createFibonacciForest(next, fibonacciForest).extractMinimum();
+        const remaining = [...next];
+        remaining.splice(remaining.findIndex(item => Number(item) === extraction.removed), 1);
+        remaining.sort((a, b) => Number(a) - Number(b));
+        return { ...done(remaining, `${extraction.removed} fue extraído; los hijos subieron a las raíces y se consolidaron grados iguales.`, 0), fibonacciForest: extraction.forest, fibonacciStages: extraction.stages };
+      }
       const removeFromStart = actionId === 'dequeue' || actionId === 'heap-extract';
       const removed = removeFromStart ? next.shift() : next.pop();
       if (actionId === 'heap-extract') {
@@ -5245,6 +5350,11 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
             ['hash', 'cache'].includes(group) ? entryKey(item) === String(value) : String(item) === String(value)
           ));
       if (found < 0) return fail(`${value} no existe en la estructura.`);
+      if (group === 'btree') {
+        const removal = createMultiwayTree(algorithm.id, next, multiwayTree).remove(value);
+        next.splice(found, 1);
+        return { ...done(next, `${value} fue eliminado del árbol multicamino.`, Math.max(0, found - 1)), multiwayTree: removal.tree };
+      }
       if (orderedBinaryTreeIds.has(algorithm.id)) {
         if (algorithm.id === 'avl') {
           const removal = removeFromAvl(next, value);
@@ -5258,13 +5368,31 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
           if (removal.hiddenNode) return fail('La eliminación produciría una rama fuera del espacio visible.');
           return done(removal.values, `${value} fue eliminado respetando los ejes alternados del KD-Tree.`, Math.max(0, found));
         }
-        const remaining = compactTreeValues(next).filter(item => String(item) !== String(value));
-        const rebuilt = balancedBinaryTreeIds.has(algorithm.id)
-          ? buildBalancedBinaryTree(remaining)
-          : buildBinarySearchTree(remaining);
-        return done(rebuilt, `${value} fue eliminado y se conservaron las reglas del árbol.`, Math.max(0, found));
+        if (algorithm.id === 'splay-tree') {
+          const removal = removeFromSplay(next, value);
+          if (removal.hiddenNode) return fail('La eliminación produciría una rama fuera del espacio visible.');
+          return done(removal.values, `${value} fue eliminado después de splay y la unión de sus subárboles.`, Math.max(0, found));
+        }
+        if (algorithm.id === 'bst') {
+          const removal = plainNodeToTreeSlots(removePlainBstNode(treeSlotsToPlainNode(next), value));
+          if (removal.hiddenNode) return fail('La eliminación produciría una rama fuera del espacio visible.');
+          return done(removal.values, `${value} fue eliminado usando su sucesor inorden cuando correspondía.`, Math.max(0, found));
+        }
+        if (algorithm.id === 'rojo-negro') {
+          const model = createRedBlackTree(next, treeColors);
+          model.remove(value);
+          const removal = model.snapshot();
+          if (removal.hiddenNode) return fail('La eliminación produciría una rama fuera del espacio visible.');
+          return { ...done(removal.values, `${value} fue eliminado conservando las reglas rojo-negro.`, Math.max(0, found)), treeColors: removal.colors };
+        }
       }
-      if (['arbol-general', 'arbol-nario', 'arbol-binario'].includes(algorithm.id)) {
+      if (['arbol-general', 'arbol-nario'].includes(algorithm.id)) {
+        if (found === 0) return fail('La raíz no tiene padre; usa Vaciar para quitar todo el árbol.');
+        const parents = treeParents ?? initialNaryParents(algorithm.id, next);
+        const removal = removeNarySubtree(next, parents, found);
+        return { ...done(removal.values, `${value} y sus ${removal.removed - 1} descendientes fueron eliminados.`, Math.max(0, found - 1)), treeParents: removal.parents };
+      }
+      if (algorithm.id === 'arbol-binario') {
         const last = next.pop();
         if (found < next.length) next[found] = last;
         return done(next, `${value} fue eliminado; el nodo más profundo ocupó su lugar.`, Math.max(0, found));
@@ -5283,16 +5411,13 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       if (value === null) return fail('Ingresa una clave válida.');
       if (next.some(item => String(item) === String(value))) return fail(`${value} ya existe.`);
       const before = [...next];
-      const leavesBefore = Math.ceil(before.length / 3);
       next.push(value); next.sort((a,b) => Number(a) - Number(b));
       if (group === 'btree') {
+        const insertion = createMultiwayTree(algorithm.id, before, multiwayTree).insert(value);
         const position = next.indexOf(value);
-        const leavesAfter = Math.ceil(next.length / 3);
-        const splitOccurred = leavesAfter > leavesBefore;
-        const leafBaseSize = Math.floor(next.length / leavesAfter);
-        const largerLeaves = next.length % leavesAfter;
-        const lastLeafStart = (leavesAfter - 1) * leafBaseSize + largerLeaves;
-        const promotedKey = splitOccurred ? next[lastLeafStart] : null;
+        const splitOccurred = insertion.events.some(event => event.type === 'split');
+        const redistributionOccurred = insertion.events.some(event => event.type === 'redistribute');
+        const promotedKey = insertion.events.find(event => event.promotedKey !== undefined)?.promotedKey ?? null;
         const frames = [
           {
             values: before,
@@ -5339,10 +5464,12 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
             },
           );
         } else {
-          frames[1].message = `${value} fue insertado manteniendo el orden; la hoja aún tiene espacio.`;
+          frames[1].message = redistributionOccurred
+            ? `${value} fue insertado; se redistribuyeron claves con el hermano antes de dividir.`
+            : `${value} fue insertado manteniendo el orden; la hoja aún tiene espacio.`;
         }
 
-        return { ...done(next, frames.at(-1).message, position), frames };
+        return { ...done(next, frames.at(-1).message, position), frames, multiwayTree: insertion.tree };
       }
       return done(next, `${value} fue insertado manteniendo el orden.`, next.indexOf(value));
     }
@@ -5366,20 +5493,24 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
           if (insertion.hiddenNode || insertion.position < 0) return fail('El punto quedaría fuera del espacio visible del KD-Tree.');
           return done(insertion.values, `Punto ${value} insertado alternando los ejes X e Y.`, insertion.position);
         }
+        if (algorithm.id === 'splay-tree') {
+          const insertion = insertIntoSplay(next, value);
+          if (insertion.hiddenNode) return fail('La inserción produciría una rama fuera del espacio visible.');
+          return done(insertion.values, `Nodo ${value} insertado y llevado a la raíz mediante splay.`, 0);
+        }
+        if (algorithm.id === 'rojo-negro') {
+          const model = createRedBlackTree(next, treeColors);
+          model.insert(value);
+          const insertion = model.snapshot();
+          if (insertion.hiddenNode) return fail('La inserción produciría una rama fuera del espacio visible.');
+          const insertedAt = insertion.values.findIndex(item => Number(item) === Number(value));
+          return { ...done(insertion.values, `Nodo ${value} insertado mediante recoloreos y rotaciones rojo-negro.`, insertedAt), treeColors: insertion.colors };
+        }
         const insertedValues = [...compactTreeValues(next), value];
-        const rebuilt = balancedBinaryTreeIds.has(algorithm.id)
-          ? buildBalancedBinaryTree(insertedValues)
-          : algorithm.id === 'splay-tree'
-            ? buildSplayedBinaryTree(insertedValues, value)
-            : buildBinarySearchTree(insertedValues);
+        const rebuilt = buildBinarySearchTree(insertedValues);
         const insertedAt = rebuilt.findIndex(item => Number(item) === Number(value));
         if (insertedAt < 0) return fail('No queda un espacio visible para insertar ese nodo sin ocultar parte del árbol.');
-        const detail = balancedBinaryTreeIds.has(algorithm.id)
-          ? ' y se reequilibró'
-          : algorithm.id === 'splay-tree'
-            ? ' y fue llevado a la raíz'
-            : '';
-        return done(rebuilt, `Nodo ${value} insertado${detail}.`, insertedAt);
+        return done(rebuilt, `Nodo ${value} insertado.`, insertedAt);
       }
       if (algorithm.id === 'arbol-binario') {
         if (compactTreeValues(next).some(item => Number(item) === Number(value))) {
@@ -5394,6 +5525,19 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
           frames: binaryRecursiveInsertionFrames(before, next, value, insertedAt),
         };
       }
+      if (['arbol-general', 'arbol-nario'].includes(algorithm.id)) {
+        if (next.some(item => Number(item) === Number(value))) return fail(`${value} ya existe en el árbol.`);
+        const parents = treeParents ?? initialNaryParents(algorithm.id, next);
+        const parentValue = String(fields.second ?? '').trim();
+        const parentIndex = next.length === 0 ? -1
+          : parentValue === '' ? 0 : next.findIndex(item => Number(item) === Number(parentValue));
+        if (next.length && parentIndex < 0) return fail('El padre indicado no existe en el árbol.');
+        if (algorithm.id === 'arbol-nario' && parentIndex >= 0 && naryChildren(parents, parentIndex).length >= 4) {
+          return fail('Ese padre ya alcanzó el máximo de 4 hijos.');
+        }
+        next.push(value);
+        return { ...done(next, `Nodo ${value} agregado como hijo de ${parentIndex < 0 ? 'la raíz nueva' : next[parentIndex]}.`), treeParents: [...parents, parentIndex] };
+      }
       next.push(value); return done(next, `Nodo ${value} insertado en el siguiente espacio disponible.`);
     }
     case 'heap-add': {
@@ -5402,7 +5546,9 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       const minimumHeap = algorithm.id === 'fibonacci-heap';
       next.push(value);
       if (minimumHeap) {
+        const forest = createFibonacciForest(next.slice(0, -1), fibonacciForest).insert(value);
         next.sort((a,b) => Number(a) - Number(b));
+        return { ...done(next, `${value} fue agregado a la lista de raíces sin consolidar.`, next.indexOf(value)), fibonacciForest: forest };
       } else {
         let index = next.length - 1;
         while (index > 0) {
@@ -5423,8 +5569,9 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
           ));
       if (found < 0) return fail(`${value} no fue encontrado.`);
       if (algorithm.id === 'splay-tree') {
-        const splayed = buildSplayedBinaryTree(compactTreeValues(next), value);
-        return done(splayed, `${value} fue encontrado y movido a la raíz mediante splay.`, 0);
+        const splayed = plainNodeToTreeSlots(splayPlainNode(treeSlotsToPlainNode(next), value));
+        if (splayed.hiddenNode) return fail('El acceso produciría una rama fuera del espacio visible.');
+        return done(splayed.values, `${value} fue encontrado y movido a la raíz mediante splay.`, 0);
       }
       return done(next, `${value} fue encontrado en la posición ${found}.`, found);
     }
@@ -5433,16 +5580,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     case 'postorder': {
       let order;
       if (['arbol-general', 'arbol-nario'].includes(algorithm.id)) {
-        const children = algorithm.id === 'arbol-nario'
-          ? [[1,2,3],[4,5,6],[7,8],[9]]
-          : [[1,2,3],[4,5,6],[7,8],[9]];
-        order = [];
-        const visit = position => {
-          if (position >= next.length) return;
-          order.push(next[position]);
-          (children[position] ?? []).forEach(visit);
-        };
-        visit(0);
+        order = naryTraversal(next, treeParents ?? initialNaryParents(algorithm.id, next), actionId);
       } else {
         order = binaryTraversal(next, actionId);
       }
@@ -5483,7 +5621,36 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       const word = String(fields.value ?? '').trim().toUpperCase();
       if (algorithm.id === 'trie') {
         const found = next.indexOf(word);
-        return found >= 0 ? done(next, `${word} existe y termina en un nodo marcado como FIN.`, found) : fail(`${word || 'La palabra'} no existe en el Trie.`);
+        if (found < 0) return fail(`${word || 'La palabra'} no existe en el Trie.`);
+        const frames = [{
+          values: [...next], edges, position: 0,
+          codeNeedle: 'TrieNode current = root;',
+          message: 'La búsqueda comienza en la raíz.',
+          trieState: { word, revealed: 0, marked: false },
+        }];
+        [...word].forEach((letter, index) => {
+          frames.push({
+            values: [...next], edges, position: index,
+            codeNeedle: 'for (int i = 0; i < word.length(); i++) {',
+            message: `Iteración ${index + 1}: se comprueba la letra ${letter}.`,
+            trieState: { word, revealed: index + 1, marked: false },
+            variables: [{ name: 'i', value: index, role: 'index' }],
+          });
+          frames.push({
+            values: [...next], edges, position: index,
+            codeNeedle: 'current = current.children[letter];',
+            message: `El puntero avanza al prefijo ${word.slice(0, index + 1)}.`,
+            trieState: { word, revealed: index + 1, marked: false },
+          });
+        });
+        frames.push({
+          values: [...next], edges, position: found,
+          codeNeedle: 'return current.isWord;',
+          message: `${word} existe y termina en un nodo marcado como FIN.`,
+          trieState: { word, revealed: word.length, marked: true },
+          completed: true,
+        });
+        return { ...done(next, `${word} existe y termina en un nodo marcado como FIN.`, found), frames };
       }
       const current = next.join('');
       return word && current.includes(word) ? done(next, `${word} coincide con la ruta de prefijos.`, word.length - 1) : fail(`${word || 'La palabra'} no aparece en la ruta actual.`);
@@ -5511,7 +5678,12 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       return done(next, `${actionId === 'prefix-sum' ? 'Suma' : 'Mínimo'} en [0, ${limit}] = ${result}.`, limit);
     }
     case 'range-view': return done(next, `Recorrido ordenado de hojas: ${next.join(' → ')}.`, 0);
-    case 'merkle-root': return done(next, `Raíz Merkle simulada: H(${next.join(' + ') || '∅'}).`, 0);
+    case 'merkle-root': {
+      const root = merkleLevels(next).at(-1)?.[0];
+      return done(next, root
+        ? `Raíz Merkle calculada: ${formatMerkleHash(root.hash)}.`
+        : 'El árbol Merkle está vacío; no tiene una raíz calculable.', 0);
+    }
     case 'set-expression': {
       const expression = String(fields.value ?? '').trim();
       if (!expression) return fail('Escribe una expresión, por ejemplo: 8+3*2.');

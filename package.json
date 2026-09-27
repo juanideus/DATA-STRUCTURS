@@ -17,9 +17,11 @@
     "build": "vite build && node scripts/generate-seo.mjs",
     "preview": "vite preview",
     "audit": "node scripts/audit-functions.mjs",
+    "audit:structures": "node scripts/audit-structure-fidelity.mjs",
     "audit:challenges": "node scripts/audit-challenges.mjs",
     "audit:section-tests": "node scripts/audit-section-tests.mjs",
     "audit:java": "node scripts/compile-java-audit.mjs",
+    "audit:java-runtime": "node scripts/runtime-java-multiway.mjs",
     "audit:cpp": "node scripts/compile-cpp-audit.mjs",
     "audit:cpp-runtime": "node scripts/runtime-cpp-audit.mjs",
     "audit:stress": "node scripts/stress-audit.mjs",
@@ -27,7 +29,7 @@
     "audit:dependencies": "npm audit --omit=dev --audit-level=moderate && npm --prefix report audit --omit=dev --audit-level=moderate",
     "test:report": "npm --prefix report test",
     "test:e2e": "node scripts/run-e2e.mjs",
-    "check": "npm run audit:dependencies && npm run test:report && npm run audit && npm run audit:challenges && npm run audit:section-tests && npm run audit:java && npm run audit:cpp && npm run audit:cpp-runtime && npm run audit:stress && npm run build && npm run audit:seo && npm run test:e2e"
+    "check": "npm run audit:dependencies && npm run test:report && npm run audit && npm run audit:structures && npm run audit:challenges && npm run audit:section-tests && npm run audit:java && npm run audit:java-runtime && npm run audit:cpp && npm run audit:cpp-runtime && npm run audit:stress && npm run build && npm run audit:seo && npm run test:e2e"
   },
   "dependencies": {
     "@vercel/analytics": "2.0.1",

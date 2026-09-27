@@ -28,6 +28,11 @@ import { GENERALIZED_LIST_EXAMPLES, generalizedListToString, generalizedListValu
 import { createRandomPathMap, DEFAULT_PATH_MAP } from './logic/pathfindingMap.js';
 import { formatPolynomial, polynomialTerms } from './logic/polynomial.js';
 import { buildRecursionCallTree } from './logic/recursionTrace.js';
+import { createRedBlackTree } from './logic/redBlackTree.js';
+import { createFibonacciForest } from './logic/fibonacciHeap.js';
+import { createMultiwayTree } from './logic/multiwayTree.js';
+import { initialNaryParents, naryChildren } from './logic/naryTree.js';
+import { formatMerkleHash, merkleLevels } from './logic/merkle.js';
 import { getSectionTestLockedUntil } from './logic/sectionTests.js';
 import { categoryDescriptions, categoryNames, localizeAlgorithm, translateCodeText, translateLearningText, translateOperationLabel, useLanguage } from './i18n.jsx';
 import { algorithmIdFromPath, pageSeo, seoPath, seoUrl, SOCIAL_IMAGE_URL, structuredData } from './seo.js';
@@ -46,6 +51,15 @@ const SUDOKU_START = [
 ];
 
 const NORMAL_FRAME_DELAY = 800;
+const redBlackColorsFor = (algorithm, values) => algorithm.id === 'rojo-negro'
+  ? createRedBlackTree(values).snapshot().colors
+  : null;
+const fibonacciForestFor = (algorithm, values) => algorithm.id === 'fibonacci-heap'
+  ? createFibonacciForest(values).snapshot()
+  : null;
+const multiwayTreeFor = (algorithm, values) => algorithm.type === 'btree'
+  ? createMultiwayTree(algorithm.id, values).snapshot()
+  : null;
 const STORAGE_KEYS = {
   introSeen: 'dsa-intro-seen',
   selectedAlgorithm: 'dsa-selected-algorithm',
@@ -1460,9 +1474,6 @@ function BinaryTreeDiagram({ algorithm, step, displayValues = algorithm.values.s
     && Number.isInteger(frame.heapTargetPosition)
     && BINARY_POSITIONS[frame.heapSourcePosition]
     && BINARY_POSITIONS[frame.heapTargetPosition];
-  const redBlackMaximumDepth = algorithm.id === 'rojo-negro'
-    ? Math.max(0, ...values.map((value,index) => value === undefined ? 0 : Math.floor(Math.log2(index + 1))))
-    : 0;
   return <div className={`tree-canvas tree-${algorithm.id}`}>
     {kindLabel && <span className="tree-kind-label">{kindLabel}</span>}
     <svg className="edge-layer" aria-hidden="true">
@@ -1485,9 +1496,8 @@ function BinaryTreeDiagram({ algorithm, step, displayValues = algorithm.values.s
     </div>}
     {BINARY_POSITIONS.map(([x,y],index) => {
       if (values[index] === undefined) return null;
-      const redBlackDepth = Math.floor(Math.log2(index + 1));
       const redBlackClass = algorithm.id === 'rojo-negro'
-        ? index !== 0 && redBlackDepth === redBlackMaximumDepth ? 'red-node' : 'black-node'
+        ? algorithm.treeColors?.[index] === 'red' ? 'red-node' : 'black-node'
         : '';
       const heapSource = algorithm.id === 'heap' && index === frame?.heapSourcePosition;
       const heapTarget = algorithm.id === 'heap' && index === frame?.heapTargetPosition;
@@ -1597,70 +1607,67 @@ function ThreadedTreeDiagram({ algorithm, step }) {
 }
 
 function NaryTreeDiagram({ algorithm, step }) {
-  const values = algorithm.values.slice(0,10);
-  const positions = [[50,8],[18,40],[50,40],[82,40],[7,80],[18,80],[29,80],[43,80],[57,80],[82,80]];
-  const edges = [[0,1],[0,2],[0,3],[1,4],[1,5],[1,6],[2,7],[2,8],[3,9]];
+  const values = algorithm.values.slice(0, 10);
+  const parents = algorithm.treeParents ?? initialNaryParents(algorithm.id, values);
+  const positions = Array(values.length);
+  let leafIndex = 0;
+  const measure = (index, depth) => {
+    const children = naryChildren(parents, index);
+    const childX = children.map(child => measure(child, depth + 1));
+    const rawX = childX.length ? childX.reduce((sum, x) => sum + x, 0) / childX.length : leafIndex++;
+    positions[index] = { rawX, depth };
+    return rawX;
+  };
+  if (values.length) measure(0, 0);
+  const maxDepth = Math.max(1, ...positions.filter(Boolean).map(position => position.depth));
+  const count = Math.max(1, leafIndex);
+  const placed = positions.map(position => [count === 1 ? 50 : 10 + position.rawX / (count - 1) * 80, 13 + position.depth / maxDepth * 67]);
+  const edges = parents.flatMap((parent, index) => parent >= 0 ? [[parent, index]] : []);
   return <div className="tree-canvas nary-tree-canvas">
-    <span className="tree-kind-label">{algorithm.id==='arbol-nario'?'MÁXIMO N HIJOS':'CANTIDAD LIBRE DE HIJOS'}</span>
-    <svg className="edge-layer" aria-hidden="true">{edges.filter(([,to])=>to<values.length).map(([from,to])=><TreeEdge key={`${from}-${to}`} from={positions[from]} to={positions[to]}/>)}</svg>
-    {positions.map(([x,y],index)=>values[index]!==undefined&&<div className={`tree-node nary-node ${index===step%values.length?'active':''}`} style={{left:`${x}%`,top:`${y}%`}} key={index}><span className="tree-value">{values[index]}</span><small className="tree-node-badge">{index===0?'ROOT':`CHILD ${index}`}</small></div>)}
+    <span className="tree-kind-label">{algorithm.id==='arbol-nario'?'MÁXIMO 4 HIJOS POR NODO':'CANTIDAD LIBRE DE HIJOS'}</span>
+    <svg className="edge-layer" aria-hidden="true">{edges.map(([from,to])=><TreeEdge key={`${from}-${to}`} from={placed[from]} to={placed[to]}/>)}</svg>
+    {placed.map(([x,y],index)=><div className={`tree-node nary-node ${index===step%values.length?'active':''}`} data-parent-index={parents[index]} style={{left:`${x}%`,top:`${y}%`}} key={index}><span className="tree-value">{values[index]}</span><small className="tree-node-badge">{index===0?'ROOT':`HIJO DE ${values[parents[index]]}`}</small></div>)}
   </div>;
 }
 
 function MultiwayTreeDiagram({ algorithm, step }) {
-  const values = algorithm.values.slice(0,24);
+  const values = algorithm.values.slice(0, 24);
+  const structure = algorithm.multiwayTree ?? createMultiwayTree(algorithm.id, values).snapshot();
   const leaves = [];
-  for (let start = 0; start < values.length; start += 3) {
-    leaves.push({
-      id: `leaf-${leaves.length}`,
-      keys: values.slice(start, start + 3),
-      start,
-      leaf: true,
-      children: [],
+  const levels = [];
+  const collect = (source, depth, path) => {
+    const current = {
+      id: path, keys: source.keys, children: [], leaf: source.children.length === 0,
+    };
+    if (!levels[depth]) levels[depth] = [];
+    levels[depth].push(current);
+    current.children = source.children.map((child, index) => collect(child, depth + 1, `${path}-${index}`));
+    if (current.leaf) leaves.push(current);
+    return current;
+  };
+  const root = collect(structure.root, 0, 'root');
+  leaves.forEach((leaf, index) => {
+    leaf.x = leaves.length === 1 ? 50 : 8 + (index / (leaves.length - 1)) * 84;
+  });
+  for (let depth = levels.length - 2; depth >= 0; depth--) {
+    levels[depth].forEach(current => {
+      current.x = current.children.reduce((sum, child) => sum + child.x, 0) / current.children.length;
     });
   }
-  leaves.forEach((leaf, index) => {
-    leaf.x = ((index + .5) / leaves.length) * 100;
-  });
-
-  const levelsFromBottom = [leaves];
-  let children = leaves;
-  let levelNumber = 1;
-  while (children.length > 1) {
-    const parents = [];
-    for (let start = 0; start < children.length; start += 4) {
-      const childGroup = children.slice(start, start + 4);
-      const parent = {
-        id: `level-${levelNumber}-${parents.length}`,
-        keys: childGroup.slice(1).map(child => child.keys[0]),
-        leaf: false,
-        children: childGroup,
-        start: childGroup[0].start,
-        x: childGroup.reduce((sum, child) => sum + child.x, 0) / childGroup.length,
-      };
-      childGroup.forEach(child => { child.parent = parent; });
-      parents.push(parent);
-    }
-    levelsFromBottom.push(parents);
-    children = parents;
-    levelNumber++;
-  }
-  const levels = [...levelsFromBottom].reverse();
   levels.forEach((level, levelIndex) => {
     const y = levels.length === 1 ? 50 : 16 + (levelIndex / (levels.length - 1)) * 62;
     level.forEach(node => { node.y = y; });
   });
   const allNodes = levels.flat();
-  const root = levels[0][0];
   const frame = algorithm.animationFrame;
   const promotedKey = frame?.promotedKey;
-  const activePosition = step % values.length;
-  const activeLeaf = leaves.find(leaf => activePosition >= leaf.start && activePosition < leaf.start + leaf.keys.length) ?? leaves[0];
+  const activeKey = values[step % values.length];
+  const activeLeaf = leaves.find(leaf => leaf.keys.includes(activeKey)) ?? root;
   const promotedLeaf = leaves.find(leaf => leaf.keys.some(key => String(key) === String(promotedKey))) ?? activeLeaf;
   const activeMultiwayNode = ['search','promote','settled'].includes(frame?.treePhase) ? root : activeLeaf;
-  const nodeWidth = Math.max(7, Math.min(17, 84 / Math.max(1, leaves.length)));
+  const nodeWidth = Math.max(7, Math.min(20, 84 / Math.max(1, leaves.length)));
   return <div className={`btree-visual ${algorithm.id} ${leaves.length > 5 ? 'many-leaves' : ''}`}>
-    <span className="tree-kind-label">{algorithm.id==='bplus-tree'?'DATOS SOLO EN HOJAS':algorithm.id==='bstar-tree'?'OCUPACIÓN MÍNIMA 2/3':'NODOS MULTICLAVE'}</span>
+    <span className="tree-kind-label">{algorithm.id==='bplus-tree'?'DATOS SOLO EN HOJAS':algorithm.id==='bstar-tree'?'MÁX. 5 CLAVES · REDISTRIBUCIÓN':'MÁX. 3 CLAVES · MEDIANA PROMOVIDA'}</span>
     <svg className="btree-edges" aria-hidden="true">
       {allNodes.flatMap(parent => parent.children.map(child =>
         <TreeEdge key={`${parent.id}-${child.id}`} from={[parent.x,parent.y]} to={[child.x,child.y]} startPadding={34} endPadding={24} width={860}/>
@@ -1673,31 +1680,106 @@ function MultiwayTreeDiagram({ algorithm, step }) {
     ><small>{node===root?'ROOT':node.leaf?(algorithm.id==='bplus-tree'?'HOJA':'NODO HOJA'):'ÍNDICE'}</small>{node.keys.join(' | ')||'·'}</div>)}
     {algorithm.id==='bplus-tree' && leaves.length > 1 && <svg className="bplus-leaf-chain" style={{top:`${leaves[0].y}%`}}><defs><marker id="bplus-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z"/></marker></defs>{leaves.slice(0,-1).map((leaf,index)=><line key={leaf.id} x1={`${leaf.x + nodeWidth / 2}%`} y1="50%" x2={`${leaves[index+1].x - nodeWidth / 2}%`} y2="50%" markerEnd="url(#bplus-arrow)"/>)}</svg>}
     {frame?.treePhase==='promote' && promotedKey !== null && promotedKey !== undefined && <span className="promoted-key" style={{left:`${promotedLeaf.x}%`,top:`${promotedLeaf.y}%`}}><small>SUBE</small>{promotedKey}</span>}
-    <div className="leaf-link">{algorithm.id==='bplus-tree'?'MÁX. 3 CLAVES POR HOJA · HOJAS ENLAZADAS →':algorithm.id==='bstar-tree'?'MÁX. 3 CLAVES · REDISTRIBUYE ANTES DE DIVIDIR':'MÁX. 3 CLAVES POR NODO · LOS SEPARADORES SUBEN'}</div>
+    <div className="leaf-link">{algorithm.id==='bplus-tree'?'MÁX. 3 CLAVES POR HOJA · HOJAS ENLAZADAS →':algorithm.id==='bstar-tree'?'MÁX. 5 CLAVES · REDISTRIBUYE ANTES DE DIVIDIR':'MÁX. 3 CLAVES POR NODO · LA MEDIANA SALE DE LA HOJA'}</div>
   </div>;
 }
 
 function SegmentTreeDiagram({ algorithm, step }) {
-  const leaves = algorithm.values.slice(0,4).map(Number);
-  while (leaves.length<4) leaves.push(0);
-  const values = [leaves.reduce((a,b)=>a+b,0),leaves[0]+leaves[1],leaves[2]+leaves[3],...leaves];
-  const ranges = ['[0..3]','[0..1]','[2..3]','[0]','[1]','[2]','[3]'];
-  return <BinaryTreeDiagram algorithm={algorithm} step={step} displayValues={values} badges={ranges} kindLabel="SUMAS POR RANGO"/>;
+  const values = algorithm.values.map(value => Number(value) || 0);
+  const minimumMode = algorithm.activeOperation === 'range-min';
+  const nodes = [];
+  const edges = [];
+  const depth = Math.ceil(Math.log2(Math.max(1, values.length)));
+  const visit = (left, right, level, parent = null) => {
+    const index = nodes.length;
+    const node = {
+      index, left, right, level,
+      x: ((left + right + 1) / (2 * values.length)) * 100,
+      y: depth === 0 ? 50 : 13 + (level / depth) * 70,
+      sum: values.slice(left, right + 1).reduce((total, value) => total + value, 0),
+      minimum: Math.min(...values.slice(left, right + 1)),
+    };
+    nodes.push(node);
+    if (parent !== null) edges.push([parent, index]);
+    if (left < right) {
+      const middle = Math.floor((left + right) / 2);
+      visit(left, middle, level + 1, index);
+      visit(middle + 1, right, level + 1, index);
+    }
+  };
+  if (values.length) visit(0, values.length - 1, 0);
+  return <div className="tree-canvas tree-segment-tree segment-tree-full" role="img" aria-label={`Segment Tree con ${minimumMode ? 'mínimos' : 'sumas'} por rango`}>
+    <span className="tree-kind-label">{minimumMode ? 'MÍNIMOS' : 'SUMAS'} POR RANGO · {values.length} ELEMENTOS</span>
+    <svg className="edge-layer" aria-hidden="true">{edges.map(([from, to]) => <TreeEdge key={`${from}-${to}`} from={[nodes[from].x, nodes[from].y]} to={[nodes[to].x, nodes[to].y]} startPadding={16} endPadding={16}/>)}</svg>
+    {nodes.map(node => <div
+      className={`tree-node ${node.level === depth ? 'deep-node' : ''} ${node.left === step && node.right === step ? 'active' : ''}`}
+      data-segment-range={`${node.left}-${node.right}`}
+      style={{ left: `${node.x}%`, top: `${node.y}%` }}
+      key={node.index}
+    ><span className="tree-value">{minimumMode ? node.minimum : node.sum}</span><small className="tree-node-badge">[{node.left}..{node.right}]</small></div>)}
+  </div>;
 }
 
 function MerkleTreeDiagram({ algorithm, step }) {
-  const leaves = algorithm.values.slice(0,8).map(String);
-  while (leaves.length<8) leaves.push('∅');
-  const values = ['H(ROOT)','H(A)','H(B)','H(0+1)','H(2+3)','H(4+5)','H(6+7)',...leaves.map(value=>`H(${value})`)];
-  const badges = ['MERKLE ROOT','HASH','HASH','HASH','HASH','HASH','HASH',...leaves];
-  return <BinaryTreeDiagram algorithm={algorithm} step={7+(step%leaves.length)} displayValues={values} badges={badges} kindLabel="INTEGRIDAD POR HASHES"/>;
+  const levels = merkleLevels(algorithm.values);
+  if (!levels.length) return <div className="empty-visual"><strong>∅</strong><span>Árbol Merkle sin bloques</span></div>;
+  const leafCount = algorithm.values.length;
+  const position = (node, level) => ({
+    x: ((node.start + node.end + 1) / (2 * leafCount)) * 100,
+    y: levels.length === 1 ? 50 : 14 + ((levels.length - 1 - level) / (levels.length - 1)) * 71,
+  });
+  const edges = [];
+  for (let level = levels.length - 1; level > 0; level--) {
+    levels[level].forEach((parent, index) => {
+      for (const childIndex of [index * 2, index * 2 + 1]) {
+        const child = levels[level - 1][childIndex];
+        if (child) edges.push([position(parent, level), position(child, level - 1), `${level}-${index}-${childIndex}`]);
+      }
+    });
+  }
+  return <div className="tree-canvas tree-merkle-tree merkle-tree-full" role="img" aria-label={`Árbol Merkle, raíz ${formatMerkleHash(levels.at(-1)[0].hash)}`}>
+    <span className="tree-kind-label">RAÍZ REAL · {formatMerkleHash(levels.at(-1)[0].hash)}</span>
+    <svg className="edge-layer" aria-hidden="true">{edges.map(([from, to, key]) => <TreeEdge key={key} from={[from.x, from.y]} to={[to.x, to.y]} startPadding={16} endPadding={16}/>)}</svg>
+    {levels.flatMap((nodes, level) => nodes.map((node, index) => {
+      const { x, y } = position(node, level);
+      const fullHash = formatMerkleHash(node.hash);
+      return <div
+        className={`tree-node ${level === 0 && index === step ? 'active' : ''}`}
+        data-merkle-hash={fullHash}
+        title={fullHash}
+        style={{ left: `${x}%`, top: `${y}%` }}
+        key={`${level}-${index}`}
+      ><span className="tree-value">{fullHash.slice(-4)}</span><small className="tree-node-badge">{level === 0 ? node.label : level === levels.length - 1 ? 'ROOT' : 'HASH'}</small></div>;
+    }))}
+  </div>;
 }
 
 function FibonacciHeapDiagram({ algorithm, step }) {
-  const values = algorithm.values.slice(0,9);
-  const positions = [[12,22],[38,22],[64,22],[88,22],[12,68],[31,68],[45,68],[64,68],[88,68]];
-  const edges = [[0,4],[1,5],[1,6],[2,7],[3,8]];
-  return <div className="tree-canvas fibonacci-forest"><span className="tree-kind-label">BOSQUE DE ÁRBOLES · MIN: {Math.min(...values.map(Number))}</span><svg className="edge-layer" aria-hidden="true">{edges.filter(([,to])=>to<values.length).map(([from,to])=><TreeEdge key={`${from}-${to}`} from={positions[from]} to={positions[to]}/>)}</svg>{positions.map(([x,y],index)=>values[index]!==undefined&&<div className={`tree-node fib-node ${index===step%values.length?'active':''}`} style={{left:`${x}%`,top:`${y}%`}} key={index}><span className="tree-value">{values[index]}</span><small className="tree-node-badge">{index<3?'ROOT':'CHILD'}</small></div>)}</div>;
+  const forest = algorithm.fibonacciForest ?? createFibonacciForest(algorithm.values).snapshot();
+  const roots = forest.roots;
+  const nodes = [];
+  const edges = [];
+  const rootWidth = 88 / Math.max(1, roots.length);
+  const visit = (node, x, depth, parent = null, width = rootWidth) => {
+    const position = [x, 18 + depth * 29];
+    nodes.push({ node, position, depth });
+    if (parent) edges.push([parent, position, node.id]);
+    const childWidth = width / Math.max(1, node.children.length);
+    node.children.forEach((child, index) => visit(child, x + (index - (node.children.length - 1) / 2) * childWidth, depth + 1, position, childWidth));
+  };
+  roots.forEach((root, index) => visit(root, 6 + rootWidth * (index + .5), 0));
+  const minimum = roots.length ? Math.min(...roots.map(root => root.value)) : null;
+  return <div className="tree-canvas fibonacci-forest" role="img" aria-label={`Bosque Fibonacci; ${roots.length} raíces; mínimo ${minimum}`}>
+    <span className="tree-kind-label">RAÍCES CIRCULARES: {roots.length} · MIN: {minimum}</span>
+    <svg className="edge-layer" aria-hidden="true">{edges.map(([from, to, id]) => <TreeEdge key={id} from={from} to={to}/>)}</svg>
+    {nodes.map(({ node, position, depth }, index) => <div
+      className={`tree-node fib-node ${index === step % nodes.length ? 'active' : ''}`}
+      data-fibonacci-role={depth === 0 ? 'root' : 'child'}
+      data-fibonacci-degree={node.children.length}
+      style={{ left: `${position[0]}%`, top: `${position[1]}%` }}
+      key={node.id}
+    ><span className="tree-value">{node.value}</span><small className="tree-node-badge">{depth === 0 ? 'ROOT' : 'CHILD'}</small></div>)}
+  </div>;
 }
 
 function SpatialTreeDiagram({ algorithm, step }) {
@@ -2008,10 +2090,17 @@ function GraphVisual({ algorithm, step }) {
 
 function FenwickVisual({ algorithm, step }) {
   const values = algorithm.values.slice(0,8).map(Number);
-  const maximum = Math.max(...values,1);
-  return <div className="fenwick-visual"><span className="tree-kind-label">BIT · CADA ÍNDICE GUARDA UN RANGO</span><div className="fenwick-bars">{values.map((value,index)=>{
+  const minimumMode = algorithm.activeOperation === 'range-min';
+  const aggregates = values.map((_, index) => {
+    const bitIndex = index + 1;
+    const start = bitIndex - (bitIndex & -bitIndex);
+    return values.slice(start, bitIndex).reduce((sum, value) => sum + value, 0);
+  });
+  const displayed = minimumMode ? values : aggregates;
+  const maximum = Math.max(...displayed.map(Math.abs),1);
+  return <div className="fenwick-visual"><span className="tree-kind-label">{minimumMode ? 'MÍNIMO · ESCANEO DE A' : 'BIT · CADA ÍNDICE GUARDA UN RANGO'}</span><div className="fenwick-bars">{values.map((value,index)=>{
     const bitIndex=index+1, start=bitIndex-(bitIndex&-bitIndex)+1;
-    return <div className={`fenwick-column ${index===step%values.length?'active':''}`} key={index}><div className="fenwick-bar" style={{height:`${38+value/maximum*80}px`}}><strong>{value}</strong><small>[{start}..{bitIndex}]</small></div><span>i={bitIndex}</span></div>;
+    return <div className={`fenwick-column ${index===step%values.length?'active':''}`} data-bit-index={bitIndex} key={index}><div className="fenwick-bar" style={{height:`${38+Math.abs(displayed[index])/maximum*80}px`}}><strong>{displayed[index]}</strong><small>{minimumMode ? `A[${index}]` : `[${start}..${bitIndex}]`}</small></div><span>i={bitIndex} · {minimumMode ? `BIT=${aggregates[index]}` : `A=${value}`}</span></div>;
   })}</div></div>;
 }
 
@@ -2203,7 +2292,11 @@ function SpecialVisual({ algorithm, step }) {
     </div>;
   }
   if (algorithm.id === 'trie') return <TrieTreeVisual algorithm={algorithm} step={step}/>;
-  if (algorithm.id === 'suffix-tree') { const text=algorithm.values.join(''); return <div className="suffix-visual"><span className="tree-kind-label">TODOS LOS SUFIJOS DE “{text}”</span><div className="suffix-root">ROOT</div><div className="suffix-branches">{Array.from({length:Math.min(5,text.length)},(_,index)=><div className={index===step%Math.min(5,text.length)?'active':''} key={index}><i/>{text.slice(index)}</div>)}</div></div>; }
+  if (algorithm.id === 'suffix-tree') {
+    const text = algorithm.values.join('');
+    const suffixes = Array.from({ length: text.length }, (_, index) => text.slice(index));
+    return <TrieTreeVisual algorithm={{ ...algorithm, values: suffixes }} step={step}/>;
+  }
   if (algorithm.type === 'hash') return <HashTableVisual algorithm={algorithm} step={step}/>;
   if (algorithm.type === 'bloom') return <div className="hash-visual">{algorithm.values.map((v,i)=><div className={`hash-slot ${i===step%algorithm.values.length?'active':''}`} key={i}><small>{i.toString().padStart(2,'0')}</small><strong>{v}</strong></div>)}</div>;
   if (algorithm.type === 'recursion') return <RecursionVisual algorithm={algorithm} step={step}/>;
@@ -2388,6 +2481,10 @@ function App() {
   const [operationFrames, setOperationFrames] = useState([]);
   const [activeCodeLine, setActiveCodeLine] = useState(null);
   const [demoValues, setDemoValues] = useState(() => [...startingAlgorithm.values]);
+  const [demoTreeColors, setDemoTreeColors] = useState(() => redBlackColorsFor(startingAlgorithm, startingAlgorithm.values));
+  const [demoFibonacciForest, setDemoFibonacciForest] = useState(() => fibonacciForestFor(startingAlgorithm, startingAlgorithm.values));
+  const [demoMultiwayTree, setDemoMultiwayTree] = useState(() => multiwayTreeFor(startingAlgorithm, startingAlgorithm.values));
+  const [demoTreeParents, setDemoTreeParents] = useState(() => initialNaryParents(startingAlgorithm.id, startingAlgorithm.values));
   const [demoEdges, setDemoEdges] = useState(() => edgesForAlgorithm(startingAlgorithm));
   const [demoPositions, setDemoPositions] = useState(() => positionsForAlgorithm(startingAlgorithm));
   const [demoMap, setDemoMap] = useState(DEFAULT_PATH_MAP);
@@ -2403,8 +2500,8 @@ function App() {
   const [sectionTestClock, setSectionTestClock] = useState(Date.now());
   const [tourOpen, setTourOpen] = useState(false);
   const algorithm = useMemo(
-    () => ({ ...baseAlgorithm, values: demoValues, edges: demoEdges, positions: demoPositions, map: demoMap }),
-    [baseAlgorithm, demoValues, demoEdges, demoPositions, demoMap],
+    () => ({ ...baseAlgorithm, values: demoValues, treeColors: demoTreeColors, fibonacciForest: demoFibonacciForest, multiwayTree: demoMultiwayTree, treeParents: demoTreeParents, edges: demoEdges, positions: demoPositions, map: demoMap }),
+    [baseAlgorithm, demoValues, demoTreeColors, demoFibonacciForest, demoMultiwayTree, demoTreeParents, demoEdges, demoPositions, demoMap],
   );
   const isTheoryPage = ['theory', 'complexity', 'oop', 'foundation'].includes(baseAlgorithm.type);
   const hideCodePanel = ['dijkstra','a-star'].includes(baseAlgorithm.id);
@@ -2452,8 +2549,8 @@ function App() {
   const sectionTestRemainingMs = Math.max(0, sectionTestLockedUntil - sectionTestClock);
   const sectionTestRemainingMinutes = Math.ceil(sectionTestRemainingMs / 60000);
   const visualAlgorithm = useMemo(
-    () => ({ ...algorithm, language, animationFrame: currentAnimationFrame }),
-    [algorithm, language, currentAnimationFrame],
+    () => ({ ...algorithm, language, activeOperation, animationFrame: currentAnimationFrame }),
+    [algorithm, language, activeOperation, currentAnimationFrame],
   );
 
   useEffect(() => {
@@ -2546,6 +2643,10 @@ function App() {
   const applyFrame = (frame, frameIndex) => {
     if (!frame) return;
     setDemoValues(copyVisualValues(frame.values));
+    if (frame.treeColors) setDemoTreeColors(frame.treeColors);
+    if (frame.fibonacciForest) setDemoFibonacciForest(frame.fibonacciForest);
+    if (frame.multiwayTree) setDemoMultiwayTree(frame.multiwayTree);
+    if (frame.treeParents) setDemoTreeParents(frame.treeParents);
     if (frame.edges) setDemoEdges(frame.edges.map(edge => [...edge]));
     setStep(frameIndex);
     setActiveCodeLine(frame.codeLine ?? null);
@@ -2586,6 +2687,10 @@ function App() {
     const nextAlgorithm = algorithmsById.get(id) ?? algorithms[0];
     setSelectedId(nextAlgorithm.id);
     setDemoValues([...nextAlgorithm.values]);
+    setDemoTreeColors(redBlackColorsFor(nextAlgorithm, nextAlgorithm.values));
+    setDemoFibonacciForest(fibonacciForestFor(nextAlgorithm, nextAlgorithm.values));
+    setDemoMultiwayTree(multiwayTreeFor(nextAlgorithm, nextAlgorithm.values));
+    setDemoTreeParents(initialNaryParents(nextAlgorithm.id, nextAlgorithm.values));
     setDemoEdges(edgesForAlgorithm(nextAlgorithm));
     setDemoPositions(positionsForAlgorithm(nextAlgorithm));
     setDemoMap(DEFAULT_PATH_MAP);
@@ -2664,6 +2769,10 @@ function App() {
   }, [openAlgorithm, openWelcome, registerTestViolation]);
   const resetDemo = () => {
     setDemoValues([...baseAlgorithm.values]);
+    setDemoTreeColors(redBlackColorsFor(baseAlgorithm, baseAlgorithm.values));
+    setDemoFibonacciForest(fibonacciForestFor(baseAlgorithm, baseAlgorithm.values));
+    setDemoMultiwayTree(multiwayTreeFor(baseAlgorithm, baseAlgorithm.values));
+    setDemoTreeParents(initialNaryParents(baseAlgorithm.id, baseAlgorithm.values));
     setDemoEdges(edgesForAlgorithm(baseAlgorithm));
     setDemoPositions(positionsForAlgorithm(baseAlgorithm));
     setDemoMap(DEFAULT_PATH_MAP);
@@ -2677,6 +2786,10 @@ function App() {
   };
   const clearDemo = () => {
     setDemoValues(createEmptyValues(baseAlgorithm));
+    setDemoTreeColors(redBlackColorsFor(baseAlgorithm, []));
+    setDemoFibonacciForest(fibonacciForestFor(baseAlgorithm, []));
+    setDemoMultiwayTree(multiwayTreeFor(baseAlgorithm, []));
+    setDemoTreeParents(initialNaryParents(baseAlgorithm.id, []));
     setDemoEdges([]);
     setDemoPositions(positionsForAlgorithm(baseAlgorithm));
     setOperationFrames([]);
@@ -2690,6 +2803,10 @@ function App() {
   const createNewExample = () => {
     const nextValues = createRandomValues(baseAlgorithm);
     setDemoValues(nextValues);
+    setDemoTreeColors(redBlackColorsFor(baseAlgorithm, nextValues));
+    setDemoFibonacciForest(fibonacciForestFor(baseAlgorithm, nextValues));
+    setDemoMultiwayTree(multiwayTreeFor(baseAlgorithm, nextValues));
+    setDemoTreeParents(initialNaryParents(baseAlgorithm.id, nextValues));
     setDemoEdges(edgesForAlgorithm(baseAlgorithm, baseAlgorithm.category === 'Grafos'));
     setDemoPositions(positionsForAlgorithm(baseAlgorithm, usesNodeGraph(baseAlgorithm)));
     setDemoMap(['dijkstra','a-star'].includes(baseAlgorithm.id)
@@ -2742,6 +2859,10 @@ function App() {
       : getOperationPseudocode(baseAlgorithm, actionId);
     const pendingFinalFrame = operationStatus === 'success' ? operationFrames.at(-1) : null;
     const previousValues = copyVisualValues(pendingFinalFrame?.values ?? demoValues);
+    const previousTreeColors = pendingFinalFrame?.treeColors ?? demoTreeColors;
+    const previousFibonacciForest = pendingFinalFrame?.fibonacciForest ?? demoFibonacciForest;
+    const previousMultiwayTree = pendingFinalFrame?.multiwayTree ?? demoMultiwayTree;
+    const previousTreeParents = pendingFinalFrame?.treeParents ?? demoTreeParents;
     const previousEdges = (pendingFinalFrame?.edges ?? demoEdges).map(edge => [...edge]);
     const result = executeOperation({
       algorithm: { ...baseAlgorithm, positions: demoPositions, map: actionId === 'reset' ? DEFAULT_PATH_MAP : demoMap },
@@ -2751,13 +2872,17 @@ function App() {
       edges: previousEdges,
       initialValues: baseAlgorithm.values,
       initialEdges: edgesForAlgorithm(baseAlgorithm),
+      treeColors: previousTreeColors,
+      fibonacciForest: previousFibonacciForest,
+      multiwayTree: previousMultiwayTree,
+      treeParents: previousTreeParents,
     });
     const synchronizedFrameFactory = operationGroup(baseAlgorithm) === 'list'
       ? createLinkedListSynchronizedFrames
       : baseAlgorithm.category === 'Árboles'
         ? createTreeSynchronizedFrames
         : createCodeSynchronizedFrames;
-    const frames = result.frames?.length
+    let synchronizedFrames = result.frames?.length
       ? adaptFramesToCode(result.frames, codeForAnimation, codeMode !== 'pseudo')
       : synchronizedFrameFactory({
           algorithm: baseAlgorithm,
@@ -2771,10 +2896,76 @@ function App() {
           finalMessage: result.message,
           succeeded: result.ok !== false,
           inputValues: fields,
+          beforeTreeParents: previousTreeParents,
         });
+    if (baseAlgorithm.id === 'fibonacci-heap' && result.ok && codeMode !== 'pseudo'
+        && ['heap-add', 'heap-extract'].includes(actionId)) {
+      const sourceLines = codeForAnimation.split('\n');
+      const lineOf = pattern => Math.max(0, sourceLines.findIndex(line => pattern.test(line)));
+      const initialLine = lineOf(actionId === 'heap-add' ? /\binsert(?:Minimum)?\s*\(/ : /\bextractMinimum\s*\(/);
+      const makeFrame = (forest, values, codeLine, message, completed = false) => ({
+        fibonacciForest: forest, values: copyVisualValues(values), edges: previousEdges,
+        codeLine, position: 0, message, completed, delayMs: 620,
+      });
+      if (actionId === 'heap-add') {
+        synchronizedFrames = [
+          makeFrame(previousFibonacciForest, previousValues, initialLine, `Se prepara el nodo ${fields.value}.`),
+          makeFrame(result.fibonacciForest, result.values, lineOf(/add(?:Root|ToRootList)\(/), result.message, true),
+        ];
+      } else {
+        synchronizedFrames = [makeFrame(previousFibonacciForest, previousValues, initialLine, 'Se identifica la raíz mínima.')];
+        for (const stage of result.fibonacciStages ?? []) {
+          const codeLine = stage.phase === 'promote' ? lineOf(/add(?:Root|ToRootList)\(/)
+            : stage.phase === 'link' ? lineOf(/link(?:Child|AsChild)\(second, first\)/)
+              : lineOf(/consolidate\(\)/);
+          const message = stage.phase === 'promote'
+            ? 'Los hijos del mínimo pasan a la lista de raíces.'
+            : stage.phase === 'link'
+              ? `Se enlaza ${stage.child} como hijo de ${stage.parent} porque ambas raíces tenían el mismo grado.`
+              : result.message;
+          synchronizedFrames.push(makeFrame(stage.forest, result.values, codeLine, message, stage.phase === 'settled'));
+        }
+      }
+    }
+    const treeFrames = baseAlgorithm.id === 'rojo-negro' && result.treeColors
+      ? synchronizedFrames.map(frame => ({
+          ...frame,
+          treeColors: JSON.stringify(frame.values) === JSON.stringify(previousValues)
+            ? previousTreeColors
+            : result.treeColors,
+        }))
+      : synchronizedFrames;
+    const heapFrames = baseAlgorithm.id === 'fibonacci-heap' && result.fibonacciForest
+      ? treeFrames.map(frame => ({
+          ...frame,
+          fibonacciForest: frame.fibonacciForest ?? (JSON.stringify(frame.values) === JSON.stringify(previousValues)
+            ? previousFibonacciForest
+            : result.fibonacciForest),
+        }))
+      : treeFrames;
+    const multiwayFrames = baseAlgorithm.type === 'btree' && result.multiwayTree
+      ? heapFrames.map(frame => ({
+          ...frame,
+          multiwayTree: JSON.stringify(frame.values) === JSON.stringify(previousValues)
+            ? previousMultiwayTree
+            : result.multiwayTree,
+        }))
+      : heapFrames;
+    const frames = ['arbol-general', 'arbol-nario'].includes(baseAlgorithm.id) && result.treeParents
+      ? multiwayFrames.map(frame => ({
+          ...frame,
+          treeParents: JSON.stringify(frame.values) === JSON.stringify(previousValues)
+            ? previousTreeParents
+            : result.treeParents,
+        }))
+      : multiwayFrames;
     const firstFrame = frames[0];
     setOperationFrames(frames);
     setDemoValues(copyVisualValues(firstFrame.values));
+    if (firstFrame.treeColors) setDemoTreeColors(firstFrame.treeColors);
+    if (firstFrame.fibonacciForest) setDemoFibonacciForest(firstFrame.fibonacciForest);
+    if (firstFrame.multiwayTree) setDemoMultiwayTree(firstFrame.multiwayTree);
+    if (firstFrame.treeParents) setDemoTreeParents(firstFrame.treeParents);
     setDemoEdges((firstFrame.edges ?? result.edges).map(edge => [...edge]));
     setOperationMessage(firstFrame.message);
     setOperationStatus(result.ok === false ? 'error' : 'success');

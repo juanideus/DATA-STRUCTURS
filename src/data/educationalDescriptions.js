@@ -246,14 +246,14 @@ export const educationalDescriptions = {
     'Llegar al último carácter no basta: esFinal debe ser verdadero para confirmar una palabra completa.'
   ),
   'suffix-tree': guide(
-    'Un Suffix Tree es un trie comprimido que representa todos los sufijos de un texto.',
-    'Las cadenas de nodos con un solo hijo se comprimen en una arista etiquetada con varios caracteres. Una vez construido permite localizar patrones recorriendo sólo los caracteres del patrón.',
+    'Esta implementación es un trie de sufijos: guarda todos los sufijos de un texto y comparte sus prefijos comunes.',
+    'Cada arista representa un carácter. No comprime cadenas de nodos; un Suffix Tree comprimido sería una variante distinta. Una vez construido, permite localizar patrones recorriendo los caracteres del patrón.',
     'Construir los sufijos del texto|Buscar un patrón|Encontrar subcadenas repetidas|Calcular el prefijo común más largo entre sufijos',
     'Consultas de patrón muy rápidas|Resuelve numerosos problemas de texto|Representa todas las subcadenas implícitamente|Permite análisis de repeticiones',
     'Construcción avanzada|Uso considerable de memoria|Los algoritmos lineales son difíciles de implementar|Para casos simples puede ser excesivo',
     'Búsqueda en textos largos|Bioinformática|Detección de repeticiones|Análisis de similitud',
     'Para BANANA se incluyen BANANA, ANANA, NANA, ANA, NA y A.',
-    'No confundas Suffix Tree con Suffix Array: almacenan información parecida con estructuras diferentes.'
+    'El trie de sufijos mostrado no comprime aristas; tampoco es un Suffix Array.'
   ),
   'segment-tree': guide(
     'Un Segment Tree organiza intervalos de un Array para responder consultas de rango y actualizaciones.',

@@ -5,6 +5,7 @@ import { getGeneralizedListJava } from './generalizedListJava.js';
 import { getGraphJava } from './graphJava.js';
 import { getLinearJava } from './linearJava.js';
 import { getSpecializedJava } from './specializedJava.js';
+import { getFibonacciHeapJava } from './fibonacciHeapJava.js';
 import { linkedListJava } from './linkedListJava.js';
 import { getSparseMatrixJava } from './sparseMatrixJava.js';
 import { getPolynomialJava } from './polynomialJava.js';
@@ -1323,12 +1324,15 @@ export function getBeginnerJava(algorithm, actionId) {
   const polynomialSource = sparseMatrixSource || denseMatrixSource ? null : algorithm.id === 'polinomios' ? getPolynomialJava(actionId) : null;
   const generalizedListSource = sparseMatrixSource || denseMatrixSource || polynomialSource ? null : algorithm.id === 'listas-generalizadas' ? getGeneralizedListJava(actionId) : null;
   const sortingSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource ? null : getSortingJava(algorithm.id, actionId);
+  const fibonacciSource = algorithm.id === 'fibonacci-heap' ? getFibonacciHeapJava(actionId) : null;
   const specializedSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || sortingSource ? null : getSpecializedJava(algorithm.id, actionId);
   const graphSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || sortingSource || specializedSource ? null : getGraphJava(algorithm.id, actionId);
   const astSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || graphSource ? null : algorithm.id === 'ast' ? getAstJava(actionId) : null;
   const linearSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || graphSource || astSource ? null : getLinearJava(algorithm.id, actionId);
   const treeSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || graphSource || astSource || linearSource ? null : getTreeJava(algorithm.id, actionId);
-  if (sparseMatrixSource) {
+  if (fibonacciSource) {
+    source = fibonacciSource;
+  } else if (sparseMatrixSource) {
     source = sparseMatrixSource;
   } else if (denseMatrixSource) {
     source = denseMatrixSource;

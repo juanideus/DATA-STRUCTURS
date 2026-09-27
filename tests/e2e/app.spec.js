@@ -1400,7 +1400,9 @@ test('B+ acepta inserciones seguidas y mantiene nodos de máximo tres claves', a
   }
 
   const leaves = page.locator('.leaf-bnode');
-  await expect(leaves).toHaveCount(8);
+  // 21 keys under true B+ leaf splitting (2+2) produce 11 leaves,
+  // unlike the former fake grouping of three keys per leaf.
+  await expect(leaves).toHaveCount(11);
   await expect(page.locator('.btree-visual')).toContainText('114');
   expect(await page.locator('.internal-bnode').count()).toBeGreaterThanOrEqual(3);
   for (const text of await leaves.allTextContents()) {
@@ -1457,6 +1459,24 @@ test('la matriz poco poblada es circular y se recorre en el sentido enseñado', 
   await page.getByLabel('Fila').fill('1');
   await page.getByRole('button', { name: 'Recorrer fila' }).click();
   await expect(page.locator('.operation-message')).toContainText('4 ← 8 ← 7 ← 2', { timeout: 15000 });
+});
+
+test('matriz poco poblada pide los datos faltantes sin sustituirlos por cero', async ({ page }) => {
+  await page.goto('/matriz-dispersa');
+  const insert = page.getByRole('button', { name: 'Insertar / actualizar' });
+  await insert.click();
+  await expect(page.locator('.operation-message')).toContainText('Ingresa la fila');
+  await page.getByLabel('Fila').fill('0');
+  await insert.click();
+  await expect(page.locator('.operation-message')).toContainText('Ingresa la columna');
+  await page.getByLabel('Columna').fill('0');
+  await insert.click();
+  await expect(page.locator('.operation-message')).toContainText('Ingresa el valor');
+  await expect(page.getByLabel('Fila')).toHaveValue('0');
+  await expect(page.getByLabel('Columna')).toHaveValue('0');
+  await page.getByLabel('Valor').fill('99');
+  await insert.click();
+  await expect(page.locator('[data-cell-key="0:0"]')).toHaveAttribute('data-value', '99', { timeout: 20000 });
 });
 
 test('muestra el formulario activo para informar un problema', async ({ page }) => {

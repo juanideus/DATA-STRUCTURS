@@ -606,7 +606,7 @@ const naryTree = {
 };
 
 const suffixTree = {
-  'set-word': animated(`void buildSuffixTree(String newText) {
+  'set-word': animated(`void buildSuffixTrie(String newText) {
     text = newText;
     root = new Node();
     for (int start = 0; start < text.length(); start++) {
@@ -802,14 +802,23 @@ void mergeChildren(Node parent, int leftIndex) {
 };
 
 const btreeInsert = animated(`void insert(int value) {
+    if (contains(root, value)) return;
     if (root.keyCount == MAX_KEYS) {
         Node newRoot = new Node(false);
         newRoot.children[0] = root;
+        root.parent = newRoot;
         splitChild(newRoot, 0);
         root = newRoot;
     }
     insertNonFull(root, value);
-}`, `void insertNonFull(Node node, int value) {
+}`, `boolean contains(Node node, int value) {
+    int index = 0;
+    while (index < node.keyCount && value > node.keys[index]) index++;
+    if (index < node.keyCount && value == node.keys[index]) return true;
+    return !node.isLeaf && contains(node.children[index], value);
+}
+
+void insertNonFull(Node node, int value) {
     int index = node.keyCount - 1;
     if (node.isLeaf) {
         while (index >= 0 && value < node.keys[index]) {
@@ -839,6 +848,7 @@ void splitChild(Node parent, int childIndex) {
     if (!full.isLeaf) {
         for (int i = 0; i < T; i++) {
             right.children[i] = full.children[i + T];
+            right.children[i].parent = right;
         }
     }
     full.keyCount = T - 1;
@@ -846,6 +856,7 @@ void splitChild(Node parent, int childIndex) {
         parent.children[i + 1] = parent.children[i];
     }
     parent.children[childIndex + 1] = right;
+    right.parent = parent;
     for (int i = parent.keyCount - 1; i >= childIndex; i--) {
         parent.keys[i + 1] = parent.keys[i];
     }
@@ -853,25 +864,129 @@ void splitChild(Node parent, int childIndex) {
     parent.keyCount++;
 }`);
 
+const btreeRemove = animated(`void remove(int target) {
+    if (!contains(root, target)) return;
+    removeFromNode(root, target);
+    if (root.keyCount == 0 && !root.isLeaf) {
+        root = root.children[0];
+        root.parent = null;
+    }
+}`, `boolean contains(Node node, int target) {
+    int index = keyIndex(node, target);
+    if (index < node.keyCount && node.keys[index] == target) return true;
+    return !node.isLeaf && contains(node.children[index], target);
+}
+
+int keyIndex(Node node, int target) {
+    int index = 0;
+    while (index < node.keyCount && node.keys[index] < target) index++;
+    return index;
+}
+
+void removeFromNode(Node node, int target) {
+    int index = keyIndex(node, target);
+    if (index < node.keyCount && node.keys[index] == target) {
+        if (node.isLeaf) {
+            for (int i = index; i < node.keyCount - 1; i++) node.keys[i] = node.keys[i + 1];
+            node.keyCount--;
+        } else if (node.children[index].keyCount >= T) {
+            Node predecessor = node.children[index];
+            while (!predecessor.isLeaf) predecessor = predecessor.children[predecessor.keyCount];
+            int replacement = predecessor.keys[predecessor.keyCount - 1];
+            node.keys[index] = replacement;
+            removeFromNode(node.children[index], replacement);
+        } else if (node.children[index + 1].keyCount >= T) {
+            Node successor = node.children[index + 1];
+            while (!successor.isLeaf) successor = successor.children[0];
+            int replacement = successor.keys[0];
+            node.keys[index] = replacement;
+            removeFromNode(node.children[index + 1], replacement);
+        } else {
+            mergeChildren(node, index);
+            removeFromNode(node.children[index], target);
+        }
+        return;
+    }
+    if (node.isLeaf) return;
+    boolean lastChild = index == node.keyCount;
+    if (node.children[index].keyCount == MIN_KEYS) fillChild(node, index);
+    if (lastChild && index > node.keyCount) removeFromNode(node.children[index - 1], target);
+    else removeFromNode(node.children[index], target);
+}
+
+void fillChild(Node parent, int index) {
+    if (index > 0 && parent.children[index - 1].keyCount >= T) borrowPrevious(parent, index);
+    else if (index < parent.keyCount && parent.children[index + 1].keyCount >= T) borrowNext(parent, index);
+    else if (index < parent.keyCount) mergeChildren(parent, index);
+    else mergeChildren(parent, index - 1);
+}
+
+void borrowPrevious(Node parent, int index) {
+    Node child = parent.children[index];
+    Node sibling = parent.children[index - 1];
+    for (int i = child.keyCount; i > 0; i--) child.keys[i] = child.keys[i - 1];
+    if (!child.isLeaf) {
+        for (int i = child.keyCount + 1; i > 0; i--) child.children[i] = child.children[i - 1];
+        child.children[0] = sibling.children[sibling.keyCount];
+        child.children[0].parent = child;
+    }
+    child.keys[0] = parent.keys[index - 1];
+    parent.keys[index - 1] = sibling.keys[sibling.keyCount - 1];
+    child.keyCount++;
+    sibling.keyCount--;
+}
+
+void borrowNext(Node parent, int index) {
+    Node child = parent.children[index];
+    Node sibling = parent.children[index + 1];
+    child.keys[child.keyCount] = parent.keys[index];
+    if (!child.isLeaf) {
+        child.children[child.keyCount + 1] = sibling.children[0];
+        child.children[child.keyCount + 1].parent = child;
+    }
+    parent.keys[index] = sibling.keys[0];
+    for (int i = 0; i < sibling.keyCount - 1; i++) sibling.keys[i] = sibling.keys[i + 1];
+    if (!sibling.isLeaf) for (int i = 0; i < sibling.keyCount; i++) sibling.children[i] = sibling.children[i + 1];
+    child.keyCount++;
+    sibling.keyCount--;
+}
+
+void mergeChildren(Node parent, int index) {
+    Node left = parent.children[index];
+    Node right = parent.children[index + 1];
+    int leftCount = left.keyCount;
+    left.keys[left.keyCount++] = parent.keys[index];
+    for (int i = 0; i < right.keyCount; i++) left.keys[left.keyCount++] = right.keys[i];
+    if (!left.isLeaf) for (int i = 0; i <= right.keyCount; i++) {
+        left.children[leftCount + 1 + i] = right.children[i];
+        left.children[leftCount + 1 + i].parent = left;
+    }
+    for (int i = index; i < parent.keyCount - 1; i++) parent.keys[i] = parent.keys[i + 1];
+    for (int i = index + 1; i < parent.keyCount; i++) parent.children[i] = parent.children[i + 1];
+    parent.children[parent.keyCount] = null;
+    parent.keyCount--;
+}`);
+
 const bplusInsert = animated(`void insert(int value) {
-    Leaf leaf = findLeaf(value);
+    Node leaf = findLeaf(value);
+    for (int i = 0; i < leaf.keyCount; i++) if (leaf.keys[i] == value) return;
     insertInOrder(leaf, value);
     if (leaf.keyCount > MAX_KEYS) {
-        Leaf right = splitLeaf(leaf);
+        Node right = splitLeaf(leaf);
         int separator = right.keys[0];
         insertIntoParent(leaf, separator, right);
     }
-}`, `Leaf findLeaf(int value) {
+}`, `Node findLeaf(int value) {
     Node current = root;
     while (!current.isLeaf) {
         int child = 0;
         while (child < current.keyCount && value >= current.keys[child]) child++;
         current = current.children[child];
     }
-    return (Leaf) current;
+    return current;
 }
 
-void insertInOrder(Leaf leaf, int value) {
+void insertInOrder(Node leaf, int value) {
     int index = leaf.keyCount;
     while (index > 0 && leaf.keys[index - 1] > value) {
         leaf.keys[index] = leaf.keys[index - 1];
@@ -881,8 +996,8 @@ void insertInOrder(Leaf leaf, int value) {
     leaf.keyCount++;
 }
 
-Leaf splitLeaf(Leaf leaf) {
-    Leaf right = new Leaf();
+Node splitLeaf(Node leaf) {
+    Node right = new Node(true);
     right.parent = leaf.parent;
     int middle = leaf.keyCount / 2;
     for (int i = middle; i < leaf.keyCount; i++) {
@@ -1048,17 +1163,431 @@ void insertSeparator(Node parent, int index, int value, Node middle) {
 }`);
 
 const bplusRange = animated(`void printLeafRange() {
-    Leaf leaf = firstLeaf();
+    Node leaf = firstLeaf();
     while (leaf != null) {
         for (int index = 0; index < leaf.keyCount; index++) {
             System.out.println(leaf.keys[index]);
         }
         leaf = leaf.next;
     }
-}`, `Leaf firstLeaf() {
+}`, `Node firstLeaf() {
     Node current = root;
     while (!current.isLeaf) current = current.children[0];
-    return (Leaf) current;
+    return current;
+}`);
+
+const bstarInsertExact = animated(`void insert(int value) {
+    if (locate(root, value) != null) return;
+    Node leaf = findLeaf(value);
+    insertKey(leaf, value);
+    if (leaf.keyCount > MAX_KEYS) fixOverflow(leaf);
+}`, `Node locate(Node node, int value) {
+    int index = 0;
+    while (index < node.keyCount && node.keys[index] < value) index++;
+    if (index < node.keyCount && node.keys[index] == value) return node;
+    return node.isLeaf ? null : locate(node.children[index], value);
+}
+
+Node findLeaf(int value) {
+    Node current = root;
+    while (!current.isLeaf) {
+        int index = 0;
+        while (index < current.keyCount && value > current.keys[index]) index++;
+        current = current.children[index];
+    }
+    return current;
+}
+
+void insertKey(Node node, int value) {
+    int index = node.keyCount;
+    while (index > 0 && node.keys[index - 1] > value) {
+        node.keys[index] = node.keys[index - 1];
+        index--;
+    }
+    node.keys[index] = value;
+    node.keyCount++;
+}
+
+int childIndex(Node parent, Node child) {
+    int index = 0;
+    while (parent.children[index] != child) index++;
+    return index;
+}
+
+void fixOverflow(Node node) {
+    if (node == root) {
+        splitRoot();
+        return;
+    }
+    Node parent = node.parent;
+    int index = childIndex(parent, node);
+    Node left = index > 0 ? parent.children[index - 1] : null;
+    Node right = index < parent.keyCount ? parent.children[index + 1] : null;
+    if (right != null && right.keyCount < MAX_KEYS) {
+        redistribute(node, right, index);
+        return;
+    }
+    if (left != null && left.keyCount < MAX_KEYS) {
+        redistribute(left, node, index - 1);
+        return;
+    }
+    if (right != null) splitTwoNodesIntoThree(node, right, index);
+    else splitTwoNodesIntoThree(left, node, index - 1);
+    if (parent.keyCount > MAX_KEYS) fixOverflow(parent);
+}
+
+void splitRoot() {
+    Node old = root;
+    int middle = old.keyCount / 2;
+    Node left = new Node(old.isLeaf);
+    Node right = new Node(old.isLeaf);
+    for (int i = 0; i < middle; i++) left.keys[left.keyCount++] = old.keys[i];
+    for (int i = middle + 1; i < old.keyCount; i++) right.keys[right.keyCount++] = old.keys[i];
+    if (!old.isLeaf) {
+        for (int i = 0; i <= middle; i++) {
+            left.children[i] = old.children[i];
+            left.children[i].parent = left;
+        }
+        for (int i = middle + 1; i <= old.keyCount; i++) {
+            right.children[i - middle - 1] = old.children[i];
+            right.children[i - middle - 1].parent = right;
+        }
+    }
+    old.isLeaf = false;
+    old.keyCount = 1;
+    old.keys[0] = old.keys[middle];
+    old.children[0] = left;
+    old.children[1] = right;
+    left.parent = right.parent = old;
+}
+
+int[] pairKeys(Node left, Node right, int separator) {
+    int[] keys = new int[left.keyCount + right.keyCount + 1];
+    int count = 0;
+    for (int i = 0; i < left.keyCount; i++) keys[count++] = left.keys[i];
+    keys[count++] = separator;
+    for (int i = 0; i < right.keyCount; i++) keys[count++] = right.keys[i];
+    return keys;
+}
+
+Node[] pairChildren(Node left, Node right) {
+    if (left.isLeaf) return new Node[0];
+    Node[] children = new Node[left.keyCount + right.keyCount + 2];
+    int count = 0;
+    for (int i = 0; i <= left.keyCount; i++) children[count++] = left.children[i];
+    for (int i = 0; i <= right.keyCount; i++) children[count++] = right.children[i];
+    return children;
+}
+
+void assign(Node node, int[] keys, int start, int count, Node[] children, int childStart) {
+    node.keyCount = count;
+    for (int i = 0; i < count; i++) node.keys[i] = keys[start + i];
+    if (!node.isLeaf) for (int i = 0; i <= count; i++) {
+        node.children[i] = children[childStart + i];
+        node.children[i].parent = node;
+    }
+}
+
+void redistribute(Node left, Node right, int separatorIndex) {
+    Node parent = left.parent;
+    int[] keys = pairKeys(left, right, parent.keys[separatorIndex]);
+    Node[] children = pairChildren(left, right);
+    int leftCount = keys.length / 2;
+    assign(left, keys, 0, leftCount, children, 0);
+    parent.keys[separatorIndex] = keys[leftCount];
+    assign(right, keys, leftCount + 1, keys.length - leftCount - 1, children, leftCount + 1);
+}
+
+void splitTwoNodesIntoThree(Node left, Node right, int separatorIndex) {
+    Node parent = left.parent;
+    int[] keys = pairKeys(left, right, parent.keys[separatorIndex]);
+    Node[] children = pairChildren(left, right);
+    int share = (keys.length - 2) / 3;
+    int firstSeparator = share;
+    int secondSeparator = share + 1 + share;
+    Node middle = new Node(left.isLeaf);
+    middle.parent = parent;
+    assign(left, keys, 0, share, children, 0);
+    assign(middle, keys, firstSeparator + 1, share, children, share + 1);
+    assign(right, keys, secondSeparator + 1, keys.length - secondSeparator - 1, children, secondSeparator + 1);
+    for (int i = parent.keyCount; i > separatorIndex + 1; i--) {
+        parent.keys[i] = parent.keys[i - 1];
+        parent.children[i + 1] = parent.children[i];
+    }
+    parent.keys[separatorIndex] = keys[firstSeparator];
+    parent.keys[separatorIndex + 1] = keys[secondSeparator];
+    parent.children[separatorIndex + 1] = middle;
+    parent.children[separatorIndex + 2] = right;
+    parent.keyCount++;
+}`);
+
+const bstarRemoveExact = animated(`boolean remove(int target) {
+    Node node = locate(root, target);
+    if (node == null) return false;
+    int index = keyIndex(node, target);
+    if (!node.isLeaf) {
+        Node predecessor = node.children[index];
+        while (!predecessor.isLeaf) predecessor = predecessor.children[predecessor.keyCount];
+        node.keys[index] = predecessor.keys[predecessor.keyCount - 1];
+        node = predecessor;
+        index = predecessor.keyCount - 1;
+    }
+    for (int i = index; i < node.keyCount - 1; i++) node.keys[i] = node.keys[i + 1];
+    node.keyCount--;
+    if (node != root && node.keyCount < minimumKeys(node)) fixUnderflow(node);
+    if (!root.isLeaf && root.keyCount == 0) {
+        root = root.children[0];
+        root.parent = null;
+    }
+    return true;
+}`, `Node locate(Node node, int target) {
+    int index = keyIndex(node, target);
+    if (index < node.keyCount && node.keys[index] == target) return node;
+    return node.isLeaf ? null : locate(node.children[index], target);
+}
+
+int keyIndex(Node node, int target) {
+    int index = 0;
+    while (index < node.keyCount && node.keys[index] < target) index++;
+    return index;
+}
+
+int childIndex(Node parent, Node child) {
+    int index = 0;
+    while (parent.children[index] != child) index++;
+    return index;
+}
+
+int minimumKeys(Node node) {
+    return node.parent == root ? 2 : 3;
+}
+
+void fixUnderflow(Node node) {
+    Node parent = node.parent;
+    int index = childIndex(parent, node);
+    Node left = index > 0 ? parent.children[index - 1] : null;
+    Node right = index < parent.keyCount ? parent.children[index + 1] : null;
+    if (left != null && left.keyCount > minimumKeys(left)) {
+        borrowFromLeft(node, left, parent, index - 1);
+        return;
+    }
+    if (right != null && right.keyCount > minimumKeys(right)) {
+        borrowFromRight(node, right, parent, index);
+        return;
+    }
+    if (parent == root && parent.keyCount == 1) {
+        if (left != null) mergePair(left, node, parent);
+        else mergePair(node, right, parent);
+        return;
+    }
+    int start = index == 0 ? 0 : index - 1;
+    if (start + 2 > parent.keyCount) start = parent.keyCount - 2;
+    mergeThreeIntoTwo(parent, start);
+    if (parent != root && parent.keyCount < minimumKeys(parent)) fixUnderflow(parent);
+}
+
+void borrowFromLeft(Node node, Node left, Node parent, int separator) {
+    for (int i = node.keyCount; i > 0; i--) node.keys[i] = node.keys[i - 1];
+    if (!node.isLeaf) {
+        for (int i = node.keyCount + 1; i > 0; i--) node.children[i] = node.children[i - 1];
+        node.children[0] = left.children[left.keyCount];
+        node.children[0].parent = node;
+    }
+    node.keys[0] = parent.keys[separator];
+    parent.keys[separator] = left.keys[left.keyCount - 1];
+    left.keyCount--;
+    node.keyCount++;
+}
+
+void borrowFromRight(Node node, Node right, Node parent, int separator) {
+    node.keys[node.keyCount] = parent.keys[separator];
+    if (!node.isLeaf) {
+        node.children[node.keyCount + 1] = right.children[0];
+        node.children[node.keyCount + 1].parent = node;
+    }
+    parent.keys[separator] = right.keys[0];
+    for (int i = 0; i < right.keyCount - 1; i++) right.keys[i] = right.keys[i + 1];
+    if (!right.isLeaf) for (int i = 0; i < right.keyCount; i++) right.children[i] = right.children[i + 1];
+    right.keyCount--;
+    node.keyCount++;
+}
+
+void mergePair(Node left, Node right, Node parent) {
+    int oldCount = left.keyCount;
+    left.keys[left.keyCount++] = parent.keys[0];
+    for (int i = 0; i < right.keyCount; i++) left.keys[left.keyCount++] = right.keys[i];
+    if (!left.isLeaf) for (int i = 0; i <= right.keyCount; i++) {
+        left.children[oldCount + 1 + i] = right.children[i];
+        left.children[oldCount + 1 + i].parent = left;
+    }
+    parent.keyCount = 0;
+    parent.children[0] = left;
+    parent.children[1] = null;
+}
+
+void mergeThreeIntoTwo(Node parent, int start) {
+    Node first = parent.children[start];
+    Node second = parent.children[start + 1];
+    Node third = parent.children[start + 2];
+    int[] keys = new int[first.keyCount + second.keyCount + third.keyCount + 2];
+    int count = 0;
+    for (int i = 0; i < first.keyCount; i++) keys[count++] = first.keys[i];
+    keys[count++] = parent.keys[start];
+    for (int i = 0; i < second.keyCount; i++) keys[count++] = second.keys[i];
+    keys[count++] = parent.keys[start + 1];
+    for (int i = 0; i < third.keyCount; i++) keys[count++] = third.keys[i];
+    Node[] children = new Node[first.isLeaf ? 0 : count + 1];
+    if (!first.isLeaf) {
+        int child = 0;
+        for (int i = 0; i <= first.keyCount; i++) children[child++] = first.children[i];
+        for (int i = 0; i <= second.keyCount; i++) children[child++] = second.children[i];
+        for (int i = 0; i <= third.keyCount; i++) children[child++] = third.children[i];
+    }
+    int firstCount = (count - 1) / 2;
+    int secondCount = count - firstCount - 1;
+    first.keyCount = firstCount;
+    second.keyCount = secondCount;
+    for (int i = 0; i < firstCount; i++) first.keys[i] = keys[i];
+    parent.keys[start] = keys[firstCount];
+    for (int i = 0; i < secondCount; i++) second.keys[i] = keys[firstCount + 1 + i];
+    if (!first.isLeaf) {
+        for (int i = 0; i <= firstCount; i++) {
+            first.children[i] = children[i];
+            first.children[i].parent = first;
+        }
+        for (int i = 0; i <= secondCount; i++) {
+            second.children[i] = children[firstCount + 1 + i];
+            second.children[i].parent = second;
+        }
+    }
+    for (int i = start + 1; i < parent.keyCount - 1; i++) parent.keys[i] = parent.keys[i + 1];
+    for (int i = start + 2; i < parent.keyCount; i++) parent.children[i] = parent.children[i + 1];
+    parent.children[parent.keyCount] = null;
+    parent.keyCount--;
+}`);
+
+const bplusFind = animated(`Node search(int target) {
+    Node leaf = findLeaf(target);
+    for (int i = 0; i < leaf.keyCount; i++) {
+        if (leaf.keys[i] == target) return leaf;
+    }
+    return null;
+}`, `Node findLeaf(int target) {
+    Node current = root;
+    while (!current.isLeaf) {
+        int child = 0;
+        while (child < current.keyCount && target >= current.keys[child]) child++;
+        current = current.children[child];
+    }
+    return current;
+}`);
+
+const bplusRemove = animated(`boolean remove(int target) {
+    Node leaf = findLeaf(target);
+    int index = 0;
+    while (index < leaf.keyCount && leaf.keys[index] < target) index++;
+    if (index == leaf.keyCount || leaf.keys[index] != target) return false;
+    for (int i = index; i < leaf.keyCount - 1; i++) leaf.keys[i] = leaf.keys[i + 1];
+    leaf.keyCount--;
+    rebalance(leaf);
+    if (!root.isLeaf && root.keyCount == 0) {
+        root = root.children[0];
+        root.parent = null;
+    }
+    refreshSeparators(root);
+    return true;
+}`, `Node findLeaf(int target) {
+    Node current = root;
+    while (!current.isLeaf) {
+        int child = 0;
+        while (child < current.keyCount && target >= current.keys[child]) child++;
+        current = current.children[child];
+    }
+    return current;
+}
+
+int childIndex(Node parent, Node child) {
+    int index = 0;
+    while (parent.children[index] != child) index++;
+    return index;
+}
+
+void rebalance(Node node) {
+    while (node != root) {
+        int minimum = node.isLeaf ? 2 : 1;
+        if (node.keyCount >= minimum) return;
+        Node parent = node.parent;
+        int index = childIndex(parent, node);
+        Node left = index > 0 ? parent.children[index - 1] : null;
+        Node right = index < parent.keyCount ? parent.children[index + 1] : null;
+        if (left != null && left.keyCount > minimum) {
+            for (int i = node.keyCount; i > 0; i--) node.keys[i] = node.keys[i - 1];
+            if (node.isLeaf) node.keys[0] = left.keys[--left.keyCount];
+            else {
+                for (int i = node.keyCount + 1; i > 0; i--) node.children[i] = node.children[i - 1];
+                node.children[0] = left.children[left.keyCount];
+                node.children[0].parent = node;
+                node.keys[0] = parent.keys[index - 1];
+                parent.keys[index - 1] = left.keys[--left.keyCount];
+            }
+            node.keyCount++;
+            return;
+        }
+        if (right != null && right.keyCount > minimum) {
+            if (node.isLeaf) node.keys[node.keyCount++] = right.keys[0];
+            else {
+                node.keys[node.keyCount] = parent.keys[index];
+                node.children[node.keyCount + 1] = right.children[0];
+                node.children[node.keyCount + 1].parent = node;
+                parent.keys[index] = right.keys[0];
+                node.keyCount++;
+                for (int i = 0; i < right.keyCount; i++) right.children[i] = right.children[i + 1];
+            }
+            for (int i = 0; i < right.keyCount - 1; i++) right.keys[i] = right.keys[i + 1];
+            right.keyCount--;
+            return;
+        }
+        if (left != null) {
+            merge(left, node, parent.keys[index - 1]);
+            left.next = node.next;
+            removeParentEntry(parent, index - 1);
+        } else {
+            merge(node, right, parent.keys[index]);
+            node.next = right.next;
+            removeParentEntry(parent, index);
+        }
+        node = parent;
+    }
+}
+
+void merge(Node left, Node right, int separator) {
+    int oldCount = left.keyCount;
+    if (!left.isLeaf) left.keys[left.keyCount++] = separator;
+    for (int i = 0; i < right.keyCount; i++) left.keys[left.keyCount++] = right.keys[i];
+    if (!left.isLeaf) {
+        for (int i = 0; i <= right.keyCount; i++) {
+            left.children[oldCount + 1 + i] = right.children[i];
+            left.children[oldCount + 1 + i].parent = left;
+        }
+    }
+}
+
+void removeParentEntry(Node parent, int index) {
+    for (int i = index; i < parent.keyCount - 1; i++) parent.keys[i] = parent.keys[i + 1];
+    for (int i = index + 1; i < parent.keyCount; i++) parent.children[i] = parent.children[i + 1];
+    parent.children[parent.keyCount] = null;
+    parent.keyCount--;
+}
+
+int firstKey(Node node) {
+    while (!node.isLeaf) node = node.children[0];
+    return node.keys[0];
+}
+
+void refreshSeparators(Node node) {
+    if (node.isLeaf) return;
+    for (int i = 0; i <= node.keyCount; i++) refreshSeparators(node.children[i]);
+    for (int i = 0; i < node.keyCount; i++) node.keys[i] = firstKey(node.children[i + 1]);
 }`);
 
 const kdTree = {
@@ -1558,9 +2087,9 @@ const sources = {
   'suffix-tree': suffixTree,
   'segment-tree': segmentTree,
   'fenwick-tree': fenwickTree,
-  btree: { ...btreeCommon, 'sorted-add': btreeInsert },
-  'bplus-tree': { ...btreeCommon, 'sorted-add': bplusInsert, 'range-view': bplusRange },
-  'bstar-tree': { ...btreeCommon, 'sorted-add': bstarInsert },
+  btree: { ...btreeCommon, 'sorted-add': btreeInsert, 'remove-value': btreeRemove },
+  'bplus-tree': { ...btreeCommon, 'sorted-add': bplusInsert, 'remove-value': bplusRemove, find: bplusFind, 'range-view': bplusRange },
+  'bstar-tree': { ...btreeCommon, 'sorted-add': bstarInsertExact, 'remove-value': bstarRemoveExact },
   'kd-tree': kdTree,
   quadtree: spatialTree(4),
   octree: spatialTree(8),
