@@ -1320,6 +1320,9 @@ test('muestra Java específico para árboles especializados', async ({ page }) =
   await expect(page.locator('.code-panel pre')).toContainText('insertIntoParent');
 
   await page.goto('/rojo-negro');
+  await expect(page.locator('.code-panel pre')).toContainText('nil.left = nil');
+  await expect(page.locator('.code-panel pre')).toContainText('if (node == parent.right)');
+  await expect(page.locator('.code-panel pre')).toContainText('if (node == parent.left)');
   const colorRules = await page.evaluate(() => {
     const colors = new Map(
       [...document.querySelectorAll('.tree-node[data-tree-index]')].map(node => [
@@ -1349,6 +1352,10 @@ test('muestra Java específico para árboles especializados', async ({ page }) =
     equalBlackHeight: true,
     redHasRedChild: false,
   });
+  await page.getByLabel('Valor').fill('5');
+  await page.getByRole('button', { name: 'Eliminar nodo' }).click();
+  await expect(page.locator('.code-panel pre')).toContainText('if (node.left == nil)');
+  await expect(page.locator('.code-panel pre')).toContainText('root = nil');
 });
 
 test('AVL inserta 1 sin reconstruir ni rotar incorrectamente el árbol', async ({ page }, testInfo) => {

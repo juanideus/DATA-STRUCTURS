@@ -1,3 +1,5 @@
+import { getRedBlackJava } from './redBlackJava.js';
+
 const animated = (operation, helpers = '') => `// Start of the selected operation
 ${operation}
 // End of the selected operation${helpers ? `\n\n${helpers}` : ''}`;
@@ -245,195 +247,6 @@ Node rotateLeft(Node oldRoot) {
     updateHeight(oldRoot);
     updateHeight(newRoot);
     return newRoot;
-}`);
-
-const redBlackInsert = animated(`void insert(int value) {
-    Node newNode = new Node(value);
-    newNode.red = true;
-    root = insertAsBST(root, newNode);
-    fixAfterInsert(newNode);
-    root.red = false;
-}`, `Node insertAsBST(Node node, Node newNode) {
-    if (node == null) return newNode;
-    if (newNode.value < node.value) {
-        node.left = insertAsBST(node.left, newNode);
-        node.left.parent = node;
-    } else {
-        node.right = insertAsBST(node.right, newNode);
-        node.right.parent = node;
-    }
-    return node;
-}
-
-void fixAfterInsert(Node node) {
-    while (node != root && node.parent.red) {
-        Node parent = node.parent;
-        Node grandparent = parent.parent;
-        Node uncle = parent == grandparent.left
-                ? grandparent.right : grandparent.left;
-        if (uncle != null && uncle.red) {
-            parent.red = false;
-            uncle.red = false;
-            grandparent.red = true;
-            node = grandparent;
-        } else {
-            if (parent == grandparent.left) rotateRight(grandparent);
-            else rotateLeft(grandparent);
-            parent.red = false;
-            grandparent.red = true;
-        }
-    }
-}
-
-void rotateLeft(Node node) {
-    Node child = node.right;
-    node.right = child.left;
-    if (child.left != null) child.left.parent = node;
-    child.parent = node.parent;
-    if (node.parent == null) root = child;
-    else if (node == node.parent.left) node.parent.left = child;
-    else node.parent.right = child;
-    child.left = node;
-    node.parent = child;
-}
-
-void rotateRight(Node node) {
-    Node child = node.left;
-    node.left = child.right;
-    if (child.right != null) child.right.parent = node;
-    child.parent = node.parent;
-    if (node.parent == null) root = child;
-    else if (node == node.parent.right) node.parent.right = child;
-    else node.parent.left = child;
-    child.right = node;
-    node.parent = child;
-}`);
-
-const redBlackRemove = animated(`void remove(int target) {
-    Node node = search(root, target);
-    if (node == nil) return;
-
-    Node removed = node;
-    boolean removedWasRed = removed.red;
-    Node moved;
-    if (node.left == nil) {
-        moved = node.right;
-        transplant(node, node.right);
-    } else if (node.right == nil) {
-        moved = node.left;
-        transplant(node, node.left);
-    } else {
-        removed = smallest(node.right);
-        removedWasRed = removed.red;
-        moved = removed.right;
-        if (removed.parent == node) {
-            moved.parent = removed;
-        } else {
-            transplant(removed, removed.right);
-            removed.right = node.right;
-            removed.right.parent = removed;
-        }
-        transplant(node, removed);
-        removed.left = node.left;
-        removed.left.parent = removed;
-        removed.red = node.red;
-    }
-    if (!removedWasRed) fixAfterDelete(moved);
-    root.red = false;
-}`, `Node search(Node node, int target) {
-    if (node == nil || node.value == target) return node;
-    return target < node.value ? search(node.left, target) : search(node.right, target);
-}
-
-Node smallest(Node node) {
-    while (node.left != nil) node = node.left;
-    return node;
-}
-
-void transplant(Node oldNode, Node newNode) {
-    if (oldNode.parent == null) root = newNode;
-    else if (oldNode == oldNode.parent.left) oldNode.parent.left = newNode;
-    else oldNode.parent.right = newNode;
-    newNode.parent = oldNode.parent;
-}
-
-void fixAfterDelete(Node node) {
-    while (node != root && !node.red) {
-        if (node == node.parent.left) {
-            Node sibling = node.parent.right;
-            if (sibling.red) {
-                sibling.red = false;
-                node.parent.red = true;
-                rotateLeft(node.parent);
-                sibling = node.parent.right;
-            }
-            if (!sibling.left.red && !sibling.right.red) {
-                sibling.red = true;
-                node = node.parent;
-            } else {
-                if (!sibling.right.red) {
-                    sibling.left.red = false;
-                    sibling.red = true;
-                    rotateRight(sibling);
-                    sibling = node.parent.right;
-                }
-                sibling.red = node.parent.red;
-                node.parent.red = false;
-                sibling.right.red = false;
-                rotateLeft(node.parent);
-                node = root;
-            }
-        } else {
-            Node sibling = node.parent.left;
-            if (sibling.red) {
-                sibling.red = false;
-                node.parent.red = true;
-                rotateRight(node.parent);
-                sibling = node.parent.left;
-            }
-            if (!sibling.right.red && !sibling.left.red) {
-                sibling.red = true;
-                node = node.parent;
-            } else {
-                if (!sibling.left.red) {
-                    sibling.right.red = false;
-                    sibling.red = true;
-                    rotateLeft(sibling);
-                    sibling = node.parent.left;
-                }
-                sibling.red = node.parent.red;
-                node.parent.red = false;
-                sibling.left.red = false;
-                rotateRight(node.parent);
-                node = root;
-            }
-        }
-    }
-    node.red = false;
-}
-
-void rotateLeft(Node node) {
-    Node child = node.right;
-    node.right = child.left;
-    if (child.left != nil) child.left.parent = node;
-    child.parent = node.parent;
-    if (node.parent == null) root = child;
-    else if (node == node.parent.left) node.parent.left = child;
-    else node.parent.right = child;
-    child.left = node;
-    node.parent = child;
-}
-
-void rotateRight(Node node) {
-    Node child = node.left;
-    node.left = child.right;
-    if (child.right != nil) child.right.parent = node;
-    child.parent = node.parent;
-    if (node.parent == null) root = child;
-    else if (node == node.parent.right) node.parent.right = child;
-    else node.parent.left = child;
-    child.right = node;
-    node.parent = child;
 }`);
 
 const splayHelpers = `Node splay(Node node, int target) {
@@ -2072,12 +1885,10 @@ const sources = {
     find: bstFind,
     ...binaryTraversals,
   },
-  'rojo-negro': {
-    'tree-add': redBlackInsert,
-    'remove-value': redBlackRemove,
-    find: bstFind,
-    ...binaryTraversals,
-  },
+  'rojo-negro': Object.fromEntries(
+    ['tree-add', 'remove-value', 'find', 'preorder', 'inorder', 'postorder']
+      .map(actionId => [actionId, getRedBlackJava(actionId)]),
+  ),
   'splay-tree': {
     'tree-add': splayInsert,
     'remove-value': splayRemove,
