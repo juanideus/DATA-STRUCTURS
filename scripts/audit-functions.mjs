@@ -1081,8 +1081,15 @@ assert.match(getBeginnerJava(avl, 'tree-add'), /balanceOf/, 'AVL: el código deb
 assert.match(getBeginnerJava(avl, 'tree-add'), /rotateRight/, 'AVL: el código debe mostrar las rotaciones.');
 
 const redBlack = algorithms.find(item => item.id === 'rojo-negro');
-assert.match(getBeginnerJava(redBlack, 'tree-add'), /fixAfterInsert/, 'Rojo-Negro: falta corregir colores y rotaciones.');
-assert.match(getBeginnerJava(redBlack, 'remove-value'), /fixAfterDelete/, 'Rojo-Negro: falta corregir el doble negro al eliminar.');
+const redBlackInsertJava = getBeginnerJava(redBlack, 'tree-add');
+const redBlackRemoveJava = getBeginnerJava(redBlack, 'remove-value');
+assert.match(redBlackInsertJava, /fixAfterInsert/, 'Rojo-Negro: falta corregir colores y rotaciones.');
+assert.match(redBlackInsertJava, /if \(node == parent\.right\)/, 'Rojo-Negro: falta la rotación zigzag izquierda-derecha.');
+assert.match(redBlackInsertJava, /if \(node == parent\.left\)/, 'Rojo-Negro: falta la rotación zigzag derecha-izquierda.');
+assert.match(redBlackInsertJava, /nil\.left = nil/, 'Rojo-Negro: los hijos deben utilizar un centinela negro.');
+assert.match(redBlackRemoveJava, /fixAfterDelete/, 'Rojo-Negro: falta corregir el doble negro al eliminar.');
+assert.match(redBlackRemoveJava, /root = nil/, 'Rojo-Negro: la raíz vacía debe ser nil, no null.');
+assert.match(redBlackRemoveJava, /if \(node\.left == nil\)/, 'Rojo-Negro: eliminación y búsqueda deben compartir el mismo centinela.');
 
 const splay = algorithms.find(item => item.id === 'splay-tree');
 const splayFindResult = run(splay, 'find', { value: '7', second: '', index: '' });
