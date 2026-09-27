@@ -962,6 +962,54 @@ int main() {
 }`,
   },
   {
+    label: 'Sparse matrix row traversal prints nonzero nodes right to left', id: 'matriz-dispersa', action: 'matrix-row',
+    main: `
+#include <sstream>
+int main() {
+    SparseMatrix matrix(3, 4);
+    SparseMatrix::Node* header = matrix.AROW[1];
+    SparseMatrix::Node* right = new SparseMatrix::Node(8, 1, 3);
+    SparseMatrix::Node* left = new SparseMatrix::Node(5, 1, 0);
+    header->left = right;
+    right->left = left;
+    left->left = header;
+    matrix.ACOL[3]->up = right;
+    right->up = matrix.ACOL[3];
+    matrix.ACOL[0]->up = left;
+    left->up = matrix.ACOL[0];
+    std::ostringstream output;
+    std::streambuf* previous = std::cout.rdbuf(output.rdbuf());
+    assert(matrix.showRow(1));
+    std::cout.rdbuf(previous);
+    assert(output.str() == "(1, 3) = 8\\n(1, 0) = 5\\n");
+    assert(!matrix.showRow(3));
+}`,
+  },
+  {
+    label: 'Sparse matrix column traversal prints nonzero nodes bottom to top', id: 'matriz-dispersa', action: 'matrix-column',
+    main: `
+#include <sstream>
+int main() {
+    SparseMatrix matrix(3, 4);
+    SparseMatrix::Node* header = matrix.ACOL[1];
+    SparseMatrix::Node* bottom = new SparseMatrix::Node(9, 2, 1);
+    SparseMatrix::Node* top = new SparseMatrix::Node(4, 0, 1);
+    header->up = bottom;
+    bottom->up = top;
+    top->up = header;
+    matrix.AROW[2]->left = bottom;
+    bottom->left = matrix.AROW[2];
+    matrix.AROW[0]->left = top;
+    top->left = matrix.AROW[0];
+    std::ostringstream output;
+    std::streambuf* previous = std::cout.rdbuf(output.rdbuf());
+    assert(matrix.showColumn(1));
+    std::cout.rdbuf(previous);
+    assert(output.str() == "(2, 1) = 9\\n(0, 1) = 4\\n");
+    assert(!matrix.showColumn(4));
+}`,
+  },
+  {
     label: 'Sparse matrix row and column links survive repeated updates', id: 'matriz-dispersa', action: 'matrix-insert',
     main: `
 int main() {

@@ -423,7 +423,86 @@ function synchronizeKnownBranches(sequence, { actionId, inputValues = {}, before
   });
 }
 
-export function createCodeSynchronizedFrames({ code, actionId, beforeValues, afterValues, beforeEdges, afterEdges, finalStep, finalMessage, succeeded = true, inputValues = {} }) {
+function createHashFindFrames({ algorithm, code, beforeValues, beforeEdges, finalStep, finalMessage, inputValues }) {
+  if (algorithm?.type !== 'hash') return null;
+  const lines = code.split('\n');
+  const lineOf = pattern => lines.findIndex(line => pattern.test(normalizeCodeForMatching(line)));
+  const methodLine = lineOf(/(?:String get|boolean find|std::string get)\s*\(/);
+  const hashLine = lineOf(/(?:int index = hash\(key\)|Node current = buckets\[hash\(key\)\])/);
+  const loopLine = lineOf(/while\s*\(.*(?:states\[index\]|current)/);
+  const matchLine = lineOf(/if\s*\(.*(?:keys\[index\]|current\.key)/);
+  const advanceLine = lineOf(/(?:index = \(index \+ 1\)|current = current\.next)/);
+  const returnLine = lineOf(/return (?:values\[index\]|current\.value|true);/);
+  if ([methodLine, hashLine, loopLine, matchLine].some(index => index < 0)) return null;
+
+  const key = String(inputValues.value ?? '');
+  const unsignedHash = code.includes('unsigned int result');
+  const hashOf = text => [...text].reduce((value, character) => {
+    const next = Math.imul(value, 31) + character.charCodeAt(0);
+    return unsignedHash ? next >>> 0 : next | 0;
+  }, 0);
+  const hash = hashOf(key);
+  const capacity = algorithm.id === 'hash-chaining' ? 8 : 12;
+  const bucketOf = text => ((hashOf(text) % capacity) + capacity) % capacity;
+  const start = ((hash % capacity) + capacity) % capacity;
+  const entryKey = value => String(value).split(':')[0];
+  let compared;
+  if (algorithm.id === 'hash-chaining') {
+    const bucket = beforeValues.filter(value => {
+      const candidate = entryKey(value);
+      return bucketOf(candidate) === start;
+    });
+    compared = bucket.reverse().map(entryKey);
+  } else {
+    const slots = Array(capacity).fill(null);
+    for (const value of beforeValues) {
+      const candidate = entryKey(value);
+      let index = bucketOf(candidate);
+      while (slots[index] !== null && slots[index] !== candidate) index = (index + 1) % capacity;
+      slots[index] = candidate;
+    }
+    compared = [];
+    let index = start;
+    while (slots[index] !== null && compared.length < capacity) {
+      compared.push(slots[index]);
+      if (slots[index] === key) break;
+      index = (index + 1) % capacity;
+    }
+  }
+  const foundAt = compared.indexOf(key);
+  if (foundAt < 0) return null;
+  const frames = [];
+  const push = (codeLine, message, comparison = null, completed = false) => {
+    if (codeLine < 0) return;
+    frames.push({
+      values: copyVisualValues(beforeValues), edges: cloneEdges(beforeEdges),
+      position: Math.max(0, Number(finalStep) || 0), codeLine, message,
+      completed, delayMs: 420,
+      variables: [
+        { name: 'clave', value: key, role: 'input' },
+        ...(comparison === null ? [] : [
+          { name: 'clave actual', value: comparison, role: 'value' },
+          { name: 'condición', value: comparison === key ? 'true' : 'false', role: comparison === key ? 'true' : 'false' },
+        ]),
+      ],
+    });
+  };
+  push(methodLine, 'Comienza la búsqueda de la clave.');
+  push(hashLine, `hash sitúa la búsqueda en la posición ${start}.`);
+  for (const candidate of compared.slice(0, foundAt + 1)) {
+    push(loopLine, `Se revisa la casilla o el nodo que contiene ${candidate}.`, candidate);
+    push(matchLine, candidate === key ? `${candidate} coincide con la clave buscada.` : `${candidate} no coincide; la búsqueda continúa.`, candidate);
+    if (candidate !== key) push(advanceLine, 'Se avanza a la siguiente posición o nexo.', candidate);
+  }
+  push(returnLine >= 0 ? returnLine : matchLine, finalMessage, key, true);
+  return frames;
+}
+
+export function createCodeSynchronizedFrames({ algorithm, code, actionId, beforeValues, afterValues, beforeEdges, afterEdges, finalStep, finalMessage, succeeded = true, inputValues = {} }) {
+  if (actionId === 'find' && succeeded) {
+    const semantic = createHashFindFrames({ algorithm, code, beforeValues, beforeEdges, finalStep, finalMessage, inputValues });
+    if (semantic?.length) return semantic;
+  }
   const executable = executableCodeLines(code);
   const fallbackLine = executable[0] ?? { index: 0, text: 'operation' };
   const lengthBasedArray = /\bint\s+n\s*=\s*values\.length\b/.test(code);
@@ -1313,7 +1392,7 @@ function structuralMutationLine(code, algorithm, actionId) {
   return null;
 }
 
-const semanticOrderedTreeIds = new Set(['bst', 'avl', 'kd-tree']);
+const semanticOrderedTreeIds = new Set(['bst', 'avl', 'kd-tree', 'rojo-negro']);
 
 function selectedOperationRange(code) {
   const lines = code.split('\n');
@@ -1644,7 +1723,178 @@ function createSemanticOrderedTreeFrames(args) {
   return frames;
 }
 
+function createUnorderedTreeFindFrames(args) {
+  if (args.actionId !== 'find' || !args.succeeded
+      || !['arbol-general', 'arbol-nario', 'arbol-binario'].includes(args.algorithm?.id)) return null;
+  const lines = args.code.split('\n');
+  const lineOf = pattern => lines.findIndex(line => pattern.test(normalizeCodeForMatching(line)));
+  const declaration = lineOf(/\bNode\*?\s+find\s*\(/);
+  const comparison = lineOf(/if\s*\(.*(?:node|current)\.value == target/);
+  const loop = lineOf(/(?:while\s*\(!pending\.isEmpty|for\s*\(.*(?:children|childCount))/);
+  if (declaration < 0 || comparison < 0) return null;
+  const values = args.beforeValues;
+  const target = String(args.inputValues.value);
+  const visits = [];
+  const visit = index => {
+    if (index >= values.length || values[index] === undefined || values[index] === null) return false;
+    visits.push(index);
+    if (String(values[index]) === target) return true;
+    const children = args.algorithm.id === 'arbol-binario'
+      ? [index * 2 + 1, index * 2 + 2]
+      : args.beforeTreeParents
+        ? args.beforeTreeParents.flatMap((parent, child) => parent === index ? [child] : [])
+        : index === 0 ? [1, 2, 3]
+          : index === 1 ? [4, 5, 6]
+            : index === 2 ? [7, 8]
+              : index === 3 ? [9] : [];
+    return children.some(visit);
+  };
+  if (args.algorithm.id === 'arbol-binario' && args.code.includes('Queue<')) {
+    const pending = [0];
+    while (pending.length) {
+      const index = pending.shift();
+      if (index >= values.length || values[index] === undefined || values[index] === null) continue;
+      visits.push(index);
+      if (String(values[index]) === target) break;
+      pending.push(index * 2 + 1, index * 2 + 2);
+    }
+  } else visit(0);
+  if (!visits.length || String(values[visits.at(-1)]) !== target) return null;
+  const frames = [];
+  const push = (codeLine, position, message, conditionResult = null, completed = false) => {
+    if (codeLine < 0) return;
+    frames.push({
+      values: copyVisualValues(values), edges: cloneEdges(args.beforeEdges),
+      position, codeLine, message, delayMs: 420, completed,
+      variables: [
+        { name: 'nodo', value: readableVariableValue(values[position]), role: 'value' },
+        { name: 'objetivo', value: target, role: 'input' },
+        ...(conditionResult === null ? [] : [{ name: 'condición', value: conditionResult ? 'true' : 'false', role: conditionResult ? 'true' : 'false' }]),
+      ],
+    });
+  };
+  push(declaration, visits[0], 'Comienza la búsqueda del nodo.');
+  for (const position of visits) {
+    push(loop, position, `Se visita el nodo ${values[position]}.`);
+    const matches = String(values[position]) === target;
+    push(comparison, position, matches ? args.finalMessage : `${values[position]} no coincide; continúa el recorrido.`, matches, matches);
+  }
+  return frames;
+}
+
+function createRangeQueryFrames(args) {
+  if (!['segment-tree', 'fenwick-tree'].includes(args.algorithm?.id)
+      || !['prefix-sum', 'range-min'].includes(args.actionId)
+      || !args.succeeded) return null;
+  const lines = args.code.split('\n');
+  const lineOf = pattern => lines.findIndex(line => pattern.test(normalizeCodeForMatching(line)));
+  const values = args.beforeValues.map(Number);
+  const limit = Number(args.inputValues.index);
+  if (!Number.isInteger(limit) || limit < 0 || limit >= values.length) return null;
+  const frames = [];
+  const push = (codeLine, position, message, extras = {}) => {
+    if (codeLine < 0) return;
+    frames.push({
+      values: copyVisualValues(args.beforeValues), edges: cloneEdges(args.beforeEdges),
+      position: Math.max(0, Math.min(values.length - 1, position)),
+      codeLine, message, delayMs: 390,
+      completed: extras.completed ?? false,
+      variables: [
+        { name: 'límite', value: limit, role: 'input' },
+        ...(extras.range ? [{ name: 'rango', value: extras.range, role: 'index' }] : []),
+        ...(extras.condition === undefined ? [] : [{ name: 'condición', value: extras.condition ? 'true' : 'false', role: extras.condition ? 'true' : 'false' }]),
+        ...(extras.result === undefined ? [] : [{ name: 'resultado parcial', value: extras.result, role: 'value' }]),
+      ],
+    });
+  };
+  if (args.algorithm.id === 'segment-tree') {
+    const declaration = lineOf(/int prefix(?:Sum|Minimum)\s*\(/);
+    const covered = lineOf(/if\s*\(right <= end\) return/);
+    const disjoint = lineOf(/if\s*\(left > end\) return/);
+    const middle = lineOf(/int middle =/);
+    const combine = lineOf(args.actionId === 'prefix-sum' ? /return prefixSum\(/ : /return (?:first < second|Math\.min)/);
+    if ([declaration, covered, disjoint, middle, combine].some(index => index < 0)) return null;
+    const neutral = args.actionId === 'prefix-sum' ? 0 : Infinity;
+    const visit = (left, right) => {
+      const range = `[${left}..${right}]`;
+      push(declaration, left, `La llamada examina el rango ${range}.`, { range });
+      const fullyCovered = right <= limit;
+      push(covered, left, fullyCovered ? `${range} está cubierto por el prefijo.` : `${range} necesita examinarse más.`, { range, condition: fullyCovered });
+      if (fullyCovered) {
+        const result = args.actionId === 'prefix-sum'
+          ? values.slice(left, right + 1).reduce((sum, value) => sum + value, 0)
+          : Math.min(...values.slice(left, right + 1));
+        push(covered, right, `La llamada retorna ${result} para ${range}.`, { range, result });
+        return result;
+      }
+      const outside = left > limit;
+      push(disjoint, left, outside ? `${range} queda fuera del prefijo.` : `${range} se divide para continuar.`, { range, condition: outside });
+      if (outside) return neutral;
+      const pivot = Math.floor((left + right) / 2);
+      push(middle, pivot, `Se divide ${range} en dos subrangos.`, { range });
+      const first = visit(left, pivot);
+      const second = visit(pivot + 1, right);
+      const result = args.actionId === 'prefix-sum' ? first + second : Math.min(first, second);
+      push(combine, pivot, `Se combinan los retornos: ${result}.`, { range, result });
+      return result;
+    };
+    visit(0, values.length - 1);
+  } else if (args.actionId === 'prefix-sum') {
+    const declaration = lineOf(/int prefixSum\s*\(/);
+    const increment = lineOf(/index\+\+;/);
+    const initialize = lineOf(/int sum = 0;/);
+    const condition = lineOf(/while\s*\(index > 0\)/);
+    const accumulate = lineOf(/sum \+= bit\[index\]/);
+    const advance = lineOf(/index -= index & -index/);
+    const returned = lineOf(/return sum;/);
+    if ([declaration, increment, initialize, condition, accumulate, advance, returned].some(index => index < 0)) return null;
+    let index = limit + 1;
+    let sum = 0;
+    push(declaration, limit, 'Comienza la suma de prefijo.');
+    push(increment, limit, `El índice interno BIT es ${index}.`);
+    push(initialize, limit, 'La suma comienza en 0.', { result: 0 });
+    while (index > 0) {
+      push(condition, index - 1, `BIT[${index}] está dentro del recorrido.`, { condition: true });
+      const start = index - (index & -index);
+      const bit = values.slice(start, index).reduce((total, value) => total + value, 0);
+      sum += bit;
+      push(accumulate, index - 1, `Se agrega BIT[${index}] = ${bit}; acumulado ${sum}.`, { result: sum });
+      index -= index & -index;
+      push(advance, Math.max(0, index - 1), `Se asciende al índice BIT ${index}.`, { result: sum });
+    }
+    push(condition, 0, 'index llegó a 0; termina el ciclo.', { condition: false });
+    push(returned, limit, args.finalMessage, { result: sum, completed: true });
+  } else {
+    const declaration = lineOf(/int prefixMinimum\s*\(/);
+    const initialize = lineOf(/int minimum = values\[0\]/);
+    const condition = lineOf(/for\s*\(int index = 1/);
+    const comparison = lineOf(/if\s*\(values\[index\] < minimum\)/);
+    const returned = lineOf(/return minimum;/);
+    if ([declaration, initialize, condition, comparison, returned].some(index => index < 0)) return null;
+    let minimum = values[0];
+    push(declaration, 0, 'Comienza la búsqueda del mínimo.');
+    push(initialize, 0, `El mínimo inicial es ${minimum}.`, { result: minimum });
+    for (let index = 1; index <= limit; index++) {
+      push(condition, index, `Se revisa el índice ${index}.`, { condition: true });
+      const smaller = values[index] < minimum;
+      push(comparison, index, smaller ? `${values[index]} es el nuevo mínimo.` : `${values[index]} no reduce el mínimo.`, { condition: smaller });
+      if (smaller) minimum = values[index];
+    }
+    push(condition, limit, 'El recorrido terminó.', { condition: false });
+    push(returned, limit, args.finalMessage, { result: minimum, completed: true });
+  }
+  if (frames.length && !frames.at(-1).completed) {
+    frames.at(-1).completed = true;
+    frames.at(-1).message = args.finalMessage;
+  }
+  return frames;
+}
+
 export function createTreeSynchronizedFrames(args) {
+  const rangeQuery = createRangeQueryFrames(args);
+  if (rangeQuery?.length) return rangeQuery;
+  const unorderedFind = createUnorderedTreeFindFrames(args);
+  if (unorderedFind?.length) return unorderedFind;
   const semanticFrames = createSemanticOrderedTreeFrames(args);
   if (semanticFrames?.length) return semanticFrames;
   const baseFrames = createCodeSynchronizedFrames(args);

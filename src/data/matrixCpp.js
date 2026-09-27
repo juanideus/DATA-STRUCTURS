@@ -149,24 +149,24 @@ const sparseOperations = {
     nonZeroCount--;
     return true;
 }`,
-  'matrix-row': `bool copyRow(int row, int* output) const {
+  'matrix-row': `bool showRow(int row) const {
     if (row < 0 || row >= height) return false;
-    for (int column = 0; column < width; column++) output[column] = 0;
     Node* header = AROW[row];
     Node* current = header->left;
     while (current != header) {
-        output[current->column] = current->value;
+        std::cout << "(" << current->row << ", " << current->column
+                  << ") = " << current->value << std::endl;
         current = current->left;
     }
     return true;
 }`,
-  'matrix-column': `bool copyColumn(int column, int* output) const {
+  'matrix-column': `bool showColumn(int column) const {
     if (column < 0 || column >= width) return false;
-    for (int row = 0; row < height; row++) output[row] = 0;
     Node* header = ACOL[column];
     Node* current = header->up;
     while (current != header) {
-        output[current->row] = current->value;
+        std::cout << "(" << current->row << ", " << current->column
+                  << ") = " << current->value << std::endl;
         current = current->up;
     }
     return true;
@@ -198,7 +198,9 @@ export function getSparseMatrixCpp(actionId) {
   const helpers = [];
   if (['matrix-insert', 'matrix-get', 'matrix-remove'].includes(actionId)) helpers.push(sparseValid);
   if (actionId === 'matrix-insert') helpers.push(sparseRemove);
-  return `class SparseMatrix {
+  return `#include <iostream>
+
+class SparseMatrix {
 public:
     struct Node {
         int value;

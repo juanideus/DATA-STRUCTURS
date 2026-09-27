@@ -87,7 +87,7 @@ private:
 }
 
 const suffixOperations = {
-  'set-word': `void buildSuffixTree(const std::string& newText) {
+  'set-word': `void buildSuffixTrie(const std::string& newText) {
     clearTree();
     text = newText;
     for (int start = 0; start < static_cast<int>(text.length()); start++) {

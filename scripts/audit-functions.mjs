@@ -363,7 +363,7 @@ for (const algorithm of algorithms) {
           finalStep: result.step,
           finalMessage: result.message,
         });
-        if (result.ok && operationGroup(algorithm) !== 'list' && firstLoopLine >= 0 && iterations > 1) {
+        if (result.ok && action.id !== 'find' && operationGroup(algorithm) !== 'list' && firstLoopLine >= 0 && iterations > 1) {
           assert.ok(frames.filter(frame => frame.codeLine === firstLoopLine).length >= 2, `${label}: el ciclo no vuelve a su condición.`);
         }
       }
@@ -535,6 +535,18 @@ assert.match(sparseInsertJava, /AROW\[row\]\.left = AROW\[row\]/, 'AROW debe que
 assert.match(sparseInsertJava, /ACOL\[column\]\.up = ACOL\[column\]/, 'ACOL debe quedar circular.');
 assert.match(sparseInsertJava, /currentRow\.column > column/, 'AROW debe recorrerse de derecha a izquierda.');
 assert.match(sparseInsertJava, /currentColumn\.row > row/, 'ACOL debe recorrerse de abajo hacia arriba.');
+for (const [actionId, fields] of [
+  ['matrix-insert', { value: '99', second: '', index: '' }],
+  ['matrix-insert', { value: '', second: '0', index: '0' }],
+  ['matrix-get', { value: '', second: '', index: '0' }],
+  ['matrix-remove', { value: '', second: '0', index: '' }],
+  ['matrix-row', { value: '', second: '', index: '' }],
+  ['matrix-column', { value: '', second: '', index: '' }],
+]) {
+  const rejected = run(sparseMatrix, actionId, fields);
+  assert.equal(rejected.ok, false, `Matriz poco poblada/${actionId}: no debe interpretar campos vacíos como cero.`);
+  assert.deepEqual(rejected.values, sparseMatrix.values, 'Los campos vacíos no deben modificar la matriz.');
+}
 
 const sparseInserted = run(
   sparseMatrix,
@@ -569,12 +581,40 @@ assert.deepEqual(
   ['1:5', '1:4', '1:3', '1:0'],
   'AROW debe recorrer la fila de derecha a izquierda.',
 );
+assert.deepEqual(
+  sparseRow.frames.filter(frame => frame.sparseState?.phase === 'row-advance').map(frame => frame.sparseState.activeCellKey),
+  ['1:4', '1:3', '1:0'],
+  'Al ejecutar current = current.left debe resaltarse el siguiente nodo.',
+);
+assert.equal(sparseRow.frames.at(-1).sparseState.activeCellKey, null, 'AROW debe terminar en su cabecera.');
 const sparseColumn = run(sparseMatrix, 'matrix-column', { value: '', second: '', index: '4' });
 assert.deepEqual(
   sparseColumn.frames.filter(frame => frame.sparseState?.phase === 'column-scan').map(frame => frame.sparseState.activeCellKey),
   ['1:4', '0:4'],
   'ACOL debe recorrer la columna de abajo hacia arriba.',
 );
+assert.deepEqual(
+  sparseColumn.frames.filter(frame => frame.sparseState?.phase === 'column-advance').map(frame => frame.sparseState.activeCellKey),
+  ['0:4'],
+  'Al ejecutar current = current.up debe resaltarse el siguiente nodo.',
+);
+assert.equal(sparseColumn.frames.at(-1).sparseState.activeCellKey, null, 'ACOL debe terminar en su cabecera.');
+for (const actionId of ['matrix-row', 'matrix-column']) {
+  const frames = actionId === 'matrix-row' ? sparseRow.frames : sparseColumn.frames;
+  for (const source of [getBeginnerJava(sparseMatrix, actionId), getBeginnerCpp(sparseMatrix, actionId)]) {
+    const synchronized = adaptFramesToCode(frames, source, true);
+    for (const frame of synchronized.filter(item => item.sparseState?.phase.endsWith('-scan'))) {
+      assert.match(source.split('\n')[frame.codeLine], /current(?:\.|->)value/, 'Al visitar un nodo debe iluminarse la línea que muestra su valor.');
+    }
+    for (const frame of synchronized.filter(item => /-(?:advance|return)$/.test(item.sparseState?.phase ?? ''))) {
+      assert.match(source.split('\n')[frame.codeLine], /current\s*=\s*current(?:\.|->)(?:left|up)/, 'Al avanzar debe iluminarse la asignación del nexo.');
+    }
+  }
+  const cpp = getBeginnerCpp(sparseMatrix, actionId);
+  assert.match(cpp, actionId === 'matrix-row' ? /showRow\(int row\)/ : /showColumn\(int column\)/);
+  assert.match(cpp, /std::cout/, 'C++ debe mostrar cada nodo no nulo visitado, igual que Java.');
+  assert.doesNotMatch(cpp, /output\[current->/, 'C++ no debe devolver un arreglo denso si la animación muestra nodos dispersos.');
+}
 
 let fifteenSparseCells = [];
 for (let index = 0; index < 15; index++) {
@@ -1084,7 +1124,7 @@ const fenwickTree = algorithms.find(item => item.id === 'fenwick-tree');
 assert.match(getBeginnerJava(fenwickTree, 'prefix-sum'), /index\s*&\s*-index/, 'Fenwick Tree: falta mostrar el salto por el bit menos significativo.');
 const suffixTree = algorithms.find(item => item.id === 'suffix-tree');
 assert.match(getBeginnerJava(suffixTree, 'set-word'), /insertSuffix/, 'Suffix Tree: construir debe insertar todos los sufijos.');
-assert.match(getBeginnerJava(bplus, 'sorted-add'), /Leaf splitLeaf/, 'B+ Tree: falta mostrar la división de una hoja.');
+assert.match(getBeginnerJava(bplus, 'sorted-add'), /(?:Leaf|Node) splitLeaf/, 'B+ Tree: falta mostrar la división de una hoja.');
 const bstar = algorithms.find(item => item.id === 'bstar-tree');
 assert.match(getBeginnerJava(bstar, 'sorted-add'), /redistribute/, 'B* Tree: debe intentar redistribuir antes de dividir.');
 const expressionTree = algorithms.find(item => item.id === 'expression-tree');

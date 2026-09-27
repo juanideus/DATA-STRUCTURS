@@ -11,7 +11,7 @@ export default function OperationsPanel({ algorithm, message, status = 'idle', a
 
   const run = actionId => {
     onAction(actionId, fields);
-    if (!['find','peek','front','word-find','prefix-sum','range-min','evaluate','cache-get','bloom-check','find-root'].includes(actionId)) {
+    if (algorithm.id !== 'matriz-dispersa' && !['find','peek','front','word-find','prefix-sum','range-min','evaluate','cache-get','bloom-check','find-root'].includes(actionId)) {
       setFields(current => ({ ...current, value: '', second: '' }));
     }
   };

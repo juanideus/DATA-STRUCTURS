@@ -10,7 +10,7 @@ export const englishAlgorithmNames = {
   'lista-circular-simple':'Singly circular linked list','lista-circular-doble':'Doubly circular linked list','skip-list':'Skip List',
   'arbol-general':'General tree','arbol-nario':'N-ary tree','arbol-binario':'Binary tree','arbol-enhebrado':'Threaded binary tree',bst:'Binary Search Tree',
   avl:'AVL Tree','rojo-negro':'Red-Black Tree','splay-tree':'Splay Tree',heap:'Binary Heap','fibonacci-heap':'Fibonacci Heap',trie:'Prefix Tree',
-  'suffix-tree':'Suffix Tree','segment-tree':'Segment Tree','fenwick-tree':'Fenwick Tree',btree:'B-Tree','bplus-tree':'B+ Tree','bstar-tree':'B* Tree',
+  'suffix-tree':'Suffix Trie','segment-tree':'Segment Tree','fenwick-tree':'Fenwick Tree',btree:'B-Tree','bplus-tree':'B+ Tree','bstar-tree':'B* Tree',
   'merkle-tree':'Merkle Tree','kd-tree':'KD-Tree',quadtree:'QuadTree',octree:'Octree','expression-tree':'Expression Tree',ast:'AST (Abstract Syntax Tree)',
   'hash-table':'Hash Table','hash-open':'Open Addressing','hash-chaining':'Separate Chaining',grafo:'Graph','grafo-dirigido':'Directed graph',
   dfs:'DFS',bfs:'BFS',dijkstra:'Dijkstra','a-star':'A* (A-Star)',prim:'Prim',kruskal:'Kruskal',fibonacci:'Fibonacci',factorial:'Factorial',

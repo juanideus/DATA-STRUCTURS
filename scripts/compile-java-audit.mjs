@@ -118,7 +118,7 @@ function harnessFields(contextId, source) {
     }
     static final int N = 4;
     static final int T = 2;
-    static final int MAX_KEYS = 3;
+    static final int MAX_KEYS = ${contextId === 'bstar-tree' ? 5 : 3};
     static final int MIN_KEYS = 1;
     static final int DIMENSIONS = 2;
     static final int CAPACITY = 4;

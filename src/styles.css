@@ -644,6 +644,7 @@ body{background:
 .btree-visual{width:min(860px,96%)}
 .root-bnode{max-width:88%;white-space:nowrap}
 .btree-visual.many-leaves .child-bnode{min-width:0;padding:11px 4px;font-size:9px;white-space:nowrap}
+.btree-visual.many-leaves .internal-bnode{min-width:80px;padding:9px 6px;font-size:9px;white-space:nowrap}
 .btree-visual.many-leaves.bstar-tree .child-bnode{min-width:0}
 .child-bnode.splitting{border-color:var(--orange);box-shadow:0 0 0 7px rgba(239,90,54,.13),0 10px 22px rgba(31,47,57,.16);animation:leafSplit .7s ease-in-out infinite alternate}
 .root-bnode.promoting{animation:parentReceives .65s ease-out}
