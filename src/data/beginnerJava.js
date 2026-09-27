@@ -1,4 +1,5 @@
 import { operationGroup } from '../logic/operations.js';
+import { makeJavaStandalone } from './javaStandaloneContext.js';
 import { getAstJava } from './astJava.js';
 import { getDenseMatrixJava } from './denseMatrixJava.js';
 import { getGeneralizedListJava } from './generalizedListJava.js';
@@ -1363,5 +1364,5 @@ export function getBeginnerJava(algorithm, actionId) {
     // Follow the visual steps.
 }`;
   }
-  return completeJavaSnippet(source, algorithm.id);
+  return makeJavaStandalone(completeJavaSnippet(source, algorithm.id), algorithm.id, algorithm.values);
 }
