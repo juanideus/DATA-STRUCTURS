@@ -1358,6 +1358,14 @@ test('muestra Java específico para árboles especializados', async ({ page }) =
   await expect(page.locator('.code-panel pre')).toContainText('root = nil');
 });
 
+test('el Java visible incluye la clase y el contexto de cada familia', async ({ page }) => {
+  for (const id of ['array', 'avl', 'btree', 'bubble-sort', 'laberinto']) {
+    await page.goto(`/${id}`);
+    await expect(page.locator('.code-panel pre')).toContainText('class AlgorithmExample');
+    await expect(page.locator('.code-panel pre')).toContainText('// Start of the selected operation');
+  }
+});
+
 test('AVL inserta 1 sin reconstruir ni rotar incorrectamente el árbol', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === 'mobile-chromium', 'La lógica y los factores son idénticos en móvil.');
   await page.goto('/avl');

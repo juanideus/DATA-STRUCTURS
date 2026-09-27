@@ -238,6 +238,7 @@ for (const algorithm of algorithms) {
     actionCount++;
     actionIds.add(action.id);
     const java = getBeginnerJava(algorithm, action.id);
+    assert.match(java, /\bclass [A-Za-z_]\w*/, `${algorithm.id}/${action.id}: el Java visible debe incluir su clase y contexto.`);
     assert.ok(!java.includes('Follow the visual steps'), `${algorithm.id}/${action.id}: falta código Java.`);
     assert.ok(java.split('\n').length >= 3, `${algorithm.id}/${action.id}: el código Java es demasiado breve.`);
     assert.ok(balanced(java, '{', '}'), `${algorithm.id}/${action.id}: el código Java tiene llaves desbalanceadas.`);

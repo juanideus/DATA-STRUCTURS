@@ -35,20 +35,8 @@ try {
       scenarios += checks.length;
       return `lab.root = ${isInsert ? 'new Node(true)' : javaNode(model.snapshot().root)};\n${checks.join('\n')}`;
     });
-    const source = `import java.util.*;
-public class AuditMultiway {
-    static final int MAX_KEYS = ${id === 'bstar-tree' ? 5 : 3};
-    static final int MIN_KEYS = 1;
-    static final int T = 2;
-    static class Node {
-        int[] keys = new int[MAX_KEYS + 3];
-        Node[] children = new Node[MAX_KEYS + 4];
-        int keyCount;
-        boolean isLeaf;
-        Node parent, next;
-        Node(boolean leaf) { isLeaf = leaf; }
-    }
-    Node root = new Node(true);
+    const displayedClass = snippet.replace('public class AlgorithmExample', 'public class AuditMultiway');
+    const source = `${displayedClass.slice(0, displayedClass.lastIndexOf('}'))}
     static Node make(int[] keys, Node... children) {
         Node node = new Node(children.length == 0);
         node.keyCount = keys.length;
@@ -87,7 +75,6 @@ public class AuditMultiway {
         if (!actual.equals(expected)) throw new AssertionError("expected " + expected + ", got " + actual);
         validate(root, 0);
     }
-${snippet}
     public static void main(String[] args) {
         AuditMultiway lab = new AuditMultiway();
 ${cases.join('\n')}
