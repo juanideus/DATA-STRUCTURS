@@ -1407,8 +1407,8 @@ body{background:var(--paper)}
   .path-map-marker text{font-size:8px}
 }
 @media(max-width:1100px){.code-panel pre{height:250px;min-height:250px;flex-basis:250px}}
-.lab-grid.visual-only{grid-template-columns:minmax(0,1fr)}
-.lab-grid.visual-only .path-map-visual{width:min(1120px,97%)}
+.lab-grid.pathfinding-grid{grid-template-columns:minmax(0,1fr)}
+.lab-grid.pathfinding-grid .path-map-visual{width:min(1120px,97%)}
 
 /* Cohesive visual system: connectors, edges and large examples */
 .canvas-grid{isolation:isolate;background-size:28px 28px}

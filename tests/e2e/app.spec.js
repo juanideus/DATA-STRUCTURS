@@ -1359,6 +1359,71 @@ test('muestra Java específico para árboles especializados', async ({ page }) =
   await expect(page.locator('.code-panel pre')).toContainText('root = nil');
 });
 
+test('el árbol de expresión inicial acepta el signo menos mostrado', async ({ page }) => {
+  await page.goto('/expression-tree');
+  await page.getByLabel('Velocidad').selectOption('2');
+  await page.getByRole('button', { name: 'Evaluar', exact: true }).click();
+  await expect(page.locator('.operation-message')).toHaveClass(/success/);
+  await expect(page.locator('.operation-message')).toContainText('Resultado del árbol de expresión: 29.', { timeout: 20_000 });
+});
+
+test('Sudoku y Hanoi C++ narran el mismo código y estado que muestran', async ({ page }) => {
+  await page.goto('/sudoku');
+  await page.getByRole('button', { name: 'C++', exact: true }).click();
+  await expect(page.locator('.code-panel pre')).toContainText('bool solveSudoku(int row, int column)');
+  await page.getByRole('button', { name: 'Resolver 9×9', exact: true }).click();
+  const sudokuPause = page.getByRole('button', { name: 'Pausar', exact: true });
+  if (await sudokuPause.isVisible()) await sudokuPause.click();
+  await expect(page.locator('.operation-message')).toContainText('solveSudoku(0, 0)');
+  await expect(page.locator('.code-panel code.active')).toContainText('bool solveSudoku(int row, int column)');
+  await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  await expect(page.locator('.operation-message')).toContainText('caso base');
+  await expect(page.locator('.code-panel code.active')).toContainText('if (row == 9) return true;');
+
+  await page.goto('/hanoi');
+  await page.getByRole('button', { name: 'C++', exact: true }).click();
+  await expect(page.locator('.code-panel pre')).toContainText('int diskCount = 5;');
+  await page.getByRole('button', { name: 'Resolver', exact: true }).click();
+  await expect(page.locator('.operation-message')).toContainText('hanoi(5, A, C, B)');
+  await expect(page.locator('.code-panel code.active')).toContainText('void hanoi(int amount');
+});
+
+test('N-Reinas y Laberinto C++ nombran la función que se ilumina', async ({ page }) => {
+  for (const sample of [
+    { id: 'n-reinas', action: 'Resolver', method: 'solveQueens(' },
+    { id: 'laberinto', action: 'Resolver recursivamente', method: 'solveMaze(' },
+  ]) {
+    await page.goto(`/${sample.id}`);
+    await page.getByRole('button', { name: 'C++', exact: true }).click();
+    await page.getByRole('button', { name: sample.action, exact: true }).click();
+    await expect(page.locator('.operation-message')).toContainText(sample.method);
+    await expect(page.locator('.code-panel code.active')).toContainText(sample.method);
+  }
+});
+
+test('Dijkstra y A* muestran código Java y C++ junto al mapa', async ({ page }) => {
+  for (const id of ['dijkstra', 'a-star']) {
+    await page.goto(`/${id}`);
+    await expect(page.locator('.code-panel')).toBeVisible();
+    const mapWidth = (await page.locator('.path-map-visual').boundingBox()).width;
+    const panelWidth = (await page.locator('.visual-panel').boundingBox()).width;
+    expect(mapWidth).toBeGreaterThan(panelWidth * 0.8);
+    await page.getByRole('button', { name: 'Java', exact: true }).click();
+    await expect(page.locator('.code-panel pre')).toContainText('map[next] < 0');
+    await page.getByRole('button', { name: 'C++', exact: true }).click();
+    await expect(page.locator('.code-panel pre')).toContainText('map[neighbor]');
+    await page.getByRole('button', { name: id === 'dijkstra' ? 'Ejecutar Dijkstra' : 'Ejecutar A*', exact: true }).click();
+    await expect(page.locator('.operation-message')).toHaveClass(/success/);
+    await expect(page.locator('.code-panel code.active')).toContainText('distance[start] = 0;');
+    const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+    if (await pause.isVisible()) await pause.click();
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await expect(page.locator('.code-panel code.active')).toContainText(
+      id === 'dijkstra' ? 'minimumDistance(settled)' : 'minimumScore(score, closed)',
+    );
+  }
+});
+
 test('el Java visible incluye la clase y el contexto de cada familia', async ({ page }) => {
   for (const id of ['array', 'avl', 'btree', 'bubble-sort', 'laberinto']) {
     await page.goto(`/${id}`);

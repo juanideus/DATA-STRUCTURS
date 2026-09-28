@@ -1999,6 +1999,15 @@ export function adaptFramesToCode(frames, code, keepOriginalLines) {
   const phaseLineCache = new Map();
   return frames.map((frame, index) => {
     if (keepOriginalLines) {
+      if (frame.traceKey === 'valid-return') {
+        const validationStart = sourceLines.findIndex(line => /\b(?:boolean|bool) isValid\(/.test(line));
+        const validationReturn = sourceLines.findIndex((line, sourceIndex) => (
+          sourceIndex > validationStart && line.trim() === 'return true;'
+        ));
+        if (validationStart >= 0 && validationReturn >= 0) {
+          return { ...frame, codeLine: validationReturn };
+        }
+      }
       if (frame.codeNeedle) {
         let matchedLine = needleLineCache.get(frame.codeNeedle);
         if (matchedLine === undefined) {
@@ -2029,21 +2038,28 @@ export function adaptFramesToCode(frames, code, keepOriginalLines) {
           }
           if (matchedLine < 0) {
             const languageAliases = [
+              frame.codeNeedle.replaceAll('boolean ', 'bool '),
+              frame.codeNeedle === 'int columnDistance = Math.abs(column - previousColumn);'
+                ? 'int columnDistance = difference < 0 ? -difference : difference;'
+                : frame.codeNeedle,
+              frame.codeNeedle === 'return row == 5 && column == 5;'
+                ? 'return row == exitRow && column == exitColumn;'
+                : frame.codeNeedle,
               frame.codeNeedle.replaceAll('solveMaze', 'explore'),
               frame.codeNeedle.replaceAll('placeQueen', 'placeRow'),
               frame.codeNeedle === 'backtracking' ? 'queens[row] = -1;' : frame.codeNeedle,
               frame.codeNeedle.startsWith('void hanoi(')
-                ? 'void moveTower(int amount, int from[], int& fromSize, int to[], int& toSize, int help[], int& helpSize) {'
+                ? 'void hanoi(int amount, int from[], int& fromSize, int to[], int& toSize, int help[], int& helpSize) {'
                 : frame.codeNeedle,
               frame.codeNeedle === 'if (disks == 0) return;' ? 'if (amount == 0) return;' : frame.codeNeedle,
               frame.codeNeedle === 'hanoi(disks - 1, from, help, to);'
-                ? 'moveTower(amount - 1, from, fromSize, help, helpSize, to, toSize);'
+                ? 'hanoi(amount - 1, from, fromSize, help, helpSize, to, toSize);'
                 : frame.codeNeedle,
               frame.codeNeedle.startsWith('System.out.println("Move "')
                 ? 'to[toSize++] = from[--fromSize];'
                 : frame.codeNeedle,
               frame.codeNeedle === 'hanoi(disks - 1, help, to, from);'
-                ? 'moveTower(amount - 1, help, helpSize, to, toSize, from, fromSize);'
+                ? 'hanoi(amount - 1, help, helpSize, to, toSize, from, fromSize);'
                 : frame.codeNeedle,
             ].filter(alias => alias !== frame.codeNeedle);
             for (const alias of languageAliases) {

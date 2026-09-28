@@ -1624,6 +1624,7 @@ int combineHash(int left, int right) {
 
 const expressionTree = {
   'set-expression': animated(`Node buildExpressionTree(String expression) {
+    expression = expression.replace('×', '*').replace('−', '-');
     Stack<Node> nodes = new Stack<>();
     Stack<Character> operators = new Stack<>();
 

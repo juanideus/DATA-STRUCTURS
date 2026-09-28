@@ -4,19 +4,30 @@ const expressionOperations = {
   'set-expression': `Node* buildExpressionTree(const std::string& expression) {
     destroy(root);
     root = nullptr;
+    std::string normalized = expression;
+    std::size_t position = 0;
+    while ((position = normalized.find("×", position)) != std::string::npos) {
+        normalized.replace(position, std::string("×").length(), "*");
+        position++;
+    }
+    position = 0;
+    while ((position = normalized.find("−", position)) != std::string::npos) {
+        normalized.replace(position, std::string("−").length(), "-");
+        position++;
+    }
     Node** nodes = new Node*[CAPACITY]{};
     char* operators = new char[CAPACITY]{};
     int nodeTop = 0;
     int operatorTop = 0;
 
-    for (int i = 0; i < static_cast<int>(expression.length()); i++) {
-        char token = expression[i];
+    for (int i = 0; i < static_cast<int>(normalized.length()); i++) {
+        char token = normalized[i];
         if (token == ' ') continue;
         if (token >= '0' && token <= '9') {
             int number = 0;
-            while (i < static_cast<int>(expression.length())
-                    && expression[i] >= '0' && expression[i] <= '9') {
-                number = number * 10 + expression[i] - '0';
+            while (i < static_cast<int>(normalized.length())
+                    && normalized[i] >= '0' && normalized[i] <= '9') {
+                number = number * 10 + normalized[i] - '0';
                 i++;
             }
             i--;

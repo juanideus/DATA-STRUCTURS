@@ -1137,7 +1137,7 @@ const evaluateExpressionTree = (values, index = 0) => {
   const right = evaluateExpressionTree(values, index * 2 + 2);
   if (left === null || right === null) return null;
   if (token === '+') return left + right;
-  if (token === '-') return left - right;
+  if (token === '-' || token === '−') return left - right;
   if (token === '*' || token === '×') return left * right;
   if (token === '/') return right === 0 ? null : left / right;
   return null;
@@ -2045,6 +2045,7 @@ const createSudokuTracer = () => {
       tracer.frames.push({
         values: [...board],
         position: safeRow * 9 + safeColumn,
+        traceKey,
         codeNeedle,
         message,
         variables: sudokuVariables(row, column, number, extras),
