@@ -1993,98 +1993,110 @@ export function adaptFramesToCode(frames, code, keepOriginalLines) {
     promote: [/insertIntoParent\(/, /int separator\s*=/, /parent\.keys\[childIndex\]\s*=/, /insertSeparator\(/, /redistribute\(/],
     settled: [/^}\s*$/],
   };
+  // Many frames point at the same instruction. Resolve each needle and phase
+  // once for this operation instead of rescanning the source on every frame.
+  const needleLineCache = new Map();
+  const phaseLineCache = new Map();
   return frames.map((frame, index) => {
     if (keepOriginalLines) {
       if (frame.codeNeedle) {
-        let matchedLine = sourceLines.findIndex((line, sourceIndex) => (
-          sourceIndex >= selectedStart
-          && sourceIndex <= selectedEnd
-          && line.trim() === frame.codeNeedle.trim()
-        ));
-        if (matchedLine < 0) matchedLine = sourceLines.findIndex((line, sourceIndex) => (
-          sourceIndex >= selectedStart
-          && sourceIndex <= selectedEnd
-          && line.includes(frame.codeNeedle)
-        ));
-        if (matchedLine < 0) {
-          matchedLine = sourceLines.findIndex(line => line.trim() === frame.codeNeedle.trim());
-        }
-        if (matchedLine < 0) {
-          matchedLine = sourceLines.findIndex(line => line.includes(frame.codeNeedle));
-        }
-        if (matchedLine < 0) {
-          const syntaxNeedle = normalizedSyntax(frame.codeNeedle);
+        let matchedLine = needleLineCache.get(frame.codeNeedle);
+        if (matchedLine === undefined) {
           matchedLine = sourceLines.findIndex((line, sourceIndex) => (
             sourceIndex >= selectedStart
             && sourceIndex <= selectedEnd
-            && normalizedSyntax(line) === syntaxNeedle
+            && line.trim() === frame.codeNeedle.trim()
           ));
-          if (matchedLine < 0) matchedLine = sourceLines.findIndex(line => normalizedSyntax(line) === syntaxNeedle);
-        }
-        if (matchedLine < 0) {
-          const languageAliases = [
-            frame.codeNeedle.replaceAll('solveMaze', 'explore'),
-            frame.codeNeedle.replaceAll('placeQueen', 'placeRow'),
-            frame.codeNeedle === 'backtracking' ? 'queens[row] = -1;' : frame.codeNeedle,
-            frame.codeNeedle.startsWith('void hanoi(')
-              ? 'void moveTower(int amount, int from[], int& fromSize, int to[], int& toSize, int help[], int& helpSize) {'
-              : frame.codeNeedle,
-            frame.codeNeedle === 'if (disks == 0) return;' ? 'if (amount == 0) return;' : frame.codeNeedle,
-            frame.codeNeedle === 'hanoi(disks - 1, from, help, to);'
-              ? 'moveTower(amount - 1, from, fromSize, help, helpSize, to, toSize);'
-              : frame.codeNeedle,
-            frame.codeNeedle.startsWith('System.out.println("Move "')
-              ? 'to[toSize++] = from[--fromSize];'
-              : frame.codeNeedle,
-            frame.codeNeedle === 'hanoi(disks - 1, help, to, from);'
-              ? 'moveTower(amount - 1, help, helpSize, to, toSize, from, fromSize);'
-              : frame.codeNeedle,
-          ].filter(alias => alias !== frame.codeNeedle);
-          for (const alias of languageAliases) {
-            matchedLine = sourceLines.findIndex(line => line.trim() === alias.trim());
-            if (matchedLine < 0) matchedLine = sourceLines.findIndex(line => line.includes(alias));
-            if (matchedLine < 0) matchedLine = sourceLines.findIndex(line => normalizedSyntax(line) === normalizedSyntax(alias));
-            if (matchedLine >= 0) break;
+          if (matchedLine < 0) matchedLine = sourceLines.findIndex((line, sourceIndex) => (
+            sourceIndex >= selectedStart
+            && sourceIndex <= selectedEnd
+            && line.includes(frame.codeNeedle)
+          ));
+          if (matchedLine < 0) {
+            matchedLine = sourceLines.findIndex(line => line.trim() === frame.codeNeedle.trim());
           }
-        }
-        if (matchedLine < 0) {
-          const normalizedNeedle = semanticCodeText(frame.codeNeedle);
-          matchedLine = sourceLines.findIndex((line, sourceIndex) => (
-            sourceIndex >= selectedStart
-            && sourceIndex <= selectedEnd
-            && normalizedNeedle
-            && semanticCodeText(line).includes(normalizedNeedle)
-          ));
-        }
-        if (matchedLine < 0) {
-          let bestScore = 0;
-          for (const candidate of usefulLines) {
-            const score = semanticLineScore(
-              frame.codeNeedle,
-              candidate.text,
-              candidate.index >= selectedStart && candidate.index <= selectedEnd,
-            );
-            if (score > bestScore) {
-              bestScore = score;
-              matchedLine = candidate.index;
+          if (matchedLine < 0) {
+            matchedLine = sourceLines.findIndex(line => line.includes(frame.codeNeedle));
+          }
+          if (matchedLine < 0) {
+            const syntaxNeedle = normalizedSyntax(frame.codeNeedle);
+            matchedLine = sourceLines.findIndex((line, sourceIndex) => (
+              sourceIndex >= selectedStart
+              && sourceIndex <= selectedEnd
+              && normalizedSyntax(line) === syntaxNeedle
+            ));
+            if (matchedLine < 0) matchedLine = sourceLines.findIndex(line => normalizedSyntax(line) === syntaxNeedle);
+          }
+          if (matchedLine < 0) {
+            const languageAliases = [
+              frame.codeNeedle.replaceAll('solveMaze', 'explore'),
+              frame.codeNeedle.replaceAll('placeQueen', 'placeRow'),
+              frame.codeNeedle === 'backtracking' ? 'queens[row] = -1;' : frame.codeNeedle,
+              frame.codeNeedle.startsWith('void hanoi(')
+                ? 'void moveTower(int amount, int from[], int& fromSize, int to[], int& toSize, int help[], int& helpSize) {'
+                : frame.codeNeedle,
+              frame.codeNeedle === 'if (disks == 0) return;' ? 'if (amount == 0) return;' : frame.codeNeedle,
+              frame.codeNeedle === 'hanoi(disks - 1, from, help, to);'
+                ? 'moveTower(amount - 1, from, fromSize, help, helpSize, to, toSize);'
+                : frame.codeNeedle,
+              frame.codeNeedle.startsWith('System.out.println("Move "')
+                ? 'to[toSize++] = from[--fromSize];'
+                : frame.codeNeedle,
+              frame.codeNeedle === 'hanoi(disks - 1, help, to, from);'
+                ? 'moveTower(amount - 1, help, helpSize, to, toSize, from, fromSize);'
+                : frame.codeNeedle,
+            ].filter(alias => alias !== frame.codeNeedle);
+            for (const alias of languageAliases) {
+              matchedLine = sourceLines.findIndex(line => line.trim() === alias.trim());
+              if (matchedLine < 0) matchedLine = sourceLines.findIndex(line => line.includes(alias));
+              if (matchedLine < 0) matchedLine = sourceLines.findIndex(line => normalizedSyntax(line) === normalizedSyntax(alias));
+              if (matchedLine >= 0) break;
             }
           }
-          // A single coincidental token is not enough to claim a semantic
-          // match. The progress fallback below is safer and never highlights
-          // class declarations or other scaffolding.
-          if (bestScore < 0.5) matchedLine = -1;
+          if (matchedLine < 0) {
+            const normalizedNeedle = semanticCodeText(frame.codeNeedle);
+            matchedLine = sourceLines.findIndex((line, sourceIndex) => (
+              sourceIndex >= selectedStart
+              && sourceIndex <= selectedEnd
+              && normalizedNeedle
+              && semanticCodeText(line).includes(normalizedNeedle)
+            ));
+          }
+          if (matchedLine < 0) {
+            let bestScore = 0;
+            for (const candidate of usefulLines) {
+              const score = semanticLineScore(
+                frame.codeNeedle,
+                candidate.text,
+                candidate.index >= selectedStart && candidate.index <= selectedEnd,
+              );
+              if (score > bestScore) {
+                bestScore = score;
+                matchedLine = candidate.index;
+              }
+            }
+            // A single coincidental token is not enough to claim a semantic
+            // match. The progress fallback below is safer and never highlights
+            // class declarations or other scaffolding.
+            if (bestScore < 0.5) matchedLine = -1;
+          }
+          needleLineCache.set(frame.codeNeedle, matchedLine);
         }
         if (matchedLine >= 0) return { ...frame, codeLine: matchedLine };
       }
       if (frame.treePhase) {
-        const patterns = phasePatterns[frame.treePhase] ?? [];
-        let matchedLine = -1;
-        for (const pattern of patterns) {
-          matchedLine = sourceLines.findIndex(line => pattern.test(line.trim()));
-          if (matchedLine >= 0) break;
-        }
-        if (frame.treePhase === 'settled') {
-          matchedLine = selectedUsefulLines.at(-1)?.index ?? matchedLine;
+        let matchedLine = phaseLineCache.get(frame.treePhase);
+        if (matchedLine === undefined) {
+          const patterns = phasePatterns[frame.treePhase] ?? [];
+          matchedLine = -1;
+          for (const pattern of patterns) {
+            matchedLine = sourceLines.findIndex(line => pattern.test(line.trim()));
+            if (matchedLine >= 0) break;
+          }
+          if (frame.treePhase === 'settled') {
+            matchedLine = selectedUsefulLines.at(-1)?.index ?? matchedLine;
+          }
+          phaseLineCache.set(frame.treePhase, matchedLine);
         }
         if (matchedLine >= 0) return { ...frame, codeLine: matchedLine };
       }
