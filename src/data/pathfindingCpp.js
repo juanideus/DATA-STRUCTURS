@@ -48,12 +48,12 @@ const astar = `bool shortestPath(int start, int goal) {
     for (int step = 0; step < CELL_COUNT; step++) {
         int current = minimumScore(score, closed);
         if (current == -1) break;
+        closed[current] = true;
         if (current == goal) {
             delete[] closed;
             delete[] score;
             return true;
         }
-        closed[current] = true;
 
         int* neighbors = new int[4]{};
         int count = collectNeighbors(current, neighbors);
@@ -118,6 +118,26 @@ int minimumScore(const int score[], const bool closed[]) const {
     return selected;
 }`;
 
+const reconstructPath = `// After shortestPath succeeds, the caller owns the returned array (delete[]).
+int* reconstructPath(int start, int goal, int& length) const {
+    length = 0;
+    if (distance[goal] == INF) return nullptr;
+    int current = goal;
+    while (current != -1 && length < CELL_COUNT) {
+        length++;
+        if (current == start) break;
+        current = previous[current];
+    }
+    if (current != start) { length = 0; return nullptr; }
+    int* path = new int[length];
+    current = goal;
+    for (int index = length - 1; index >= 0; index--) {
+        path[index] = current;
+        current = previous[current];
+    }
+    return path;
+}`;
+
 export function getPathfindingCpp(algorithmId, actionId) {
   if (!['dijkstra', 'a-star'].includes(algorithmId)) return null;
   const operation = actionId === 'shortest-path'
@@ -133,7 +153,7 @@ export function getPathfindingCpp(algorithmId, actionId) {
       : null;
   if (!operation) return null;
   const helpers = actionId === 'shortest-path'
-    ? [commonHelpers, algorithmId === 'dijkstra' ? dijkstraHelper : astarHelpers]
+    ? [commonHelpers, algorithmId === 'dijkstra' ? dijkstraHelper : astarHelpers, reconstructPath]
     : [];
   return `class ${algorithmId === 'dijkstra' ? 'DijkstraGrid' : 'AStarGrid'} {
 public:
@@ -150,7 +170,7 @@ public:
         : map(new int[CELL_COUNT]{}), initialMap(new int[CELL_COUNT]{}), distance(new int[CELL_COUNT]{}),
           previous(new int[CELL_COUNT]{}) {
         for (int cell = 0; cell < CELL_COUNT; cell++) {
-            int value = cells == nullptr ? 0 : cells[cell];
+            int value = cells == nullptr ? 1 : cells[cell];
             map[cell] = value;
             initialMap[cell] = value;
         }

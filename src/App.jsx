@@ -116,6 +116,27 @@ const initialAlgorithmId = () => {
 
 const randomNumber = (minimum, maximum) => Math.floor(Math.random() * (maximum - minimum + 1)) + minimum;
 const usesNodeGraph = algorithm => algorithm.category === 'Grafos' && !['dijkstra', 'a-star'].includes(algorithm.id);
+const pathfindingCodeNeedle = (algorithmId, codeMode, frame) => {
+  const astar = algorithmId === 'a-star';
+  const cpp = codeMode === 'cpp';
+  const found = frame.mapState?.path?.length > 0;
+  const needles = {
+    initialize: astar ? (cpp ? 'distance[start] = 0;' : 'g[start] = 0;') : 'distance[start] = 0;',
+    select: astar
+      ? (cpp ? 'int current = minimumScore(score, closed);' : 'int current = smallestF(f, open);')
+      : (cpp ? 'int current = minimumDistance(settled);' : 'int current = smallestDistance(distance, visited);'),
+    goal: cpp ? 'if (current == goal) {' : astar ? 'if (current == goal) {' : 'if (current == goal) break;',
+    close: astar ? 'closed[current] = true;'
+      : cpp ? 'settled[current] = true;' : 'visited[current] = true;',
+    neighbors: cpp ? 'for (int i = 0; i < count; i++) {' : 'for (int i = 0; i < 4; i++) {',
+    relax: astar ? (cpp ? 'distance[neighbor] = candidate;' : 'g[next] = newG;')
+      : cpp ? 'distance[neighbor] = candidate;' : 'distance[next] = newDistance;',
+    finish: cpp ? astar ? (found ? 'return true;' : 'return false;') : 'return reached;'
+      : astar ? (found ? 'return reconstructPath(previous, start, goal);' : 'return new int[0];')
+        : 'return reconstructPath(previous, start, goal);',
+  };
+  return needles[frame.codePhase];
+};
 const positionsForAlgorithm = (algorithm, jitter = false) => (
   usesNodeGraph(algorithm) ? graphPositionsFor(algorithm.id, jitter) : DEFAULT_GRAPH_POSITIONS.map(position => [...position])
 );
@@ -233,7 +254,7 @@ function createRandomValues(algorithm) {
     return examples[randomNumber(0, examples.length - 1)];
   }
   if (algorithm.id === 'suffix-tree') return [...['ALGORITMO','BANANA','DATOS','CASACA'][randomNumber(0, 3)]];
-  if (algorithm.id === 'expression-tree') return ['+','×','−',...randomUniqueNumbers(4, 1, 9).map(String)];
+  if (algorithm.id === 'expression-tree') return ['+','*','-',...randomUniqueNumbers(4, 1, 9).map(String)];
   if (algorithm.id === 'ast') return astValuesFromSource(AST_EXAMPLES[randomNumber(0, AST_EXAMPLES.length - 1)]);
   if (algorithm.id === 'merkle-tree') return Array.from({ length: amount }, () => `B${randomNumber(10, 99)}`);
   if (algorithm.id === 'kd-tree') return randomKdLevelOrder();
@@ -986,7 +1007,6 @@ function App() {
     [baseAlgorithm, demoValues, demoTreeColors, demoFibonacciForest, demoMultiwayTree, demoTreeParents, demoEdges, demoPositions, demoMap],
   );
   const isTheoryPage = ['theory', 'complexity', 'oop', 'foundation'].includes(baseAlgorithm.type);
-  const hideCodePanel = ['dijkstra','a-star'].includes(baseAlgorithm.id);
   const selectedIndex = algorithmIndexes.get(baseAlgorithm.id) ?? 0;
   const operationDefinition = useMemo(() => getOperationDefinition(baseAlgorithm), [baseAlgorithm]);
   const activeOperationLabel = useMemo(
@@ -1219,10 +1239,10 @@ function App() {
     setShowOpeningIntro(false);
     setSidebarCollapsed(false);
     setMobileOpen(window.innerWidth <= 780);
-    const needsCompleteLab = isTheoryPage || hideCodePanel;
+    const needsCompleteLab = isTheoryPage;
     if (showWelcome || needsCompleteLab) openAlgorithm(needsCompleteLab ? 'array' : selectedId);
     setTourOpen(true);
-  }, [hideCodePanel, isTheoryPage, openAlgorithm, selectedId, showWelcome]);
+  }, [isTheoryPage, openAlgorithm, selectedId, showWelcome]);
   const closeGuidedTour = useCallback(() => {
     setTourOpen(false);
     if (window.innerWidth <= 780) setMobileOpen(false);
@@ -1364,8 +1384,13 @@ function App() {
       : baseAlgorithm.category === 'Árboles'
         ? createTreeSynchronizedFrames
         : createCodeSynchronizedFrames;
-    let synchronizedFrames = result.frames?.length
-      ? adaptFramesToCode(result.frames, codeForAnimation, codeMode !== 'pseudo')
+    const traceFrames = result.frames?.map(frame => (
+      frame.codePhase && codeMode !== 'pseudo'
+        ? { ...frame, codeNeedle: pathfindingCodeNeedle(baseAlgorithm.id, codeMode, frame) }
+        : frame
+    ));
+    let synchronizedFrames = traceFrames?.length
+      ? adaptFramesToCode(traceFrames, codeForAnimation, codeMode !== 'pseudo')
       : synchronizedFrameFactory({
           algorithm: baseAlgorithm,
           code: codeForAnimation,
@@ -1524,18 +1549,17 @@ function App() {
         ? <Suspense fallback={<DescriptionFallback/>}><EnglishFoundationLesson algorithm={algorithm}/></Suspense>
         : algorithm.type === 'complexity' ? <ComplexityLesson/> : algorithm.type === 'oop' ? <OopLesson/> : algorithm.type === 'foundation' ? <Suspense fallback={<DescriptionFallback/>}><FoundationLesson algorithm={algorithm}/></Suspense> : <DataStructuresLesson/>
       : <>
-      <section className={`lab-grid ${hideCodePanel ? 'visual-only' : ''}`}>
+      <section className={`lab-grid ${['dijkstra', 'a-star'].includes(baseAlgorithm.id) ? 'pathfinding-grid' : ''}`}>
         <article className="panel visual-panel" data-tour="visualizer">
           <div className="panel-head"><div><span className="panel-index">01</span><h2>{t('visualization')}</h2></div><div className="panel-head-actions">{operationDefinition.actions.length > 0 && <button className={`challenge-toggle ${challengeMode ? 'active' : ''}`} onClick={toggleChallengeMode} title={challengeMode ? t('exit') : t('challengeMode')} aria-label={challengeMode ? t('exit') : t('challengeMode')} aria-pressed={challengeMode}><Brain size={15}/>{challengeMode ? t('exit') : t('challenge')}</button>}<button onClick={createNewExample} title={t('generateData')}><Shuffle size={15}/> {t('newExample')}</button><button className="clear-demo-button" onClick={clearDemo} title={t('clearCurrentData')}><Eraser size={15}/> {t('clearData')}</button><button onClick={resetDemo} title={t('originalData')}><RotateCcw size={15}/> {t('reset')}</button></div></div>
           <div className="canvas-grid" data-visualizer={algorithm.id}><Suspense fallback={<div className="description-loading" aria-label={t('loadingDescription')}><span/></div>}><MemoizedVisualizer algorithm={visualAlgorithm} step={operationFrames.length ? currentAnimationFrame?.position ?? step : step}/></Suspense><div className={`step-badge ${currentAnimationFrame?.iteration != null ? 'loop-step' : ''}`}>{currentAnimationFrame?.loopExit ? <>{t('loopEnd')}</> : currentAnimationFrame?.iteration != null ? <>{t('iteration')} <b>{Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)}/{currentAnimationFrame.totalIterations}</b></> : <>{t('step')} <b>{String(step+1).padStart(2,'0')}</b></>}</div></div>
           {challengeMode
             ? <Suspense fallback={<section className="challenge-panel" aria-label="Cargando desafío"/>}><ChallengePanel algorithm={algorithm} values={demoValues} playing={playing} scenarioKey={challengeScenarioKey} onVerify={handleOperation}/></Suspense>
             : <OperationsPanel algorithm={baseAlgorithm} message={operationMessage} status={operationStatus} activeOperation={activeOperation} onAction={handleOperation}/>}
-          {hideCodePanel && <VariablesPanel frame={currentAnimationFrame} algorithm={algorithm} step={step} playing={playing}/>}
           <div className="player"><button onClick={()=>goToStep(step-1)} aria-label={t('previous')}><ArrowLeft size={17}/></button><button className="play" onClick={togglePlayback}>{playing?<Pause size={18}/>:<Play size={18}/>}<span>{playing?t('pause'):t('play')}</span></button><button onClick={()=>goToStep(step+1)} aria-label={t('next')}><ArrowRight size={17}/></button><div className="timeline"><span style={{width:`${((step+1)/totalSteps)*100}%`}}/></div><label><span>{t('speed')}</span><select value={speed} onChange={e=>setSpeed(Number(e.target.value))}><option value="0.5">0.5×</option><option value="1">1×</option><option value="2">2×</option></select><ChevronDown size={13}/></label></div>
         </article>
 
-        {!hideCodePanel && <article className="panel code-panel" data-tour="code">
+        <article className="panel code-panel" data-tour="code">
           <div className="panel-head code-head">
             <div><span className="panel-index">02</span><h2>{codeMode === 'pseudo' ? t('pseudocode') : activeOperationLabel}</h2></div>
             <div className="code-actions">
@@ -1554,7 +1578,7 @@ function App() {
           })}</pre>
           <VariablesPanel frame={currentAnimationFrame} algorithm={algorithm} step={step} playing={playing}/>
           <div className="note"><CircleHelp size={17}/><p><strong>{codeMode === 'java' ? `${language === 'en' ? 'Basic Java' : 'Java básico'} · ${activeOperationLabel}` : codeMode === 'cpp' ? `C++ · ${activeOperationLabel}` : language === 'en' ? 'What happens here?' : '¿Qué ocurre aquí?'}</strong><span>{codeMode !== 'pseudo' ? currentAnimationFrame?.iteration != null ? language === 'en' ? `The loop is at iteration ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} of ${currentAnimationFrame.totalIterations}. The highlighted line and active element advance together.` : `El ciclo está en la iteración ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} de ${currentAnimationFrame.totalIterations}. La línea iluminada y el elemento activo avanzan juntos.` : codeMode === 'cpp' ? language === 'en' ? 'This implementation uses native arrays, raw pointers, nullptr, new and delete so every visible link corresponds to a real memory reference.' : 'Esta implementación usa arreglos nativos, punteros crudos, nullptr, new y delete para que cada enlace visible corresponda a una referencia real de memoria.' : language === 'en' ? 'The code uses small variables, arrays, loops, conditions, and methods. Each highlighted line matches the visible change in the structure.' : javaOverview : step === 0 ? translateLearningText('Se prepara el estado inicial y la estructura auxiliar.', language) : step >= totalSteps-1 ? translateLearningText('El algoritmo completa la operación y devuelve el resultado.', language) : language === 'en' ? `The active element at step ${step+1} is processed and the state is updated.` : `Se procesa el elemento activo del paso ${step+1} y se actualiza el estado.`}</span></p></div>
-        </article>}
+        </article>
       </section>
 
       <Suspense fallback={<DescriptionFallback/>}><EducationalDescription algorithm={algorithm}/></Suspense>

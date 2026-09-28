@@ -120,7 +120,7 @@ function reconstructPath(previous, start, goal) {
   return [];
 }
 
-function mapFrame({ map, mode, current, open, closed, distance, message, codeLine, path = [], delayMs }) {
+function mapFrame({ map, mode, current, open, closed, distance, message, codeLine, codePhase, path = [], delayMs }) {
   const h = current == null ? 0 : heuristic(current, map.goal, map.columns);
   const g = current == null ? 0 : distance[current];
   const [row, column] = current == null ? [null, null] : coordinates(current, map.columns);
@@ -129,6 +129,7 @@ function mapFrame({ map, mode, current, open, closed, distance, message, codeLin
   return {
     position: current ?? 0,
     codeLine,
+    codePhase,
     delayMs: delayMs ?? (path.length > 0 ? 520 : closed.size === 0 ? 320 : 90),
     message,
     mapState: {
@@ -173,6 +174,7 @@ export function runGridPathfinding({ map = DEFAULT_PATH_MAP, mode = 'dijkstra' }
     closed,
     distance,
     codeLine: mode === 'astar' ? 13 : 10,
+    codePhase: 'initialize',
     message: 'Comenzamos en la marca de inicio y preparamos las distancias.',
   }));
 
@@ -198,6 +200,7 @@ export function runGridPathfinding({ map = DEFAULT_PATH_MAP, mode = 'dijkstra' }
       distance,
       delayMs: 110,
       codeLine: mode === 'astar' ? 19 : 14,
+      codePhase: 'select',
       message: mode === 'astar'
         ? 'Elegimos la casilla abierta con el menor valor f = g + h.'
         : 'Elegimos la casilla pendiente con la menor distancia conocida.',
@@ -216,6 +219,7 @@ export function runGridPathfinding({ map = DEFAULT_PATH_MAP, mode = 'dijkstra' }
         distance,
         delayMs: 220,
         codeLine: mode === 'astar' ? 20 : 17,
+        codePhase: 'goal',
         message: 'La casilla actual es la meta. Terminamos la exploración.',
       }));
       break;
@@ -230,6 +234,7 @@ export function runGridPathfinding({ map = DEFAULT_PATH_MAP, mode = 'dijkstra' }
       distance,
       delayMs: 110,
       codeLine: mode === 'astar' ? 24 : 16,
+      codePhase: 'close',
       message: mode === 'astar'
         ? 'Quitamos la casilla de abiertos y la guardamos en cerrados.'
         : 'Marcamos la casilla actual como visitada.',
@@ -258,6 +263,7 @@ export function runGridPathfinding({ map = DEFAULT_PATH_MAP, mode = 'dijkstra' }
       codeLine: relaxedNeighbors > 0
         ? mode === 'astar' ? 38 : 31
         : mode === 'astar' ? 28 : 21,
+      codePhase: relaxedNeighbors > 0 ? 'relax' : 'neighbors',
       message: relaxedNeighbors > 0
         ? `Actualizamos ${relaxedNeighbors} ${relaxedNeighbors === 1 ? 'casilla vecina' : 'casillas vecinas'} con una ruta más corta.`
         : 'Revisamos las casillas vecinas, pero ninguna mejora su distancia.',
@@ -276,6 +282,7 @@ export function runGridPathfinding({ map = DEFAULT_PATH_MAP, mode = 'dijkstra' }
     distance,
     path,
     codeLine: mode === 'astar' ? 20 : 37,
+    codePhase: 'finish',
     message: found
       ? `Ruta encontrada: ${path.length} casillas y costo ${distance[cityMap.goal]}.`
       : 'No existe una ruta disponible entre el inicio y la meta.',

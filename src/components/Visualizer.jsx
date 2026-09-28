@@ -726,7 +726,8 @@ function BinaryTreeDiagram({ algorithm, step, displayValues = algorithm.values.s
               ? 'ast-literal-node'
               : 'ast-identifier-node';
       return <div key={index} data-tree-index={index} data-node-color={redBlackClass || undefined} className={`tree-node ${index>=7?'deep-node':''} ${index===step%values.length?'active':''} ${redBlackClass} ${heapSource?'heap-source':''} ${heapTarget?'heap-target':''} ${heapParent?'heap-parent':''} ${heapCandidate?'heap-candidate':''} ${algorithm.id==='expression-tree'&&['+','-','−','*','×','/'].includes(String(values[index]))?'operator-node':''} ${astNodeClass}`} style={{left:`${x}%`,top:`${y}%`}}>
-      <span className="tree-value">{values[index]}</span>
+      <span className="tree-value">{algorithm.id === 'expression-tree' && values[index] === '*' ? '×'
+        : algorithm.id === 'expression-tree' && values[index] === '-' ? '−' : values[index]}</span>
       {badges?.[index] && <small className="tree-node-badge">{badges[index]}</small>}
       </div>;
     })}

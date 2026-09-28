@@ -496,8 +496,8 @@ const special = {
             if (nextColumn < 0 || nextColumn >= columns) continue;
 
             int next = nextRow * columns + nextColumn;
-            if (map[next] == 1 || visited[next]) continue;
-            int newDistance = distance[current] + 1;
+            if (map[next] < 0 || visited[next]) continue;
+            int newDistance = distance[current] + map[next];
             if (newDistance < distance[next]) {
                 distance[next] = newDistance;
                 previous[next] = current;
@@ -555,11 +555,11 @@ int[] reconstructPath(int[] previous, int start, int goal) {
 
     while (hasOpenCell(open)) {
         int current = smallestF(f, open);
+        open[current] = false;
+        closed[current] = true;
         if (current == goal) {
             return reconstructPath(previous, start, goal);
         }
-        open[current] = false;
-        closed[current] = true;
 
         int row = current / columns;
         int column = current % columns;
@@ -570,8 +570,8 @@ int[] reconstructPath(int[] previous, int start, int goal) {
             if (nextColumn < 0 || nextColumn >= columns) continue;
 
             int next = nextRow * columns + nextColumn;
-            if (map[next] == 1 || closed[next]) continue;
-            int newG = g[current] + 1;
+            if (map[next] < 0 || closed[next]) continue;
+            int newG = g[current] + map[next];
             if (newG < g[next]) {
                 previous[next] = current;
                 g[next] = newG;

@@ -11,18 +11,18 @@ const operations = {
     return true;
 }`,
   'hanoi-solve': `void solve() {
-    moveTower(diskCount, source, sourceSize, target, targetSize, auxiliary, auxiliarySize);
+    hanoi(diskCount, source, sourceSize, target, targetSize, auxiliary, auxiliarySize);
 }`,
   reset: `void reset() {
     setDisks(diskCount);
 }`,
 };
 
-const moveTower = `void moveTower(int amount, int from[], int& fromSize, int to[], int& toSize, int help[], int& helpSize) {
+const moveTower = `void hanoi(int amount, int from[], int& fromSize, int to[], int& toSize, int help[], int& helpSize) {
     if (amount == 0) return;
-    moveTower(amount - 1, from, fromSize, help, helpSize, to, toSize);
+    hanoi(amount - 1, from, fromSize, help, helpSize, to, toSize);
     to[toSize++] = from[--fromSize];
-    moveTower(amount - 1, help, helpSize, to, toSize, from, fromSize);
+    hanoi(amount - 1, help, helpSize, to, toSize, from, fromSize);
 }`;
 
 export function getHanoiCpp(actionId) {
@@ -40,11 +40,12 @@ public:
     int sourceSize = 0;
     int auxiliarySize = 0;
     int targetSize = 0;
-    int diskCount = 3;
+    int diskCount = 5;
 
-    TowersOfHanoi()
+    explicit TowersOfHanoi(int amount = 5)
         : source(new int[CAPACITY]{}), auxiliary(new int[CAPACITY]{}),
           target(new int[CAPACITY]{}) {
+        if (amount >= 1 && amount <= CAPACITY) diskCount = amount;
         sourceSize = diskCount;
         for (int i = 0; i < diskCount; i++) source[i] = diskCount - i;
     }

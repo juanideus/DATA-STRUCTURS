@@ -730,6 +730,8 @@ int main() {
     ExpressionTree tree;
     assert(tree.buildExpressionTree("(8 + 3) * 2") != nullptr);
     assert(evaluate(tree.root) == 22);
+    assert(tree.buildExpressionTree("8 × 3 + (7 − 2)") != nullptr);
+    assert(evaluate(tree.root) == 29);
 }`,
   },
   {
@@ -881,6 +883,32 @@ int main() {
 }`,
   },
   {
+    label: 'Sudoku C++ follows row-column recursion', id: 'sudoku', action: 'solve',
+    main: `
+int main() {
+    SudokuSolver solver;
+    for (int row = 0; row < 9; row++) {
+        for (int column = 0; column < 9; column++) {
+            solver.board[row][column] = (row * 3 + row / 3 + column) % 9 + 1;
+        }
+    }
+    solver.board[0][0] = 0;
+    assert(solver.solve());
+    assert(solver.board[0][0] == 1);
+}`,
+  },
+  {
+    label: 'Hanoi default matches five-disc animation', id: 'hanoi', action: 'hanoi-solve',
+    main: `
+int main() {
+    TowersOfHanoi towers;
+    assert(towers.diskCount == 5 && towers.sourceSize == 5);
+    towers.solve();
+    assert(towers.sourceSize == 0 && towers.targetSize == 5);
+    for (int disk = 0; disk < 5; disk++) assert(towers.target[disk] == 5 - disk);
+}`,
+  },
+  {
     label: 'Dijkstra dynamic 12 by 22 grid', id: 'dijkstra', action: 'shortest-path',
     main: `
 int main() {
@@ -893,6 +921,10 @@ int main() {
     assert(grid.shortestPath(0, 21));
     assert(grid.distance[21] == 23);
     assert(grid.previous[21] != -1);
+    int pathLength = 0;
+    int* path = grid.reconstructPath(0, 21, pathLength);
+    assert(path != nullptr && path[0] == 0 && path[pathLength - 1] == 21);
+    delete[] path;
 }`,
   },
   {

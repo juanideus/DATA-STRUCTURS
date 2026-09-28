@@ -1,16 +1,21 @@
 const indent = source => source.split('\n').map(line => (line ? `    ${line}` : '')).join('\n');
 
-const queensSolve = `bool solve(int boardSize) {
+const queensSolve = `bool solveQueens(int boardSize) {
     if (boardSize < 4 || boardSize > 8) return false;
-    resize(boardSize);
-    return placeRow(0);
+    delete[] queens;
+    size = boardSize;
+    queens = new int[size];
+    for (int row = 0; row < size; row++) {
+        queens[row] = -1;
+    }
+    return placeQueen(0);
 }`;
-const queensHelpers = `bool placeRow(int row) {
+const queensHelpers = `bool placeQueen(int row) {
     if (row == size) return true;
     for (int column = 0; column < size; column++) {
         if (isSafe(row, column)) {
             queens[row] = column;
-            if (placeRow(row + 1)) return true;
+            if (placeQueen(row + 1)) return true;
             queens[row] = -1;
         }
     }
@@ -27,15 +32,6 @@ bool isSafe(int row, int column) {
         if (rowDistance == columnDistance) return false;
     }
     return true;
-}
-
-void resize(int boardSize) {
-    if (boardSize != size) {
-        delete[] queens;
-        size = boardSize;
-        queens = new int[size];
-    }
-    resetValues();
 }`;
 
 function queensCpp(actionId) {
@@ -58,6 +54,8 @@ public:
     NQueens(const NQueens&) = delete;
     NQueens& operator=(const NQueens&) = delete;
 
+${actionId === 'reset' ? '' : '    bool solve(int boardSize) { return solveQueens(boardSize); }'}
+
     // Start of the selected operation
 ${indent(operation)}
     // End of the selected operation
@@ -72,17 +70,17 @@ private:
 
 const mazeSolve = `bool solve(int startRow, int startColumn) {
     clearPath();
-    return explore(startRow, startColumn);
+    return solveMaze(startRow, startColumn);
 }`;
-const mazeHelpers = `bool explore(int row, int column) {
+const mazeHelpers = `bool solveMaze(int row, int column) {
     if (!isFree(row, column)) return false;
     path[row][column] = true;
     if (isExit(row, column)) return true;
 
-    if (explore(row, column + 1)) return true;
-    if (explore(row + 1, column)) return true;
-    if (explore(row, column - 1)) return true;
-    if (explore(row - 1, column)) return true;
+    if (solveMaze(row, column + 1)) return true;
+    if (solveMaze(row + 1, column)) return true;
+    if (solveMaze(row, column - 1)) return true;
+    if (solveMaze(row - 1, column)) return true;
     path[row][column] = false;
     return false;
 }
@@ -154,29 +152,34 @@ ${indent(mazeHelpers)}
 }
 
 const sudokuSolve = `bool solve() {
-    for (int row = 0; row < SIZE; row++) {
-        for (int column = 0; column < SIZE; column++) {
-            if (board[row][column] != 0) continue;
-            for (int number = 1; number <= SIZE; number++) {
-                if (isValid(row, column, number)) {
-                    board[row][column] = number;
-                    if (solve()) return true;
-                    board[row][column] = 0;
-                }
-            }
-            return false;
+    return solveSudoku(0, 0);
+}
+
+bool solveSudoku(int row, int column) {
+    if (row == 9) return true;
+    if (column == 9) return solveSudoku(row + 1, 0);
+    if (board[row][column] != 0) {
+        return solveSudoku(row, column + 1);
+    }
+
+    for (int number = 1; number <= 9; number++) {
+        if (isValid(row, column, number)) {
+            board[row][column] = number;
+            if (solveSudoku(row, column + 1)) return true;
+            board[row][column] = 0;
         }
     }
-    return true;
+    return false;
 }`;
 const sudokuValid = `bool isValid(int row, int column, int number) const {
-    for (int index = 0; index < SIZE; index++) {
-        if (board[row][index] == number || board[index][column] == number) return false;
+    for (int index = 0; index < 9; index++) {
+        if (board[row][index] == number) return false;
+        if (board[index][column] == number) return false;
     }
-    int boxRow = (row / 3) * 3;
-    int boxColumn = (column / 3) * 3;
-    for (int r = boxRow; r < boxRow + 3; r++) {
-        for (int c = boxColumn; c < boxColumn + 3; c++) {
+    int firstRow = (row / 3) * 3;
+    int firstColumn = (column / 3) * 3;
+    for (int r = firstRow; r < firstRow + 3; r++) {
+        for (int c = firstColumn; c < firstColumn + 3; c++) {
             if (board[r][c] == number) return false;
         }
     }
