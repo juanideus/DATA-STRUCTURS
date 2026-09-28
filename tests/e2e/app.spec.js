@@ -535,6 +535,7 @@ test('la lista generalizada distingue tag, dlink, link y referencias compartidas
 
 test('rechaza datos extremos sin alterar ni romper las estructuras', async ({ page }) => {
   await page.goto('/array');
+  await expect(page.locator('.linear-visual .data-cell')).not.toHaveCount(0);
   const initialArrayCells = await page.locator('.linear-visual .data-cell').count();
   await page.getByLabel('Valor').fill('99');
   await page.getByRole('button', { name: 'Agregar en índice' }).click();
