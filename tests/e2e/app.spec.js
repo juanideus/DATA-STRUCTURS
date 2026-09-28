@@ -371,8 +371,6 @@ test('los 86 temas cargan su contenido correspondiente sin errores', async ({ pa
 
     if (['theory', 'complexity', 'oop', 'foundation'].includes(algorithm.type)) {
       await expect(page.locator('.code-panel')).toHaveCount(0);
-    } else if (['dijkstra', 'a-star'].includes(algorithm.id)) {
-      await expect(page.locator('.code-panel')).toHaveCount(0);
     } else {
       await expect(page.locator('.code-panel code')).not.toHaveCount(0);
       await expect(page.locator('.variables-panel')).toBeVisible();
