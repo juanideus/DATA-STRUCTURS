@@ -23,7 +23,7 @@ export async function verifyTurnstile({
   environment = process.env,
   fetchImpl = fetch,
 }) {
-  if (!secret) return { success: true, skipped: true };
+  if (!secret) return { success: false, reason: 'missing-secret' };
 
   const responseToken = normalizeTurnstileToken(token);
   if (!responseToken) return { success: false, reason: 'missing-token' };
@@ -54,7 +54,7 @@ export async function verifyTurnstile({
 
   const hostname = String(result.hostname || '').toLowerCase();
   const validHostname = hostname && normalizedHostnames(environment).includes(hostname);
-  const validAction = !result.action || result.action === 'report';
+  const validAction = result.action === 'report';
 
   return {
     success: result.success === true && validHostname && validAction,

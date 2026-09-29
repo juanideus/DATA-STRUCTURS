@@ -883,6 +883,22 @@ int main() {
 }`,
   },
   {
+    label: 'Expression tree integer division and zero divisor', id: 'expression-tree', action: 'evaluate',
+    main: `
+int main() {
+    ExpressionTree tree;
+    tree.root = new ExpressionTree::Node('/', new ExpressionTree::Node(7), new ExpressionTree::Node(2));
+    assert(tree.evaluate(tree.root) == 3);
+    tree.root->left->number = -7;
+    assert(tree.evaluate(tree.root) == -3);
+    tree.root->right->number = 0;
+    bool rejected = false;
+    try { tree.evaluate(tree.root); }
+    catch (const std::domain_error&) { rejected = true; }
+    assert(rejected);
+}`,
+  },
+  {
     label: 'Sudoku C++ follows row-column recursion', id: 'sudoku', action: 'solve',
     main: `
 int main() {

@@ -1144,6 +1144,12 @@ assert.deepEqual(
 );
 const evaluatedExpression = run(expressionTree, 'evaluate', { value: '', second: '', index: '' }, builtExpression.values);
 assert.match(evaluatedExpression.message, /14/, 'Árbol de expresión: 8 + 3 × 2 debe producir 14.');
+const dividedExpression = run(expressionTree, 'evaluate', { value: '7/2', second: '', index: '' });
+assert.match(dividedExpression.message, /: 3\./, 'Árbol de expresión: la división debe coincidir con los int de Java y C++.');
+const negativeDivision = run(expressionTree, 'evaluate', { value: '(2-9)/2', second: '', index: '' });
+assert.match(negativeDivision.message, /: -3\./, 'Árbol de expresión: la división negativa debe truncarse hacia cero.');
+const zeroDivision = run(expressionTree, 'evaluate', { value: '7/0', second: '', index: '' });
+assert.equal(zeroDivision.ok, false, 'Árbol de expresión: no debe aceptar división por cero.');
 assert.match(getBeginnerJava(expressionTree, 'set-expression'), /applyTop/, 'Árbol de expresión: falta mostrar cómo se conectan operadores y operandos.');
 const ast = algorithms.find(item => item.id === 'ast');
 const builtAst = run(ast, 'ast-build', { value: 'total = price + quantity * 2;', second: '', index: '' });

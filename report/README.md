@@ -58,7 +58,7 @@ No agregues `RESEND_API_KEY` ni `TURNSTILE_SECRET_KEY` al frontend, a una variab
 5. Conserva en Railway `TURNSTILE_HOSTNAMES` con los tres hostnames anteriores.
 6. Vuelve a desplegar el frontend y la API.
 
-La protección se activa de forma gradual: el frontend muestra el widget cuando existe la site key y la API exige la comprobación real cuando existe la secret key. Configura ambas claves antes de desplegar para no dejar el formulario temporalmente desalineado. La API también comprueba que el token pertenezca a un hostname oficial y a la acción `report`.
+La protección es obligatoria para enviar reportes: configura ambas claves antes de desplegar. Si falta la site key, el formulario informa que no puede realizar la verificación; si falta la secret key, la API responde 503 sin enviar el correo. La API comprueba que el token pertenezca a un hostname oficial y a la acción `report`.
 
 ### Dominio de la API
 
@@ -108,7 +108,7 @@ Resend permite enviar desde cualquier dirección del dominio verificado, por lo 
 - Cuerpo máximo de 16 KB.
 - Escape del contenido HTML.
 - Honeypot contra envíos automatizados.
-- Cloudflare Turnstile con validación obligatoria en el servidor cuando está configurado.
+- Cloudflare Turnstile con validación obligatoria en el servidor; sin secret key no se envían reportes.
 - Límite básico de cinco solicitudes por IP cada quince minutos.
 - IP real entregada por Railway mediante `X-Real-IP`, sin confiar en `X-Forwarded-For` del cliente.
 - Tope de direcciones rastreadas para evitar crecimiento ilimitado de memoria.

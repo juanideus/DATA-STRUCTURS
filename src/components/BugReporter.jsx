@@ -126,9 +126,11 @@ export default function BugReporter({ section }) {
     const nextErrors = validateReportFields(report, language);
     setErrors(nextErrors);
     if (!Object.keys(nextErrors).length) {
-      if (!requireSecurity || !TURNSTILE_SITE_KEY || turnstileToken) return true;
+      if (!requireSecurity || turnstileToken) return true;
       setStatusTone('error');
-      setCopyStatus(turnstileError || bc.securityRequired);
+      setCopyStatus(!TURNSTILE_SITE_KEY
+        ? language === 'en' ? 'Security verification is not configured. Please try again later.' : 'La verificación de seguridad no está configurada. Inténtalo más tarde.'
+        : turnstileError || bc.securityRequired);
       return false;
     }
     setStatusTone('error');
