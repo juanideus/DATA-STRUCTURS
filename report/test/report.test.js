@@ -203,6 +203,46 @@ test('rechaza solicitudes sin Origin cuando la API está en producción', async 
   assert.equal(response.status, 403);
 });
 
+test('no envía reportes si falta la clave secreta de Turnstile', async t => {
+  const keys = ['NODE_ENV', 'RESEND_API_KEY', 'REPORT_EMAIL', 'REPORT_FROM', 'TURNSTILE_SECRET_KEY'];
+  const previous = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+  process.env.NODE_ENV = 'test';
+  process.env.RESEND_API_KEY = 'test-only';
+  process.env.REPORT_EMAIL = 'profesor@example.com';
+  process.env.REPORT_FROM = 'DSA Lab <reportes@example.com>';
+  delete process.env.TURNSTILE_SECRET_KEY;
+
+  const { server } = await import('../src/server.js');
+  if (!server.listening) {
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', resolve);
+    });
+  }
+  t.after(async () => {
+    if (server.listening) await new Promise(resolve => server.close(resolve));
+    for (const key of keys) {
+      if (previous[key] === undefined) delete process.env[key];
+      else process.env[key] = previous[key];
+    }
+  });
+
+  const response = await fetch(`http://127.0.0.1:${server.address().port}/api/report`, {
+    method: 'POST',
+    headers: {
+      Origin: 'https://www.dsalab.dev',
+      'Content-Type': 'application/json',
+      'X-Real-IP': '203.0.113.91',
+    },
+    body: JSON.stringify({ ...validInput, turnstileToken: 'token-test' }),
+  });
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), {
+    ok: false,
+    message: 'El servicio de reportes aún no está configurado.',
+  });
+});
+
 test('normaliza y valida un reporte correcto', () => {
   const report = normalizeReport(validInput);
   assert.deepEqual(validateReport(report), {});
@@ -279,6 +319,10 @@ test('valida Turnstile, el hostname y la acción antes de aceptar el reporte', a
 
 test('rechaza tokens Turnstile ausentes, hostnames ajenos y acciones incorrectas', async () => {
   assert.deepEqual(
+    await verifyTurnstile({ secret: '', token: 'token-test' }),
+    { success: false, reason: 'missing-secret' },
+  );
+  assert.deepEqual(
     await verifyTurnstile({ secret: 'secret-test', token: '' }),
     { success: false, reason: 'missing-token' },
   );
@@ -293,10 +337,16 @@ test('rechaza tokens Turnstile ausentes, hostnames ajenos y acciones incorrectas
     token: 'token-test',
     fetchImpl: async () => ({ ok: true, json: async () => ({ success: true, hostname: 'www.dsalab.dev', action: 'login' }) }),
   });
+  const missingAction = await verifyTurnstile({
+    secret: 'secret-test',
+    token: 'token-test',
+    fetchImpl: async () => ({ ok: true, json: async () => ({ success: true, hostname: 'www.dsalab.dev' }) }),
+  });
 
   assert.equal(wrongHostname.success, false);
   assert.equal(wrongHostname.reason, 'invalid-hostname');
   assert.equal(wrongAction.success, false);
   assert.equal(wrongAction.reason, 'invalid-action');
+  assert.equal(missingAction.reason, 'invalid-action');
   assert.equal(normalizeTurnstileToken(`  ${'a'.repeat(2100)}  `).length, 2048);
 });

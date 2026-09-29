@@ -1365,6 +1365,18 @@ test('el árbol de expresión inicial acepta el signo menos mostrado', async ({ 
   await expect(page.locator('.operation-message')).toContainText('Resultado del árbol de expresión: 29.', { timeout: 20_000 });
 });
 
+test('el árbol de expresión muestra división entera coherente con Java y C++', async ({ page }) => {
+  await page.goto('/expression-tree');
+  await page.getByLabel('Velocidad').selectOption('2');
+  await page.getByRole('textbox', { name: 'Expresión', exact: true }).fill('7/2');
+  await page.getByRole('button', { name: 'Evaluar', exact: true }).click();
+  await expect(page.locator('.operation-message')).toContainText('Resultado del árbol de expresión: 3.', { timeout: 20_000 });
+  await expect(page.locator('.code-panel pre')).toContainText('return left / right;');
+  await page.getByRole('button', { name: 'C++', exact: true }).click();
+  await expect(page.locator('.code-panel pre')).toContainText('return left / right;');
+  await expect(page.locator('.code-panel pre')).toContainText('if (right == 0) throw std::domain_error');
+});
+
 test('Sudoku y Hanoi C++ narran el mismo código y estado que muestran', async ({ page }) => {
   await page.goto('/sudoku');
   await page.getByRole('button', { name: 'C++', exact: true }).click();

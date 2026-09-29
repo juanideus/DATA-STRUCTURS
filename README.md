@@ -549,7 +549,7 @@ El formulario solicita:
 
 En Vercel se debe configurar `VITE_REPORT_API_URL=https://api.dsalab.dev`. Ese subdominio apunta al servicio `report` desplegado en Railway. La API autoriza los dominios oficiales de DSA Lab y `ALLOWED_ORIGINS` permite agregar otros orígenes exactos desde Railway.
 
-El envío puede protegerse con Cloudflare Turnstile. La site key pública se configura en Vercel como `VITE_TURNSTILE_SITE_KEY`; la secret key se guarda únicamente en Railway como `TURNSTILE_SECRET_KEY`. Cuando ambas están configuradas, el navegador obtiene un token y la API valida en Cloudflare que sea auténtico, de un solo uso, perteneciente a un dominio oficial y asociado a la acción `report`.
+El envío requiere Cloudflare Turnstile. La site key pública se configura en Vercel como `VITE_TURNSTILE_SITE_KEY`; la secret key se guarda únicamente en Railway como `TURNSTILE_SECRET_KEY`. El navegador obtiene un token y la API valida en Cloudflare que sea auténtico, de un solo uso, perteneciente a un dominio oficial y asociado a la acción `report`. Si falta alguna clave, el formulario no puede enviar reportes.
 
 La política de seguridad de Vercel permite conexiones HTTPS hacia `api.dsalab.dev`, el dominio temporal `*.up.railway.app` y los scripts e iframes oficiales de Turnstile. Las claves secretas de Resend y Turnstile se configuran exclusivamente en Railway; nunca se guardan en el frontend ni en variables `VITE_*`.
 

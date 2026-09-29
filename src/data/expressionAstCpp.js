@@ -80,7 +80,8 @@ const expressionOperations = {
     if (node->operation == '+') return left + right;
     if (node->operation == '-') return left - right;
     if (node->operation == '*') return left * right;
-    return right == 0 ? 0 : left / right;
+    if (right == 0) throw std::domain_error("Division by zero");
+    return left / right;
 }`,
   preorder: `void preorder(const Node* node) {
     if (node == nullptr) return;
@@ -119,7 +120,7 @@ void releaseStacks(Node** nodes, int nodeTop, char* operators) {
 function expressionCpp(actionId) {
   const operation = expressionOperations[actionId];
   if (!operation) return null;
-  return `class ExpressionTree {
+  return `${actionId === 'evaluate' ? '#include <stdexcept>\n\n' : ''}class ExpressionTree {
 public:
     static const int CAPACITY = 128;
     struct Node {

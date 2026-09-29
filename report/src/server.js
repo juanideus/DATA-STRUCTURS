@@ -99,7 +99,7 @@ const readJson = request => new Promise((resolve, reject) => {
   request.on('error', reject);
 });
 
-const missingConfiguration = () => ['RESEND_API_KEY', 'REPORT_EMAIL', 'REPORT_FROM']
+const missingConfiguration = () => ['RESEND_API_KEY', 'REPORT_EMAIL', 'REPORT_FROM', 'TURNSTILE_SECRET_KEY']
   .filter(name => !process.env[name]);
 
 export const server = http.createServer(async (request, response) => {
@@ -146,6 +146,12 @@ export const server = http.createServer(async (request, response) => {
       sendJson(response, 422, { ok: false, message: 'Revisa los campos del formulario.', errors });
       return;
     }
+    const missing = missingConfiguration();
+    if (missing.length) {
+      console.error(`Faltan variables de entorno: ${missing.join(', ')}`);
+      sendJson(response, 503, { ok: false, message: 'El servicio de reportes aún no está configurado.' });
+      return;
+    }
     const turnstile = await verifyTurnstile({
       secret: process.env.TURNSTILE_SECRET_KEY,
       token: input.turnstileToken,
@@ -159,13 +165,6 @@ export const server = http.createServer(async (request, response) => {
       });
       return;
     }
-    const missing = missingConfiguration();
-    if (missing.length) {
-      console.error(`Faltan variables de entorno: ${missing.join(', ')}`);
-      sendJson(response, 503, { ok: false, message: 'El servicio de reportes aún no está configurado.' });
-      return;
-    }
-
     const result = await sendReportEmail({
       apiKey: process.env.RESEND_API_KEY,
       from: process.env.REPORT_FROM,

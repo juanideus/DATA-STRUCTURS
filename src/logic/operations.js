@@ -1139,7 +1139,7 @@ const evaluateExpressionTree = (values, index = 0) => {
   if (token === '+') return left + right;
   if (token === '-' || token === '−') return left - right;
   if (token === '*' || token === '×') return left * right;
-  if (token === '/') return right === 0 ? null : left / right;
+  if (token === '/') return right === 0 ? null : Math.trunc(left / right);
   return null;
 };
 
