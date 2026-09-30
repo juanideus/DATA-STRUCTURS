@@ -110,7 +110,7 @@ Resend permite enviar desde cualquier dirección del dominio verificado, por lo 
 - Honeypot contra envíos automatizados.
 - Cloudflare Turnstile con validación obligatoria en el servidor; sin secret key no se envían reportes.
 - Límite de cinco solicitudes por IP cada quince minutos y un presupuesto global de 120 solicitudes por minuto por instancia.
-- IP real entregada por Railway mediante `X-Real-IP`, sin confiar en `X-Forwarded-For` del cliente.
+- IP real entregada por Railway mediante `X-Real-IP`. Si esa IP pertenece a los rangos publicados por Cloudflare, se usa `CF-Connecting-IP` para distinguir a los usuarios; en conexiones directas se ignora esa cabecera y siempre se ignora `X-Forwarded-For`.
 - Tope de direcciones rastreadas que rechaza nuevas IP al saturarse, sin expulsar y desbloquear IP previamente limitadas.
 - Respuestas sin detalles internos ni credenciales.
 - Solicitudes sin `Origin` rechazadas en producción.

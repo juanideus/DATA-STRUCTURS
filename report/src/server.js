@@ -1,5 +1,5 @@
 import http from 'node:http';
-import net from 'node:net';
+import { clientAddress } from './client-address.js';
 import { sendReportEmail } from './email.js';
 import { allowedOrigins } from './origins.js';
 import { createReportRateLimiter } from './rate-limit.js';
@@ -38,15 +38,7 @@ const applyCors = (request, response) => {
   return !origin && process.env.NODE_ENV !== 'production';
 };
 
-export const clientAddress = request => {
-  const railwayAddress = Array.isArray(request.headers['x-real-ip'])
-    ? request.headers['x-real-ip'][0]
-    : request.headers['x-real-ip'];
-  const candidate = String(railwayAddress || '').split(',')[0].trim();
-  if (net.isIP(candidate)) return candidate;
-  const socketAddress = String(request.socket.remoteAddress || '').trim();
-  return net.isIP(socketAddress) ? socketAddress : 'unknown';
-};
+export { clientAddress };
 
 const readJson = request => new Promise((resolve, reject) => {
   let body = '';
