@@ -2,16 +2,13 @@ import http from 'node:http';
 import net from 'node:net';
 import { sendReportEmail } from './email.js';
 import { allowedOrigins } from './origins.js';
+import { createReportRateLimiter } from './rate-limit.js';
 import { verifyTurnstile } from './turnstile.js';
 import { normalizeReport, validateReport } from './validation.js';
 
 const PORT = Number(process.env.PORT || 10000);
 const MAX_BODY_SIZE = 16 * 1024;
-const RATE_WINDOW_MS = 15 * 60 * 1000;
-const RATE_MAXIMUM = 5;
-const MAX_TRACKED_ADDRESSES = 5_000;
-const requestsByAddress = new Map();
-let lastRateLimitCleanup = 0;
+const checkRateLimit = createReportRateLimiter();
 
 const setSecurityHeaders = response => {
   response.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -49,26 +46,6 @@ export const clientAddress = request => {
   if (net.isIP(candidate)) return candidate;
   const socketAddress = String(request.socket.remoteAddress || '').trim();
   return net.isIP(socketAddress) ? socketAddress : 'unknown';
-};
-
-const exceedsRateLimit = address => {
-  const now = Date.now();
-  if (now - lastRateLimitCleanup >= RATE_WINDOW_MS) {
-    for (const [key, timestamps] of requestsByAddress) {
-      const active = timestamps.filter(timestamp => now - timestamp < RATE_WINDOW_MS);
-      if (active.length) requestsByAddress.set(key, active);
-      else requestsByAddress.delete(key);
-    }
-    lastRateLimitCleanup = now;
-  }
-  const recent = (requestsByAddress.get(address) || []).filter(timestamp => now - timestamp < RATE_WINDOW_MS);
-  if (!requestsByAddress.has(address) && requestsByAddress.size >= MAX_TRACKED_ADDRESSES) {
-    const oldestAddress = requestsByAddress.keys().next().value;
-    if (oldestAddress) requestsByAddress.delete(oldestAddress);
-  }
-  recent.push(now);
-  requestsByAddress.set(address, recent);
-  return recent.length > RATE_MAXIMUM;
 };
 
 const readJson = request => new Promise((resolve, reject) => {
@@ -128,8 +105,9 @@ export const server = http.createServer(async (request, response) => {
     sendJson(response, 415, { ok: false, message: 'El contenido debe enviarse como JSON.' });
     return;
   }
-  if (exceedsRateLimit(clientAddress(request))) {
-    response.setHeader('Retry-After', String(RATE_WINDOW_MS / 1000));
+  const rateLimit = checkRateLimit(clientAddress(request));
+  if (!rateLimit.allowed) {
+    response.setHeader('Retry-After', String(rateLimit.retryAfterSeconds));
     sendJson(response, 429, { ok: false, message: 'Se enviaron demasiados reportes. Inténtalo más tarde.' });
     return;
   }

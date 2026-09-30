@@ -109,15 +109,15 @@ Resend permite enviar desde cualquier dirección del dominio verificado, por lo 
 - Escape del contenido HTML.
 - Honeypot contra envíos automatizados.
 - Cloudflare Turnstile con validación obligatoria en el servidor; sin secret key no se envían reportes.
-- Límite básico de cinco solicitudes por IP cada quince minutos.
+- Límite de cinco solicitudes por IP cada quince minutos y un presupuesto global de 120 solicitudes por minuto por instancia.
 - IP real entregada por Railway mediante `X-Real-IP`, sin confiar en `X-Forwarded-For` del cliente.
-- Tope de direcciones rastreadas para evitar crecimiento ilimitado de memoria.
+- Tope de direcciones rastreadas que rechaza nuevas IP al saturarse, sin expulsar y desbloquear IP previamente limitadas.
 - Respuestas sin detalles internos ni credenciales.
 - Solicitudes sin `Origin` rechazadas en producción.
 - Tiempo máximo de diez segundos para contactar a Resend.
 - HSTS y CSP restrictiva también en las respuestas JSON de la API.
 
-El límite de solicitudes se guarda en memoria y es adecuado como primera barrera. Si en el futuro se utilizan varias instancias o se recibe más tráfico, conviene reemplazarlo por Redis o una solución persistente.
+Los límites se guardan en memoria y protegen el trabajo de una instancia, pero no sustituyen una protección DDoS en el borde. Se reinician al desplegar y no se comparten entre réplicas; para un cupo común entre instancias se necesita Redis u otro almacén compartido. Durante un ataque distribuido, el presupuesto global puede rechazar reportes legítimos, por lo que conviene filtrar tráfico antes de Railway.
 
 ## Datos pendientes
 
