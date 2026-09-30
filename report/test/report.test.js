@@ -116,6 +116,26 @@ test('usa X-Real-IP de Railway e ignora X-Forwarded-For controlado por el client
   else process.env.NODE_ENV = previousNodeEnv;
 });
 
+test('confía en CF-Connecting-IP solo cuando X-Real-IP pertenece a Cloudflare', async () => {
+  const { clientAddress } = await import('../src/client-address.js');
+  const request = {
+    headers: {
+      'x-real-ip': '173.245.48.12',
+      'cf-connecting-ip': '203.0.113.42',
+      'x-forwarded-for': '198.51.100.44',
+    },
+    socket: { remoteAddress: '127.0.0.1' },
+  };
+  assert.equal(clientAddress(request), '203.0.113.42');
+  request.headers['x-real-ip'] = '198.51.100.10';
+  assert.equal(clientAddress(request), '198.51.100.10');
+  request.headers['x-real-ip'] = '2606:4700::1000';
+  request.headers['cf-connecting-ip'] = '2001:db8::1234';
+  assert.equal(clientAddress(request), '2001:db8::1234');
+  request.headers['cf-connecting-ip'] = 'not-an-ip';
+  assert.equal(clientAddress(request), '2606:4700::1000');
+});
+
 test('responde 413 sin cortar la conexión cuando el cuerpo supera el límite', async t => {
   const previousNodeEnv = process.env.NODE_ENV;
   process.env.NODE_ENV = 'test';
