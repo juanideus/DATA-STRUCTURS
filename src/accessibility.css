@@ -35,3 +35,43 @@ html[data-reduce-motion="true"] *,html[data-reduce-motion="true"] *::before,html
 @media(max-width:560px){.accessibility-overlay{padding:12px}.accessibility-panel{max-height:calc(100vh - 24px);padding:20px 15px;border-radius:14px}.accessibility-panel>header{grid-template-columns:42px minmax(0,1fr) 32px;gap:9px}.accessibility-heading-icon{width:42px;height:42px}.accessibility-panel>header h2{font-size:20px}.accessibility-font-options>div{grid-template-columns:1fr}.accessibility-switch{grid-template-columns:34px minmax(0,1fr) 42px}}
 
 @media(prefers-reduced-motion:reduce){.accessibility-switch>i,.accessibility-switch>i b{transition:none}}
+
+/* Dark palette is opt-in and keeps the educational visualizers readable. */
+html[data-dark-mode="true"]{
+  color-scheme:dark;
+  --paper:#121a26;--cream:#1c2736;--ink:#edf3f8;--muted:#adbccc;
+  --line:#39495d;--orange:#f28b6e;--orange-soft:#44302f;
+  --green:#9cc7ed;--navy:#101722;--shadow:0 8px 24px rgba(0,0,0,.18);
+  background:var(--paper)
+}
+html[data-dark-mode="true"] body{background:var(--paper)}
+html[data-dark-mode="true"] :is(.panel,.complexity-card,.future-description,.future-description.available-description,.welcome-features article,.foundation-card,.section-test-entry,.app-error-screen section){background:var(--cream);border-color:var(--line);color:var(--ink);box-shadow:var(--shadow)}
+html[data-dark-mode="true"] :is(.welcome-hero,.operations-panel,.variables-panel,.note,.learning-strip,.description-details article,.description-learning-grid article,.description-overview-grid article,.description-deep-dive,.complexity-lesson article,.section-test-modal,.bug-modal,.guided-tour-card,.accessibility-panel){background:#1b2736;border-color:var(--line);color:var(--ink)}
+html[data-dark-mode="true"] :is(.description-list-card,.description-tip,.description-overview-grid .description-example-card,.complexity-foundations>div,.complexity-case-stack p,.complexity-static-chart,.complexity-order-table,.complexity-simplify-card>div,.complexity-notation-card>div p,.data-concept-pair p,.data-family-grid>div,.data-map-grid p,.oop-analogy,.oop-process>div,.oop-pillar-grid>div,.oop-example-notes p,.oop-mistake-grid p,.foundation-review-grid li,.seo-topic-index section,.seo-prerendered article,.seo-prerendered nav){background:#253346;border-color:var(--line);color:var(--ink)}
+html[data-dark-mode="true"] :is(.section-test-warning,.section-test-review li,.section-test-review dl>div,.section-test-review-explanation,.section-test-question label,.section-test-diagram,.section-test-diagram svg rect,.section-test-diagram svg circle){background:#253346;border-color:var(--line);color:var(--ink)}
+html[data-dark-mode="true"] :is(.section-test-diagram svg text){fill:var(--ink)}
+html[data-dark-mode="true"] :is(.canvas-grid,.graph-design-grafo,.graph-design-grafo-dirigido,.graph-design-dfs,.graph-design-bfs,.graph-design-prim,.graph-design-kruskal){background:#202e3e!important;background-image:linear-gradient(rgba(181,204,228,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(181,204,228,.055) 1px,transparent 1px)!important}
+html[data-dark-mode="true"] :is(.data-cell,.tree-node,.graph-node,.bnode,.hash-slot,.word-path span,.recursion-visual>div,.sudoku-grid>div,.maze-grid>div,.sort-cell,.dense-matrix-cell,.polynomial-node,.generalized-node,.suffix-branches>div,.thread-null-anchor,.tree-kind-label,.tree-node-badge,.step-badge){background:#2c3d50;border-color:#6d849a;color:var(--ink)}
+html[data-dark-mode="true"] :is(.data-cell.active,.tree-node.active,.graph-node.active,.bnode.active,.hash-slot.active,.sort-cell.active,.dense-matrix-cell.active,.generalized-node.active,.recursion-visual .active){background:#c86248;border-color:#e7957a;color:#fff}
+html[data-dark-mode="true"] :is(.graph-design-grafo .graph-node,.graph-design-grafo-dirigido .graph-node,.graph-design-dfs .graph-node,.graph-design-bfs .graph-node,.graph-design-prim .graph-node,.graph-design-prim .graph-node:after){background:#2c3d50}
+html[data-dark-mode="true"] :is(.graph-canvas text,.graph-weight){stroke:#202e3e;fill:#b8d7f2}
+html[data-dark-mode="true"] :is(.panel-head button,.learning-strip button,.player>button,.panel-head-actions button:last-child,.operation-actions button,.section-test-close,.section-test-actions .secondary,.section-test-review-back,.bug-modal header,.bug-modal header>button,.bug-form-actions button,.guided-tour-launch,.guided-tour-card header>button,.tour-previous,.accessibility-launch,.accessibility-panel>header>button,.accessibility-panel>footer button,.mobile-menu-button){background:#2b3a4c;border-color:var(--line);color:var(--ink)}
+html[data-dark-mode="true"] :is(.panel-head button:hover,.learning-strip button:hover,.guided-tour-launch:hover,.accessibility-launch:hover,.section-test-question label:hover,.section-test-question label.selected){background:#374a60;border-color:#8bb9df;color:var(--ink)}
+html[data-dark-mode="true"] :is(input,select,textarea,.operation-fields input,.bug-modal input,.bug-modal select,.bug-modal textarea,.player select){background:#253346;border-color:#5a7088;color:var(--ink)}
+html[data-dark-mode="true"] :is(input,textarea)::placeholder{color:#9cabbc}
+html[data-dark-mode="true"] :is(.variable-item,.code-tabs,.panel-head .code-tabs button.active,.language,.eyebrow i,.nav-group button.selected,.accessibility-font-options,.accessibility-font-options button,.accessibility-switch,.accessibility-switch-icon){background:#28384a;border-color:var(--line);color:var(--ink)}
+html[data-dark-mode="true"] :is(.variable-item small,.accessibility-font-options button small,.section-test-review dt,.section-test-review-heading small){color:#b1c0d0}
+html[data-dark-mode="true"] :is(.accessibility-font-options button.active,.accessibility-switch input:checked+i){background:#365977;border-color:#9cc7ed}
+html[data-dark-mode="true"] .accessibility-panel>header small{color:#bed0e1}
+html[data-dark-mode="true"] :is(.accessibility-font-options legend,.accessibility-font-options button svg,.accessibility-switch-icon){color:#b5d8f6}
+html[data-dark-mode="true"] .complexity-summary-card{background:#3e3529!important;color:var(--ink)}
+html[data-dark-mode="true"] .welcome-path{background:#182437}
+html[data-dark-mode="true"] .sidebar{background:#0e1723}
+html[data-dark-mode="true"] .nav-group button.selected{color:var(--ink)}
+html[data-dark-mode="true"] :is(.data-family-grid strong,.oop-pillar-grid strong,.description-list-card strong,.foundation-review-grid li,.data-map-grid span,.oop-analogy span,.oop-process span,.seo-prerendered p){color:var(--ink)}
+html[data-dark-mode="true"] :is(.complexity-simplify-card .complexity-result,.complexity-summary-card,.sort-cell.auxiliary,.sort-cell.in-range,.sort-cell.left-half,.sort-cell.right-half,.dense-matrix-cell.diagonal,.generalized-node.tag-2,.quadtree-visual){background:#34445a;color:var(--ink)}
+html[data-dark-mode="true"] :is(.sort-cell.auxiliary.writing,.polynomial-node.operation-active,.generalized-node.active){background:#624036;color:#fff}
+html[data-dark-mode="true"] :is(.section-test-diagram svg .diagram-label,.complexity-static-chart text){fill:#b8cce0}
+html[data-dark-mode="true"] :is(.complexity-static-chart .axis,.complexity-static-chart .guide){stroke:#a5bad0}
+html[data-dark-mode="true"] :is(.graph-design-prim .graph-weight,.graph-canvas text){paint-order:stroke}
+html[data-dark-mode="true"] :is(.section-test-diagram svg .diagram-muted,.diagram-board svg rect:nth-of-type(odd),.diagram-sudoku svg rect:nth-of-type(odd)){fill:#384b60;stroke:#7290a9}

@@ -1605,7 +1605,7 @@ test('permite configurar accesibilidad, conserva preferencias y devuelve el foco
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('radio')).toHaveCount(3);
   await dialog.getByRole('radio', { name: /Grande/ }).click();
-  for (const preference of ['Contraste alto', 'Paleta apta para daltonismo', 'Reducir movimiento']) {
+  for (const preference of ['Modo oscuro', 'Contraste alto', 'Paleta apta para daltonismo', 'Reducir movimiento']) {
     await dialog.getByLabel(preference).focus();
     await page.keyboard.press('Space');
   }
@@ -1614,6 +1614,7 @@ test('permite configurar accesibilidad, conserva preferencias y devuelve el foco
   await expect(page.locator('html')).toHaveAttribute('data-high-contrast', 'true');
   await expect(page.locator('html')).toHaveAttribute('data-color-vision', 'true');
   await expect(page.locator('html')).toHaveAttribute('data-reduce-motion', 'true');
+  await expect(page.locator('html')).toHaveAttribute('data-dark-mode', 'true');
 
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
@@ -1624,8 +1625,27 @@ test('permite configurar accesibilidad, conserva preferencias y devuelve el foco
   await expect(page.locator('html')).toHaveAttribute('data-high-contrast', 'true');
   await expect(page.locator('html')).toHaveAttribute('data-color-vision', 'true');
   await expect(page.locator('html')).toHaveAttribute('data-reduce-motion', 'true');
+  await expect(page.locator('html')).toHaveAttribute('data-dark-mode', 'true');
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('dsa-accessibility-preferences-v1') ?? '{}'));
-  expect(stored).toEqual({ fontScale: 'large', highContrast: true, colorVision: true, reduceMotion: true });
+  expect(stored).toEqual({ fontScale: 'large', highContrast: true, colorVision: true, reduceMotion: true, darkMode: true });
+});
+
+test('el modo oscuro cambia las superficies y se puede desactivar', async ({ page }) => {
+  await page.goto('/array');
+  await page.getByRole('button', { name: 'Opciones de accesibilidad' }).click();
+  const darkMode = page.getByRole('dialog').getByLabel('Modo oscuro');
+  await darkMode.focus();
+  await page.keyboard.press('Space');
+  await expect(page.locator('html')).toHaveAttribute('data-dark-mode', 'true');
+  const colors = await page.evaluate(() => ({
+    body: getComputedStyle(document.body).backgroundColor,
+    panel: getComputedStyle(document.querySelector('.panel')).backgroundColor,
+  }));
+  expect(colors.body).toBe('rgb(18, 26, 38)');
+  expect(colors.panel).toBe('rgb(28, 39, 54)');
+  await darkMode.focus();
+  await page.keyboard.press('Space');
+  await expect(page.locator('html')).toHaveAttribute('data-dark-mode', 'false');
 });
 
 test('ofrece navegación por teclado para saltar al contenido principal', async ({ page }) => {
