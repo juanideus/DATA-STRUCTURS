@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Accessibility, Check, Contrast, Eye, RotateCcw, Scaling, Waves, X } from 'lucide-react';
+import { Accessibility, Check, Contrast, Eye, Moon, RotateCcw, Scaling, Waves, X } from 'lucide-react';
 import { useAccessibility } from '../accessibility/AccessibilityContext.jsx';
 import { useDialogFocus } from '../accessibility/useDialogFocus.js';
 import { useLanguage } from '../i18n.jsx';
@@ -28,10 +28,10 @@ export default function AccessibilityPanel() {
   const en = language === 'en';
   const copy = en ? {
     open:'Accessibility settings', eyebrow:'Display and navigation', title:'Make DSA Lab comfortable for you', intro:'These settings apply to the whole application and are saved only in this browser.', close:'Close accessibility settings',
-    textSize:'Interface size', textHelp:'Increase text, controls, and visual panels together.', contrast:'High contrast', contrastHelp:'Strengthens text, borders, and controls.', colors:'Color-blind-safe palette', colorsHelp:'Uses blue and orange with labels and icons.', motion:'Reduce motion', motionHelp:'Removes decorative transitions and animations.', reset:'Reset settings', active:'Active accessibility preference',
+    textSize:'Interface size', textHelp:'Increase text, controls, and visual panels together.', dark:'Dark mode', darkHelp:'Uses darker surfaces with readable text throughout the application.', contrast:'High contrast', contrastHelp:'Strengthens text, borders, and controls.', colors:'Color-blind-safe palette', colorsHelp:'Uses blue and orange with labels and icons.', motion:'Reduce motion', motionHelp:'Removes decorative transitions and animations.', reset:'Reset settings', active:'Active accessibility preference',
   } : {
     open:'Opciones de accesibilidad', eyebrow:'Visualización y navegación', title:'Haz que DSA Lab sea cómodo para ti', intro:'Estas preferencias se aplican a toda la página y se guardan solamente en este navegador.', close:'Cerrar opciones de accesibilidad',
-    textSize:'Tamaño de la interfaz', textHelp:'Amplía conjuntamente letras, controles y paneles visuales.', contrast:'Contraste alto', contrastHelp:'Refuerza textos, bordes y controles.', colors:'Paleta apta para daltonismo', colorsHelp:'Utiliza azul y naranja junto con etiquetas e iconos.', motion:'Reducir movimiento', motionHelp:'Elimina transiciones y animaciones decorativas.', reset:'Restablecer preferencias', active:'Preferencia de accesibilidad activa',
+    textSize:'Tamaño de la interfaz', textHelp:'Amplía conjuntamente letras, controles y paneles visuales.', dark:'Modo oscuro', darkHelp:'Usa superficies oscuras y texto legible en toda la página.', contrast:'Contraste alto', contrastHelp:'Refuerza textos, bordes y controles.', colors:'Paleta apta para daltonismo', colorsHelp:'Utiliza azul y naranja junto con etiquetas e iconos.', motion:'Reducir movimiento', motionHelp:'Elimina transiciones y animaciones decorativas.', reset:'Restablecer preferencias', active:'Preferencia de accesibilidad activa',
   };
 
   return <>
@@ -45,6 +45,7 @@ export default function AccessibilityPanel() {
           <div role="radiogroup" aria-label={copy.textSize}>{FONT_OPTIONS.map(option => <button type="button" role="radio" aria-checked={preferences.fontScale === option.value} className={preferences.fontScale === option.value ? 'active' : ''} onClick={() => setPreference('fontScale', option.value)} key={option.value}><span>{en ? option.labelEn : option.labelEs}<small>{option.sample}</small></span>{preferences.fontScale === option.value && <Check size={16} aria-label={copy.active}/>}</button>)}</div>
         </fieldset>
         <div className="accessibility-switches">
+          <PreferenceSwitch icon={Moon} label={copy.dark} description={copy.darkHelp} checked={preferences.darkMode} onChange={value => setPreference('darkMode', value)}/>
           <PreferenceSwitch icon={Contrast} label={copy.contrast} description={copy.contrastHelp} checked={preferences.highContrast} onChange={value => setPreference('highContrast', value)}/>
           <PreferenceSwitch icon={Eye} label={copy.colors} description={copy.colorsHelp} checked={preferences.colorVision} onChange={value => setPreference('colorVision', value)}/>
           <PreferenceSwitch icon={Waves} label={copy.motion} description={copy.motionHelp} checked={preferences.reduceMotion} onChange={value => setPreference('reduceMotion', value)}/>

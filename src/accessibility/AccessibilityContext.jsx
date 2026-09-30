@@ -7,6 +7,7 @@ export const DEFAULT_ACCESSIBILITY_PREFERENCES = Object.freeze({
   highContrast: false,
   colorVision: false,
   reduceMotion: false,
+  darkMode: false,
 });
 
 const FONT_SCALES = new Set(['normal', 'large', 'extra-large']);
@@ -19,6 +20,7 @@ export function normalizeAccessibilityPreferences(value) {
     highContrast: source.highContrast === true,
     colorVision: source.colorVision === true,
     reduceMotion: source.reduceMotion === true,
+    darkMode: source.darkMode === true,
   };
 }
 
@@ -37,6 +39,7 @@ function applyPreferences(preferences) {
   root.dataset.highContrast = String(preferences.highContrast);
   root.dataset.colorVision = String(preferences.colorVision);
   root.dataset.reduceMotion = String(preferences.reduceMotion);
+  root.dataset.darkMode = String(preferences.darkMode);
 }
 
 export function AccessibilityProvider({ children }) {
