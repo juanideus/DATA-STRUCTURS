@@ -42,7 +42,7 @@ export default function TurnstileWidget({ siteKey, language, onToken, onError, r
       widgetIdRef.current = turnstile.render(containerRef.current, {
         sitekey: siteKey,
         action: 'report',
-        theme: 'light',
+        theme: document.documentElement.dataset.darkMode === 'true' ? 'dark' : 'light',
         language: language === 'en' ? 'en' : 'es',
         callback: token => {
           setLoading(false);
