@@ -900,21 +900,19 @@ function OpeningIntro({ onDone }) {
 function Welcome({ onStart, startName }) {
   const { language } = useLanguage();
   const c = language === 'en' ? {
-    hello:'Welcome to DSA Lab',learn:'Learn by practicing',title:'Algorithms you can see, touch, and understand.',
-    lead:'This is an educational laboratory for visualizing data structures and algorithms more simply. Students can modify examples, play every execution step by step, and use Java and C++ code as a guide to understand, practice, and develop their own algorithms.',
-    continue:'Continue with',motto:'Your imagination is the limit.',you:'You can do it.',about:'About this project',aboutTitle:'A space to experiment without being afraid of mistakes',
-    aboutText:'Every topic combines a visual representation, interactive controls, and simple code. The goal is to help students understand what happens internally and give them a clear foundation for building their own algorithms.',
-    topics:'visual topics',topicsText:'From arrays and linked lists to trees, graphs, recursion, and backtracking.',practice:'Interactive practice',practiceText:'Add, remove, search, and traverse elements while watching every change.',
-    java:'Java and C++',javaText:'Readable Java plus native C++ arrays and pointers, designed for students who are getting started.',s1:'Step 1',s1t:'Choose a topic',s1p:'Use the sidebar to open any structure or algorithm.',
-    s2:'Step 2',s2t:'Run an operation',s2p:'Fill in the fields and select an operation to modify the example.',s3:'Step 3',s3t:'Observe and learn',s3p:'Compare the animation with the highlighted Java or C++ code lines.',
+    hello:'DSA Lab',learn:'Made for learning by doing',title:'Data structures make more sense when you can see them change.',
+    lead:'Choose a topic, change the data, and follow each operation step by step. The visualization and the Java or C++ code move together, so you can see why each result happens.',
+    continue:'Explore',motto:'A study companion for Data Structures students.',about:'Inside the lab',aboutTitle:'Try it, make a mistake, and try again',
+    aboutText:'This is a place to explore how an algorithm works, not just memorize its answer. Start with a ready-made example or clear it and build your own.',
+    topics:'topics to explore',topicsText:'Start with arrays and lists, then move on to trees, graphs, sorting, and more.',practice:'Change the data',practiceText:'Add, remove, or search for a value. Watch the structure respond to what you do.',
+    java:'Follow the code',javaText:'Switch between Java and C++. The highlighted line follows the animation.',miniLabel:'Adding at the beginning',miniCaption:'The new value takes index 0; the others move one place.',
   } : {
-    hello:'Bienvenido a DSA Lab',learn:'Aprende practicando',title:'Algoritmos que puedes ver, tocar y entender.',
-    lead:'Esta página es un laboratorio educativo creado para visualizar estructuras de datos y algoritmos de una manera más sencilla. Los alumnos pueden modificar ejemplos, reproducir cada ejecución paso a paso y usar código Java y C++ como punto de apoyo para comprender, practicar y desarrollar sus propios algoritmos.',
-    continue:'Continuar con',motto:'El límite es tu imaginación.',you:'Tú puedes.',about:'Sobre este proyecto',aboutTitle:'Un espacio para experimentar sin miedo a equivocarse',
-    aboutText:'Cada tema combina una representación visual, controles interactivos y código sencillo. El objetivo es que los alumnos entiendan qué ocurre internamente y dispongan de una base clara desde la cual puedan construir sus propios algoritmos.',
-    topics:'temas visuales',topicsText:'Desde arrays y listas hasta árboles, grafos, recursividad y backtracking.',practice:'Práctica interactiva',practiceText:'Agrega, elimina, busca y recorre elementos mientras observas cada cambio.',
-    java:'Java y C++',javaText:'Java legible y C++ con arreglos nativos y punteros, pensados para estudiantes que están comenzando.',s1:'Paso 1',s1t:'Elige un tema',s1p:'Usa el menú lateral para entrar a cualquier estructura o algoritmo.',
-    s2:'Paso 2',s2t:'Ejecuta una función',s2p:'Completa los campos y pulsa una operación para modificar el ejemplo.',s3:'Paso 3',s3t:'Observa y aprende',s3p:'Compara la animación con las líneas destacadas del código Java o C++.',
+    hello:'DSA Lab',learn:'Para aprender haciendo',title:'Las estructuras de datos se entienden mejor cuando las ves cambiar.',
+    lead:'Elige un tema, cambia los datos y sigue cada operación paso a paso. La visualización avanza junto al código Java o C++, para que veas por qué ocurre cada resultado.',
+    continue:'Explorar',motto:'Un apoyo para estudiantes de Estructuras de Datos.',about:'Dentro del laboratorio',aboutTitle:'Prueba, equivócate y vuelve a intentar',
+    aboutText:'Este es un espacio para explorar cómo funciona un algoritmo, no solo memorizar su respuesta. Puedes partir de un ejemplo listo o vaciarlo y construir el tuyo.',
+    topics:'temas para explorar',topicsText:'Empieza con arreglos y listas; después sigue con árboles, grafos, ordenamientos y más.',practice:'Cambia los datos',practiceText:'Agrega, elimina o busca un valor. Observa cómo responde la estructura a lo que haces.',
+    java:'Sigue el código',javaText:'Alterna entre Java y C++. La línea destacada acompaña a la animación.',miniLabel:'Agregar al inicio',miniCaption:'El valor nuevo ocupa el índice 0; los demás avanzan un lugar.',
   };
   return <div className="welcome-page">
     <section className="welcome-hero">
@@ -922,16 +920,13 @@ function Welcome({ onStart, startName }) {
         <div className="eyebrow"><span>{c.hello}</span><i>{c.learn}</i></div>
         <h1>{c.title}</h1><p>{c.lead}</p>
         <button className="welcome-start" onClick={onStart}><Play size={17}/> {c.continue} {startName} <ArrowRight size={16}/></button>
-        <p className="welcome-motto"><Sparkles size={15}/><strong>{c.motto}</strong> {c.you}</p>
+        <p className="welcome-motto">{c.motto}</p>
       </div>
       <div className="welcome-demo" aria-hidden="true">
-        <span className="welcome-orbit orbit-one"/>
-        <span className="welcome-orbit orbit-two"/>
-        <div className="welcome-root"><Boxes size={30}/><small>DSA</small></div>
-        <div className="welcome-node node-array">ARRAY</div>
-        <div className="welcome-node node-tree">TREE</div>
-        <div className="welcome-node node-graph">GRAPH</div>
-        <div className="welcome-node node-code">JAVA</div>
+        <span className="welcome-demo-label">{c.miniLabel}</span>
+        <div className="welcome-demo-row"><span className="new-value">12<small>0</small></span><i>→</i><span>7<small>1</small></span><i>→</i><span>19<small>2</small></span></div>
+        <p>{c.miniCaption}</p>
+        <code>result[0] = value;</code>
       </div>
     </section>
 
@@ -940,19 +935,12 @@ function Welcome({ onStart, startName }) {
         <span>{c.about}</span><h2 id="welcome-about-title">{c.aboutTitle}</h2><p>{c.aboutText}</p>
       </div>
       <div className="welcome-features">
-        <article><span>01</span><Sparkles size={21}/><h3>{algorithms.length} {c.topics}</h3><p>{c.topicsText}</p></article>
-        <article><span>02</span><Play size={21}/><h3>{c.practice}</h3><p>{c.practiceText}</p></article>
-        <article><span>03</span><BookOpen size={21}/><h3>{c.java}</h3><p>{c.javaText}</p></article>
+        <article><Boxes size={21}/><h3>{algorithms.length} {c.topics}</h3><p>{c.topicsText}</p></article>
+        <article><Play size={21}/><h3>{c.practice}</h3><p>{c.practiceText}</p></article>
+        <article><BookOpen size={21}/><h3>{c.java}</h3><p>{c.javaText}</p></article>
       </div>
     </section>
 
-    <section className="welcome-path">
-      <div><small>{c.s1}</small><strong>{c.s1t}</strong><p>{c.s1p}</p></div>
-      <ArrowRight size={18}/>
-      <div><small>{c.s2}</small><strong>{c.s2t}</strong><p>{c.s2p}</p></div>
-      <ArrowRight size={18}/>
-      <div><small>{c.s3}</small><strong>{c.s3t}</strong><p>{c.s3p}</p></div>
-    </section>
   </div>;
 }
 
@@ -1588,7 +1576,7 @@ function App() {
       <footer className="algorithm-nav"><a href={seoPath(algorithms[(selectedIndex-1+algorithms.length)%algorithms.length].id, language)} onClick={event=>{event.preventDefault();selectRelative(-1)}}><ArrowLeft size={16}/><span><small>{t('previous')}</small>{localizeAlgorithm(algorithms[(selectedIndex-1+algorithms.length)%algorithms.length], language).name}</span></a><a href={seoPath(algorithms[(selectedIndex+1)%algorithms.length].id, language)} onClick={event=>{event.preventDefault();selectRelative(1)}}><span><small>{t('next')}</small>{localizeAlgorithm(algorithms[(selectedIndex+1)%algorithms.length], language).name}</span><ArrowRight size={16}/></a></footer>
       </>}
     </main>
-    <button className="guided-tour-launch" type="button" onClick={startGuidedTour} aria-label={t('guidedTourLabel')}><CircleHelp size={19}/><span>{t('howItWorks')}</span></button>
+    <button className="guided-tour-launch" type="button" onClick={startGuidedTour} aria-label={t('guidedTourLabel')} title={t('howItWorks')}><CircleHelp size={19}/><span>{t('howItWorks')}</span></button>
     <BugReporter section={showWelcome ? t('welcome') : algorithm.name}/>
     <AccessibilityPanel/>
     {tourOpen && <GuidedTour onClose={closeGuidedTour} onStepChange={handleTourStepChange}/>}

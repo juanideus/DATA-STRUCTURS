@@ -2011,3 +2011,32 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .data-cell,.tree-node,.graph-node,.hash-slot,.maze-grid>div,.chess-board>div{transition-duration:.01ms!important}
   .path-map-searcher,.path-map-kicker i,.city-road-frontier path,.city-road-route path,.city-road-explored path,.hanoi-scene .tower i.active.moving,.child-bnode.splitting,.promoted-key,.description-loading i{animation:none!important}
 }
+
+/* A quieter, more concrete introduction: the example shows an actual Array operation. */
+.welcome-hero{background:#eeeae2;gap:34px}
+.welcome-copy h1{max-width:680px;font-size:clamp(38px,4.4vw,62px);line-height:1.06}
+.welcome-copy>p{max-width:630px}
+.welcome-copy .eyebrow i{background:transparent;border-color:#c5bdb0;color:#505b58}
+.welcome-copy .welcome-motto{margin-top:21px;padding-left:12px;border-left:2px solid var(--orange);font-family:inherit;font-weight:600;color:#59675f}
+.welcome-demo{width:min(100%,370px);height:auto;padding:23px;justify-self:center;border:1px solid #d0d4cf;border-radius:10px;background:#fffdf8;box-shadow:0 14px 30px rgba(40,50,46,.09);transform:rotate(1deg)}
+.welcome-demo-label{display:block;margin-bottom:22px;color:#526579;font-size:12px;font-weight:700}
+.welcome-demo-row{display:flex;align-items:center;justify-content:space-between;gap:5px}
+.welcome-demo-row>span{width:62px;height:65px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid #b8c6c5;border-radius:6px;background:#f7f8f4;color:#24364b;font:700 18px 'DM Mono',monospace}
+.welcome-demo-row>span.new-value{border-color:#c85f43;background:#c85f43;color:#fff}
+.welcome-demo-row small{margin-top:3px;font-size:9px;font-weight:500;opacity:.75}
+.welcome-demo-row i{color:#879a9c;font-size:15px;font-style:normal}
+.welcome-demo p{min-height:42px;margin:19px 0 12px;color:#5f6b72;font-size:11px;line-height:1.55}
+.welcome-demo code{display:block;padding:10px 12px;border-radius:5px;background:#273547;color:#edf4fb;font:600 11px 'DM Mono',monospace}
+.welcome-about{padding-top:48px}
+.welcome-section-heading{margin-bottom:24px}
+.welcome-features{gap:22px}
+.welcome-features article{min-height:0;padding:19px 6px 8px;border:0;border-top:2px solid var(--line);border-radius:0;background:transparent;box-shadow:none}
+.welcome-features article>svg{margin:0 0 13px;color:var(--green)}
+.welcome-features h3{font-size:18px}
+.welcome-features p{max-width:300px}
+@media(max-width:1400px){
+  .bug-fab,.guided-tour-launch{right:14px;width:44px;height:44px;padding:0;justify-content:center}
+  .bug-fab span,.guided-tour-launch span{display:none}
+  .guided-tour-launch{bottom:76px}
+  .bug-fab{bottom:20px}
+}

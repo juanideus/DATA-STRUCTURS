@@ -13,6 +13,20 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
+test('la portada explica una operación real y mantiene accesibles las ayudas en pantallas medianas', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await expect(page.getByRole('heading', { name: 'Las estructuras de datos se entienden mejor cuando las ves cambiar.' })).toBeVisible();
+  await expect(page.locator('.welcome-demo')).toContainText('result[0] = value;');
+  await expect(page.locator('.welcome-path')).toHaveCount(0);
+  for (const selector of ['.accessibility-launch', '.guided-tour-launch', '.bug-fab']) {
+    const width = await page.locator(selector).evaluate(element => element.getBoundingClientRect().width);
+    expect(width).toBeLessThanOrEqual(46);
+  }
+  await page.getByRole('button', { name: 'EN', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Data structures make more sense when you can see them change.' })).toBeVisible();
+  await expect(page.locator('.welcome-demo')).toContainText('Adding at the beginning');
+});
+
 test('detecta inglés y traduce la guía completa cuando no existe una preferencia guardada', async ({ browser }) => {
   const context = await browser.newContext({ locale: 'en-US', viewport: { width: 1280, height: 900 } });
   const page = await context.newPage();
