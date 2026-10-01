@@ -152,3 +152,18 @@ html[data-dark-mode="true"] .sparse-header.active rect,html[data-dark-mode="true
 html[data-dark-mode="true"] .sparse-header.column-header.active rect{fill:#324e6b;stroke:#9cc7ed}
 html[data-dark-mode="true"] .sparse-node.pending rect{fill:#60443f;stroke:#f1a188}
 html[data-dark-mode="true"] .sparse-node.detached-row rect{fill:#49343e;stroke:#e7957a}
+
+/* Reporter states are separate from the general dialog and input palette. */
+html[data-dark-mode="true"] .bug-modal-icon{background:#a84631;color:#fff}
+html[data-dark-mode="true"] .bug-section-label{background:#263b3d;border-color:#89cbb3}
+html[data-dark-mode="true"] .bug-section-label small{color:#b9d2c8}
+html[data-dark-mode="true"] .bug-section-label strong{color:#d6f3e6}
+html[data-dark-mode="true"] .bug-modal form label>span{color:#e0eaf3}
+html[data-dark-mode="true"] .bug-required,html[data-dark-mode="true"] .bug-field-error{color:#ffb5a0}
+html[data-dark-mode="true"] .bug-modal :is(input,select,textarea)[aria-invalid="true"]{background:#3a2d34;border-color:#f09a81;color:#f4f7fb;box-shadow:0 0 0 2px rgba(240,154,129,.13)}
+html[data-dark-mode="true"] .bug-modal :is(input,select,textarea)[aria-invalid="true"]:focus{border-color:#ffb5a0;box-shadow:0 0 0 3px rgba(240,154,129,.22)}
+html[data-dark-mode="true"] .bug-form-actions button[type="submit"]{background:#a84631;border-color:#d9785e;color:#fff}
+html[data-dark-mode="true"] .bug-form-actions .copy-report{color:#c1def7;border-color:#7298b6}
+html[data-dark-mode="true"] .bug-copy-status-error{background:#3f2a30;border-color:#a86459;color:#ffd8cc}
+html[data-dark-mode="true"] .bug-copy-status-success{background:#243d37;border-color:#5f9c7f;color:#c5efdd}
+html[data-dark-mode="true"] .bug-copy-status-info{background:#26394d;border-color:#64809c;color:#d7e8f5}
