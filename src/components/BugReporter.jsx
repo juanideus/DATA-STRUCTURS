@@ -204,7 +204,7 @@ export default function BugReporter({ section }) {
   };
 
   return <>
-    <button className="bug-fab" onClick={openReporter} aria-label={t('reportProblem')}><Bug size={20}/><span>{t('reportProblem')}</span></button>
+    <button className="bug-fab" onClick={openReporter} aria-label={t('reportProblem')} title={t('reportProblem')}><Bug size={20}/><span>{t('reportProblem')}</span></button>
     {open && <div className="bug-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) close(); }}>
       <section ref={dialogRef} tabIndex="-1" className="bug-modal" role="dialog" aria-modal="true" aria-labelledby="bug-report-title">
         <header><div className="bug-modal-icon"><Bug size={20}/></div><div><span>{language === 'en' ? 'Help us improve' : 'Ayúdanos a mejorar'}</span><h2 id="bug-report-title">{language === 'en' ? 'Did you find something unusual?' : '¿Encontraste algo extraño?'}</h2></div><button type="button" onClick={close} aria-label={t('closeForm')}><X size={18}/></button></header>
