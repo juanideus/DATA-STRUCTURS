@@ -3,7 +3,6 @@ html[data-font-scale="large"] #root{zoom:1.12}
 html[data-font-scale="extra-large"] #root{zoom:1.25}
 
 html[data-high-contrast="true"]{
-  --button-accent:#913b27;--button-accent-hover:#762e1d;
   --paper:#fff;--cream:#fff;--ink:#090d0c;--muted:#2d3532;--line:#59625e;--orange:#b73512;--orange-soft:#ffe3d8;--green:#004e3b;--navy:#071b22;--shadow:none
 }
 html[data-high-contrast="true"] body{background:#fff}
@@ -12,7 +11,6 @@ html[data-high-contrast="true"] :is(button,input,select,textarea,a):focus-visibl
 html[data-high-contrast="true"] .canvas-grid{background-color:#f5f5f5;background-image:linear-gradient(#b9bfbc 1px,transparent 1px),linear-gradient(90deg,#b9bfbc 1px,transparent 1px)}
 
 html[data-color-vision="true"]{
-  --button-accent:#00679f;--button-accent-hover:#00537f;
   --orange:#0072b2;--orange-soft:#dceef8;--green:#d55e00;--navy:#172b3a
 }
 html[data-color-vision="true"] :is(.section-test-result.passed .section-test-result-summary>svg,.challenge-feedback.success svg){color:#0072b2}
@@ -164,6 +162,7 @@ html[data-dark-mode="true"] .bug-modal form label>span{color:#e0eaf3}
 html[data-dark-mode="true"] .bug-required,html[data-dark-mode="true"] .bug-field-error{color:#ffb5a0}
 html[data-dark-mode="true"] .bug-modal :is(input,select,textarea)[aria-invalid="true"]{background:#3a2d34;border-color:#f09a81;color:#f4f7fb;box-shadow:0 0 0 2px rgba(240,154,129,.13)}
 html[data-dark-mode="true"] .bug-modal :is(input,select,textarea)[aria-invalid="true"]:focus{border-color:#ffb5a0;box-shadow:0 0 0 3px rgba(240,154,129,.22)}
+html[data-dark-mode="true"] .bug-form-actions button[type="submit"]{background:#a84631;border-color:#d9785e;color:#fff}
 html[data-dark-mode="true"] .bug-form-actions .copy-report{color:#c1def7;border-color:#7298b6}
 html[data-dark-mode="true"] .bug-copy-status-error{background:#3f2a30;border-color:#a86459;color:#ffd8cc}
 html[data-dark-mode="true"] .bug-copy-status-success{background:#243d37;border-color:#5f9c7f;color:#c5efdd}
@@ -171,9 +170,6 @@ html[data-dark-mode="true"] .bug-copy-status-info{background:#26394d;border-colo
 html[data-dark-mode="true"] .collapsed-language{background:#2b3a4c;border-color:#5a7088;color:var(--ink);box-shadow:none}
 html[data-dark-mode="true"] .collapsed-language:hover{background:#374a60;border-color:#8bb9df;color:var(--ink)}
 
-html[data-dark-mode="true"] :is(.welcome-start,.bug-fab,.player .play,.bug-form-actions button[type="submit"],.app-error-screen button:first-child){
-  background:var(--button-accent);border-color:var(--button-accent);color:#fff;box-shadow:none;
-}
-html[data-dark-mode="true"] :is(.welcome-start,.bug-fab,.player .play,.bug-form-actions button[type="submit"],.app-error-screen button:first-child):hover:not(:disabled){
-  background:var(--button-accent-hover);border-color:var(--button-accent);color:#fff;box-shadow:none;transform:none;
-}
+/* The original light orange needs a dark foreground for readable CTA labels. */
+html[data-dark-mode="true"] :is(.welcome-start,.bug-fab){color:#1b2736}
+html[data-dark-mode="true"] .welcome-start:hover{background:var(--orange);color:#1b2736}
