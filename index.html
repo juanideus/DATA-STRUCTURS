@@ -42,6 +42,44 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" sizes="any" />
     <link rel="apple-touch-icon" href="/favicon.svg" />
     <title>DSA Lab — Estructuras de datos y algoritmos visuales</title>
+    <style id="dsa-first-paint">
+      /* Style the SEO HTML before the external stylesheet finishes loading. */
+      #root > .seo-prerendered {
+        box-sizing: border-box;
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 48px 24px;
+        color: #1f2937;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      #root > .seo-prerendered *,
+      #root > .seo-prerendered *::before,
+      #root > .seo-prerendered *::after { box-sizing: border-box; }
+      body { margin: 0; background: #f4f0e8; }
+      #root > .seo-prerendered header { max-width: 820px; }
+      #root > .seo-prerendered h1 {
+        margin: 8px 0 16px;
+        font-size: clamp(34px, 6vw, 64px);
+        line-height: 1.05;
+      }
+      #root > .seo-prerendered h2 { margin-top: 30px; font-size: 22px; }
+      #root > .seo-prerendered p { color: #526071; font-size: 16px; line-height: 1.7; }
+      #root > .seo-prerendered a { color: #315f91; }
+      #root > .seo-prerendered .seo-topic-index {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 18px;
+      }
+      #root > .seo-prerendered .seo-topic-index section,
+      #root > .seo-prerendered article,
+      #root > .seo-prerendered nav {
+        padding: 20px;
+        border: 1px solid #d7dee7;
+        border-radius: 10px;
+        background: #fff;
+      }
+      #root > .seo-prerendered li { margin: 8px 0; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
