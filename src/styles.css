@@ -790,6 +790,8 @@ body{background:
   --line:#d9dee7;
   --orange:#c85f43;
   --orange-soft:#f7e8e3;
+  --button-accent:#a95a43;
+  --button-accent-hover:#984c37;
   --green:#49698f;
   --navy:#202a38;
   --shadow:0 5px 18px rgba(32,41,56,.06)
@@ -2039,4 +2041,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .bug-fab span,.guided-tour-launch span{display:none}
   .guided-tour-launch{bottom:76px}
   .bug-fab{bottom:20px}
+}
+
+/* Filled actions use a muted surface independently of text/highlight accents. */
+:is(.welcome-start,.bug-fab,.player .play,.bug-form-actions button[type="submit"],.app-error-screen button:first-child){
+  background:var(--button-accent);border-color:var(--button-accent);color:#fff;box-shadow:none;
+  transition:background-color .18s ease,border-color .18s ease;
+}
+:is(.welcome-start,.bug-fab,.player .play,.bug-form-actions button[type="submit"],.app-error-screen button:first-child):hover:not(:disabled){
+  background:var(--button-accent-hover);border-color:var(--button-accent);color:#fff;box-shadow:none;transform:none;
 }
