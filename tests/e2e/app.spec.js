@@ -962,9 +962,10 @@ test('la animación C++ ilumina instrucciones reales y nunca el armazón de la c
 });
 
 test('QuadTree y Octree insertan coordenadas reales coherentes con su código', async ({ page }) => {
+  test.setTimeout(60_000);
   const cases = [
-    { id: 'quadtree', coordinates: { 'Coordenada X': '91', 'Coordenada Y': '-84' }, point: '91,-84', dimensions: 2 },
-    { id: 'octree', coordinates: { 'Coordenada X': '-88', 'Coordenada Y': '79', 'Coordenada Z': '63' }, point: '-88,79,63', dimensions: 3 },
+    { id: 'quadtree', coordinates: { 'Coordenada X': '91', 'Coordenada Y': '-84' }, point: '91,-84', dimensions: 2, pointSelector: '.spatial-quad-point' },
+    { id: 'octree', coordinates: { 'Coordenada X': '-88', 'Coordenada Y': '79', 'Coordenada Z': '63' }, point: '-88,79,63', dimensions: 3, pointSelector: '.spatial-leaf' },
   ];
 
   for (const sample of cases) {
@@ -973,10 +974,11 @@ test('QuadTree y Octree insertan coordenadas reales coherentes con su código', 
     await page.getByRole('button', { name: 'Insertar punto', exact: true }).click();
     const pause = page.getByRole('button', { name: 'Pausar', exact: true });
     if (await pause.isVisible()) await pause.click();
-    for (let step = 0; step < 15 && await page.locator('.spatial-point', { hasText: sample.point }).count() === 0; step++) {
+    const visiblePoint = page.locator(sample.pointSelector, { hasText: sample.point });
+    for (let step = 0; step < 80 && await visiblePoint.count() === 0; step++) {
       await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
     }
-    await expect(page.locator('.spatial-point', { hasText: sample.point })).toBeVisible();
+    await expect(visiblePoint).toBeVisible();
     await expect(page.locator('.operation-message')).toContainText(sample.point);
 
     await page.getByRole('button', { name: 'C++', exact: true }).click();

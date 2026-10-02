@@ -27,6 +27,8 @@ import { initialNaryParents, naryChildren, naryTraversal, removeNarySubtree } fr
 import { executeEducationalSort } from './sortingAlgorithms.js';
 import { createRedBlackTree } from './redBlackTree.js';
 import { formatMerkleHash, merkleLevels } from './merkle.js';
+import { createSpatialPartitionTree } from './spatialPartitionTree.js';
+import { createOpenAddressingTable } from './openAddressing.js';
 
 export const DEFAULT_GRAPH_EDGES = [
   [0, 1, 4], [1, 2, 2], [0, 3, 7], [1, 3, 3], [1, 4, 5],
@@ -348,7 +350,24 @@ const findRoot = (parents, element) => {
     visited.add(root);
     root = parents[root];
   }
+  visited.forEach(index => { parents[index] = root; });
   return root;
+};
+
+export const initialUnionRanks = parents => {
+  const ranks = Array(parents.length).fill(0);
+  parents.forEach((_, index) => {
+    let current = index;
+    let depth = 0;
+    const seen = new Set();
+    while (parents[current] !== current && !seen.has(current) && depth < parents.length) {
+      seen.add(current);
+      current = parents[current];
+      depth++;
+    }
+    if (current >= 0 && current < ranks.length) ranks[current] = Math.max(ranks[current], depth);
+  });
+  return ranks;
 };
 
 const binaryTraversal = (values, order) => {
@@ -1119,14 +1138,19 @@ const expressionTreeFromInfix = source => {
   if (stack.length !== 1) return null;
 
   const values = [];
+  let exceedsVisibleDepth = false;
   const place = (node, index) => {
-    if (!node || index >= 15) return;
+    if (!node) return;
+    if (index >= 15) {
+      exceedsVisibleDepth = true;
+      return;
+    }
     values[index] = node.value;
     place(node.left, index * 2 + 1);
     place(node.right, index * 2 + 2);
   };
   place(stack[0], 0);
-  return trimTreeSlots(values);
+  return exceedsVisibleDepth ? null : trimTreeSlots(values);
 };
 
 const evaluateExpressionTree = (values, index = 0) => {
@@ -5253,7 +5277,7 @@ function executeAstOperation({ actionId, fields, values, edges }) {
   return null;
 }
 
-export function executeOperation({ algorithm, actionId, fields, values, edges, initialValues, initialEdges = DEFAULT_GRAPH_EDGES, treeColors = null, fibonacciForest = null, multiwayTree = null, treeParents = null }) {
+export function executeOperation({ algorithm, actionId, fields, values, edges, initialValues, initialEdges = DEFAULT_GRAPH_EDGES, treeColors = null, fibonacciForest = null, multiwayTree = null, treeParents = null, spatialTree = null, hashTable = null, unionRanks = null }) {
   const group = operationGroup(algorithm);
   if (group === 'polynomial') return executePolynomialOperation({ actionId, fields, values, edges });
   if (group === 'generalizedList') return executeGeneralizedListOperation({ actionId, fields, values, edges });
@@ -5271,7 +5295,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     if (algorithm.id === 'octree') coordinates.push(Number(fields.index));
     const provided = [fields.value, fields.second, ...(algorithm.id === 'octree' ? [fields.index] : [])]
       .every(coordinate => String(coordinate ?? '').trim() !== '');
-    const valid = provided && coordinates.every(coordinate => Number.isFinite(coordinate)
+    const valid = provided && coordinates.every(coordinate => Number.isInteger(coordinate)
       && coordinate >= -100 && coordinate < 100);
     value = valid ? coordinates.join(',') : null;
   }
@@ -5281,12 +5305,21 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
 
   if (actionId === 'reset') {
     const result = done([...initialValues], 'Estructura restablecida a su estado inicial.', 0, initialEdges.map(edge => [...edge]));
+    if (['quadtree', 'octree'].includes(algorithm.id)) return { ...result, spatialTree: createSpatialPartitionTree(algorithm.id, initialValues).snapshot() };
+    if (['hash-table', 'hash-open'].includes(algorithm.id)) return { ...result, hashTable: createOpenAddressingTable(initialValues).snapshot() };
+    if (algorithm.id === 'union-find') return { ...result, unionRanks: initialUnionRanks(initialValues) };
     if (algorithm.id === 'fibonacci-heap') return { ...result, fibonacciForest: createFibonacciForest(initialValues).snapshot() };
     if (group === 'btree') return { ...result, multiwayTree: createMultiwayTree(algorithm.id, initialValues).snapshot() };
     if (['arbol-general', 'arbol-nario'].includes(algorithm.id)) return { ...result, treeParents: initialNaryParents(algorithm.id, initialValues) };
     return algorithm.id === 'rojo-negro'
       ? { ...result, treeColors: createRedBlackTree(initialValues).snapshot().colors }
       : result;
+  }
+  if (actionId === 'clear' && ['quadtree', 'octree'].includes(algorithm.id)) {
+    return { ...done([], 'Estructura vaciada.', 0), spatialTree: createSpatialPartitionTree(algorithm.id).snapshot() };
+  }
+  if (actionId === 'clear' && ['hash-table', 'hash-open'].includes(algorithm.id)) {
+    return { ...done([], 'Estructura vaciada.', 0), hashTable: createOpenAddressingTable().snapshot() };
   }
   if (actionId === 'clear') return algorithm.id === 'fibonacci-heap'
     ? { ...done([], 'Estructura vaciada.', 0), fibonacciForest: createFibonacciForest().snapshot() }
@@ -5299,6 +5332,62 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
   if (['add-start','add-end','add-index','push','enqueue','sorted-add','tree-add','heap-add'].includes(actionId) && value === null) return fail('Ingresa un valor válido antes de ejecutar la operación.');
   if (group === 'merkle' && actionId === 'add-end' && next.length >= 8) return fail('La demostración Merkle admite hasta 8 bloques visibles.');
   if (group === 'btree' && actionId === 'sorted-add' && next.length >= 24) return fail('El árbol multicamino admite hasta 24 claves visibles en esta demostración.');
+
+  if (['quadtree', 'octree'].includes(algorithm.id)) {
+    const model = createSpatialPartitionTree(algorithm.id, next, spatialTree);
+    if (actionId === 'preorder') {
+      const nodes = model.preorder();
+      const message = `Preorden espacial: se visitaron ${nodes.length} nodos (${nodes.filter(node => !node.divided).length} hojas), recorriendo ${algorithm.id === 'octree' ? '8' : '4'} hijos por subdivisión.`;
+      return { ...done(next, message, 0), spatialTree: model.snapshot() };
+    }
+    if (value === null) return fail('Ingresa coordenadas enteras entre -100 y 99 para cada eje.');
+    if (actionId === 'find') {
+      if (!model.contains(value)) return fail(`El punto (${value}) no existe.`);
+      return { ...done(next, `El punto (${value}) fue encontrado siguiendo sus subdivisiones.`, next.indexOf(value)), spatialTree: model.snapshot() };
+    }
+    if (actionId === 'remove-value') {
+      if (!model.remove(value)) return fail(`El punto (${value}) no existe.`);
+      const updated = next.filter(point => point !== value);
+      return { ...done(updated, `El punto (${value}) fue eliminado de su hoja.`, 0), spatialTree: model.snapshot() };
+    }
+    if (actionId === 'tree-add') {
+      if (next.length >= 12) return fail('La demostración admite hasta 12 puntos visibles.');
+      if (model.contains(value)) return fail(`El punto (${value}) ya existe.`);
+      try {
+        model.insert(value);
+      } catch (error) {
+        return fail(error.message);
+      }
+      next.push(value);
+      return { ...done(next, `Punto (${value}) insertado en su hoja espacial.`, next.length - 1), spatialTree: model.snapshot() };
+    }
+  }
+
+  if (['hash-table', 'hash-open'].includes(algorithm.id)) {
+    const key = String(fields.value ?? '').trim();
+    if (!key || key.includes(':')) return fail('Ingresa una clave no vacía y sin dos puntos.');
+    const model = createOpenAddressingTable(next, hashTable);
+    const found = next.findIndex(entry => entryKey(entry) === key);
+    if (actionId === 'hash-put') {
+      const entry = fields.second ? `${key}:${fields.second}` : key;
+      const slot = model.put(entry);
+      if (slot < 0) return fail('La tabla hash está llena. Elimina una clave antes de insertar otra.');
+      if (found >= 0) next[found] = entry;
+      else next.push(entry);
+      return { ...done(next, `${entry} fue guardado en la casilla ${slot}.`, next.indexOf(entry)), hashTable: model.snapshot() };
+    }
+    if (actionId === 'remove-value') {
+      const slot = model.remove(key);
+      if (slot < 0) return fail(`La clave ${key} no existe.`);
+      next.splice(found, 1);
+      return { ...done(next, `La clave ${key} fue eliminada; la casilla ${slot} queda marcada como borrada.`, Math.max(0, found - 1)), hashTable: model.snapshot() };
+    }
+    if (actionId === 'find') {
+      const slot = model.find(key);
+      if (slot < 0) return fail(`La clave ${key} no fue encontrada.`);
+      return { ...done(next, `La clave ${key} está en la casilla ${slot}.`, found), hashTable: model.snapshot() };
+    }
+  }
 
   switch (actionId) {
     case 'add-start': next.unshift(value); return done(next, `${value} fue agregado al inicio.`, 0);
@@ -5590,6 +5679,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     case 'set-word': {
       const word = String(fields.value ?? '').trim().toUpperCase();
       if (!word) return fail('Escribe una palabra.');
+      if (!/^[A-Z]+$/.test(word)) return fail('Usa solo letras de A a Z, como en el código Java y C++.');
       if (algorithm.id === 'trie') {
         if (word.length > 8) return fail('Usa una palabra de hasta 8 letras para mantener visible el árbol.');
         if (next.includes(word)) return fail(`${word} ya existe en el Trie.`);
@@ -5620,6 +5710,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     }
     case 'word-find': {
       const word = String(fields.value ?? '').trim().toUpperCase();
+      if (!word || !/^[A-Z]+$/.test(word)) return fail('Escribe una palabra usando solo letras de A a Z.');
       if (algorithm.id === 'trie') {
         const found = next.indexOf(word);
         if (found < 0) return fail(`${word || 'La palabra'} no existe en el Trie.`);
@@ -5658,6 +5749,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     }
     case 'remove-word': {
       const word = String(fields.value ?? '').trim().toUpperCase();
+      if (!word || !/^[A-Z]+$/.test(word)) return fail('Escribe una palabra usando solo letras de A a Z.');
       if (algorithm.id === 'trie') {
         const found = next.indexOf(word);
         if (!word) return fail('Escribe la palabra que quieres eliminar.');
@@ -5713,7 +5805,9 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
         return fail('La demostración admite hasta 24 entradas distribuidas en sus cadenas.');
       }
       const entry = fields.second ? `${key}:${fields.second}` : key;
-      if (found >= 0) next[found] = entry; else next.push(entry);
+      if (found >= 0 && actionId === 'cache-put') next.splice(found, 1);
+      else if (found >= 0) next[found] = entry;
+      if (found < 0 || actionId === 'cache-put') next.push(entry);
       if (actionId === 'cache-put' && next.length > 5) next.shift();
       return done(next, `${entry} fue guardado.`, Math.max(0,next.indexOf(entry)));
     }
@@ -5727,6 +5821,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     case 'vertex-add': {
       const label = String(fields.value ?? '').trim().toUpperCase();
       if (!label) return fail('Ingresa la etiqueta del nuevo vértice.');
+      if (!/^[A-Z]$/.test(label)) return fail('Usa una sola letra de A a Z para que coincida con el código C++.');
       if (next.length >= 8) return fail('El grafo visual admite hasta 8 vértices.');
       if (next.includes(label)) return fail(`El vértice ${label} ya existe.`);
       next.push(label); return done(next, `Vértice ${label} agregado.`);
@@ -5929,21 +6024,24 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       if (![first,second].every(Number.isInteger) || first<0 || second<0 || first>=next.length || second>=next.length) return fail('Los elementos deben ser índices existentes.');
       const rootA = findRoot(next, first);
       const rootB = findRoot(next, second);
-      if (rootA === rootB) return done(next, `${first} y ${second} ya pertenecen al conjunto con raíz ${rootA}.`, second);
-      next[rootB] = rootA;
-      return done(next, `${first} y ${second} ahora pertenecen al conjunto con raíz ${rootA}.`, second);
+      const ranks = unionRanks ? [...unionRanks] : initialUnionRanks(values);
+      if (rootA === rootB) return { ...done(next, `${first} y ${second} ya pertenecen al conjunto con raíz ${rootA}.`, second), unionRanks: ranks };
+      let newRoot;
+      if (ranks[rootA] < ranks[rootB]) {
+        next[rootA] = rootB;
+        newRoot = rootB;
+      } else {
+        next[rootB] = rootA;
+        newRoot = rootA;
+        if (ranks[rootA] === ranks[rootB]) ranks[rootA]++;
+      }
+      return { ...done(next, `${first} y ${second} ahora pertenecen al conjunto con raíz ${newRoot}; se aplicó unión por rango.`, second), unionRanks: ranks };
     }
     case 'find-root': {
       const element = Number(fields.value);
       if (!Number.isInteger(element)||element<0||element>=next.length) return fail('Ingresa un elemento existente.');
       const root = findRoot(next, element);
-      let current = element;
-      while (next[current] !== current) {
-        const parent = next[current];
-        next[current] = root;
-        current = parent;
-      }
-      return done(next, `La raíz de ${element} es ${root}.`, element);
+      return { ...done(next, `La raíz de ${element} es ${root}; la ruta quedó comprimida.`, element), unionRanks: unionRanks ? [...unionRanks] : initialUnionRanks(values) };
     }
     case 'bloom-add': {
       const text = String(fields.value ?? '').trim();

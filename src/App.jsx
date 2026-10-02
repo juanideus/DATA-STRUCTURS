@@ -20,7 +20,7 @@ import {
   createLinkedListSynchronizedFrames,
   createTreeSynchronizedFrames,
 } from './logic/codeAnimation.js';
-import { DEFAULT_GRAPH_EDGES, DEFAULT_GRAPH_POSITIONS, executeOperation, getOperationDefinition, getThreadedTreeLinks, operationGroup, SPARSE_MATRIX_COLUMNS, SPARSE_MATRIX_ROWS } from './logic/operations.js';
+import { DEFAULT_GRAPH_EDGES, DEFAULT_GRAPH_POSITIONS, executeOperation, getOperationDefinition, getThreadedTreeLinks, initialUnionRanks, operationGroup, SPARSE_MATRIX_COLUMNS, SPARSE_MATRIX_ROWS } from './logic/operations.js';
 import { getOperationPseudocode } from './data/operationPseudocode.js';
 import { AST_EXAMPLES, astValuesFromSource } from './logic/ast.js';
 import { DENSE_MATRIX_SIZE, normalizeDenseMatrixValues } from './logic/denseMatrix.js';
@@ -32,6 +32,8 @@ import { createRedBlackTree } from './logic/redBlackTree.js';
 import { createFibonacciForest } from './logic/fibonacciHeap.js';
 import { createMultiwayTree } from './logic/multiwayTree.js';
 import { initialNaryParents, naryChildren } from './logic/naryTree.js';
+import { createSpatialPartitionTree } from './logic/spatialPartitionTree.js';
+import { createOpenAddressingTable } from './logic/openAddressing.js';
 import { formatMerkleHash, merkleLevels } from './logic/merkle.js';
 import { getSectionTestLockedUntil } from './logic/sectionTests.js';
 import { categoryDescriptions, categoryNames, localizeAlgorithm, translateCodeText, translateLearningText, translateOperationLabel, useLanguage } from './i18n.jsx';
@@ -60,6 +62,15 @@ const fibonacciForestFor = (algorithm, values) => algorithm.id === 'fibonacci-he
   : null;
 const multiwayTreeFor = (algorithm, values) => algorithm.type === 'btree'
   ? createMultiwayTree(algorithm.id, values).snapshot()
+  : null;
+const spatialTreeFor = (algorithm, values) => ['quadtree', 'octree'].includes(algorithm.id)
+  ? createSpatialPartitionTree(algorithm.id, values).snapshot()
+  : null;
+const hashTableFor = (algorithm, values) => ['hash-table', 'hash-open'].includes(algorithm.id)
+  ? createOpenAddressingTable(values).snapshot()
+  : null;
+const unionRanksFor = (algorithm, values) => algorithm.id === 'union-find'
+  ? initialUnionRanks(values)
   : null;
 const STORAGE_KEYS = {
   introSeen: 'dsa-intro-seen',
@@ -258,6 +269,14 @@ function createRandomValues(algorithm) {
   if (algorithm.id === 'ast') return astValuesFromSource(AST_EXAMPLES[randomNumber(0, AST_EXAMPLES.length - 1)]);
   if (algorithm.id === 'merkle-tree') return Array.from({ length: amount }, () => `B${randomNumber(10, 99)}`);
   if (algorithm.id === 'kd-tree') return randomKdLevelOrder();
+  if (['quadtree', 'octree'].includes(algorithm.id)) {
+    const points = new Set();
+    while (points.size < Math.min(amount, 12)) {
+      const coordinates = Array.from({ length: algorithm.id === 'octree' ? 3 : 2 }, () => randomNumber(-90, 90));
+      points.add(coordinates.join(','));
+    }
+    return [...points];
+  }
   if (algorithm.category === 'Grafos') {
     const offset = randomNumber(0, 19);
     return Array.from({ length: amount }, (_, index) => String.fromCharCode(65 + (offset + index) % 26));
@@ -976,6 +995,9 @@ function App() {
   const [demoFibonacciForest, setDemoFibonacciForest] = useState(() => fibonacciForestFor(startingAlgorithm, startingAlgorithm.values));
   const [demoMultiwayTree, setDemoMultiwayTree] = useState(() => multiwayTreeFor(startingAlgorithm, startingAlgorithm.values));
   const [demoTreeParents, setDemoTreeParents] = useState(() => initialNaryParents(startingAlgorithm.id, startingAlgorithm.values));
+  const [demoSpatialTree, setDemoSpatialTree] = useState(() => spatialTreeFor(startingAlgorithm, startingAlgorithm.values));
+  const [demoHashTable, setDemoHashTable] = useState(() => hashTableFor(startingAlgorithm, startingAlgorithm.values));
+  const [demoUnionRanks, setDemoUnionRanks] = useState(() => unionRanksFor(startingAlgorithm, startingAlgorithm.values));
   const [demoEdges, setDemoEdges] = useState(() => edgesForAlgorithm(startingAlgorithm));
   const [demoPositions, setDemoPositions] = useState(() => positionsForAlgorithm(startingAlgorithm));
   const [demoMap, setDemoMap] = useState(DEFAULT_PATH_MAP);
@@ -991,8 +1013,8 @@ function App() {
   const [sectionTestClock, setSectionTestClock] = useState(Date.now());
   const [tourOpen, setTourOpen] = useState(false);
   const algorithm = useMemo(
-    () => ({ ...baseAlgorithm, values: demoValues, treeColors: demoTreeColors, fibonacciForest: demoFibonacciForest, multiwayTree: demoMultiwayTree, treeParents: demoTreeParents, edges: demoEdges, positions: demoPositions, map: demoMap }),
-    [baseAlgorithm, demoValues, demoTreeColors, demoFibonacciForest, demoMultiwayTree, demoTreeParents, demoEdges, demoPositions, demoMap],
+    () => ({ ...baseAlgorithm, values: demoValues, treeColors: demoTreeColors, fibonacciForest: demoFibonacciForest, multiwayTree: demoMultiwayTree, treeParents: demoTreeParents, spatialTree: demoSpatialTree, hashTable: demoHashTable, unionRanks: demoUnionRanks, edges: demoEdges, positions: demoPositions, map: demoMap }),
+    [baseAlgorithm, demoValues, demoTreeColors, demoFibonacciForest, demoMultiwayTree, demoTreeParents, demoSpatialTree, demoHashTable, demoUnionRanks, demoEdges, demoPositions, demoMap],
   );
   const isTheoryPage = ['theory', 'complexity', 'oop', 'foundation'].includes(baseAlgorithm.type);
   const selectedIndex = algorithmIndexes.get(baseAlgorithm.id) ?? 0;
@@ -1137,6 +1159,9 @@ function App() {
     if (frame.fibonacciForest) setDemoFibonacciForest(frame.fibonacciForest);
     if (frame.multiwayTree) setDemoMultiwayTree(frame.multiwayTree);
     if (frame.treeParents) setDemoTreeParents(frame.treeParents);
+    if (frame.spatialTree) setDemoSpatialTree(frame.spatialTree);
+    if (frame.hashTable) setDemoHashTable(frame.hashTable);
+    if (frame.unionRanks) setDemoUnionRanks(frame.unionRanks);
     if (frame.edges) setDemoEdges(frame.edges.map(edge => [...edge]));
     setStep(frameIndex);
     setActiveCodeLine(frame.codeLine ?? null);
@@ -1181,6 +1206,9 @@ function App() {
     setDemoFibonacciForest(fibonacciForestFor(nextAlgorithm, nextAlgorithm.values));
     setDemoMultiwayTree(multiwayTreeFor(nextAlgorithm, nextAlgorithm.values));
     setDemoTreeParents(initialNaryParents(nextAlgorithm.id, nextAlgorithm.values));
+    setDemoSpatialTree(spatialTreeFor(nextAlgorithm, nextAlgorithm.values));
+    setDemoHashTable(hashTableFor(nextAlgorithm, nextAlgorithm.values));
+    setDemoUnionRanks(unionRanksFor(nextAlgorithm, nextAlgorithm.values));
     setDemoEdges(edgesForAlgorithm(nextAlgorithm));
     setDemoPositions(positionsForAlgorithm(nextAlgorithm));
     setDemoMap(DEFAULT_PATH_MAP);
@@ -1263,6 +1291,9 @@ function App() {
     setDemoFibonacciForest(fibonacciForestFor(baseAlgorithm, baseAlgorithm.values));
     setDemoMultiwayTree(multiwayTreeFor(baseAlgorithm, baseAlgorithm.values));
     setDemoTreeParents(initialNaryParents(baseAlgorithm.id, baseAlgorithm.values));
+    setDemoSpatialTree(spatialTreeFor(baseAlgorithm, baseAlgorithm.values));
+    setDemoHashTable(hashTableFor(baseAlgorithm, baseAlgorithm.values));
+    setDemoUnionRanks(unionRanksFor(baseAlgorithm, baseAlgorithm.values));
     setDemoEdges(edgesForAlgorithm(baseAlgorithm));
     setDemoPositions(positionsForAlgorithm(baseAlgorithm));
     setDemoMap(DEFAULT_PATH_MAP);
@@ -1280,6 +1311,9 @@ function App() {
     setDemoFibonacciForest(fibonacciForestFor(baseAlgorithm, []));
     setDemoMultiwayTree(multiwayTreeFor(baseAlgorithm, []));
     setDemoTreeParents(initialNaryParents(baseAlgorithm.id, []));
+    setDemoSpatialTree(spatialTreeFor(baseAlgorithm, []));
+    setDemoHashTable(hashTableFor(baseAlgorithm, []));
+    setDemoUnionRanks(unionRanksFor(baseAlgorithm, createEmptyValues(baseAlgorithm)));
     setDemoEdges([]);
     setDemoPositions(positionsForAlgorithm(baseAlgorithm));
     setOperationFrames([]);
@@ -1297,6 +1331,9 @@ function App() {
     setDemoFibonacciForest(fibonacciForestFor(baseAlgorithm, nextValues));
     setDemoMultiwayTree(multiwayTreeFor(baseAlgorithm, nextValues));
     setDemoTreeParents(initialNaryParents(baseAlgorithm.id, nextValues));
+    setDemoSpatialTree(spatialTreeFor(baseAlgorithm, nextValues));
+    setDemoHashTable(hashTableFor(baseAlgorithm, nextValues));
+    setDemoUnionRanks(unionRanksFor(baseAlgorithm, nextValues));
     setDemoEdges(edgesForAlgorithm(baseAlgorithm, baseAlgorithm.category === 'Grafos'));
     setDemoPositions(positionsForAlgorithm(baseAlgorithm, usesNodeGraph(baseAlgorithm)));
     setDemoMap(['dijkstra','a-star'].includes(baseAlgorithm.id)
@@ -1353,6 +1390,9 @@ function App() {
     const previousFibonacciForest = pendingFinalFrame?.fibonacciForest ?? demoFibonacciForest;
     const previousMultiwayTree = pendingFinalFrame?.multiwayTree ?? demoMultiwayTree;
     const previousTreeParents = pendingFinalFrame?.treeParents ?? demoTreeParents;
+    const previousSpatialTree = pendingFinalFrame?.spatialTree ?? demoSpatialTree;
+    const previousHashTable = pendingFinalFrame?.hashTable ?? demoHashTable;
+    const previousUnionRanks = pendingFinalFrame?.unionRanks ?? demoUnionRanks;
     const previousEdges = (pendingFinalFrame?.edges ?? demoEdges).map(edge => [...edge]);
     const result = executeOperation({
       algorithm: { ...baseAlgorithm, positions: demoPositions, map: actionId === 'reset' ? DEFAULT_PATH_MAP : demoMap },
@@ -1366,6 +1406,9 @@ function App() {
       fibonacciForest: previousFibonacciForest,
       multiwayTree: previousMultiwayTree,
       treeParents: previousTreeParents,
+      spatialTree: previousSpatialTree,
+      hashTable: previousHashTable,
+      unionRanks: previousUnionRanks,
     });
     const synchronizedFrameFactory = operationGroup(baseAlgorithm) === 'list'
       ? createLinkedListSynchronizedFrames
@@ -1426,7 +1469,10 @@ function App() {
     const attachFibonacciForest = baseAlgorithm.id === 'fibonacci-heap' && result.fibonacciForest;
     const attachMultiwayTree = baseAlgorithm.type === 'btree' && result.multiwayTree;
     const attachTreeParents = ['arbol-general', 'arbol-nario'].includes(baseAlgorithm.id) && result.treeParents;
-    const needsVisualState = attachTreeColors || attachFibonacciForest || attachMultiwayTree || attachTreeParents;
+    const attachSpatialTree = ['quadtree', 'octree'].includes(baseAlgorithm.id) && result.spatialTree;
+    const attachHashTable = ['hash-table', 'hash-open'].includes(baseAlgorithm.id) && result.hashTable;
+    const attachUnionRanks = baseAlgorithm.id === 'union-find' && result.unionRanks;
+    const needsVisualState = attachTreeColors || attachFibonacciForest || attachMultiwayTree || attachTreeParents || attachSpatialTree || attachHashTable || attachUnionRanks;
     const previousValuesSignature = needsVisualState ? JSON.stringify(previousValues) : null;
     const frames = needsVisualState
       ? synchronizedFrames.map(frame => {
@@ -1445,6 +1491,15 @@ function App() {
             ...(attachTreeParents && {
               treeParents: unchangedValues ? previousTreeParents : result.treeParents,
             }),
+            ...(attachSpatialTree && {
+              spatialTree: unchangedValues ? previousSpatialTree : result.spatialTree,
+            }),
+            ...(attachHashTable && {
+              hashTable: unchangedValues ? previousHashTable : result.hashTable,
+            }),
+            ...(attachUnionRanks && {
+              unionRanks: unchangedValues ? previousUnionRanks : result.unionRanks,
+            }),
           };
         })
       : synchronizedFrames;
@@ -1455,6 +1510,9 @@ function App() {
     if (firstFrame.fibonacciForest) setDemoFibonacciForest(firstFrame.fibonacciForest);
     if (firstFrame.multiwayTree) setDemoMultiwayTree(firstFrame.multiwayTree);
     if (firstFrame.treeParents) setDemoTreeParents(firstFrame.treeParents);
+    if (firstFrame.spatialTree) setDemoSpatialTree(firstFrame.spatialTree);
+    if (firstFrame.hashTable) setDemoHashTable(firstFrame.hashTable);
+    if (firstFrame.unionRanks) setDemoUnionRanks(firstFrame.unionRanks);
     setDemoEdges((firstFrame.edges ?? result.edges).map(edge => [...edge]));
     setOperationMessage(firstFrame.message);
     setOperationStatus(result.ok === false ? 'error' : 'success');

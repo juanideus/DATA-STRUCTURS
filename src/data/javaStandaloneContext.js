@@ -146,7 +146,9 @@ export function makeJavaStandalone(source, contextId, initialValues = []) {
     if (name === 'queens' && declaresField(source, 'int\\[\\]\\s+queens')) continue;
     declarations.push(name === 'MAX_KEYS' && contextId === 'bstar-tree'
       ? 'static final int MAX_KEYS = 5;'
-      : declaration);
+      : name === 'CAPACITY' && ['quadtree', 'octree'].includes(contextId)
+        ? 'static final int CAPACITY = 2;'
+        : declaration);
   }
   if (bareWordUsed(source, 'root') && (hasNode || wordUsed(source, 'TrieNode'))) {
     const initialRoot = contextId === 'trie' ? 'TrieNode root = new TrieNode();'
@@ -174,7 +176,16 @@ ${bareWordUsed(source, 'initialValues') ? '        System.arraycopy(startingValu
     declarations.push(`AlgorithmExample() {
         int[] startingParents = {${initialValues.join(', ')}};
         System.arraycopy(startingParents, 0, parent, 0, startingParents.length);
-${bareWordUsed(source, 'size') ? '        size = startingParents.length;\n' : ''}    }`);
+${bareWordUsed(source, 'rank') ? `        for (int i = 0; i < startingParents.length; i++) {
+            int current = i;
+            int depth = 0;
+            while (parent[current] != current) {
+                current = parent[current];
+                depth++;
+            }
+            rank[current] = Math.max(rank[current], depth);
+        }
+` : ''}${bareWordUsed(source, 'size') ? '        size = startingParents.length;\n' : ''}    }`);
   }
   const operation = source.includes('// Start of the selected operation')
     ? source

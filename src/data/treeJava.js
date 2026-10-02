@@ -459,13 +459,16 @@ const segmentTree = {
   'range-update': animated(`void update(int node, int left, int right,
             int index, int value) {
     if (left == right) {
+        values[index] = value;
         tree[node] = value;
+        minimumTree[node] = value;
         return;
     }
     int middle = (left + right) / 2;
     if (index <= middle) update(node * 2, left, middle, index, value);
     else update(node * 2 + 1, middle + 1, right, index, value);
     tree[node] = tree[node * 2] + tree[node * 2 + 1];
+    minimumTree[node] = Math.min(minimumTree[node * 2], minimumTree[node * 2 + 1]);
 }`),
   'prefix-sum': animated(`int prefixSum(int node, int left, int right, int end) {
     if (right <= end) return tree[node];
@@ -1541,7 +1544,16 @@ const spatialTree = dimension => {
         node.pointCount++;
         return;
     }
-    if (!node.isDivided) subdivide(node);
+    if (!node.isDivided) {
+        Point[] previous = java.util.Arrays.copyOf(node.points, node.pointCount);
+        int previousCount = node.pointCount;
+        node.pointCount = 0;
+        subdivide(node);
+        for (int i = 0; i < previousCount; i++) {
+            Point oldPoint = previous[i];
+            insert(node.children[childIndex(node, oldPoint)], oldPoint);
+        }
+    }
     insert(node.children[childIndex(node, point)], point);
 }`, `${sharedHelpers}\n\n${subdivide}`),
     find: animated(`boolean contains(Node node, Point point) {

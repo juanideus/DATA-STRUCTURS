@@ -11,6 +11,8 @@ import { createMultiwayTree } from '../logic/multiwayTree.js';
 import { initialNaryParents, naryChildren } from '../logic/naryTree.js';
 import { DEFAULT_PATH_MAP } from '../logic/pathfindingMap.js';
 import { formatMerkleHash, merkleLevels } from '../logic/merkle.js';
+import { createSpatialPartitionTree } from '../logic/spatialPartitionTree.js';
+import { createOpenAddressingTable } from '../logic/openAddressing.js';
 import { useLanguage } from '../i18n.jsx';
 
 const SUDOKU_START = [
@@ -480,9 +482,32 @@ function SparseMatrixVisual({ algorithm }) {
   </div>;
 }
 
+function SkipListVisual({ algorithm, step }) {
+  const values = [...algorithm.values].sort((first, second) => Number(first) - Number(second));
+  const levelFor = value => {
+    let hash = Math.imul(Number(value) | 0, 0x45d9f3b) >>> 0;
+    let level = 0;
+    while (level < 3 && (hash & 1) === 0) {
+      level++;
+      hash >>>= 1;
+    }
+    return level;
+  };
+  return <div className="skip-list-scene" role="img" aria-label={algorithm.language === 'en' ? 'Skip List with four linked levels' : 'Skip List con cuatro niveles enlazados'}>
+    {[3, 2, 1, 0].map(level => <div className="skip-list-level" key={level}>
+      <strong>L{level}</strong><span className="skip-list-head">HEAD</span>
+      {values.map((value, index) => levelFor(value) >= level
+        ? <span className={`skip-list-node ${index === step % values.length ? 'active' : ''}`} key={`${value}-${index}`}>{value}</span>
+        : <span className="skip-list-gap" aria-hidden="true" key={`${value}-${index}`}>────</span>)}
+    </div>)}
+    <small>{algorithm.language === 'en' ? 'Illustrative levels; random heights may differ in Java and C++.' : 'Niveles ilustrativos: las alturas aleatorias pueden variar en Java y C++.'}</small>
+  </div>;
+}
+
 function LinearVisual({ algorithm, step }) {
   const { values, type } = algorithm;
   if (!values.length) return <div className="empty-visual"><strong>∅</strong><span>{algorithm.language === 'en' ? 'Empty structure' : 'Estructura vacía'}</span></div>;
+  if (type === 'skip') return <SkipListVisual algorithm={algorithm} step={step}/>;
   if (type === 'stack') {
     const activeIndex = step % values.length;
     return <div className="stack-visual">{[...values].reverse().map((v, reversedIndex) => {
@@ -503,6 +528,7 @@ function LinearVisual({ algorithm, step }) {
     if (linked) return index === values.length - 1 ? 'next: null' : 'next';
     if (algorithm.id === 'cola') return index === 0 ? 'FRENTE' : index === values.length - 1 ? 'FINAL' : index;
     if (algorithm.id === 'deque') return index === 0 ? 'INICIO' : index === values.length - 1 ? 'FINAL' : index;
+    if (type === 'union') return `i${index} · r${algorithm.unionRanks?.[index] ?? 0}`;
     return index;
   };
   return <div className={`linear-visual ${type}`} role="img" aria-label={`Visualización de ${algorithm.name}`}>
@@ -997,18 +1023,50 @@ function FibonacciHeapDiagram({ algorithm, step }) {
 }
 
 function SpatialTreeDiagram({ algorithm, step }) {
-  const positionOf = value => {
-    const [x = 0, y = 0, z = 0] = String(value).split(',').map(Number);
-    const projectedX = algorithm.id === 'octree' ? x + z * 0.22 : x;
-    const projectedY = algorithm.id === 'octree' ? y - z * 0.16 : y;
-    return [
-      Math.max(7, Math.min(93, 50 + projectedX * 0.42)),
-      Math.max(12, Math.min(90, 52 - projectedY * 0.38)),
-    ];
+  const root = algorithm.spatialTree ?? createSpatialPartitionTree(algorithm.id, algorithm.values).snapshot();
+  const leaves = [];
+  const divisions = [];
+  const visit = (node, path = []) => {
+    if (node.children) {
+      divisions.push(node);
+      node.children.forEach((child, index) => visit(child, [...path, index]));
+    } else if (node.points.length) {
+      leaves.push({ node, path });
+    }
   };
-  const points = algorithm.values.slice(0,12).map((value,index) => ({ value, index, position: positionOf(value) }));
-  if (algorithm.id==='octree') return <div className="octree-visual"><span className="tree-kind-label">8 OCTANTES · ESPACIO 3D</span>{Array.from({length:8},(_,index)=><div className={`octant octant-${index}`} key={index}>{index+1}</div>)}{points.map(({value,index,position})=><span className={`spatial-point ${index===step%algorithm.values.length?'active':''}`} style={{left:`${position[0]}%`,top:`${position[1]}%`}} key={`point-${value}`}>{value}</span>)}</div>;
-  return <div className="quadtree-visual"><span className="tree-kind-label">4 CUADRANTES · ESPACIO 2D</span><div>NW</div><div>NE</div><div>SW</div><div>SE</div>{points.map(({value,index,position})=><span className={`spatial-point ${index===step%algorithm.values.length?'active':''}`} style={{left:`${position[0]}%`,top:`${position[1]}%`}} key={`point-${value}`}>{value}</span>)}</div>;
+  visit(root);
+  const activePoint = algorithm.values[step % algorithm.values.length];
+  if (algorithm.id === 'octree') {
+    return <div className="spatial-tree-shell" role="img" aria-label="Octree con subdivisiones recursivas en ocho octantes">
+      <strong>Octree · {divisions.length} subdivisiones · {leaves.length} hojas ocupadas</strong>
+      <div className="spatial-leaf-list">{leaves.map(({ node, path }) => <div className="spatial-leaf" key={path.join('-')}>
+        <small>RAÍZ {path.map(index => `→ octante ${index}`).join(' ')} · nivel {node.depth}</small>
+        <span>{node.points.map(point => point.join(',')).join(' · ')}</span>
+      </div>)}</div>
+    </div>;
+  }
+  const scale = coordinate => (coordinate + 100) / 2;
+  return <div className="spatial-tree-shell" role="img" aria-label="QuadTree con subdivisiones recursivas y puntos por hoja">
+    <strong>QuadTree · {divisions.length} subdivisiones · {leaves.length} hojas ocupadas</strong>
+    <div className="spatial-quad-plane">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        {divisions.flatMap((node, index) => {
+          const [[minX, maxX], [minY, maxY]] = node.bounds;
+          const middleX = scale((minX + maxX) / 2);
+          const middleY = 100 - scale((minY + maxY) / 2);
+          return [
+            <line key={`vertical-${index}`} x1={middleX} y1={100 - scale(maxY)} x2={middleX} y2={100 - scale(minY)}/>,
+            <line key={`horizontal-${index}`} x1={scale(minX)} y1={middleY} x2={scale(maxX)} y2={middleY}/>,
+          ];
+        })}
+      </svg>
+      {algorithm.values.map((value, index) => {
+        const [x, y] = String(value).split(',').map(Number);
+        return <span className={`spatial-quad-point ${value === activePoint ? 'active' : ''}`}
+          style={{ left: `${scale(x)}%`, top: `${100 - scale(y)}%` }} key={`${value}-${index}`}>{value}</span>;
+      })}
+    </div>
+  </div>;
 }
 
 function TreeVisual({ algorithm, step }) {
@@ -1408,15 +1466,10 @@ function HashTableVisual({ algorithm, step }) {
     </div>;
   }
 
-  const slots = Array(12).fill(null);
-  entries.forEach(entry => {
-    let index = ((javaStringHash(hashKey(entry)) % slots.length) + slots.length) % slots.length;
-    while (slots[index] !== null) index = (index + 1) % slots.length;
-    slots[index] = entry;
-  });
+  const slots = algorithm.hashTable ?? createOpenAddressingTable(entries).snapshot();
   return <div className="hash-visual" aria-label="Tabla hash con direccionamiento abierto">
-    {slots.map((entry, index) => <div className={`hash-slot ${entry === activeEntry ? 'active' : ''}`} key={index}>
-      <small>{index.toString().padStart(2, '0')}</small><strong>{entry ?? '∅'}</strong>
+    {slots.map((slot, index) => <div className={`hash-slot ${slot.entry === activeEntry && slot.state === 'occupied' ? 'active' : ''} ${slot.state === 'deleted' ? 'deleted' : ''}`} key={index}>
+      <small>{index.toString().padStart(2, '0')}</small><strong>{slot.state === 'deleted' ? 'BORRADA' : slot.entry ?? '∅'}</strong>
     </div>)}
   </div>;
 }

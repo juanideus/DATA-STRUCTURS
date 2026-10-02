@@ -20,6 +20,8 @@ const EXACT_TRANSLATIONS = {
   'Promedio y peor O(n²) · Mejor O(n)': 'Average and worst O(n²) · Best O(n)',
   'Depende de los saltos · Usualmente entre O(n log n) y O(n²)': 'Depends on the gap sequence · Usually between O(n log n) and O(n²)',
   'Promedio O(n · n!) · Sin cota práctica segura': 'Average O(n · n!) · No safe practical bound',
+  'Suma / actualización O(log n) · Mínimo prefijo O(n)': 'Sum / update O(log n) · Prefix minimum O(n)',
+  'O(V²) con matriz de adyacencia': 'O(V²) with an adjacency matrix',
 };
 
 const REPLACEMENTS = [
