@@ -362,15 +362,19 @@ const basic = {
   union: `void union(int first, int second) {
     int rootA = findRoot(first);
     int rootB = findRoot(second);
-    if (rootA != rootB) {
+    if (rootA == rootB) return;
+    if (rank[rootA] < rank[rootB]) {
+        parent[rootA] = rootB;
+    } else if (rank[rootA] > rank[rootB]) {
         parent[rootB] = rootA;
+    } else {
+        parent[rootB] = rootA;
+        rank[rootA]++;
     }
 }`,
   'find-root': `int findRoot(int value) {
-    while (parent[value] != value) {
-        value = parent[value];
-    }
-    return value;
+    if (parent[value] != value) parent[value] = findRoot(parent[value]);
+    return parent[value];
 }`,
   'cache-put': `void put(int key, int value) {
     if (size == capacity) {
@@ -883,10 +887,8 @@ const commonHelpers = {
     return current;
 }`,
   findRoot: `int findRoot(int value) {
-    while (parent[value] != value) {
-        value = parent[value];
-    }
-    return value;
+    if (parent[value] != value) parent[value] = findRoot(parent[value]);
+    return parent[value];
 }`,
   removeOldest: `void removeOldest() {
     for (int i = 0; i < size - 1; i++) {

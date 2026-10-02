@@ -2040,3 +2040,25 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .guided-tour-launch{bottom:76px}
   .bug-fab{bottom:20px}
 }
+
+.spatial-tree-shell{position:relative;z-index:1;width:min(650px,96%);display:flex;flex-direction:column;gap:12px;color:var(--ink)}
+.spatial-tree-shell>strong{font-size:12px;text-align:center}
+.spatial-quad-plane{position:relative;width:100%;height:310px;border:2px solid var(--line);background:var(--cream);overflow:hidden}
+.spatial-quad-plane svg{position:absolute;inset:0;width:100%;height:100%}
+.spatial-quad-plane line{stroke:var(--orange);stroke-width:.55;vector-effect:non-scaling-stroke}
+.spatial-quad-point{position:absolute;transform:translate(-50%,-50%);padding:3px 6px;border:1px solid var(--green);border-radius:5px;background:var(--cream);font:10px 'DM Mono',monospace;white-space:nowrap;box-shadow:0 2px 7px rgba(0,0,0,.13)}
+.spatial-quad-point.active{background:var(--orange);border-color:var(--orange);color:#fff;z-index:2}
+.spatial-leaf-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:8px;max-height:320px;overflow:auto}
+.spatial-leaf{display:flex;flex-direction:column;gap:5px;padding:10px;border:1px solid var(--line);border-radius:6px;background:var(--cream)}
+.spatial-leaf small{font:10px 'DM Mono',monospace;color:var(--muted)}
+.spatial-leaf span{font:12px 'DM Mono',monospace;word-break:break-word}
+.skip-list-scene{position:relative;z-index:1;max-width:96%;overflow:auto;display:flex;flex-direction:column;gap:8px;color:var(--ink)}
+.skip-list-level{display:flex;align-items:center;gap:8px;min-width:max-content}
+.skip-list-level>strong{width:22px;font:700 11px 'DM Mono',monospace;color:var(--muted)}
+.skip-list-head,.skip-list-node{min-width:46px;height:35px;padding:7px;border:1px solid var(--green);border-radius:5px;background:var(--cream);text-align:center;font:12px 'DM Mono',monospace}
+.skip-list-head{background:var(--green);color:#fff}
+.skip-list-node.active{border-color:var(--orange);background:var(--orange);color:#fff}
+.skip-list-gap{width:46px;text-align:center;color:var(--muted)}
+.skip-list-scene>small{max-width:520px;color:var(--muted);font-size:10px}
+.hash-slot.deleted{border-style:dashed;background:var(--cream);color:var(--muted)}
+.hash-slot.deleted strong{font-size:9px}
