@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, BookOpen, Boxes, Brain, ChevronDown, CircleHelp, ClipboardCopy, Gauge,
-  Eraser, MapPin, Menu, PanelLeftOpen, Pause, Play, RotateCcw, Shuffle, Sparkles,
+  Eraser, MapPin, Maximize2, Menu, PanelLeftOpen, Pause, Play, RotateCcw, Shuffle, Sparkles, X,
 } from 'lucide-react';
 import { algorithmIndexes, algorithms, algorithmsById, categoryLabels } from './data/algorithms.js';
 import { supportsCpp } from './data/cppCatalog.js';
@@ -54,6 +54,14 @@ const SUDOKU_START = [
 ];
 
 const NORMAL_FRAME_DELAY = 800;
+
+function CodeListing({ lines, activeLine }) {
+  return lines.map((line, index) => {
+    const isHelperLabel = line.trim().startsWith('// Método auxiliar utilizado arriba:') || line.trim().startsWith('// Helper method used above:');
+    return <code className={`${index === activeLine ? 'active' : ''} ${isHelperLabel ? 'helper-method-label' : ''}`.trim()} key={index}><i>{String(index + 1).padStart(2, '0')}</i>{line || ' '}</code>;
+  });
+}
+
 const redBlackColorsFor = (algorithm, values) => algorithm.id === 'rojo-negro'
   ? createRedBlackTree(values).snapshot().colors
   : null;
@@ -984,7 +992,10 @@ function App() {
     return ['java', 'cpp', 'pseudo'].includes(stored) ? stored : 'java';
   });
   const [copied, setCopied] = useState(false);
+  const [fullCodeOpen, setFullCodeOpen] = useState(false);
   const codePanelRef = useRef(null);
+  const fullCodePreRef = useRef(null);
+  const fullCodeDialogRef = useDialogFocus({ open: fullCodeOpen, onClose: () => setFullCodeOpen(false) });
   const sourceAlgorithm = algorithmsById.get(selectedId) ?? algorithms[0];
   const baseAlgorithm = useMemo(() => localizeAlgorithm(sourceAlgorithm, language), [sourceAlgorithm, language]);
   const [activeOperation, setActiveOperation] = useState(() => getOperationDefinition(startingAlgorithm).actions[0]?.id ?? null);
@@ -1055,6 +1066,7 @@ function App() {
   ), [activeOperation, baseAlgorithm, codeMode, isTheoryPage, javaCodeFactory, cppCodeFactory]);
   const displayedCode = useMemo(() => translateCodeText(sourceCode, language), [language, sourceCode]);
   const codeLines = useMemo(() => displayedCode.split('\n'), [displayedCode]);
+  const highlightedCodeLine = activeCodeLine ?? step % codeLines.length;
   const totalSteps = operationFrames.length || Math.max(algorithm.values.length, codeLines.length);
   const currentAnimationFrame = operationFrames[step] ?? null;
   const sectionTestLockedUntil = getSectionTestLockedUntil(baseAlgorithm.id, sectionTestClock);
@@ -1169,6 +1181,7 @@ function App() {
   };
 
   useEffect(()=>{ window.scrollTo({ top: 0, behavior: 'auto' }); },[showWelcome, selectedId]);
+  useEffect(()=>{ setFullCodeOpen(false); }, [selectedId, showWelcome]);
   useEffect(()=>{ setStep(0); setPlaying(false); setCopied(false); setOperationFrames([]); setActiveCodeLine(null); },[codeMode]);
   useEffect(()=>{
     if (!playing) return;
@@ -1183,21 +1196,21 @@ function App() {
     return () => window.clearTimeout(timer);
   },[playing,step,speed,totalSteps,operationFrames]);
   useEffect(()=>{
-    const panel = codePanelRef.current;
-    const activeLine = panel?.querySelector('code.active');
-    if (!panel || !activeLine) return;
     const isFastPathfindingTrace = playing && ['dijkstra','a-star'].includes(baseAlgorithm.id);
-    const margin = isFastPathfindingTrace ? 4 : 28;
-    const visibleTop = panel.scrollTop + margin;
-    const visibleBottom = panel.scrollTop + panel.clientHeight - margin;
-    const lineTop = activeLine.offsetTop;
-    const lineBottom = lineTop + activeLine.offsetHeight;
-    let target = null;
-    if (lineTop < visibleTop) target = Math.max(0, lineTop - margin);
-    else if (lineBottom > visibleBottom) target = Math.max(0, lineBottom - panel.clientHeight + margin);
-    if (target === null) return;
-    panel.scrollTo({ top: target, behavior: isFastPathfindingTrace ? 'auto' : 'smooth' });
-  },[activeCodeLine,step,displayedCode,playing,baseAlgorithm.id]);
+    for (const panel of [codePanelRef.current, fullCodePreRef.current]) {
+      const activeLine = panel?.querySelector('code.active');
+      if (!panel || !activeLine) continue;
+      const margin = isFastPathfindingTrace ? 4 : 28;
+      const visibleTop = panel.scrollTop + margin;
+      const visibleBottom = panel.scrollTop + panel.clientHeight - margin;
+      const lineTop = activeLine.offsetTop;
+      const lineBottom = lineTop + activeLine.offsetHeight;
+      let target = null;
+      if (lineTop < visibleTop) target = Math.max(0, lineTop - margin);
+      else if (lineBottom > visibleBottom) target = Math.max(0, lineBottom - panel.clientHeight + margin);
+      if (target !== null) panel.scrollTo({ top: target, behavior: isFastPathfindingTrace ? 'auto' : 'smooth' });
+    }
+  },[activeCodeLine,step,displayedCode,playing,baseAlgorithm.id,fullCodeOpen]);
   const loadAlgorithm = useCallback(id => {
     const nextAlgorithm = algorithmsById.get(id) ?? algorithms[0];
     setSelectedId(nextAlgorithm.id);
@@ -1617,11 +1630,8 @@ function App() {
               <button className="copy-button" onClick={copyCode}>{copied ? t('copied') : t('copy')}</button>
             </div>
           </div>
-          <pre ref={codePanelRef}>{codeLines.map((line,i)=>{
-            const isActive = i === (activeCodeLine ?? step%codeLines.length);
-            const isHelperLabel = line.trim().startsWith('// Método auxiliar utilizado arriba:') || line.trim().startsWith('// Helper method used above:');
-            return <code className={`${isActive?'active':''} ${isHelperLabel?'helper-method-label':''}`.trim()} key={i}><i>{String(i+1).padStart(2,'0')}</i>{line || ' '}</code>;
-          })}</pre>
+          <pre ref={codePanelRef}><CodeListing lines={codeLines} activeLine={highlightedCodeLine}/></pre>
+          <div className="full-code-trigger"><button type="button" onClick={() => setFullCodeOpen(true)} aria-haspopup="dialog"><Maximize2 size={15}/>{language === 'en' ? 'View full code' : 'Ver código completo'}</button></div>
           <VariablesPanel frame={currentAnimationFrame} algorithm={algorithm} step={step} playing={playing}/>
           <div className="note"><CircleHelp size={17}/><p><strong>{codeMode === 'java' ? `${language === 'en' ? 'Basic Java' : 'Java básico'} · ${activeOperationLabel}` : codeMode === 'cpp' ? `C++ · ${activeOperationLabel}` : language === 'en' ? 'What happens here?' : '¿Qué ocurre aquí?'}</strong><span>{codeMode !== 'pseudo' ? currentAnimationFrame?.iteration != null ? language === 'en' ? `The loop is at iteration ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} of ${currentAnimationFrame.totalIterations}. The highlighted line and active element advance together.` : `El ciclo está en la iteración ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} de ${currentAnimationFrame.totalIterations}. La línea iluminada y el elemento activo avanzan juntos.` : codeMode === 'cpp' ? language === 'en' ? 'This implementation uses native arrays, raw pointers, nullptr, new and delete so every visible link corresponds to a real memory reference.' : 'Esta implementación usa arreglos nativos, punteros crudos, nullptr, new y delete para que cada enlace visible corresponda a una referencia real de memoria.' : language === 'en' ? 'The code uses small variables, arrays, loops, conditions, and methods. Each highlighted line matches the visible change in the structure.' : javaOverview : step === 0 ? translateLearningText('Se prepara el estado inicial y la estructura auxiliar.', language) : step >= totalSteps-1 ? translateLearningText('El algoritmo completa la operación y devuelve el resultado.', language) : language === 'en' ? `The active element at step ${step+1} is processed and the state is updated.` : `Se procesa el elemento activo del paso ${step+1} y se actualiza el estado.`}</span></p></div>
         </article>
@@ -1645,6 +1655,13 @@ function App() {
       onActiveChange={setSectionTestActive}
       onLockout={() => setSectionTestClock(Date.now())}
     /></Suspense>}
+    {fullCodeOpen && <div className="full-code-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setFullCodeOpen(false); }}>
+      <section ref={fullCodeDialogRef} tabIndex="-1" className="full-code-dialog code-panel" role="dialog" aria-modal="true" aria-labelledby="full-code-kicker full-code-title">
+        <header className="full-code-header"><div><small id="full-code-kicker">{language === 'en' ? 'Full code' : 'Código completo'} · {codeMode === 'pseudo' ? t('pseudocode') : codeMode === 'cpp' ? 'C++' : 'Java'}</small><h2 id="full-code-title">{algorithm.name} · {activeOperationLabel}</h2></div><div className="full-code-actions"><button type="button" onClick={copyCode}><ClipboardCopy size={15}/>{copied ? t('copied') : t('copy')}</button><button type="button" onClick={() => setFullCodeOpen(false)} aria-label={language === 'en' ? 'Close full code' : 'Cerrar código completo'}><X size={18}/></button></div></header>
+        <pre ref={fullCodePreRef} tabIndex="0" aria-label={language === 'en' ? 'Full code listing' : 'Listado de código completo'}><CodeListing lines={codeLines} activeLine={highlightedCodeLine}/></pre>
+        <footer className="full-code-footer">{codeLines.length} {language === 'en' ? 'lines · Press Esc to close' : 'líneas · Presiona Esc para cerrar'}</footer>
+      </section>
+    </div>}
     {mobileOpen && <button className="scrim" onClick={()=>setMobileOpen(false)} aria-label={t('close')}/>}
   </div>;
 }

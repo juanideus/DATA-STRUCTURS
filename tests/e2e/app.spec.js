@@ -340,6 +340,34 @@ test('las guías específicas explican la implementación real en ambos idiomas'
   }
 });
 
+test('amplía el código completo sin perder líneas, idioma ni navegación por teclado', async ({ page }) => {
+  await page.goto('/array');
+  const inlineCode = page.locator('.panel.code-panel pre');
+  const open = page.getByRole('button', { name: 'Ver código completo' });
+  await expect(open).toBeVisible();
+  await open.click();
+
+  const dialog = page.getByRole('dialog', { name: /Código completo/ });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('pre code')).toHaveCount(await inlineCode.locator('code').count());
+  await expect(dialog.locator('pre')).toContainText('class');
+  expect((await dialog.locator('pre').boundingBox()).height).toBeGreaterThan((await inlineCode.boundingBox()).height);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(open).toBeFocused();
+
+  await page.getByRole('button', { name: 'C++', exact: true }).click();
+  await open.click();
+  await expect(dialog).toContainText('C++');
+  await expect(dialog.locator('pre')).toContainText('class');
+  await dialog.getByRole('button', { name: 'Cerrar código completo' }).click();
+  await expect(dialog).toHaveCount(0);
+
+  await page.goto('/en/array');
+  await page.getByRole('button', { name: 'View full code' }).click();
+  await expect(page.getByRole('dialog', { name: /Full code/ })).toBeVisible();
+});
+
 test('el modo desafío predice operaciones y conserva el progreso local', async ({ page }) => {
   await page.evaluate(() => window.localStorage.removeItem('dsa-challenge-progress-v1'));
 
