@@ -340,6 +340,34 @@ test('las guías específicas explican la implementación real en ambos idiomas'
   }
 });
 
+test('amplía el código completo sin perder líneas, idioma ni navegación por teclado', async ({ page }) => {
+  await page.goto('/array');
+  const inlineCode = page.locator('.panel.code-panel pre');
+  const open = page.getByRole('button', { name: 'Ver código completo' });
+  await expect(open).toBeVisible();
+  await open.click();
+
+  const dialog = page.getByRole('dialog', { name: /Código completo/ });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('pre code')).toHaveCount(await inlineCode.locator('code').count());
+  await expect(dialog.locator('pre')).toContainText('class');
+  expect((await dialog.locator('pre').boundingBox()).height).toBeGreaterThan((await inlineCode.boundingBox()).height);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(open).toBeFocused();
+
+  await page.getByRole('button', { name: 'C++', exact: true }).click();
+  await open.click();
+  await expect(dialog).toContainText('C++');
+  await expect(dialog.locator('pre')).toContainText('class');
+  await dialog.getByRole('button', { name: 'Cerrar código completo' }).click();
+  await expect(dialog).toHaveCount(0);
+
+  await page.goto('/en/array');
+  await page.getByRole('button', { name: 'View full code' }).click();
+  await expect(page.getByRole('dialog', { name: /Full code/ })).toBeVisible();
+});
+
 test('el modo desafío predice operaciones y conserva el progreso local', async ({ page }) => {
   await page.evaluate(() => window.localStorage.removeItem('dsa-challenge-progress-v1'));
 
@@ -1467,6 +1495,29 @@ test('Dijkstra y A* muestran código Java y C++ junto al mapa', async ({ page })
     await expect(page.locator('.code-panel code.active')).toContainText(
       id === 'dijkstra' ? 'minimumDistance(settled)' : 'minimumScore(score, closed)',
     );
+  }
+});
+
+test('Dijkstra y A* mantienen visible la línea activa al avanzar por el código', async ({ page }) => {
+  for (const [algorithm, action] of [['dijkstra', 'Ejecutar Dijkstra'], ['a-star', 'Ejecutar A*']]) {
+    for (const mode of ['Java', 'C++']) {
+      await page.goto(`/${algorithm}`);
+      await page.getByRole('button', { name: mode, exact: true }).click();
+      await page.getByRole('button', { name: action, exact: true }).click();
+      const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+      if (await pause.isVisible()) await pause.click();
+      const code = page.locator('.panel.code-panel pre');
+      for (let step = 0; step < 12; step++) {
+        await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+        await expect.poll(async () => code.evaluate(panel => {
+          const active = panel.querySelector('code.active');
+          if (!active) return false;
+          const panelBounds = panel.getBoundingClientRect();
+          const lineBounds = active.getBoundingClientRect();
+          return lineBounds.top >= panelBounds.top && lineBounds.bottom <= panelBounds.bottom;
+        }), { timeout: 1500 }).toBe(true);
+      }
+    }
   }
 });
 
