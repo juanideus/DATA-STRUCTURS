@@ -1498,6 +1498,29 @@ test('Dijkstra y A* muestran código Java y C++ junto al mapa', async ({ page })
   }
 });
 
+test('Dijkstra y A* mantienen visible la línea activa al avanzar por el código', async ({ page }) => {
+  for (const [algorithm, action] of [['dijkstra', 'Ejecutar Dijkstra'], ['a-star', 'Ejecutar A*']]) {
+    for (const mode of ['Java', 'C++']) {
+      await page.goto(`/${algorithm}`);
+      await page.getByRole('button', { name: mode, exact: true }).click();
+      await page.getByRole('button', { name: action, exact: true }).click();
+      const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+      if (await pause.isVisible()) await pause.click();
+      const code = page.locator('.panel.code-panel pre');
+      for (let step = 0; step < 12; step++) {
+        await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+        await expect.poll(async () => code.evaluate(panel => {
+          const active = panel.querySelector('code.active');
+          if (!active) return false;
+          const panelBounds = panel.getBoundingClientRect();
+          const lineBounds = active.getBoundingClientRect();
+          return lineBounds.top >= panelBounds.top && lineBounds.bottom <= panelBounds.bottom;
+        }), { timeout: 1500 }).toBe(true);
+      }
+    }
+  }
+});
+
 test('el Java visible incluye la clase y el contexto de cada familia', async ({ page }) => {
   for (const id of ['array', 'avl', 'btree', 'bubble-sort', 'laberinto']) {
     await page.goto(`/${id}`);

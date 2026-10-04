@@ -1196,19 +1196,19 @@ function App() {
     return () => window.clearTimeout(timer);
   },[playing,step,speed,totalSteps,operationFrames]);
   useEffect(()=>{
-    const isFastPathfindingTrace = playing && ['dijkstra','a-star'].includes(baseAlgorithm.id);
+    const isPathfindingTrace = ['dijkstra','a-star'].includes(baseAlgorithm.id);
     for (const panel of [codePanelRef.current, fullCodePreRef.current]) {
       const activeLine = panel?.querySelector('code.active');
       if (!panel || !activeLine) continue;
-      const margin = isFastPathfindingTrace ? 4 : 28;
-      const visibleTop = panel.scrollTop + margin;
-      const visibleBottom = panel.scrollTop + panel.clientHeight - margin;
-      const lineTop = activeLine.offsetTop;
-      const lineBottom = lineTop + activeLine.offsetHeight;
+      const margin = isPathfindingTrace ? 4 : 28;
+      const panelBounds = panel.getBoundingClientRect();
+      const lineBounds = activeLine.getBoundingClientRect();
+      const visibleTop = panelBounds.top + margin;
+      const visibleBottom = panelBounds.bottom - margin;
       let target = null;
-      if (lineTop < visibleTop) target = Math.max(0, lineTop - margin);
-      else if (lineBottom > visibleBottom) target = Math.max(0, lineBottom - panel.clientHeight + margin);
-      if (target !== null) panel.scrollTo({ top: target, behavior: isFastPathfindingTrace ? 'auto' : 'smooth' });
+      if (lineBounds.top < visibleTop) target = panel.scrollTop + lineBounds.top - visibleTop;
+      else if (lineBounds.bottom > visibleBottom) target = panel.scrollTop + lineBounds.bottom - visibleBottom;
+      if (target !== null) panel.scrollTo({ top: Math.max(0, target), behavior: isPathfindingTrace ? 'auto' : 'smooth' });
     }
   },[activeCodeLine,step,displayedCode,playing,baseAlgorithm.id,fullCodeOpen]);
   const loadAlgorithm = useCallback(id => {
