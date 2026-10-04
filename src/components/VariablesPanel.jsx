@@ -1,5 +1,19 @@
 import { Variable } from 'lucide-react';
 import { translateLearningText, useLanguage } from '../i18n.jsx';
+import { SPARSE_MATRIX_COLUMNS, SPARSE_MATRIX_ROWS } from '../logic/operations.js';
+
+const englishVariableNames = {
+  filas: 'rows', columnas: 'columns', inicio: 'start', meta: 'goal',
+  alto: 'height', largo: 'width', noCeros: 'non-zero cells',
+  'índice activo': 'active index', 'condición': 'condition',
+  algoritmo: 'algorithm', casilla: 'cell', 'distancia g': 'distance g',
+  'heurística h': 'heuristic h', 'prioridad f': 'priority f',
+  frontera: 'frontier', visitadas: 'visited',
+  anteriorFila: 'previous row node', actualFila: 'current row node',
+  anteriorCol: 'previous column node', actualCol: 'current column node',
+  'vértice actual': 'current vertex', visitados: 'visited', pendientes: 'pending',
+  profundidad: 'depth',
+};
 
 function formatValue(value) {
   if (value === undefined) return '—';
@@ -11,6 +25,22 @@ function formatValue(value) {
 function fallbackVariables(frame, algorithm, step) {
   const values = frame?.values ?? algorithm.values ?? [];
   const position = Math.max(0, frame?.position ?? step ?? 0);
+  if (['dijkstra', 'a-star'].includes(algorithm.id) && algorithm.map) {
+    const { rows, columns, start, goal } = algorithm.map;
+    return [
+      { name: 'filas', value: rows, role: 'size' },
+      { name: 'columnas', value: columns, role: 'size' },
+      { name: 'inicio', value: `(${Math.floor(start / columns)}, ${start % columns})`, role: 'position' },
+      { name: 'meta', value: `(${Math.floor(goal / columns)}, ${goal % columns})`, role: 'position' },
+    ];
+  }
+  if (algorithm.id === 'matriz-dispersa') {
+    return [
+      { name: 'alto', value: SPARSE_MATRIX_ROWS, role: 'size' },
+      { name: 'largo', value: SPARSE_MATRIX_COLUMNS, role: 'size' },
+      { name: 'noCeros', value: values.length, role: 'size' },
+    ];
+  }
   const variables = [{ name: 'size', value: values.length, role: 'size' }];
 
   if (algorithm.id === 'sudoku') {
@@ -52,7 +82,9 @@ export default function VariablesPanel({ frame, algorithm, step, playing }) {
     </header>
     <div className="variables-grid">
       {variables.map((variable, index) => <div className={`variable-item role-${variable.role ?? 'value'}`} key={`${variable.name}-${index}`}>
-        <small>{translateLearningText(variable.name, language)}</small>
+        <small>{language === 'en' && englishVariableNames[variable.name]
+          ? englishVariableNames[variable.name]
+          : translateLearningText(variable.name, language)}</small>
         <strong title={formatValue(variable.value)}>{formatValue(variable.value)}</strong>
       </div>)}
     </div>

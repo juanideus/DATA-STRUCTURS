@@ -108,6 +108,15 @@ const exactLearningText = {
   '8 OCTANTES · ESPACIO 3D': '8 OCTANTS · 3D SPACE',
   '4 CUADRANTES · ESPACIO 2D': '4 QUADRANTS · 2D SPACE',
   'BIT · CADA ÍNDICE GUARDA UN RANGO': 'BIT · EACH INDEX STORES A RANGE',
+  'Comenzamos en la marca de inicio y preparamos las distancias.': 'We start at the marked cell and initialize the distances.',
+  'Elegimos la casilla abierta con el menor valor f = g + h.': 'We choose the open cell with the lowest f = g + h.',
+  'Elegimos la casilla pendiente con la menor distancia conocida.': 'We choose the unsettled cell with the lowest known distance.',
+  'La casilla actual es la meta. Terminamos la exploración.': 'The current cell is the goal. The search stops.',
+  'Quitamos la casilla de abiertos y la guardamos en cerrados.': 'We remove the cell from the open set and add it to the closed set.',
+  'Marcamos la casilla actual como visitada.': 'We mark the current cell as visited.',
+  'Revisamos las casillas vecinas, pero ninguna mejora su distancia.': 'We check the neighboring cells, but none improves its distance.',
+  'No existe una ruta disponible entre el inicio y la meta.': 'There is no available route between the start and the goal.',
+  'Selection Sort buscará el mínimo de cada zona pendiente.': 'Selection Sort will find the minimum in each unsorted region.',
 };
 
 const learningReplacements = [
@@ -145,6 +154,22 @@ const learningReplacements = [
   ['Se procesa el elemento activo del paso', 'The active element at step'], ['y se actualiza el estado.', 'is processed and the state is updated.'],
   ['Se generó un mapa nuevo para', 'A new map was generated for'], ['Los puntos cambiaron de ubicación.', 'The points changed location.'],
   ['Se generó un nuevo ejemplo para', 'A new example was generated for'],
+  ['Bubble Sort comienza con todo el arreglo sin ordenar.', 'Bubble Sort starts with the entire array unsorted.'],
+  ['La pasada comparará los índices 0 a', 'The pass will compare indices 0 through'],
+  ['Inicia la pasada que termina en', 'Starts the pass ending at'],
+  ['i vale', 'i is'],
+  ['se revisa el par', 'inspect the pair'],
+  ['hay que intercambiarlos', 'the values need to be swapped'],
+  ['ya están en orden', 'the values are already in order'],
+  ['temp guarda', 'temp stores'],
+  ['del índice', 'from index'],
+  ['El índice', 'Index'],
+  [' recibe ', ' receives '],
+  ['termina el intercambio', 'completing the swap'],
+  ['La pasada registra que sí hubo un cambio.', 'The pass records that a swap occurred.'],
+  ['Hubo cambios; se necesita otra pasada.', 'Changes occurred; another pass is needed.'],
+  ['No hubo cambios: el arreglo ya está ordenado.', 'No swaps occurred: the array is sorted.'],
+  ['Bubble Sort terminó: cada pasada empujó el mayor valor pendiente hacia el final.', 'Bubble Sort finished: each pass moved the largest remaining value to the end.'],
   ['Operación completada', 'Operation completed'], ['Resultado', 'Result'], ['Error:', 'Error:'],
   ['índice', 'index'], ['Índice', 'Index'], ['fila', 'row'], ['Fila', 'Row'], ['columna', 'column'], ['Columna', 'Column'],
   ['posición', 'position'], ['Posición', 'Position'], ['elemento', 'element'], ['Elemento', 'Element'], ['tamaño', 'size'], ['Tamaño', 'Size'],
@@ -166,6 +191,103 @@ const learningReplacements = [
 export function translateLearningText(value, language) {
   if (language !== 'en' || typeof value !== 'string') return value;
   if (exactLearningText[value]) return exactLearningText[value];
+  const graphPatterns = [
+    [/^(BFS|DFS) comienza desde el vértice (.+)\.$/, match => `${match[1]} starts at vertex ${match[2]}.`],
+    [/^(.+) corresponde al índice (\d+)\.$/, match => `${match[1]} corresponds to index ${match[2]}.`],
+    [/^Se crea una cola con capacidad para (\d+) vértices\.$/, match => `A queue with capacity for ${match[1]} vertices is created.`],
+    [/^(.+) entra primero en la cola\.$/, match => `${match[1]} enters the queue first.`],
+    [/^(.+) se marca para no volver a encolarlo\.$/, match => `${match[1]} is marked so it is not enqueued again.`],
+    [/^front \((\d+)\) es menor que end \((\d+)\); la cola aún contiene elementos\.$/, match => `front (${match[1]}) is less than end (${match[2]}); the queue still contains elements.`],
+    [/^(.+) está al frente de la cola\.$/, match => `${match[1]} is at the front of the queue.`],
+    [/^front avanza a (\d+)\.$/, match => `front advances to ${match[1]}.`],
+    [/^(BFS|DFS) visita (.+)\.$/, match => `${match[1]} visits ${match[2]}.`],
+    [/^Se revisa si (.+) conecta con (.+)\.$/, match => `We check whether ${match[1]} connects to ${match[2]}.`],
+    [/^Sí existe una arista entre (.+) y (.+)\.$/, match => `There is an edge between ${match[1]} and ${match[2]}.`],
+    [/^No existe una arista entre (.+) y (.+)\.$/, match => `There is no edge between ${match[1]} and ${match[2]}.`],
+    [/^(.+) tiene arista y todavía no fue visitado\.$/, match => `${match[1]} has an edge and has not been visited yet.`],
+    [/^(.+) no se encola porque falta la arista o ya fue descubierto\.$/, match => `${match[1]} is not enqueued because there is no edge or it was already discovered.`],
+    [/^(.+) queda marcado antes de entrar en la cola\.$/, match => `${match[1]} is marked before entering the queue.`],
+    [/^(.+) se guarda en queue\[(\d+)\]\.$/, match => `${match[1]} is stored in queue[${match[2]}].`],
+    [/^end avanza a (\d+)\.$/, match => `end advances to ${match[1]}.`],
+    [/^Se crea visited con (\d+) posiciones inicialmente falsas\.$/, match => `visited is created with ${match[1]} positions initially set to false.`],
+    [/^Comienza la primera llamada recursiva con (.+)\.$/, match => `The first recursive call starts with ${match[1]}.`],
+    [/^Entra depthFirstFrom\((.+)\) con una pila de (\d+) llamadas\.$/, match => `depthFirstFrom(${match[1]}) starts with ${match[2]} calls on the stack.`],
+    [/^(.+) queda marcado como visitado\.$/, match => `${match[1]} is marked as visited.`],
+    [/^Desde (.+) se revisa el índice (\d+)\.$/, match => `From ${match[1]}, index ${match[2]} is inspected.`],
+    [/^(.+) sí conecta con (.+)\.$/, match => `${match[1]} connects to ${match[2]}.`],
+    [/^(.+) no conecta con (.+)\.$/, match => `${match[1]} does not connect to ${match[2]}.`],
+    [/^(.+) no fue visitado: DFS profundiza por esa arista\.$/, match => `${match[1]} has not been visited, so DFS follows that edge.`],
+    [/^La llamada hacia (.+) se omite\.$/, match => `The call to ${match[1]} is skipped.`],
+    [/^Se llama recursivamente a depthFirstFrom\((.+)\)\.$/, match => `depthFirstFrom(${match[1]}) is called recursively.`],
+    [/^(BFS|DFS) desde (.+): (.+)\.$/, match => `${match[1]} from ${match[2]}: ${match[3]}.`],
+  ];
+  for (const [pattern, format] of graphPatterns) {
+    const match = value.match(pattern);
+    if (match) return format(match);
+  }
+  if (value === 'start es válido, por lo tanto el recorrido puede continuar.') return 'start is valid, so the traversal can continue.';
+  if (value === 'front alcanzó a end; la cola quedó vacía y BFS termina.') return 'front reached end; the queue is empty and BFS finishes.';
+  if (value === 'Todas las llamadas recursivas regresaron; DFS terminó.') return 'All recursive calls returned; DFS finished.';
+  const heapPatterns = [
+    [/^(\d+) es la raíz y el máximo que se extraerá\.$/, match => `${match[1]} is the root and the maximum value to be extracted.`],
+    [/^El último nodo del árbol completo es (\d+), ubicado en el índice (\d+)\. Se moverá a la raíz\.$/, match => `The last node in the complete tree is ${match[1]} at index ${match[2]}. It will move to the root.`],
+    [/^(\d+) reemplaza a (\d+) en la raíz\. Por un instante también sigue visible en la última posición\.$/, match => `${match[1]} replaces ${match[2]} at the root. For one frame it also remains visible in the last position.`],
+    [/^size disminuye a (\d+); se elimina la última posición y el árbol continúa siendo completo\.$/, match => `size decreases to ${match[1]}; the last position is removed and the tree remains complete.`],
+    [/^Se revisa si el nodo (\d+) debe bajar desde el índice (\d+)\.$/, match => `We check whether node ${match[1]} must move down from index ${match[2]}.`],
+    [/^El hijo izquierdo corresponde al índice (\d+) y contiene (\d+)\.$/, match => `The left child is at index ${match[1]} and contains ${match[2]}.`],
+    [/^El hijo derecho corresponde al índice (\d+) y contiene (\d+)\.$/, match => `The right child is at index ${match[1]} and contains ${match[2]}.`],
+    [/^El hijo izquierdo corresponde al índice (\d+), fuera del heap\.$/, match => `The left-child index ${match[1]} is outside the heap.`],
+    [/^El hijo derecho corresponde al índice (\d+), fuera del heap\.$/, match => `The right-child index ${match[1]} is outside the heap.`],
+    [/^Por ahora, largest es el nodo actual en el índice (\d+)\.$/, match => `For now, largest is the current node at index ${match[1]}.`],
+    [/^(\d+) es mayor que (\d+); largest cambia al hijo izquierdo\.$/, match => `${match[1]} is greater than ${match[2]}; largest changes to the left child.`],
+    [/^(\d+) supera al candidato (\d+); largest cambia al hijo derecho\.$/, match => `${match[1]} exceeds candidate ${match[2]}; largest changes to the right child.`],
+    [/^(\d+) ya es mayor o igual que sus hijos; heapifyDown termina\.$/, match => `${match[1]} is already greater than or equal to its children; heapifyDown finishes.`],
+    [/^(\d+) debe subir y (\d+) debe bajar\.$/, match => `${match[1]} must move up and ${match[2]} must move down.`],
+    [/^(\d+) se guarda temporalmente antes del intercambio\.$/, match => `${match[1]} is stored temporarily before the swap.`],
+    [/^(\d+) sube desde el índice (\d+) al índice (\d+)\.$/, match => `${match[1]} moves up from index ${match[2]} to index ${match[3]}.`],
+    [/^(\d+) baja al índice (\d+); el intercambio queda completo\.$/, match => `${match[1]} moves down to index ${match[2]}; the swap is complete.`],
+    [/^heapifyDown continúa desde el índice (\d+)\.$/, match => `heapifyDown continues from index ${match[1]}.`],
+    [/^(\d+) fue extraído; (\d+) ocupó primero la raíz y heapifyDown restauró el max-heap\.$/, match => `${match[1]} was extracted; ${match[2]} first occupied the root and heapifyDown restored the max-heap.`],
+  ];
+  for (const [pattern, format] of heapPatterns) {
+    const match = value.match(pattern);
+    if (match) return format(match);
+  }
+  const exactHeapText = {
+    'size es mayor que 0, por lo tanto la extracción puede continuar.': 'size is greater than 0, so extraction can continue.',
+    'Se llama a heapifyDown desde la raíz para recuperar la propiedad de max-heap.': 'heapifyDown is called from the root to restore the max-heap property.',
+    'heapifyDown recibe el índice 0, pero el heap ya quedó vacío.': 'heapifyDown receives index 0, but the heap is now empty.',
+    'Se evalúa una vez el ciclo de heapifyDown.': 'The heapifyDown loop is evaluated once.',
+    'left vale 1 y queda fuera del heap vacío.': 'left is 1 and lies outside the empty heap.',
+    'right vale 2 y también queda fuera del heap.': 'right is 2 and also lies outside the heap.',
+    'largest permanece en 0 porque no existen hijos.': 'largest remains 0 because there are no children.',
+    'left < size es false.': 'left < size is false.',
+    'right < size es false.': 'right < size is false.',
+    'largest == index es true; no se necesita ningún intercambio.': 'largest == index is true; no swap is needed.',
+    'heapifyDown comienza en la raíz, índice 0.': 'heapifyDown starts at the root, index 0.',
+    'El hijo izquierdo no existe o no supera al candidato actual.': 'The left child does not exist or does not exceed the current candidate.',
+    'El hijo derecho no existe o no supera al candidato actual.': 'The right child does not exist or does not exceed the current candidate.',
+  };
+  if (exactHeapText[value]) return exactHeapText[value];
+  const recursionPatterns = [
+    [/^Entra la llamada (fibonacci|factorial)\((\d+)\)\.$/, match => `The call ${match[1]}(${match[2]}) begins.`],
+    [/^(\d+) (sí|no) cumple el caso base number <= 1\.$/, match => `${match[1]} ${match[2] === 'sí' ? 'does' : 'does not'} satisfy the base case number <= 1.`],
+    [/^(fibonacci|factorial)\((\d+)\) retorna (\d+); la rama termina aquí\.$/, match => `${match[1]}(${match[2]}) returns ${match[3]}; this branch ends here.`],
+    [/^fibonacci\((\d+)\) llama primero a fibonacci\((\d+)\)\.$/, match => `fibonacci(${match[1]}) first calls fibonacci(${match[2]}).`],
+    [/^La rama izquierda devolvió (\d+); ahora llama a fibonacci\((\d+)\)\.$/, match => `The left branch returned ${match[1]}; now fibonacci(${match[2]}) is called.`],
+    [/^fibonacci\((\d+)\) suma (\d+) \+ (\d+) y retorna (\d+)\.$/, match => `fibonacci(${match[1]}) adds ${match[2]} + ${match[3]} and returns ${match[4]}.`],
+    [/^factorial\((\d+)\) queda esperando y llama a factorial\((\d+)\)\.$/, match => `factorial(${match[1]}) waits and calls factorial(${match[2]}).`],
+    [/^factorial\((\d+)\) multiplica (\d+) × (\d+) y retorna (\d+)\.$/, match => `factorial(${match[1]}) multiplies ${match[2]} × ${match[3]} and returns ${match[4]}.`],
+    [/^Ingresa un entero para construir el árbol de llamadas de (.+)\.$/, match => `Enter an integer to build the call tree for ${match[1]}.`],
+  ];
+  for (const [pattern, format] of recursionPatterns) {
+    const match = value.match(pattern);
+    if (match) return format(match);
+  }
+  const relaxed = value.match(/^Actualizamos (\d+) (casilla vecina|casillas vecinas) con una ruta más corta\.$/);
+  if (relaxed) return `We update ${relaxed[1]} neighboring ${relaxed[1] === '1' ? 'cell' : 'cells'} with a shorter route.`;
+  const route = value.match(/^Ruta encontrada: (\d+) casillas y costo (\d+)\.$/);
+  if (route) return `Route found: ${route[1]} cells with cost ${route[2]}.`;
   return learningReplacements.reduce((text, [from, to]) => text.replaceAll(from, to), value)
     .replaceAll('¿', '').replaceAll('¡', '');
 }
