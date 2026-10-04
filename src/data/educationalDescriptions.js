@@ -49,7 +49,7 @@ export const educationalDescriptions = {
     'Java reserva un bloque continuo de memoria y calcula la dirección de cada elemento usando su índice. Por eso leer o actualizar una posición conocida es inmediato. Su tamaño se fija al crearlo; insertar en medio exige desplazar los elementos siguientes.',
     'Acceder o actualizar mediante array[indice]|Recorrer desde el índice 0 hasta length - 1|Buscar un valor comparando cada elemento|Insertar o eliminar desplazando posiciones',
     'Acceso directo muy rápido|Orden claro y predecible|Bajo consumo adicional de memoria|Base de matrices, listas y muchas otras estructuras',
-    'Tamaño fijo en los Arrays tradicionales de Java|Insertar al inicio o en medio puede ser lento|No verifica automáticamente si un índice es válido|Buscar sin conocer la posición requiere recorrerlo',
+    'Tamaño fijo en los Arrays tradicionales de Java|Insertar al inicio o en medio puede ser lento|Un índice fuera de rango provoca una excepción en Java; en C++ el acceso sin comprobar puede causar comportamiento indefinido|Buscar sin conocer la posición requiere recorrerlo',
     'Notas de un curso|Temperaturas de una semana|Tableros y matrices|Implementación de pilas, colas y tablas hash',
     'Imagina una fila de casilleros numerados: para abrir uno sólo necesitas conocer su número.',
     'Si el tamaño es n, los índices válidos van de 0 a n - 1. Un Array de tamaño 5 termina en el índice 4.'
@@ -126,7 +126,7 @@ export const educationalDescriptions = {
   ),
   'skip-list': guide(
     'Una Skip List mantiene varias capas de listas ordenadas. Las capas superiores contienen atajos que permiten saltar sobre muchos nodos.',
-    'La búsqueda empieza en el nivel más alto, avanza mientras no sobrepase la clave y baja cuando ya no puede continuar. La altura de cada nodo suele decidirse aleatoriamente.',
+    'La búsqueda empieza en el nivel más alto, avanza mientras el siguiente valor sea menor que la clave y baja cuando ya no puede continuar. El nivel 0 contiene todos los valores; los niveles superiores contienen sólo algunos atajos. Al insertar, se elige aleatoriamente hasta qué nivel enlazar el nodo.',
     'Buscar descendiendo por niveles|Insertar en orden y lanzar niveles aleatorios|Eliminar el nodo de todas sus capas|Recorrer la capa inferior completa',
     'Promedio logarítmico sin rotaciones|Implementación más simple que muchos árboles balanceados|Inserciones dinámicas|Buen comportamiento en datos ordenados',
     'El peor caso es lineal|Usa referencias adicionales|Su rendimiento depende de una buena aleatoriedad|No garantiza balance estricto',
@@ -257,8 +257,8 @@ export const educationalDescriptions = {
   ),
   'segment-tree': guide(
     'Un Segment Tree organiza intervalos de un Array para responder consultas de rango y actualizaciones.',
-    'La raíz representa el intervalo completo; cada hijo representa una mitad. Los nodos guardan un valor combinado, como suma, mínimo o máximo. Una consulta visita sólo los segmentos que cubren el rango solicitado.',
-    'Construir desde un Array|Consultar suma, mínimo o máximo de un rango|Actualizar una posición y sus antecesores|Aplicar lazy propagation para rangos',
+    'La raíz representa el intervalo completo y cada hijo una mitad. Cada nodo guarda un resumen de su intervalo, como suma o mínimo. Al consultar un rango, se descartan los segmentos disjuntos y se combinan los cubiertos; al actualizar un índice, sólo se recalcula el camino hasta la raíz. Esta lección no implementa lazy propagation.',
+    'Construir desde un Array|Consultar la suma o el mínimo de un rango|Actualizar una posición y recalcular sus antecesores|Combinar resultados de subintervalos cubiertos',
     'Consultas de rango O(log n)|Actualizaciones O(log n)|Admite distintas operaciones asociativas|Rendimiento predecible',
     'Usa varias veces el espacio del Array|Implementación más compleja|Los límites inclusivos producen errores frecuentes|Lazy propagation añade dificultad',
     'Estadísticas por intervalos|Juegos competitivos|Series temporales|Consultas dinámicas de máximos y sumas',
@@ -267,9 +267,9 @@ export const educationalDescriptions = {
   ),
   'fenwick-tree': guide(
     'Un Fenwick Tree o Binary Indexed Tree mantiene sumas de prefijos usando un solo Array auxiliar.',
-    'Cada posición almacena la suma de un bloque cuyo tamaño depende del bit menos significativo del índice. Para consultar o actualizar se avanza usando i & -i.',
-    'Construir las sumas parciales|Consultar la suma desde 1 hasta i|Actualizar una posición con un delta|Obtener un rango restando dos prefijos',
-    'Muy compacto|Consultas y actualizaciones O(log n)|Código corto comparado con Segment Tree|Excelente para sumas acumuladas',
+    'Cada celda del BIT resume un bloque cuyo tamaño viene dado por i & -i. La estructura interna usa índices desde 1, aunque el arreglo visible comienza en 0. Una actualización añade un delta a una posición y a los bloques que la contienen; una consulta de rango resta dos sumas de prefijo. El mínimo prefijo que aparece como operación de la lección se calcula recorriendo los valores: no es una consulta O(log n) del BIT de sumas.',
+    'Construir las sumas parciales|Consultar la suma desde el inicio hasta i|Actualizar una posición con un delta|Obtener un rango restando dos prefijos',
+    'Muy compacto|Sumas de prefijo y actualizaciones aditivas O(log n)|Código corto comparado con Segment Tree|Excelente para sumas acumuladas',
     'Normalmente usa índices desde 1|Menos flexible que Segment Tree|No todas las operaciones funcionan con resta de prefijos|Los movimientos de bits pueden resultar poco intuitivos',
     'Conteo de frecuencias|Rankings dinámicos|Inversiones en un Array|Sumas acumuladas modificables',
     'Cada celda resume un bloque anterior cuyo tamaño es una potencia de dos.',
@@ -327,8 +327,8 @@ export const educationalDescriptions = {
   ),
   quadtree: guide(
     'Un QuadTree divide recursivamente un espacio bidimensional en cuatro cuadrantes organizados de forma jerárquica.',
-    'Cada región se subdivide en noroeste, noreste, suroeste y sureste cuando supera una capacidad o necesita más detalle. Las zonas vacías permanecen compactas.',
-    'Insertar un punto en su cuadrante|Subdividir regiones llenas|Consultar una ventana rectangular|Buscar vecinos o detectar colisiones',
+    'Cada región comienza como una hoja con capacidad limitada. Al llenarse, se divide en noroeste, noreste, suroeste y sureste, y redistribuye sus puntos entre los cuatro hijos. Para insertar otro punto se sigue únicamente el cuadrante que contiene sus coordenadas; la animación permite ver tanto esa ruta como las subdivisiones recursivas.',
+    'Insertar un punto en su cuadrante|Subdividir y redistribuir una región llena|Buscar o eliminar un punto por sus coordenadas|Recorrer los cuadrantes del árbol',
     'Adapta el detalle a la densidad|Descarta regiones completas|Representa espacios dispersos|Facilita consultas geográficas',
     'Datos concentrados pueden crear mucha profundidad|Los puntos en límites necesitan una regla|Actualizar objetos móviles puede ser costoso|No siempre queda balanceado',
     'Mapas|Motores 2D|Compresión de imágenes|Índices geoespaciales',
@@ -337,8 +337,8 @@ export const educationalDescriptions = {
   ),
   octree: guide(
     'Un Octree extiende la idea del QuadTree al espacio tridimensional dividiendo cada cubo en ocho octantes.',
-    'Cada nivel parte X, Y y Z por la mitad. Los objetos se guardan en el octante que los contiene y sólo las regiones con información necesitan subdividirse.',
-    'Insertar puntos u objetos 3D|Subdividir un cubo|Consultar una región espacial|Detectar vecinos, visibilidad o colisiones',
+    'Cada región cúbica es una hoja hasta alcanzar su capacidad. Cuando se llena, parte X, Y y Z por la mitad, crea ocho octantes y reparte los puntos existentes. El nuevo punto desciende por el octante que contiene sus tres coordenadas; las regiones vacías no necesitan seguir subdividiéndose.',
+    'Insertar un punto usando sus tres coordenadas|Subdividir y redistribuir un cubo lleno|Buscar o eliminar un punto 3D|Recorrer los octantes del árbol',
     'Representa espacios 3D dispersos|Permite descartar grandes volúmenes|Nivel de detalle adaptativo|Útil para aceleración gráfica',
     'Puede consumir muchas referencias|Objetos que cruzan límites requieren una política|La profundidad puede crecer mucho|Actualizar escenas dinámicas cuesta trabajo',
     'Videojuegos 3D|Vóxeles|Robótica|Trazado de rayos y colisiones',
@@ -368,18 +368,18 @@ export const educationalDescriptions = {
 
   'hash-table': guide(
     'Una Hash Table guarda pares clave-valor y usa una función hash para convertir cada clave en un índice.',
-    'La función hash distribuye las claves entre casillas. Como dos claves pueden producir la misma posición, toda tabla necesita una estrategia para resolver colisiones.',
-    'put inserta o actualiza una clave|Get busca su valor|remove elimina la entrada|Rehash aumenta la capacidad y redistribuye',
+    'La función hash distribuye las claves entre casillas. Dos claves pueden llegar a la misma posición: esta demostración utiliza un arreglo de 12 casillas y sondeo lineal para encontrar otra libre. Buscar repite ese recorrido y eliminar deja una marca especial para que no se pierdan claves desplazadas. Separate Chaining, en cambio, guarda una lista por casilla.',
+    'put inserta o actualiza una clave|Get busca su valor siguiendo el sondeo|remove deja una marca de borrado|Comprobar la casilla calculada y las colisiones',
     'Acceso promedio O(1)|Muy eficiente para búsquedas exactas|Claves de distintos tipos|Base de mapas y conjuntos',
-    'No mantiene orden natural|El peor caso puede ser O(n)|Depende de una función hash adecuada|Cambiar capacidad exige rehash',
+    'No mantiene orden natural|El peor caso puede ser O(n)|Depende de una función hash adecuada|La tabla de esta lección tiene capacidad fija y no hace rehash',
     'Diccionarios|Contadores de frecuencia|Cachés|Índices y tablas de símbolos',
     'Como casilleros asignados calculando un número a partir del nombre de cada persona.',
-    'equals y hashCode deben ser coherentes: objetos iguales tienen que producir el mismo hash.'
+    'La casilla calculada sólo indica dónde comenzar; al buscar, compara la clave real y sigue el mismo sondeo usado al insertar.'
   ),
   'hash-open': guide(
     'Open Addressing resuelve colisiones buscando otra posición libre dentro del mismo Array de la tabla hash.',
-    'Si la posición original está ocupada se sigue una secuencia de sondeo: lineal, cuadrático o doble hash. La búsqueda debe repetir exactamente esa misma secuencia.',
-    'Insertar siguiendo el sondeo|Buscar hasta encontrar la clave o una casilla nunca usada|Eliminar usando una marca especial|Redimensionar al superar el factor de carga',
+    'Esta implementación usa sondeo lineal: si la casilla calculada está ocupada, prueba la siguiente y vuelve al inicio al llegar al final del arreglo. Buscar repite esa misma secuencia. Al eliminar, deja una marca BORRADO para no interrumpir búsquedas de claves desplazadas; una inserción posterior puede reutilizar esa casilla.',
+    'Insertar siguiendo el sondeo lineal|Buscar hasta encontrar la clave o una casilla nunca usada|Eliminar dejando una marca especial|Reutilizar una casilla marcada como BORRADO',
     'Todos los datos quedan en un solo Array|Buena localidad de caché|Sin nodos adicionales|Implementación compacta',
     'El rendimiento cae cuando la tabla se llena|El sondeo lineal forma agrupamientos|Eliminar no puede simplemente dejar una casilla vacía|Requiere controlar el factor de carga',
     'Mapas compactos|Sistemas embebidos|Tablas de símbolos|Cachés pequeñas',
@@ -459,9 +459,9 @@ export const educationalDescriptions = {
   ),
   prim: guide(
     'Prim construye un Minimum Spanning Tree conectando todos los vértices de un grafo no dirigido con el menor peso total.',
-    'Comienza en un vértice y mantiene una frontera de aristas. En cada paso elige la arista más barata que conecta el árbol actual con un vértice todavía externo.',
-    'Elegir un vértice inicial|Agregar aristas candidatas a una cola|Extraer la conexión más barata|Ignorar aristas que llevan a vértices ya incluidos',
-    'Produce un árbol de expansión mínimo|Funciona bien con grafos densos|Crece de forma intuitiva|Se implementa eficientemente con heap',
+    'Comienza en un vértice y conserva, para cada vértice externo, el menor peso conocido para conectarlo al árbol y el padre que ofrece esa conexión. En cada vuelta recorre esos valores para escoger el menor, incorpora el vértice y actualiza a sus vecinos. El código mostrado usa una matriz de adyacencia y búsquedas lineales: O(V²), sin cola de prioridad.',
+    'Elegir un vértice inicial|Buscar el vértice externo con menor peso de conexión|Incorporarlo al árbol mediante su padre|Actualizar los pesos de conexión de sus vecinos',
+    'Produce un árbol de expansión mínimo|La implementación con matriz resulta clara para grafos densos|Crece de forma intuitiva|Permite observar qué conexión mejora para cada vértice',
     'Requiere grafo conectado para obtener un solo árbol|Sólo se aplica a grafos no dirigidos|No calcula rutas mínimas desde un origen|Hay que controlar aristas repetidas',
     'Cableado de redes|Conexión de instalaciones|Diseño de tuberías|Clustering aproximado',
     'Expandes una red eligiendo siempre el cable más barato que alcanza un lugar nuevo.',
@@ -682,7 +682,7 @@ export const educationalDescriptions = {
   ),
   'union-find': guide(
     'Union-Find o Disjoint Set Union mantiene varios conjuntos separados y responde rápidamente si dos elementos pertenecen al mismo grupo.',
-    'Cada elemento apunta a un padre y cada conjunto tiene una raíz representante. Path compression acorta caminos durante find y union by rank enlaza el árbol más pequeño bajo el mayor.',
+    'Cada elemento apunta a un padre y cada conjunto tiene una raíz representante. find sigue los padres y comprime el camino al volver; union enlaza las raíces de dos conjuntos distintos. El rango aproxima la altura del árbol, no cuenta sus elementos: se incrementa sólo cuando se unen dos raíces del mismo rango.',
     'makeSet crea conjuntos individuales|find obtiene la raíz|union conecta dos raíces|Comprobar conectividad comparando representantes',
     'Operaciones casi constantes amortizadas|Implementación compacta|Excelente para conectividad incremental|Evita recorrer grafos completos repetidamente',
     'No permite separar conjuntos fácilmente|No entrega por sí solo el camino entre elementos|Los índices deben ser válidos|Sin optimizaciones puede formar árboles altos',
@@ -692,13 +692,13 @@ export const educationalDescriptions = {
   ),
   'lru-cache': guide(
     'Una LRU Cache conserva una cantidad limitada de datos y elimina el que lleva más tiempo sin utilizarse.',
-    'Combina una Hash Table para localizar claves en O(1) y una Lista Doblemente Enlazada para mantener el orden de uso. Cada get o put mueve la entrada al frente.',
-    'get busca y mueve al frente|put inserta o actualiza|Eliminar la cola al superar capacidad|Mantener sincronizados mapa y lista',
+    'Combina una tabla hash para localizar claves y una lista doble para ordenarlas desde la menos usada hasta la más reciente. Un get exitoso o un put de una clave existente mueve su nodo al final; una clave nueva también se agrega allí. Si se supera la capacidad, se elimina el nodo del inicio de la lista y del mapa. Un get fallido no cambia el orden.',
+    'get busca y mueve al final si encuentra la clave|put inserta o actualiza y marca como reciente|Eliminar el inicio al superar la capacidad|Mantener sincronizados mapa y lista',
     'Get y put O(1)|Aprovecha la localidad temporal|Política de reemplazo intuitiva|Combina dos estructuras clásicas',
-    'Necesita más memoria|Cada acceso modifica el orden|Mapa y lista pueden desincronizarse|LRU no siempre predice el dato más útil',
+    'Necesita más memoria|Cada acceso exitoso modifica el orden|Mapa y lista pueden desincronizarse|LRU no siempre predice el dato más útil',
     'Caché de páginas|Imágenes y respuestas HTTP|Bloques de disco|Resultados de cálculos costosos',
     'Como dejar a mano los libros usados recientemente y devolver el más olvidado cuando falta espacio.',
-    'La cabeza representa lo más reciente y la cola lo menos reciente; actualiza ambos extremos en cada operación.'
+    'En esta implementación, head es la entrada menos reciente y tail la más reciente. Al expulsar una entrada, elimina la misma clave tanto de la lista como de la tabla hash.'
   ),
   'bloom-filter': guide(
     'Un Bloom Filter es una estructura probabilística que indica si un elemento definitivamente no está o posiblemente sí está.',
