@@ -155,20 +155,125 @@ const specialDetails = {
   'bloom-filter': 'Several hash functions set bits. A missing bit proves absence, while all bits set means only “possibly present.”',
 };
 
+// These lessons need their own explanation: the generic family profile would
+// describe operations or performance that the code shown on the page does not use.
+const specificGuides = {
+  'skip-list': {
+    definition: 'A Skip List is a sorted linked list with extra levels of forward links that let a search skip over groups of values.',
+    how: 'Level 0 contains every value. Starting at the highest occupied level, search moves right while the next value is smaller than the target, then drops one level. Insertion chooses the new node’s height at random and repairs the forward links at every level it occupies.',
+    strengths: ['Expected O(log n) search and insertion', 'Maintains sorted values without tree rotations', 'Level 0 always supports a complete ordered traversal'],
+    limits: ['The worst case is O(n)', 'Extra forward links use memory', 'The chosen random levels affect the shape of the structure'],
+    uses: ['Ordered in-memory indexes', 'Sorted sets', 'Concurrent indexing designs'],
+    example: 'Think of express lanes above a local road: travel far on the top lane, then descend to reach an exact address.',
+    tip: 'Follow the downward search path; the value is confirmed only after checking the next node on level 0.',
+  },
+  'segment-tree': {
+    definition: 'A Segment Tree stores summaries of nested array intervals so a range can be queried without scanning every element.',
+    how: 'The root covers the whole array and each child covers half of its parent’s interval. A range query skips disjoint nodes and combines fully covered nodes. Updating one position recomputes only its ancestors. This lesson does not implement lazy propagation.',
+    strengths: ['Range sum and minimum queries in O(log n)', 'Point updates in O(log n)', 'Supports associative summaries over intervals'],
+    limits: ['Uses more memory than the input array', 'Inclusive boundaries need careful handling', 'Range updates require an additional technique such as lazy propagation'],
+    uses: ['Changing statistics over intervals', 'Range sums and minima', 'Competitive programming'],
+    example: 'Instead of recounting every page, combine the summaries of the few chapters that cover the requested pages.',
+    tip: 'A node contributes its stored summary only when its entire interval is inside the query; otherwise inspect its children.',
+  },
+  'fenwick-tree': {
+    definition: 'A Fenwick Tree, or Binary Indexed Tree, stores partial sums that make prefix sums and point updates fast.',
+    how: 'The internal BIT is one-based: cell i summarizes a block of length i & -i. Updating a visible array position adds a delta to every BIT block containing it; a range sum is the difference of two prefix sums. The displayed prefix minimum is computed by scanning the values, not by the sum BIT.',
+    strengths: ['Prefix sums and additive point updates in O(log n)', 'Only O(n) auxiliary storage', 'A range sum follows from two prefix sums'],
+    limits: ['The internal one-based indices differ from the displayed zero-based array', 'Prefix minimum is O(n) in this lesson', 'A sum BIT cannot answer minimum queries by subtracting prefixes'],
+    uses: ['Dynamic frequencies', 'Prefix and range sums', 'Inversion counting'],
+    example: 'Each BIT cell keeps the subtotal of a particular block ending at its index.',
+    tip: 'When updating, enter a delta rather than the replacement value; when querying a prefix, move toward zero with i -= i & -i.',
+  },
+  quadtree: {
+    definition: 'A QuadTree indexes two-dimensional points by recursively dividing a region into four quadrants.',
+    how: 'A region holds points until it reaches capacity. It then splits into northwest, northeast, southwest, and southeast children, redistributes its points, and inserts the new point into the child containing its X and Y coordinates. Only occupied paths need further subdivision.',
+    strengths: ['Adapts detail to where points are concentrated', 'Can skip entire irrelevant regions', 'Represents sparse 2D spaces naturally'],
+    limits: ['Concentrated points can make the tree deep', 'Points on a boundary need a consistent ownership rule', 'Moving points may require removal and reinsertion'],
+    uses: ['2D maps', 'Spatial searches', 'Collision detection'],
+    example: 'Divide a map into four tiles and keep dividing only tiles that contain too many points.',
+    tip: 'Track the selected quadrant at each level; the displayed point must end in the leaf whose bounds contain its coordinates.',
+  },
+  octree: {
+    definition: 'An Octree indexes three-dimensional points by recursively dividing a cube into eight octants.',
+    how: 'A leaf holds points up to its capacity. When full, it splits X, Y, and Z at their midpoints, creates eight children, and redistributes the existing points. A new point descends through the octant containing all three coordinates.',
+    strengths: ['Adapts to sparse 3D spaces', 'Can discard large empty volumes', 'Supports spatial grouping at several scales'],
+    limits: ['Deep subdivisions need more references', 'Boundary coordinates require a consistent rule', 'Moving points may need reinsertion'],
+    uses: ['3D scenes and voxels', 'Robotics', 'Collision searches'],
+    example: 'Divide a room into eight smaller boxes, then repeat only inside boxes that become crowded.',
+    tip: 'Unlike a QuadTree, each choice uses X, Y, and Z; check all three when following a point into an octant.',
+  },
+  'hash-table': {
+    definition: 'A Hash Table maps a key to an array position, then compares the original key to identify the correct entry.',
+    how: 'This lesson uses a fixed array of 12 slots with linear probing. When the hashed slot is occupied, insertion checks consecutive slots and wraps around. Lookup follows the same path; deletion leaves a tombstone so a displaced key remains reachable. Separate Chaining uses a different collision strategy.',
+    strengths: ['Expected constant-time exact lookup', 'Compact array-backed storage', 'Shows how a collision changes the search path'],
+    limits: ['The displayed table has a fixed capacity and does not rehash', 'Linear probing can form clusters', 'Worst-case lookup is O(n)'],
+    uses: ['Dictionaries', 'Frequency counters', 'Lookup tables'],
+    example: 'A library code picks the first shelf to inspect; if that shelf is taken, check the following shelves in order.',
+    tip: 'The hash gives a starting slot, not proof of a match: compare the stored key and keep probing when needed.',
+  },
+  'hash-open': {
+    definition: 'Open Addressing keeps every hash-table entry inside the table array and resolves collisions by probing other slots.',
+    how: 'This implementation uses linear probing: after the hashed slot, it checks consecutive slots and wraps around at the end. Search follows the same sequence. Deletion leaves a tombstone so it cannot hide a displaced key; a later insertion may reuse that slot.',
+    strengths: ['Entries need no linked nodes', 'Nearby probes have good memory locality', 'The fixed table makes collisions visible'],
+    limits: ['Performance falls as the table fills', 'Linear probing can form clusters', 'A deleted slot cannot simply become never-used'],
+    uses: ['Compact lookup tables', 'In-memory maps', 'Teaching collision resolution'],
+    example: 'If the assigned locker is taken, check the next locker, wrapping around when you reach the last one.',
+    tip: 'Stop a failed search at a never-used slot, not at a tombstone; a key may have been displaced beyond it.',
+  },
+  'hash-chaining': {
+    definition: 'Separate Chaining handles hash collisions by storing multiple entries in the bucket selected by their hash.',
+    how: 'The hash selects a bucket, not a unique entry. Each bucket has a linked chain; insertion attaches an entry there, while lookup and deletion compare keys within that chain. A collision does not require searching other array slots or leaving tombstones.',
+    strengths: ['Collisions do not exhaust a probing sequence', 'Deletion can unlink an entry directly', 'Buckets can grow as more keys collide'],
+    limits: ['Each node needs a link and separate allocation', 'Poor distribution creates long chains', 'Worst-case lookup remains O(n)'],
+    uses: ['In-memory dictionaries', 'Symbol tables', 'Grouping entries by hash bucket'],
+    example: 'One numbered locker holds a short list of entries whose keys led to the same locker.',
+    tip: 'After selecting a bucket, compare the full key of each entry; a shared hash position does not make two keys equal.',
+  },
+  prim: {
+    definition: 'Prim builds a minimum spanning tree of a connected, undirected, weighted graph.',
+    how: 'Starting from one vertex, it records the cheapest known connection and parent for each outside vertex. Each round scans those values, adds the cheapest reachable vertex, and updates its neighbors. The displayed matrix-based code runs in O(V²); it does not use a priority queue.',
+    strengths: ['Produces a minimum-cost spanning tree', 'The matrix-based version is straightforward for dense graphs', 'Each update shows which edge improves a connection'],
+    limits: ['A disconnected graph cannot produce one spanning tree', 'It applies to undirected graphs', 'A spanning tree is not a shortest-path tree'],
+    uses: ['Network cabling', 'Connecting facilities', 'Minimum-cost infrastructure'],
+    example: 'Keep expanding a network using the cheapest cable that reaches a place not yet connected.',
+    tip: 'The chosen edge must cross from the existing tree to a vertex outside it; otherwise it would create a cycle.',
+  },
+  'union-find': {
+    definition: 'Union-Find maintains disjoint groups and quickly checks whether two elements have the same representative.',
+    how: 'Every element points to a parent. Find follows parents to the root and compresses that path on return. Union links two different roots by rank. Rank approximates tree height, not group size, and increases only when two equal-rank roots are joined.',
+    strengths: ['Near-constant amortized find and union', 'Compact representation of changing connectivity', 'Useful for rejecting cycles in Kruskal'],
+    limits: ['It does not directly split groups', 'It does not reveal a path between elements', 'Comparing immediate parents is not enough to test connectivity'],
+    uses: ['Kruskal’s algorithm', 'Cycle detection', 'Dynamic connectivity'],
+    example: 'Each group has a representative; two people belong together when following their parent links reaches the same root.',
+    tip: 'Compare find(a) and find(b), not parent[a] and parent[b].',
+  },
+  'lru-cache': {
+    definition: 'An LRU Cache evicts the least recently used entry when its fixed capacity is reached.',
+    how: 'A hash table finds a key while a doubly linked list records usage order. In this implementation, head is the least recent entry and tail is the most recent. A successful get or an update moves its node to the tail; a miss leaves the order unchanged. Eviction removes the head from both the list and the table.',
+    strengths: ['Expected O(1) get and put', 'Makes recent accesses quick to retain', 'Combines a map with an explicit usage order'],
+    limits: ['Nodes and hash entries use extra memory', 'Every successful access changes the list', 'Recency is not always a good predictor of future use'],
+    uses: ['Page and image caches', 'Expensive computed results', 'Memory-bounded lookup tables'],
+    example: 'Keep recently used books within reach; when the shelf is full, remove the book untouched for the longest time.',
+    tip: 'In this lesson, read the list from oldest at head to newest at tail; the evicted key must disappear from both structures.',
+  },
+};
+
 export function getEnglishEducationalDescription(algorithm) {
   const profile = profiles[profileKey(algorithm)];
   const definition = getOperationDefinition(algorithm);
   const operations = definition.actions.map(action => translateOperationLabel(action.label, 'en'));
   while (operations.length < 4) operations.push(['Inspect the current state', 'Traverse the stored values', 'Validate the structure invariant', 'Reset the example'][operations.length]);
   const detail = specialDetails[algorithm.id];
+  const specific = specificGuides[algorithm.id];
   return {
-    definition: `${algorithm.description} ${algorithm.name} is studied here as a data structure or algorithm with explicit state, operations, and rules that remain valid after every step.`,
-    how: detail ? `${profile.how} ${detail}` : profile.how,
+    definition: specific?.definition ?? algorithm.description,
+    how: specific?.how ?? (detail ? `${profile.how} ${detail}` : profile.how),
     operations,
-    strengths: profile.strengths,
-    limits: profile.limits,
-    uses: profile.uses,
-    example: profile.example,
-    tip: detail ?? profile.tip,
+    strengths: specific?.strengths ?? profile.strengths,
+    limits: specific?.limits ?? profile.limits,
+    uses: specific?.uses ?? profile.uses,
+    example: specific?.example ?? profile.example,
+    tip: specific?.tip ?? detail ?? profile.tip,
   };
 }

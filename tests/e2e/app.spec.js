@@ -320,6 +320,26 @@ test('Backtracking, Búsqueda Binaria y Divide y Vencerás tienen fundamentos co
   }
 });
 
+test('las guías específicas explican la implementación real en ambos idiomas', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chromium', 'El mismo contenido se presenta en ambos tamaños de pantalla.');
+  const guides = [
+    ['prim', 'O(V²), sin cola de prioridad', 'O(V²); it does not use a priority queue'],
+    ['fenwick-tree', 'no es una consulta O(log n) del BIT de sumas', 'Prefix minimum is O(n) in this lesson'],
+    ['hash-table', 'arreglo de 12 casillas y sondeo lineal', 'fixed array of 12 slots with linear probing'],
+    ['hash-open', 'usa sondeo lineal', 'uses linear probing'],
+    ['hash-chaining', 'cada bucket suele ser una lista', 'Each bucket has a linked chain'],
+    ['union-find', 'no cuenta sus elementos', 'not group size'],
+    ['lru-cache', 'head es la entrada menos reciente', 'head is the least recent entry'],
+  ];
+
+  for (const [id, spanish, english] of guides) {
+    await page.goto(`/${id}`);
+    await expect(page.locator('.educational-description')).toContainText(spanish);
+    await page.goto(`/en/${id}`);
+    await expect(page.locator('.educational-description')).toContainText(english);
+  }
+});
+
 test('el modo desafío predice operaciones y conserva el progreso local', async ({ page }) => {
   await page.evaluate(() => window.localStorage.removeItem('dsa-challenge-progress-v1'));
 
