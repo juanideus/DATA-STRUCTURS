@@ -108,7 +108,7 @@ function bubbleSort(values, edges) {
         position: i, sortRange: [0, end], sortComparePositions: [i, i + 1], variables: { end, i, changed },
       });
       const shouldSwap = numeric(working[i]) > numeric(working[i + 1]);
-      add('if (values[i] > values[i + 1]) {', `${working[i]} ${shouldSwap ? '>' : '≤'} ${working[i + 1]}: ${shouldSwap ? 'se intercambian' : 'ya están en orden'}.`, 'bubble-compare', {
+      add('if (values[i] > values[i + 1]) {', `${working[i]} ${shouldSwap ? '>' : '≤'} ${working[i + 1]}: ${shouldSwap ? 'hay que intercambiarlos' : 'ya están en orden'}.`, 'bubble-compare', {
         position: i, sortRange: [0, end], sortComparePositions: [i, i + 1], variables: { end, i, changed, condición: shouldSwap },
       });
       if (shouldSwap) {

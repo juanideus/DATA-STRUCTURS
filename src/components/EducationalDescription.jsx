@@ -6,6 +6,25 @@ import { getOperationDefinition } from '../logic/operations.js';
 import { useLanguage } from '../i18n.jsx';
 import { getEnglishEducationalDescription } from '../data/educationalDescriptionsEnglish.js';
 
+const englishExampleCopy = {
+  dijkstra: {
+    title: 'Inspect a neighboring cell',
+    explanation: 'A blocked cell is skipped; an improved distance and predecessor are saved for a walkable neighbor.',
+  },
+  'a-star': {
+    title: 'Calculate f = g + h',
+    explanation: 'A* combines the new travelled cost with the estimated distance to the goal.',
+  },
+  'bubble-sort': {
+    title: 'Compare adjacent values',
+    explanation: 'An out-of-order pair is swapped, moving the larger value toward the end.',
+  },
+  'matriz-dispersa': {
+    title: 'Link one cell into two circular lists',
+    explanation: 'The same node joins its row through left and its column through up.',
+  },
+};
+
 function DetailList({ icon: Icon, title, items, tone = '' }) {
   return <article className={`description-list-card ${tone}`}>
     <header><Icon size={17}/><strong>{title}</strong></header>
@@ -22,7 +41,9 @@ export default function EducationalDescription({ algorithm }) {
   const javaExample = guideExample?.code
     ? completeJavaSnippet(guideExample.code, algorithm.id)
     : getBeginnerJava(algorithm, firstAction.id);
-  const javaLines = javaExample.split('\n');
+  const javaLines = javaExample.split('\n').map(line => language === 'en'
+    ? line.replace('// Método auxiliar utilizado arriba:', '// Helper method used above:')
+    : line);
 
   const copy = language === 'en' ? {
     complete:'Complete guide',what:'What is',internal:'How it works internally',imagine:'A simple way to picture it',understand:'Understanding it step by step',
@@ -30,7 +51,7 @@ export default function EducationalDescription({ algorithm }) {
     deep2:'Do not memorize only the result: follow the references, indices, nodes, and decisions shown in the visualization. The advantages explain when this solution is useful; the limitations show when another structure or algorithm may be more suitable.',
     key:'Key operations and concepts',advantages:'Advantages',limits:'Limitations and precautions',uses:'Where it is used',mainComplexity:'Main complexity',
     complexityText:'Complexity describes how the amount of work grows as the input grows. The code panel above lets you observe every operation step by step.',
-    javaExample:'Basic Java example',exampleTitle:`Basic ${algorithm.name} example`,exampleText:`This fragment demonstrates an essential ${algorithm.name} operation and connects the Java statements with the visualization above.`,
+    javaExample:'Basic Java example',exampleTitle:englishExampleCopy[algorithm.id]?.title ?? `Basic ${algorithm.name} example`,exampleText:englishExampleCopy[algorithm.id]?.explanation ?? `This fragment demonstrates an essential ${algorithm.name} operation and connects the Java statements with the visualization above.`,
     observe:'What to observe',observeText:'Identify the input data, the main condition, the state change, and the value returned by the method when applicable.',important:'Important idea:',
   } : {
     complete:'Guía completa',what:'¿Qué es',internal:'Cómo funciona internamente',imagine:'Ejemplo para imaginarlo',understand:'Para comprenderlo paso a paso',
@@ -62,7 +83,9 @@ export default function EducationalDescription({ algorithm }) {
 
       <article className="description-deep-dive">
         <header><BookOpen size={18}/><strong>{copy.understand}</strong></header>
-        <p>{copy.deepA} <b>{description.operations[0].toLowerCase()}</b>. {copy.deepB} <b>{description.operations[1].toLowerCase()}</b> {copy.deepC}</p>
+        <p>{language === 'en'
+          ? <>First, study <b>{description.operations[0]}</b>. Next, study <b>{description.operations[1]}</b>. Identify which data changes, which data remains unchanged, and which condition stops the process.</>
+          : <>{copy.deepA} <b>{description.operations[0].toLowerCase()}</b>. {copy.deepB} <b>{description.operations[1].toLowerCase()}</b> {copy.deepC}</>}</p>
         <p>{copy.deep2}</p>
       </article>
 
@@ -82,7 +105,7 @@ export default function EducationalDescription({ algorithm }) {
         <div className="description-java-copy">
           <small>{copy.javaExample}</small><h3>{copy.exampleTitle}</h3><p>{copy.exampleText}</p><strong>{copy.observe}</strong><p>{copy.observeText}</p>
         </div>
-        <pre aria-label={`Ejemplo básico de ${algorithm.name} en Java`}><code>{javaLines.map((line, index) => <span className={line.trim().startsWith('// Método auxiliar utilizado arriba:') ? 'helper-method-label' : ''} key={`${index}-${line}`}><i>{String(index + 1).padStart(2, '0')}</i>{line || ' '}</span>)}</code></pre>
+        <pre aria-label={language === 'en' ? `Basic ${algorithm.name} example in Java` : `Ejemplo básico de ${algorithm.name} en Java`}><code>{javaLines.map((line, index) => <span className={line.trim().startsWith('// Método auxiliar utilizado arriba:') || line.trim().startsWith('// Helper method used above:') ? 'helper-method-label' : ''} key={`${index}-${line}`}><i>{String(index + 1).padStart(2, '0')}</i>{line || ' '}</span>)}</code></pre>
       </div>
 
       <div className="description-tip"><Lightbulb size={17}/><p><strong>{copy.important}</strong> {description.tip}</p></div>

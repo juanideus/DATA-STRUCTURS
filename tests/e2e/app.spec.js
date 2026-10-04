@@ -1486,6 +1486,7 @@ test('Dijkstra y A* muestran código Java y C++ junto al mapa', async ({ page })
     await expect(page.locator('.code-panel pre')).toContainText('map[next] < 0');
     await page.getByRole('button', { name: 'C++', exact: true }).click();
     await expect(page.locator('.code-panel pre')).toContainText('map[neighbor]');
+    await page.clock.pauseAt(new Date());
     await page.getByRole('button', { name: id === 'dijkstra' ? 'Ejecutar Dijkstra' : 'Ejecutar A*', exact: true }).click();
     await expect(page.locator('.operation-message')).toHaveClass(/success/);
     await expect(page.locator('.code-panel code.active')).toContainText('distance[start] = 0;');

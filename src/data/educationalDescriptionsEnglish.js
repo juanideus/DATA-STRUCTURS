@@ -67,9 +67,9 @@ const profiles = {
     tip: 'Always compare the original key after hashing; equal table positions do not imply equal keys.',
   },
   sort: {
-    how: 'The algorithm compares and rearranges values according to an ordering rule. Divide-and-conquer variants split the input, solve smaller subproblems, and combine their results.',
-    strengths: ['Produces ordered data for later processing', 'Makes binary search possible', 'Exposes comparison and recursion clearly', 'Different algorithms fit different data properties'],
-    limits: ['Time and memory costs vary by algorithm', 'Some variants are unstable', 'Poor pivot choices can hurt Quick Sort', 'Merge Sort requires auxiliary storage'],
+    how: 'A sorting algorithm rearranges values into a chosen order. Depending on the method, it may compare values, count occurrences, process digits, or move values through a heap or temporary storage.',
+    strengths: ['Produces ordered data for later processing', 'Makes binary search possible', 'Offers different trade-offs for different data sets'],
+    limits: ['Time and memory costs depend on the chosen algorithm', 'Some methods do not preserve the order of equal values', 'A slow method can be impractical for large inputs'],
     uses: ['Reports and rankings', 'Preparing data for binary search', 'Grouping duplicate values', 'Database and interface ordering'],
     example: 'Imagine arranging cards: the algorithm defines which cards to compare and where each one must move.',
     tip: 'Follow the real partition or merge operation; do not replace it with swaps from Bubble Sort.',
@@ -158,6 +158,66 @@ const specialDetails = {
 // These lessons need their own explanation: the generic family profile would
 // describe operations or performance that the code shown on the page does not use.
 const specificGuides = {
+  bfs: {
+    definition: 'Breadth-First Search explores a graph level by level using a queue.',
+    how: 'The starting vertex is marked and enqueued. BFS repeatedly removes the vertex at the front, visits each unvisited neighbor, marks that neighbor immediately, and enqueues it. Marking on enqueue prevents the same vertex from entering the queue more than once.',
+    operations: ['Mark and enqueue the starting vertex', 'Dequeue the next pending vertex', 'Inspect its adjacent vertices', 'Mark and enqueue every unvisited neighbor'],
+    strengths: ['Visits every reachable vertex in O(V + E) with adjacency lists', 'Finds minimum-edge paths in an unweighted graph', 'Processes vertices in increasing distance from the start'],
+    limits: ['The queue can hold many vertices on wide graphs', 'It does not minimize weighted path cost', 'Cycles require an explicit visited set'],
+    uses: ['Shortest paths in unweighted graphs', 'Level-order exploration', 'Network reachability', 'Finding degrees of separation'],
+    example: 'Like ripples spreading from one point, BFS reaches all vertices one edge away before vertices two edges away.',
+    tip: 'Mark a neighbor when it is enqueued, not when it is later removed, so it cannot be queued repeatedly.',
+  },
+  dijkstra: {
+    definition: 'Dijkstra finds the shortest path from a starting cell when every movement cost is non-negative.',
+    how: 'The grid is treated as a graph: each walkable cell connects to its four adjacent cells. Distances start at infinity except for the start. At each step, the algorithm settles the reachable cell with the lowest known cost and relaxes its neighbors. Previous-cell references reconstruct the route to the goal.',
+    operations: ['Initialize the distances', 'Choose the unsettled cell with the lowest distance', 'Relax its walkable neighbors', 'Follow previous cells to reconstruct the route'],
+    strengths: ['Finds an optimal route with non-negative costs', 'Keeps the shortest known distance to every reachable cell', 'Works with different non-negative movement costs'],
+    limits: ['Negative movement costs invalidate the method', 'This array-scan version takes O((R · C)²) time', 'It may explore much of the grid before reaching the goal'],
+    uses: ['Road and grid routing', 'Network routing', 'Minimum-cost planning'],
+    example: 'From every reachable intersection, continue first from the one with the lowest known travel cost.',
+    tip: 'A blocked cell has a negative map value here; walkable cells have non-negative costs. Relax a neighbor only when the new route is cheaper.',
+  },
+  'a-star': {
+    definition: 'A* finds a minimum-cost route by combining the cost already travelled with an estimate of the distance to the goal.',
+    how: 'For each open grid cell, g is the cost from the start, h is its Manhattan distance to the goal, and f = g + h. A* expands the open cell with the lowest f, checks its four walkable neighbors, and stores a predecessor whenever it improves g. Unit movement costs make Manhattan distance an admissible estimate on this map.',
+    operations: ['Set the starting g value to zero', 'Calculate the Manhattan estimate h', 'Choose the open cell with the lowest f', 'Relax neighbors and reconstruct the route'],
+    strengths: ['Targets a specific goal', 'Can visit fewer cells than Dijkstra', 'Keeps an optimal route with this admissible heuristic'],
+    limits: ['Open and closed cells require extra memory', 'An overestimating heuristic can lose optimality', 'A weak heuristic may offer little advantage over Dijkstra'],
+    uses: ['Grid navigation', 'Game character movement', 'Robot route planning'],
+    example: 'g records how far you have walked; h estimates what remains; f helps choose the next cell.',
+    tip: 'With h = 0, A* behaves like Dijkstra. On this unit-cost four-direction grid, Manhattan distance does not overestimate.',
+  },
+  'bubble-sort': {
+    definition: 'Bubble Sort compares adjacent values and swaps a pair only when the left value is larger.',
+    how: 'One pass compares neighbors from left to right and moves the largest remaining value to the end. The next pass stops one position earlier. A changed flag ends the algorithm as soon as a complete pass makes no swap.',
+    operations: ['Compare values[i] with values[i + 1]', 'Swap adjacent values in the wrong order', 'Shorten the unsorted range after each pass', 'Stop early if a pass makes no swap'],
+    strengths: ['Uses only constant extra space', 'Preserves the order of equal values', 'Finishes in O(n) on already sorted input with the changed flag'],
+    limits: ['Average and worst-case time are O(n²)', 'Makes many comparisons and swaps', 'Is inefficient for large collections'],
+    uses: ['Teaching nested loops', 'Visualizing comparisons and swaps', 'Very small data sets'],
+    example: 'In [5, 2, 4], swap 5 with 2 and then with 4; the 5 reaches the end of the pass.',
+    tip: 'A comparison decides whether to swap; the values change only in the following assignment steps.',
+  },
+  'selection-sort': {
+    definition: 'Selection Sort repeatedly selects the smallest value in the unsorted region and places it at its front.',
+    how: 'For each position i, scan positions i + 1 through the end to find the smallest value. After the scan, swap it with the value at i only if they differ. The sorted prefix grows by one after every pass.',
+    operations: ['Choose the start of the unsorted region', 'Scan for its minimum value', 'Swap the minimum into position i if needed', 'Advance the sorted boundary'],
+    strengths: ['Uses only constant extra space', 'Performs at most one swap per pass', 'Makes the sorted and unsorted regions easy to visualize'],
+    limits: ['Always makes O(n²) comparisons, even on sorted input', 'The swap can change the order of equal values', 'Is slow for large collections'],
+    uses: ['Teaching minimum selection', 'Small in-place sorting examples', 'Cases where writes are more costly than comparisons'],
+    example: 'From [5, 2, 4], find 2 in the unsorted region and swap it with 5; then select 4 for the next position.',
+    tip: 'Do not swap whenever a smaller value is found during the scan: remember its index and swap once after the inner loop.',
+  },
+  'matriz-dispersa': {
+    definition: 'A Sparse Matrix stores only non-zero cells as nodes shared by a circular row list and a circular column list.',
+    how: 'AROW holds one circular header per row and follows left from higher to lower column indices. ACOL holds one circular header per column and follows up from higher to lower row indices. Each non-zero cell is a single node linked into both lists. In C++, both header arrays and all nodes use dynamic memory.',
+    operations: ['Find the insertion point in AROW', 'Find the insertion point in ACOL', 'Link one node into both circular lists', 'Remove the node from both lists'],
+    strengths: ['Stores only non-zero cells', 'Traverses a selected row without scanning the whole matrix', 'Traverses a selected column without scanning the whole matrix'],
+    limits: ['Finding a coordinate requires traversing its row', 'Each node needs both left and up references', 'Insertion and removal must keep AROW and ACOL synchronized'],
+    uses: ['Sparse adjacency matrices', 'Scientific matrices with many zeros', 'Large sparse data sets'],
+    example: 'Record only occupied city blocks, but list each block by both its street and its avenue.',
+    tip: 'Stop a traversal when it returns to its circular header, not when it reaches null. A coordinate lookup is not constant-time in this representation.',
+  },
   'skip-list': {
     definition: 'A Skip List is a sorted linked list with extra levels of forward links that let a search skip over groups of values.',
     how: 'Level 0 contains every value. Starting at the highest occupied level, search moves right while the next value is smaller than the target, then drops one level. Insertion chooses the new node’s height at random and repairs the forward links at every level it occupies.',
@@ -262,10 +322,10 @@ const specificGuides = {
 export function getEnglishEducationalDescription(algorithm) {
   const profile = profiles[profileKey(algorithm)];
   const definition = getOperationDefinition(algorithm);
-  const operations = definition.actions.map(action => translateOperationLabel(action.label, 'en'));
+  const specific = specificGuides[algorithm.id];
+  const operations = specific?.operations ?? definition.actions.map(action => translateOperationLabel(action.label, 'en'));
   while (operations.length < 4) operations.push(['Inspect the current state', 'Traverse the stored values', 'Validate the structure invariant', 'Reset the example'][operations.length]);
   const detail = specialDetails[algorithm.id];
-  const specific = specificGuides[algorithm.id];
   return {
     definition: specific?.definition ?? algorithm.description,
     how: specific?.how ?? (detail ? `${profile.how} ${detail}` : profile.how),

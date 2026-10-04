@@ -79,7 +79,8 @@ function CircularListVisual({ algorithm, step }) {
   const forwardMarker = `circle-forward-${algorithm.id}`;
   const reverseMarker = `circle-reverse-${algorithm.id}`;
 
-  return <div className="circular-scroll" role="img" aria-label={doubleCircular ? 'Lista doble circular' : 'Lista circular simple'}>
+  const english = algorithm.language === 'en';
+  return <div className="circular-scroll" role="img" aria-label={doubleCircular ? (english ? 'Doubly circular linked list' : 'Lista doble circular') : (english ? 'Singly circular linked list' : 'Lista circular simple')}>
   <svg className="circular-list-visual" viewBox={`0 0 ${width} 160`} style={{ width: `${width}px` }} aria-hidden="true">
     <defs>
       <marker id={forwardMarker} viewBox="0 0 8 8" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 z" /></marker>
@@ -106,25 +107,28 @@ function CircularListVisual({ algorithm, step }) {
       <text className="circle-value" x={center(index)} y="51" textAnchor="middle" dominantBaseline="middle">{value}</text>
       <text className="circle-pointer" x={center(index)} y="70" textAnchor="middle">{doubleCircular ? 'prev · next' : 'next'}</text>
     </g>)}
-    <text className="circle-caption" x={width/2} y="153" textAnchor="middle">{doubleCircular ? 'NEXT: ÚLTIMO → PRIMERO  ·  PREV: PRIMERO → ÚLTIMO' : 'NEXT: ÚLTIMO NODO → PRIMER NODO'}</text>
+    <text className="circle-caption" x={width/2} y="153" textAnchor="middle">{doubleCircular
+      ? (english ? 'NEXT: LAST → FIRST  ·  PREV: FIRST → LAST' : 'NEXT: ÚLTIMO → PRIMERO  ·  PREV: PRIMERO → ÚLTIMO')
+      : (english ? 'NEXT: LAST NODE → FIRST NODE' : 'NEXT: ÚLTIMO NODO → PRIMER NODO')}</text>
   </svg>
   </div>;
 }
 
 function DenseMatrixVisual({ algorithm, step }) {
   const values = normalizeDenseMatrixValues(algorithm.values);
-  return <div className="dense-matrix-scene" role="img" aria-label="Matriz densa de cuatro filas y cuatro columnas">
+  const english = algorithm.language === 'en';
+  return <div className="dense-matrix-scene" role="img" aria-label={english ? 'Dense matrix with four rows and four columns' : 'Matriz densa de cuatro filas y cuatro columnas'}>
     <div className="dense-matrix-heading">
       <strong>int[4][4]</strong>
-      <span>índice lineal = fila × 4 + columna</span>
+      <span>{english ? 'linear index = row × 4 + column' : 'índice lineal = fila × 4 + columna'}</span>
     </div>
     <div className="dense-matrix-grid">
-      <span className="matrix-corner">f\c</span>
+      <span className="matrix-corner">{english ? 'r\\c' : 'f\\c'}</span>
       {Array.from({ length: DENSE_MATRIX_SIZE }, (_, column) => (
         <span className="matrix-axis column-axis" key={`column-${column}`}>c{column}</span>
       ))}
       {Array.from({ length: DENSE_MATRIX_SIZE }, (_, row) => <div className="matrix-row" key={`row-${row}`}>
-        <span className="matrix-axis row-axis">f{row}</span>
+        <span className="matrix-axis row-axis">{english ? 'r' : 'f'}{row}</span>
         {Array.from({ length: DENSE_MATRIX_SIZE }, (_, column) => {
           const index = row * DENSE_MATRIX_SIZE + column;
           return <div
@@ -140,7 +144,7 @@ function DenseMatrixVisual({ algorithm, step }) {
         })}
       </div>)}
     </div>
-    <div className="dense-matrix-legend"><i/> diagonal principal</div>
+    <div className="dense-matrix-legend"><i/> {english ? 'main diagonal' : 'diagonal principal'}</div>
   </div>;
 }
 
@@ -402,15 +406,15 @@ function SparseMatrixVisual({ algorithm }) {
     return segments;
   };
 
-  return <div className="sparse-matrix-visual" role="img" aria-label="Matriz poco poblada con cabeceras AROW y ACOL">
+  return <div className="sparse-matrix-visual" role="img" aria-label={en ? 'Sparse matrix with AROW and ACOL headers' : 'Matriz poco poblada con cabeceras AROW y ACOL'}>
     <svg viewBox="0 0 735 330" aria-hidden="true">
       <defs>
         <marker id="sparse-row-arrow" viewBox="0 0 8 8" markerWidth="7" markerHeight="7" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z"/></marker>
         <marker id="sparse-column-arrow" viewBox="0 0 8 8" markerWidth="7" markerHeight="7" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z"/></marker>
       </defs>
 
-      <text className="sparse-axis-title row-title" x="24" y="23">CABECERAS DE FILA</text>
-      <text className="sparse-axis-title column-title" x="172" y="12">CABECERAS DE COLUMNA</text>
+      <text className="sparse-axis-title row-title" x="24" y="23">{en ? 'ROW HEADERS' : 'CABECERAS DE FILA'}</text>
+      <text className="sparse-axis-title column-title" x="172" y="12">{en ? 'COLUMN HEADERS' : 'CABECERAS DE COLUMNA'}</text>
       <text className="sparse-axis-title dimension-title" x="710" y="12" textAnchor="end">
         {en ? `HEIGHT ${SPARSE_MATRIX_ROWS} · WIDTH ${SPARSE_MATRIX_COLUMNS}` : `ALTO ${SPARSE_MATRIX_ROWS} · LARGO ${SPARSE_MATRIX_COLUMNS}`}
       </text>
@@ -531,7 +535,7 @@ function LinearVisual({ algorithm, step }) {
     if (type === 'union') return `i${index} · r${algorithm.unionRanks?.[index] ?? 0}`;
     return index;
   };
-  return <div className={`linear-visual ${type}`} role="img" aria-label={`Visualización de ${algorithm.name}`}>
+  return <div className={`linear-visual ${type}`} role="img" aria-label={`${algorithm.language === 'en' ? 'Visualization of' : 'Visualización de'} ${algorithm.name}`}>
     {values.map((value, index) => <div className="linear-unit" key={`${value}-${index}`}>
       <div className={`data-cell ${index === 0 ? 'first-cell' : ''} ${index === values.length - 1 ? 'last-cell' : ''} ${index === step % values.length ? 'active' : ''}`}>
         <span>{value}</span><small>{cellHint(index)}</small>
@@ -1071,6 +1075,7 @@ function SpatialTreeDiagram({ algorithm, step }) {
 
 function TreeVisual({ algorithm, step }) {
   const values = algorithm.values.slice(0,15);
+  const english = algorithm.language === 'en';
   if (!values.length) return <div className="empty-visual"><strong>∅</strong><span>{algorithm.language === 'en' ? 'Empty tree' : 'Árbol vacío'}</span></div>;
   if (['arbol-general','arbol-nario'].includes(algorithm.id)) return <NaryTreeDiagram algorithm={algorithm} step={step}/>;
   if (algorithm.id === 'arbol-enhebrado') return <ThreadedTreeDiagram algorithm={algorithm} step={step}/>;
@@ -1084,30 +1089,38 @@ function TreeVisual({ algorithm, step }) {
     if (algorithm.id==='avl') return `BF ${treeHeight(values,index*2+1)-treeHeight(values,index*2+2)}`;
     if (algorithm.id==='heap') {
       const frame = algorithm.animationFrame;
-      if (index === frame?.heapSourcePosition && frame.heapPhase === 'move-last') return 'ÚLTIMO';
-      if (index === frame?.heapTargetPosition && ['move-last','root-replaced'].includes(frame.heapPhase)) return 'RAÍZ';
-      if (index === frame?.heapParentPosition) return 'PADRE';
-      if (frame?.heapCandidatePositions?.includes(index)) return index === frame.heapParentPosition * 2 + 1 ? 'HIJO IZQ.' : 'HIJO DER.';
+      if (index === frame?.heapSourcePosition && frame.heapPhase === 'move-last') return english ? 'LAST' : 'ÚLTIMO';
+      if (index === frame?.heapTargetPosition && ['move-last','root-replaced'].includes(frame.heapPhase)) return english ? 'ROOT' : 'RAÍZ';
+      if (index === frame?.heapParentPosition) return english ? 'PARENT' : 'PADRE';
+      if (frame?.heapCandidatePositions?.includes(index)) return index === frame.heapParentPosition * 2 + 1 ? (english ? 'LEFT CHILD' : 'HIJO IZQ.') : (english ? 'RIGHT CHILD' : 'HIJO DER.');
       return index===0?'MAX':`i=${index}`;
     }
-    if (algorithm.id==='kd-tree') return index===0||index===3||index===4||index===5||index===6?'eje X':'eje Y';
-    if (algorithm.id==='splay-tree') return index===0?'ÚLTIMO ACCESO':'BST';
-    if (algorithm.id==='expression-tree') return ['+','-','−','*','×','/'].includes(String(values[index]))?'OPERADOR':'OPERANDO';
+    if (algorithm.id==='kd-tree') return index===0||index===3||index===4||index===5||index===6?(english ? 'X axis' : 'eje X'):(english ? 'Y axis' : 'eje Y');
+    if (algorithm.id==='splay-tree') return index===0?(english ? 'LAST ACCESS' : 'ÚLTIMO ACCESO'):'BST';
+    if (algorithm.id==='expression-tree') return ['+','-','−','*','×','/'].includes(String(values[index]))?(english ? 'OPERATOR' : 'OPERADOR'):(english ? 'OPERAND' : 'OPERANDO');
     if (algorithm.id==='ast') {
-      if (values[index] === 'ASSIGN') return 'SENTENCIA';
-      if (['+','-','*','/'].includes(String(values[index]))) return 'OPERADOR';
-      return /^\d+$/.test(String(values[index])) ? 'LITERAL' : 'IDENTIFICADOR';
+      if (values[index] === 'ASSIGN') return english ? 'STATEMENT' : 'SENTENCIA';
+      if (['+','-','*','/'].includes(String(values[index]))) return english ? 'OPERATOR' : 'OPERADOR';
+      return /^\d+$/.test(String(values[index])) ? 'LITERAL' : (english ? 'IDENTIFIER' : 'IDENTIFICADOR');
     }
     return null;
   });
-  const heapPhaseLabel = {
+  const heapPhaseLabel = (english ? {
+    'capture-root': 'EXTRACTING MAXIMUM',
+    'move-last': 'LAST NODE → ROOT',
+    'root-replaced': 'ROOT REPLACED',
+    'remove-last': 'COMPLETE TREE · LAST LEAF REMOVED',
+    'complete': 'MAX-HEAP RESTORED',
+  } : {
     'capture-root': 'EXTRAYENDO EL MÁXIMO',
     'move-last': 'ÚLTIMO NODO → RAÍZ',
     'root-replaced': 'RAÍZ REEMPLAZADA',
     'remove-last': 'ÁRBOL COMPLETO · ÚLTIMA HOJA ELIMINADA',
     'complete': 'MAX-HEAP RESTAURADO',
-  }[algorithm.animationFrame?.heapPhase] ?? (algorithm.animationFrame?.heapPhase ? 'HEAPIFY DOWN · RESTAURANDO MAX-HEAP' : 'MAX-HEAP COMPLETO');
-  const labels = { avl:'ALTURA BALANCEADA', bst:'IZQUIERDA < RAÍZ < DERECHA', 'rojo-negro':'REGLAS DE COLOR', 'splay-tree':'ACCESO MOVIDO A LA RAÍZ', heap:heapPhaseLabel, 'kd-tree':'PARTICIÓN POR EJES', 'expression-tree':'OPERADORES Y OPERANDOS', ast:'SENTENCIA · OPERADORES · DATOS' };
+  })[algorithm.animationFrame?.heapPhase] ?? (algorithm.animationFrame?.heapPhase ? (english ? 'HEAPIFY DOWN · RESTORING MAX-HEAP' : 'HEAPIFY DOWN · RESTAURANDO MAX-HEAP') : (english ? 'COMPLETE MAX-HEAP' : 'MAX-HEAP COMPLETO'));
+  const labels = english
+    ? { avl:'BALANCED HEIGHT', bst:'LEFT < ROOT < RIGHT', 'rojo-negro':'COLOR RULES', 'splay-tree':'ACCESS MOVED TO ROOT', heap:heapPhaseLabel, 'kd-tree':'AXIS PARTITIONING', 'expression-tree':'OPERATORS AND OPERANDS', ast:'STATEMENT · OPERATORS · DATA' }
+    : { avl:'ALTURA BALANCEADA', bst:'IZQUIERDA < RAÍZ < DERECHA', 'rojo-negro':'REGLAS DE COLOR', 'splay-tree':'ACCESO MOVIDO A LA RAÍZ', heap:heapPhaseLabel, 'kd-tree':'PARTICIÓN POR EJES', 'expression-tree':'OPERADORES Y OPERANDOS', ast:'SENTENCIA · OPERADORES · DATOS' };
   return <BinaryTreeDiagram algorithm={algorithm} step={step} badges={badges} kindLabel={labels[algorithm.id]}/>;
 }
 
@@ -1185,14 +1198,15 @@ function PathMapVisual({ algorithm }) {
   const goalPoint = geometry.points[map.goal];
   const modeName = algorithm.id === 'a-star' ? 'A*' : 'Dijkstra';
   const mapId = `city-map-${algorithm.id}`;
+  const en = algorithm.language === 'en';
 
-  return <div className={`path-map-visual ${algorithm.id === 'a-star' ? 'is-astar' : ''}`} role="img" aria-label={`Mapa urbano para visualizar la búsqueda de rutas con ${modeName}`}>
+  return <div className={`path-map-visual ${algorithm.id === 'a-star' ? 'is-astar' : ''}`} role="img" aria-label={en ? `City map showing route search with ${modeName}` : `Mapa urbano para visualizar la búsqueda de rutas con ${modeName}`}>
     <div className="path-map-heading">
       <div>
-        <span className="path-map-kicker"><i/> Simulación en vivo</span>
-        <strong><MapPin size={15}/> Red urbana</strong>
+        <span className="path-map-kicker"><i/> {en ? 'Live simulation' : 'Simulación en vivo'}</span>
+        <strong><MapPin size={15}/> {en ? 'City network' : 'Red urbana'}</strong>
       </div>
-      <em>{algorithm.id === 'a-star' ? 'prioridad: f = g + h' : 'prioridad: menor distancia'}</em>
+      <em>{algorithm.id === 'a-star' ? (en ? 'priority: f = g + h' : 'prioridad: f = g + h') : (en ? 'priority: shortest distance' : 'prioridad: menor distancia')}</em>
     </div>
 
     <svg className="path-map-city" viewBox={`0 0 ${CITY_MAP_WIDTH} ${CITY_MAP_HEIGHT}`} aria-hidden="true" preserveAspectRatio="none">
@@ -1271,32 +1285,44 @@ function PathMapVisual({ algorithm }) {
       </g>}
 
       <g className="path-map-marker start-marker" transform={`translate(${startPoint.x} ${startPoint.y})`}>
-        <circle r="10"/><circle r="3"/><text x="15" y="4">INICIO</text>
+        <circle r="10"/><circle r="3"/><text x="15" y="4">{en ? 'START' : 'INICIO'}</text>
       </g>
       <g className="path-map-marker goal-marker" transform={`translate(${goalPoint.x} ${goalPoint.y})`}>
-        <circle r="10"/><path d="M-3 -5 L5 -2 L-3 1 Z M-3 -5 V6"/><text x={goalPoint.x > 820 ? -15 : 15} y="4" textAnchor={goalPoint.x > 820 ? 'end' : 'start'}>META</text>
+        <circle r="10"/><path d="M-3 -5 L5 -2 L-3 1 Z M-3 -5 V6"/><text x={goalPoint.x > 820 ? -15 : 15} y="4" textAnchor={goalPoint.x > 820 ? 'end' : 'start'}>{en ? 'GOAL' : 'META'}</text>
       </g>
     </svg>
 
     <div className="path-map-legend">
-      <span><i className="legend-start"/>Inicio</span>
-      <span><i className="legend-goal"/>Meta</span>
-      <span><i className="legend-frontier"/>Frontera</span>
-      <span><i className="legend-explored"/>Explorado</span>
-      <span><i className="legend-route"/>Ruta óptima</span>
+      <span><i className="legend-start"/>{en ? 'Start' : 'Inicio'}</span>
+      <span><i className="legend-goal"/>{en ? 'Goal' : 'Meta'}</span>
+      <span><i className="legend-frontier"/>{en ? 'Frontier' : 'Frontera'}</span>
+      <span><i className="legend-explored"/>{en ? 'Explored' : 'Explorado'}</span>
+      <span><i className="legend-route"/>{en ? 'Optimal route' : 'Ruta óptima'}</span>
     </div>
     <div className="path-map-summary">
       {state ? <>
-        <span><small>Exploradas</small><b>{closed.size}</b></span>
-        <span><small>Frontera</small><b>{open.size}</b></span>
-        <span><small>{route.length > 0 ? 'Costo final' : 'Estado'}</small><b>{route.length > 0 ? state.cost : 'Buscando'}</b></span>
-      </> : <span className="path-map-empty"><small>Listo para comenzar</small><b>Ejecuta {modeName} para iluminar la búsqueda</b></span>}
+        <span><small>{en ? 'Explored' : 'Exploradas'}</small><b>{closed.size}</b></span>
+        <span><small>{en ? 'Frontier' : 'Frontera'}</small><b>{open.size}</b></span>
+        <span><small>{route.length > 0 ? (en ? 'Final cost' : 'Costo final') : (en ? 'Status' : 'Estado')}</small><b>{route.length > 0 ? state.cost : (en ? 'Searching' : 'Buscando')}</b></span>
+      </> : <span className="path-map-empty"><small>{en ? 'Ready to begin' : 'Listo para comenzar'}</small><b>{en ? `Run ${modeName} to see the search` : `Ejecuta ${modeName} para iluminar la búsqueda`}</b></span>}
     </div>
   </div>;
 }
 
 function GraphVisual({ algorithm, step }) {
   const design = getGraphDesign(algorithm.id);
+  const english = algorithm.language === 'en';
+  const englishDesignCopy = {
+    grafo: ['Undirected network', 'Every connection can be traversed in both directions'],
+    'grafo-dirigido': ['Directed flow', 'Arrows show exactly which direction can be followed'],
+    dfs: ['Depth-first exploration', 'The search follows one branch before backtracking'],
+    bfs: ['Level-by-level expansion', 'The queue discovers all nearby neighbors first'],
+    prim: ['Growing tree', 'The cheapest edge connected to the current tree is added'],
+    kruskal: ['Edges by cost', 'Weights are ordered and components are joined without creating cycles'],
+  };
+  const [designLabel, designCaption] = english
+    ? (englishDesignCopy[algorithm.id] ?? [design.label, design.caption])
+    : [design.label, design.caption];
   const nodes = (algorithm.positions ?? design.positions).slice(0,algorithm.values.length);
   const edges = (algorithm.edges ?? design.edges).filter(([from,to])=>from<algorithm.values.length&&to<algorithm.values.length);
   const directed = algorithm.type === 'digraph';
@@ -1310,9 +1336,24 @@ function GraphVisual({ algorithm, step }) {
     (!directed && edge[0] === candidate[1] && edge[1] === candidate[0])
   );
   const labelsFor = indexes => indexes?.length ? indexes.map(index=>algorithm.values[index]).join(', ') : '∅';
+  const nodeMeta = value => {
+    if (!english || !value) return value;
+    return value
+      .replace('nivel ', 'level ')
+      .replace('prof. ', 'depth ')
+      .replace('grado ', 'degree ')
+      .replace('inicio', 'start')
+      .replace('candidato', 'candidate')
+      .replace('frontera', 'frontier')
+      .replace('fuera', 'outside')
+      .replace('entrada', 'input')
+      .replace('salida', 'output')
+      .replace('etapa ', 'stage ')
+      .replace('nuevo', 'new');
+  };
   if (!algorithm.values.length) return <div className="empty-visual"><strong>∅</strong><span>{algorithm.language === 'en' ? 'Empty graph' : 'Grafo vacío'}</span></div>;
-  return <div className={`graph-canvas graph-design-${algorithm.id} ${graphState ? 'pathfinding-canvas' : ''}`} role="img" aria-label={`Grafo de ${algorithm.name}: ${design.caption}`}>
-  <div className="graph-design-title"><span>{design.label}</span><small>{design.caption}</small></div>
+  return <div className={`graph-canvas graph-design-${algorithm.id} ${graphState ? 'pathfinding-canvas' : ''}`} role="img" aria-label={`${english ? 'Graph for' : 'Grafo de'} ${algorithm.name}: ${designCaption}`}>
+  <div className="graph-design-title"><span>{designLabel}</span><small>{designCaption}</small></div>
   <div className="graph-design-motif" aria-hidden="true"><i/><i/><i/></div>
   <svg className="edge-layer" aria-hidden="true">
     <defs>
@@ -1340,21 +1381,21 @@ function GraphVisual({ algorithm, step }) {
         ? `f=${graphState.scores[i]}`
         : `d=${graphState.distances[i]}`
       : null;
-    return <div className={`graph-node node-${i} ${i === 0 ? 'origin-node' : ''} ${isCurrent ? 'active' : ''} ${stateClass}`} style={{left:`${x}%`,top:`${y}%`}} key={i}><span>{algorithm.values[i]}</span><small>{metric ?? design.nodeMeta?.[i] ?? `v${i}`}</small></div>;
+    return <div className={`graph-node node-${i} ${i === 0 ? 'origin-node' : ''} ${isCurrent ? 'active' : ''} ${stateClass}`} style={{left:`${x}%`,top:`${y}%`}} key={i}><span>{algorithm.values[i]}</span><small>{metric ?? nodeMeta(design.nodeMeta?.[i]) ?? `v${i}`}</small></div>;
   })}
   {isPathfindingState && <div className="pathfinding-status">
-    <span><i className="open-dot"/>Abiertos: <b>{labelsFor(graphState.open)}</b></span>
-    <span><i className="closed-dot"/>Cerrados: <b>{labelsFor(graphState.closed)}</b></span>
+    <span><i className="open-dot"/>{english ? 'Open' : 'Abiertos'}: <b>{labelsFor(graphState.open)}</b></span>
+    <span><i className="closed-dot"/>{english ? 'Closed' : 'Cerrados'}: <b>{labelsFor(graphState.closed)}</b></span>
     {graphState.mode === 'astar' && <em>f = g + h</em>}
   </div>}
   {isTraversalState && <div className="pathfinding-status graph-operation-status">
-    <span><i className="closed-dot"/>Visitados: <b>{labelsFor(graphState.order)}</b></span>
-    <span><i className="open-dot"/>Pendientes: <b>{labelsFor(graphState.frontier)}</b></span>
+    <span><i className="closed-dot"/>{english ? 'Visited' : 'Visitados'}: <b>{labelsFor(graphState.order)}</b></span>
+    <span><i className="open-dot"/>{english ? 'Pending' : 'Pendientes'}: <b>{labelsFor(graphState.frontier)}</b></span>
     <em>{graphState.mode.toUpperCase()}</em>
   </div>}
   {isSpanningTreeState && <div className="pathfinding-status graph-operation-status">
-    <span><i className="closed-dot"/>Aristas elegidas: <b>{graphState.visitedEdges?.length ?? 0}</b></span>
-    <span><i className="open-dot"/>Costo: <b>{graphState.totalCost ?? 0}</b></span>
+    <span><i className="closed-dot"/>{english ? 'Selected edges' : 'Aristas elegidas'}: <b>{graphState.visitedEdges?.length ?? 0}</b></span>
+    <span><i className="open-dot"/>{english ? 'Cost' : 'Costo'}: <b>{graphState.totalCost ?? 0}</b></span>
     <em>{graphState.mode.toUpperCase()}</em>
   </div>}
   </div>;
@@ -1445,6 +1486,7 @@ function hashKey(value) {
 }
 
 function HashTableVisual({ algorithm, step }) {
+  const english = algorithm.language === 'en';
   const entries = algorithm.values.filter(value => value !== undefined && value !== null && String(value) !== '');
   const activeEntry = entries[Math.max(0, Math.min(entries.length - 1, step))];
 
@@ -1454,7 +1496,7 @@ function HashTableVisual({ algorithm, step }) {
       const index = ((javaStringHash(hashKey(entry)) % buckets.length) + buckets.length) % buckets.length;
       buckets[index].unshift(entry);
     });
-    return <div className="chaining-visual" aria-label="Tabla hash con encadenamiento separado">
+    return <div className="chaining-visual" aria-label={english ? 'Hash table with separate chaining' : 'Tabla hash con encadenamiento separado'}>
       {buckets.map((bucket, index) => <div className="chain-row" key={index}>
         <span className="chain-index">{index.toString().padStart(2, '0')}</span>
         <span className="chain-head">bucket[{index}]</span>
@@ -1467,14 +1509,15 @@ function HashTableVisual({ algorithm, step }) {
   }
 
   const slots = algorithm.hashTable ?? createOpenAddressingTable(entries).snapshot();
-  return <div className="hash-visual" aria-label="Tabla hash con direccionamiento abierto">
+  return <div className="hash-visual" aria-label={english ? 'Hash table with open addressing' : 'Tabla hash con direccionamiento abierto'}>
     {slots.map((slot, index) => <div className={`hash-slot ${slot.entry === activeEntry && slot.state === 'occupied' ? 'active' : ''} ${slot.state === 'deleted' ? 'deleted' : ''}`} key={index}>
-      <small>{index.toString().padStart(2, '0')}</small><strong>{slot.state === 'deleted' ? 'BORRADA' : slot.entry ?? '∅'}</strong>
+      <small>{index.toString().padStart(2, '0')}</small><strong>{slot.state === 'deleted' ? (english ? 'DELETED' : 'BORRADA') : slot.entry ?? '∅'}</strong>
     </div>)}
   </div>;
 }
 
 function RecursionVisual({ algorithm, step }) {
+  const english = algorithm.language === 'en';
   const inferredInput = algorithm.id === 'fibonacci'
     ? Math.max(0, Math.min(7, algorithm.values.length - 1))
     : Math.max(0, Math.min(10, algorithm.values.length));
@@ -1492,11 +1535,11 @@ function RecursionVisual({ algorithm, step }) {
     const top = (focusNode.y / 100) * height - container.clientHeight / 2;
     container.scrollTo({ left: Math.max(0, left), top: Math.max(0, top), behavior: 'smooth' });
   }, [height, step, tree.activeId, tree.rootId, width]);
-  return <div className="recursion-tree-shell" aria-label={`Árbol de llamadas de ${algorithm.name}`}>
+  return <div className="recursion-tree-shell" aria-label={`${english ? 'Call tree for' : 'Árbol de llamadas de'} ${algorithm.name}`}>
     <div className="recursion-tree-legend">
-      <span><i className="call-active"/>Llamada activa</span>
-      <span><i className="call-waiting"/>Esperando retorno</span>
-      <span><i className="call-returned"/>Resultado calculado</span>
+      <span><i className="call-active"/>{english ? 'Active call' : 'Llamada activa'}</span>
+      <span><i className="call-waiting"/>{english ? 'Waiting for return' : 'Esperando retorno'}</span>
+      <span><i className="call-returned"/>{english ? 'Computed result' : 'Resultado calculado'}</span>
     </div>
     <div className="recursion-tree-scroll" ref={scrollRef}>
       <div className={`recursion-call-tree ${algorithm.id}`} style={{ width, height }}>
@@ -1511,7 +1554,9 @@ function RecursionVisual({ algorithm, step }) {
           className={`recursion-call-node ${node.status} ${node.id === tree.activeId ? 'current' : ''}`}
           style={{ left: `${node.x}%`, top: `${node.y}%` }}
           key={node.id}
-          aria-label={`${methodLabel} de ${node.number}${node.result !== null ? ` retorna ${node.result}` : ''}`}
+          aria-label={english
+            ? `${methodLabel} of ${node.number}${node.result !== null ? ` returns ${node.result}` : ''}`
+            : `${methodLabel} de ${node.number}${node.result !== null ? ` retorna ${node.result}` : ''}`}
         >
           <small>{methodLabel}</small><strong>({node.number})</strong>
           <em>{node.result !== null ? `= ${node.result}` : node.status === 'waiting' ? 'espera' : '…'}</em>
