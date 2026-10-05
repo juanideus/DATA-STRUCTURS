@@ -132,8 +132,7 @@ const sortOperations = {
     }
     long long offsetValue = minimum < 0 ? -static_cast<long long>(minimum) : 0;
     long long maximumKey = static_cast<long long>(maximum) + offsetValue;
-    if (maximumKey > 2147483647LL) return false;
-    for (int exponent = 1; maximumKey / exponent > 0;) {
+    for (long long exponent = 1; maximumKey / exponent > 0;) {
         countingByDigit(exponent, offsetValue);
         if (exponent > maximumKey / 10) break;
         exponent *= 10;
@@ -212,7 +211,7 @@ int partition(int low, int high) {
         root = largest;
     }
 }`,
-  radix: `void countingByDigit(int exponent, long long offset) {
+  radix: `void countingByDigit(long long exponent, long long offset) {
     int* output = new int[CAPACITY]{};
     int* count = new int[10]{};
     for (int i = 0; i < size; i++) {

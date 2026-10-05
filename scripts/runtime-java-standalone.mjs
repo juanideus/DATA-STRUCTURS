@@ -19,6 +19,13 @@ const samples = [
         lab.values[0] = 999;
         lab.reset();
         if (lab.size != 7 || lab.values[0] != 29) throw new AssertionError("reset data");`],
+  ['radix-sort', 'sort', `AlgorithmExample lab = new AlgorithmExample();
+        lab.values[0] = Integer.MAX_VALUE;
+        lab.values[1] = Integer.MIN_VALUE;
+        lab.size = 2;
+        lab.radixSort();
+        if (lab.values[0] != Integer.MIN_VALUE || lab.values[1] != Integer.MAX_VALUE)
+            throw new AssertionError("radix full integer span");`],
   ['avl', 'tree-add', `AlgorithmExample lab = new AlgorithmExample();
         Node root = null;
         root = lab.insert(root, 10);

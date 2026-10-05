@@ -64,7 +64,11 @@ const openOperations = {
 const stringHash = `int hash(const std::string& key) const {
     unsigned int result = 0;
     for (char character : key) result = result * 31u + static_cast<unsigned char>(character);
-    return static_cast<int>(result % CAPACITY);
+    long long signedHash = result > 2147483647u
+        ? static_cast<long long>(result) - 4294967296LL
+        : static_cast<long long>(result);
+    int index = static_cast<int>(signedHash % CAPACITY);
+    return index < 0 ? index + CAPACITY : index;
 }`;
 
 function openCpp(actionId) {

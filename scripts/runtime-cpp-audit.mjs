@@ -149,9 +149,11 @@ int main() {
     label: 'Polynomial insertion groups, cancels and orders dynamic nodes', id: 'polinomios', action: 'poly-insert-a',
     main: `
 int main() {
-    LinkedPolynomial polynomial;
+    LinkedPolynomial polynomial(false);
     polynomial.insertA(3, 2);
+    polynomial.C = new LinkedPolynomial::Node(99, 0);
     polynomial.insertA(5, 5);
+    assert(polynomial.C == nullptr);
     polynomial.insertA(2, 3);
     polynomial.insertA(0, 9);
     assert(polynomial.A->exponent == 5 && polynomial.A->coefficient == 5);
@@ -169,7 +171,7 @@ int main() {
     label: 'Polynomial addition merges terms and discards cancellation', id: 'polinomios', action: 'poly-add',
     main: `
 int main() {
-    LinkedPolynomial polynomial;
+    LinkedPolynomial polynomial(false);
     polynomial.A = new LinkedPolynomial::Node(3, 4);
     polynomial.A->next = new LinkedPolynomial::Node(2, 2);
     polynomial.B = new LinkedPolynomial::Node(-3, 4);
@@ -185,10 +187,23 @@ int main() {
 }`,
   },
   {
+    label: 'Polynomial default example matches initial animation', id: 'polinomios', action: 'poly-add',
+    main: `
+int main() {
+    LinkedPolynomial polynomial;
+    polynomial.sumPolynomials();
+    assert(polynomial.A->coefficient == 3 && polynomial.A->exponent == 14);
+    assert(polynomial.B->coefficient == 8 && polynomial.B->exponent == 14);
+    assert(polynomial.C->coefficient == 11 && polynomial.C->exponent == 14);
+    assert(polynomial.C->next->coefficient == -3 && polynomial.C->next->exponent == 10);
+}`,
+  },
+  {
     label: 'Open addressing resolves collisions and updates before capacity', id: 'hash-open', action: 'hash-put',
     main: `
 int main() {
     OpenAddressingTable table;
+    assert(table.hash("aaaaaa") == 8);
     assert(table.put("a", "one"));
     assert(table.put("m", "two"));
     assert(table.put("y", "three"));
@@ -211,6 +226,18 @@ int main() {
     assert(!table.put("extra", "value"));
     assert(table.put("m", "full-table-update"));
     assert(table.size == table.CAPACITY);
+}`,
+  },
+  {
+    label: 'Bloom C++ hash matches visible Java and JavaScript indexes', id: 'bloom-filter', action: 'bloom-add',
+    main: `
+int main() {
+    BloomFilter filter;
+    assert(filter.hash("algo", 3) == 1);
+    assert(filter.hash("algo", 7) == 5);
+    assert(filter.hash("algo", 11) == 9);
+    filter.add("algo");
+    assert(filter.bits[1] && filter.bits[5] && filter.bits[9]);
 }`,
   },
   {
@@ -903,16 +930,16 @@ int main() {
 }`,
   },
   {
-    label: 'Radix Sort rejects excessive key span without mutation', id: 'radix-sort', action: 'sort',
+    label: 'Radix Sort handles the full signed integer span', id: 'radix-sort', action: 'sort',
     main: `
 int main() {
     RawArraySorter sorter;
     sorter.size = 2;
     sorter.values[0] = 2147483647;
     sorter.values[1] = -1;
-    assert(!sorter.sort());
-    assert(sorter.values[0] == 2147483647);
-    assert(sorter.values[1] == -1);
+    assert(sorter.sort());
+    assert(sorter.values[0] == -1);
+    assert(sorter.values[1] == 2147483647);
 }`,
   },
   {

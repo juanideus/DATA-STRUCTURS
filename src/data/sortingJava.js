@@ -222,22 +222,22 @@ int findMaximum() {
   'radix-sort': `void radixSort() {
     if (size < 2) return;
 
-    int offset = findMinimum();
-    int maxKey = findMaximum() - offset;
+    long offset = findMinimum();
+    long maxKey = (long) findMaximum() - offset;
     int[] output = new int[size];
 
-    for (int exp = 1; maxKey / exp > 0; exp *= 10) {
+    for (long exp = 1; maxKey / exp > 0; exp *= 10) {
         int[] count = new int[10];
 
         for (int i = 0; i < size; i++) {
-            int digit = ((values[i] - offset) / exp) % 10;
+            int digit = (int) ((((long) values[i] - offset) / exp) % 10);
             count[digit]++;
         }
         for (int i = 1; i < 10; i++) {
             count[i] += count[i - 1];
         }
         for (int i = size - 1; i >= 0; i--) {
-            int digit = ((values[i] - offset) / exp) % 10;
+            int digit = (int) ((((long) values[i] - offset) / exp) % 10);
             output[count[digit] - 1] = values[i];
             count[digit]--;
         }
