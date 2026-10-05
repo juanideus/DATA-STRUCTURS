@@ -541,7 +541,7 @@ int[] reconstructPath(int[] previous, int start, int goal) {
 }`,
   'a-star:shortest-path': `int[] aStar(int[] map, int rows, int columns,
                     int start, int goal) {
-    int total = rows * columns;
+    int total = rows * columns, minCost = minimumStepCost(map);
     int[] g = new int[total];       // costo recorrido
     int[] f = new int[total];       // g + heurística
     int[] previous = new int[total];
@@ -553,7 +553,7 @@ int[] reconstructPath(int[] previous, int start, int goal) {
         previous[i] = -1;
     }
     g[start] = 0;
-    f[start] = heuristic(start, goal, columns);
+    f[start] = heuristic(start, goal, columns, minCost);
     open[start] = true;
     int[][] directions = {{-1,0},{0,1},{1,0},{0,-1}};
 
@@ -579,7 +579,7 @@ int[] reconstructPath(int[] previous, int start, int goal) {
             if (newG < g[next]) {
                 previous[next] = current;
                 g[next] = newG;
-                f[next] = newG + heuristic(next, goal, columns);
+                f[next] = newG + heuristic(next, goal, columns, minCost);
                 open[next] = true;
             }
         }
@@ -602,14 +602,22 @@ int smallestF(int[] f, boolean[] open) {
     return best;
 }
 
-int heuristic(int from, int goal, int columns) {
+int minimumStepCost(int[] map) {
+    int minimum = Integer.MAX_VALUE;
+    for (int cost : map) {
+        if (cost >= 0 && cost < minimum) minimum = cost;
+    }
+    return minimum == Integer.MAX_VALUE ? 0 : minimum;
+}
+
+int heuristic(int from, int goal, int columns, int minCost) {
     int fromRow = from / columns;
     int fromColumn = from % columns;
     int goalRow = goal / columns;
     int goalColumn = goal % columns;
     int vertical = fromRow > goalRow ? fromRow - goalRow : goalRow - fromRow;
     int horizontal = fromColumn > goalColumn ? fromColumn - goalColumn : goalColumn - fromColumn;
-    return vertical + horizontal;
+    return (vertical + horizontal) * minCost;
 }
 
 int[] reconstructPath(int[] previous, int start, int goal) {

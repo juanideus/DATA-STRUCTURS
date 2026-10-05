@@ -176,15 +176,16 @@ const weightedCommon = {
     }
     vertexCount--;
     for (int vertex = 0; vertex < MAX_VERTICES; vertex++) {
-        weights[vertexCount][vertex] = 0;
-        weights[vertex][vertexCount] = 0;
+        weights[vertexCount][vertex] = INF;
+        weights[vertex][vertexCount] = INF;
     }
     return true;
 }`,
   'edge-add': `bool addEdge(char fromName, char toName, int weight) {
     int from = findVertex(fromName);
     int to = findVertex(toName);
-    if (from == -1 || to == -1 || from == to || weight <= 0) return false;
+    if (from == -1 || to == -1 || from == to || weight >= INF || weight <= -INF) return false;
+    if (weights[from][to] != INF) return false;
     weights[from][to] = weight;
     weights[to][from] = weight;
     return true;
@@ -192,9 +193,9 @@ const weightedCommon = {
   'edge-remove': `bool removeEdge(char fromName, char toName) {
     int from = findVertex(fromName);
     int to = findVertex(toName);
-    if (from == -1 || to == -1 || weights[from][to] == 0) return false;
-    weights[from][to] = 0;
-    weights[to][from] = 0;
+    if (from == -1 || to == -1 || weights[from][to] == INF) return false;
+    weights[from][to] = INF;
+    weights[to][from] = INF;
     return true;
 }`,
 };
@@ -222,13 +223,12 @@ const kruskalOperations = {
   'edge-add': `bool addEdge(char fromName, char toName, int weight) {
     int from = findVertex(fromName);
     int to = findVertex(toName);
-    if (from == -1 || to == -1 || from == to || weight <= 0) return false;
+    if (from == -1 || to == -1 || from == to || weight >= INF || weight <= -INF) return false;
     for (int i = 0; i < edgeCount; i++) {
         bool sameEdge = (edges[i].from == from && edges[i].to == to)
             || (edges[i].from == to && edges[i].to == from);
         if (sameEdge) {
-            edges[i].weight = weight;
-            return true;
+            return false;
         }
     }
     if (edgeCount == MAX_EDGES) return false;
@@ -254,6 +254,8 @@ const kruskalOperations = {
 };
 
 const prim = `bool prim(char startName) {
+    treeEdgeCount = 0;
+    treeCost = 0;
     int start = findVertex(startName);
     if (start == -1) return false;
 
@@ -268,11 +270,23 @@ const prim = `bool prim(char startName) {
 
     for (int count = 0; count < vertexCount; count++) {
         int vertex = minimumKey(key, inTree);
-        if (vertex == -1) break;
+        if (vertex == -1) {
+            treeEdgeCount = 0;
+            treeCost = 0;
+            delete[] key;
+            delete[] parent;
+            delete[] inTree;
+            return false; // No spanning tree exists for a disconnected graph.
+        }
         inTree[vertex] = true;
+        if (parent[vertex] != -1) {
+            int weight = weights[parent[vertex]][vertex];
+            treeEdges[treeEdgeCount++] = {parent[vertex], vertex, weight};
+            treeCost += weight;
+        }
         for (int neighbor = 0; neighbor < vertexCount; neighbor++) {
             int weight = weights[vertex][neighbor];
-            if (weight > 0 && !inTree[neighbor] && weight < key[neighbor]) {
+            if (weight != INF && !inTree[neighbor] && weight < key[neighbor]) {
                 key[neighbor] = weight;
                 parent[neighbor] = vertex;
             }
@@ -296,7 +310,9 @@ const minimumKey = `int minimumKey(const int key[], const bool inTree[]) const {
     return vertex;
 }`;
 
-const kruskal = `void kruskal() {
+const kruskal = `bool kruskal() {
+    treeEdgeCount = 0;
+    treeCost = 0;
     Edge* ordered = new Edge[MAX_EDGES];
     for (int i = 0; i < edgeCount; i++) ordered[i] = edges[i];
     sortEdges(ordered, edgeCount);
@@ -310,12 +326,20 @@ const kruskal = `void kruskal() {
         int rootTo = findRoot(parent, ordered[i].to);
         if (rootFrom != rootTo) {
             unite(parent, rank, rootFrom, rootTo);
+            treeEdges[treeEdgeCount++] = ordered[i];
+            treeCost += ordered[i].weight;
             selected++;
         }
     }
     delete[] ordered;
     delete[] parent;
     delete[] rank;
+    if (selected != vertexCount - 1) {
+        treeEdgeCount = 0;
+        treeCost = 0;
+        return false; // No spanning tree exists for a disconnected graph.
+    }
+    return true;
 }`;
 
 const kruskalHelpers = `void sortEdges(Edge array[], int count) {
@@ -366,13 +390,19 @@ public:
     char* vertexNames;
     int** weights;
     Edge* edges;
+    Edge* treeEdges; // Selected MST edges, owned by this graph.
     int vertexCount = 0;
     int edgeCount = 0;
+    int treeEdgeCount = 0;
+    long long treeCost = 0;
 
     ${isKruskal ? 'KruskalGraph' : 'PrimGraph'}()
         : vertexNames(new char[MAX_VERTICES]{}), weights(new int*[MAX_VERTICES]{}),
-          edges(new Edge[MAX_EDGES]{}) {
-        for (int row = 0; row < MAX_VERTICES; row++) weights[row] = new int[MAX_VERTICES]{};
+          edges(new Edge[MAX_EDGES]{}), treeEdges(new Edge[MAX_VERTICES - 1]{}) {
+        for (int row = 0; row < MAX_VERTICES; row++) {
+            weights[row] = new int[MAX_VERTICES];
+            for (int column = 0; column < MAX_VERTICES; column++) weights[row][column] = INF;
+        }
     }
     ${isKruskal ? 'KruskalGraph' : 'PrimGraph'}(const ${isKruskal ? 'KruskalGraph' : 'PrimGraph'}&) = delete;
     ${isKruskal ? 'KruskalGraph' : 'PrimGraph'}& operator=(const ${isKruskal ? 'KruskalGraph' : 'PrimGraph'}&) = delete;
@@ -380,6 +410,7 @@ public:
         for (int row = 0; row < MAX_VERTICES; row++) delete[] weights[row];
         delete[] weights;
         delete[] edges;
+        delete[] treeEdges;
         delete[] vertexNames;
     }
 

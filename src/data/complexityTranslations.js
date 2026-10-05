@@ -22,6 +22,7 @@ const EXACT_TRANSLATIONS = {
   'Promedio O(n · n!) · Sin cota práctica segura': 'Average O(n · n!) · No safe practical bound',
   'Suma / actualización O(log n) · Mínimo prefijo O(n)': 'Sum / update O(log n) · Prefix minimum O(n)',
   'O(V²) con matriz de adyacencia': 'O(V²) with an adjacency matrix',
+  'O(E²) en el código mostrado': 'O(E²) in the code shown',
 };
 
 const REPLACEMENTS = [
