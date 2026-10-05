@@ -72,8 +72,8 @@ const unweightedOperations = {
     int start = findVertex(startName);
     if (start == -1) return false;
 
-    bool* visited = new bool[MAX_VERTICES]{};
     int* queue = new int[MAX_VERTICES]{};
+    bool* visited = new bool[MAX_VERTICES]{};
     int front = 0;
     int rear = 0;
     queue[rear++] = start;

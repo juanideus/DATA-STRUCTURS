@@ -1033,6 +1033,74 @@ test('la animación C++ ilumina instrucciones reales y nunca el armazón de la c
   }
 });
 
+test('BFS en C++ sincroniza rear, memoria dinámica y la condición final de la cola', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chromium', 'La traza es idéntica y la prueba completa se ejecuta en escritorio.');
+  test.setTimeout(90_000);
+  await page.goto('/bfs');
+  await page.getByRole('button', { name: 'C++', exact: true }).click();
+  await page.getByRole('button', { name: 'Ejecutar BFS', exact: true }).click();
+  await expect(page.locator('.operation-message')).toContainText('BFS comienza desde el vértice A.');
+  await expect(page.locator('.code-panel pre')).toContainText('int* queue = new int[MAX_VERTICES]{};');
+  await expect(page.locator('.code-panel pre')).toContainText('bool* visited = new bool[MAX_VERTICES]{};');
+
+  const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+  if (await pause.isVisible()) await pause.click();
+
+  let completed = false;
+  const activeLines = new Set();
+  for (let step = 0; step < 220; step++) {
+    const message = (await page.locator('.operation-message p').textContent())?.trim() ?? '';
+    const activeLine = (await page.locator('.code-panel code.active').textContent())?.trim() ?? '';
+    if (activeLine) activeLines.add(activeLine.replace(/^\d+/, '').trim());
+    if (message.includes('BFS termina después de liberar toda la memoria dinámica.')) {
+      completed = true;
+      break;
+    }
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+
+  expect(completed, 'BFS debe alcanzar su condición de salida').toBe(true);
+  await expect(page.locator('.code-panel code.active')).toContainText('return true;');
+  await expect(page.locator('.operation-message')).toContainText('BFS termina después de liberar toda la memoria dinámica.');
+  expect(activeLines).toContain('while (front < rear) {');
+  expect(activeLines).toContain('delete[] visited;');
+  expect(activeLines).toContain('delete[] queue;');
+  await expect(page.locator('.variables-panel')).toContainText('rear');
+
+  await page.goto('/grafo');
+  await page.getByRole('button', { name: 'C++', exact: true }).click();
+  await page.getByRole('button', { name: 'Recorrer DFS', exact: true }).click();
+  await expect(page.locator('.operation-message')).toContainText('DFS comienza desde el vértice A.');
+  const dfsPause = page.getByRole('button', { name: 'Pausar', exact: true });
+  if (await dfsPause.isVisible()) await dfsPause.click();
+  let dfsCompleted = false;
+  const dfsActiveLines = new Set();
+  for (let step = 0; step < 160; step++) {
+    const message = (await page.locator('.operation-message p').textContent())?.trim() ?? '';
+    const activeLine = (await page.locator('.code-panel code.active').textContent())?.trim() ?? '';
+    if (activeLine) dfsActiveLines.add(activeLine.replace(/^\d+/, '').trim());
+    if (message.includes('DFS termina después de liberar la memoria dinámica.')) {
+      dfsCompleted = true;
+      break;
+    }
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+  expect(dfsCompleted, 'DFS debe terminar después de liberar visited').toBe(true);
+  expect(dfsActiveLines).toContain('delete[] visited;');
+  await expect(page.locator('.code-panel code.active')).toContainText('return true;');
+});
+
+test('avisa si falla la carga diferida del código en vez de dejar la operación sin respuesta', async ({ page }) => {
+  await page.goto('/bfs');
+  await page.route(/beginnerCpp.*\.js/, route => route.abort());
+  await page.getByRole('button', { name: 'C++', exact: true }).click();
+  await expect(page.locator('.operation-message')).toHaveClass(/error/);
+  await expect(page.locator('.operation-message')).toContainText('No se pudo cargar el código de la operación.');
+
+  await page.getByRole('button', { name: 'Ejecutar BFS', exact: true }).click();
+  await expect(page.locator('.operation-message')).toContainText('Recarga la página e inténtalo de nuevo.');
+});
+
 test('QuadTree y Octree insertan coordenadas reales coherentes con su código', async ({ page }) => {
   test.setTimeout(60_000);
   const cases = [
@@ -1283,6 +1351,7 @@ test('los grafos muestran Java completo y Prim/Kruskal ejecutan su algoritmo', a
   await page.getByRole('button', { name: 'Agregar vértice', exact: true }).click();
   const addVertexJava = await page.locator('.code-panel pre').textContent();
   expect(addVertexJava).toContain('class UndirectedGraph');
+  expect(addVertexJava).toContain('static final int MAX_VERTICES = 8;');
   expect(addVertexJava).toContain('String[] vertexNames');
   expect(addVertexJava).toContain('boolean[][] adjacency');
   expect(addVertexJava).toContain('boolean addVertex(String name)');
