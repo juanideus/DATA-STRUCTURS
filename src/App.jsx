@@ -1182,7 +1182,15 @@ function App() {
 
   useEffect(()=>{ window.scrollTo({ top: 0, behavior: 'auto' }); },[showWelcome, selectedId]);
   useEffect(()=>{ setFullCodeOpen(false); }, [selectedId, showWelcome]);
-  useEffect(()=>{ setStep(0); setPlaying(false); setCopied(false); setOperationFrames([]); setActiveCodeLine(null); },[codeMode]);
+  useEffect(()=>{
+    const finalFrame = operationFrames.at(-1);
+    if (finalFrame) applyFrame(finalFrame, operationFrames.length - 1);
+    setStep(0);
+    setPlaying(false);
+    setCopied(false);
+    setOperationFrames([]);
+    setActiveCodeLine(null);
+  },[codeMode]);
   useEffect(()=>{
     if (!playing) return;
     if (step >= totalSteps - 1) { setPlaying(false); return; }
@@ -1428,11 +1436,18 @@ function App() {
       : baseAlgorithm.category === 'Árboles'
         ? createTreeSynchronizedFrames
         : createCodeSynchronizedFrames;
-    const traceFrames = result.frames?.map(frame => (
-      frame.codePhase && codeMode !== 'pseudo'
-        ? { ...frame, codeNeedle: pathfindingCodeNeedle(baseAlgorithm.id, codeMode, frame) }
-        : frame
-    ));
+    const cppNeedle = codeMode === 'cpp' && ['radix-sort', 'polinomios'].includes(baseAlgorithm.id)
+      ? (await import('./logic/cppCodeNeedles.js')).cppCodeNeedle
+      : null;
+    const traceFrames = result.frames?.map(frame => {
+      if (frame.codePhase && codeMode !== 'pseudo') {
+        return { ...frame, codeNeedle: pathfindingCodeNeedle(baseAlgorithm.id, codeMode, frame) };
+      }
+      if (cppNeedle) {
+        return { ...frame, codeNeedle: cppNeedle(baseAlgorithm.id, actionId, frame) ?? frame.codeNeedle };
+      }
+      return frame;
+    });
     let synchronizedFrames = traceFrames?.length
       ? adaptFramesToCode(traceFrames, codeForAnimation, codeMode !== 'pseudo')
       : synchronizedFrameFactory({

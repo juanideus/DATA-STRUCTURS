@@ -1613,4 +1613,35 @@ for (const algorithmId of sortingAlgorithmIds) {
   }
 }
 
+const topic = id => algorithms.find(item => item.id === id);
+for (const [id, actionId] of [['array', 'add-end'], ['heap', 'heap-add'], ['bst', 'tree-add'], ['radix-sort', 'add-end']]) {
+  assert.equal(run(topic(id), actionId, { value: '1.5' }).ok, false, `${id}: el código entero no admite decimales`);
+  assert.equal(run(topic(id), actionId, { value: '2147483648' }).ok, false, `${id}: el código int no admite valores fuera de rango`);
+}
+assert.equal(run(topic('kruskal'), 'kruskal-run', {}, [], []).ok, false, 'Kruskal no puede completar un árbol sin vértices');
+assert.equal(run(topic('n-reinas'), 'solve', { value: '5.5' }).ok, false, 'N-Reinas debe rechazar tamaño decimal');
+assert.equal(run(topic('n-reinas'), 'step-solution', { value: '5.5' }).ok, false, 'N-Reinas paso a paso debe rechazar tamaño decimal');
+for (const value of ['', '-2', '8', '7.5']) {
+  assert.equal(run(topic('hanoi'), 'hanoi-set', { value }).ok, false, `Hanoi debe rechazar ${value || 'entrada vacía'}`);
+}
+let kdValues = [];
+for (const value of [55, 65, 75, 85]) {
+  const result = run(topic('kd-tree'), 'tree-add', { value: String(value) }, kdValues);
+  assert.equal(result.ok, true);
+  kdValues = result.values;
+}
+assert.equal(run(topic('kd-tree'), 'tree-add', { value: '95' }, kdValues).ok, false, 'KD-Tree no debe aceptar nodos invisibles');
+assert.equal(run(topic('hash-chaining'), 'hash-put', { value: 'a:b', second: 'x' }, []).ok, false, 'El hash con cadenas debe rechazar claves ambiguas');
+assert.equal(run(topic('lru-cache'), 'cache-put', { value: 'a:b', second: 'x' }, []).ok, false, 'LRU debe rechazar claves ambiguas');
+const edgeCaseCache = run(topic('lru-cache'), 'cache-put', { value: 'a', second: 'b:c' }, []);
+assert.equal(run(topic('lru-cache'), 'cache-get', { value: 'a' }, edgeCaseCache.values).message.includes('Get(a) = b:c.'), true);
+const edgeCaseBloom = run(topic('bloom-filter'), 'bloom-add', { value: 'algo' }, Array(12).fill(0));
+assert.deepEqual(edgeCaseBloom.values.flatMap((bit, index) => bit ? [index] : []), [1, 5, 9], 'Bloom: índices idénticos en JS, Java y C++');
+assert.equal(run(topic('bloom-filter'), 'bloom-add', { value: 'á' }).ok, false, 'Bloom debe rechazar Unicode incompatible con el ejemplo C++');
+const edgeCaseHash = run(topic('hash-open'), 'hash-put', { value: 'aaaaaa', second: 'x' }, []);
+assert.equal(edgeCaseHash.hashTable.findIndex(slot => slot.entry === 'aaaaaa:x'), 8, 'El hash firmado debe coincidir con C++');
+const edgeCaseRadix = run(topic('radix-sort'), 'sort', {}, [2147483647, -2147483648]);
+assert.equal(edgeCaseRadix.ok, true);
+assert.deepEqual(edgeCaseRadix.values, [-2147483648, 2147483647], 'Radix debe aceptar todo el rango de int');
+
 console.log(`AUDITORÍA OK: ${algorithms.length} temas, ${actionCount} acciones, ${executionCount} pruebas funcionales y ${actionIds.size} funciones distintas.`);

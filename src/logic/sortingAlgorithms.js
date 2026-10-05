@@ -328,17 +328,17 @@ function radixSort(values, edges) {
   if (working.length < 2) return trace.finish('Radix Sort terminó: no era necesario mover valores.');
   const { minimum: min, maximum: max } = numericBounds(working);
   const maxKey = max - min;
-  add('int offset = findMinimum();', `Se usa ${min} como desplazamiento; value - offset será una clave no negativa.`, 'radix-offset', { variables: { offset: min, maxKey } });
-  add('int maxKey = findMaximum() - offset;', `La clave desplazada más grande es ${maxKey}.`, 'radix-maximum', { variables: { offset: min, maxKey } });
+  add('long offset = findMinimum();', `Se usa ${min} como desplazamiento; value - offset será una clave no negativa.`, 'radix-offset', { variables: { offset: min, maxKey } });
+  add('long maxKey = (long) findMaximum() - offset;', `La clave desplazada más grande es ${maxKey}.`, 'radix-maximum', { variables: { offset: min, maxKey } });
   const output = new Array(working.length);
   add('int[] output = new int[size];', `Se crea output con ${working.length} posiciones para la distribución estable.`, 'radix-output-array', { sortAuxValues: output, sortAuxLabel: 'output', variables: { size: working.length } });
   for (let exp = 1; Math.floor(maxKey / exp) > 0; exp *= 10) {
-    add('for (int exp = 1; maxKey / exp > 0; exp *= 10) {', `Se ordenará usando el dígito correspondiente a exp = ${exp}.`, 'radix-exp-loop', { variables: { exp, maxKey } });
+    add('for (long exp = 1; maxKey / exp > 0; exp *= 10) {', `Se ordenará usando el dígito correspondiente a exp = ${exp}.`, 'radix-exp-loop', { variables: { exp, maxKey } });
     const count = new Array(10).fill(0);
     add('int[] count = new int[10];', `Se prepara el conteo estable para el dígito de posición ${exp}.`, 'radix-pass', { sortAuxValues: count, sortAuxLabel: `dígito ×${exp}`, variables: { exp } });
     for (let i = 0; i < working.length; i++) {
       const digit = Math.floor((numeric(working[i]) - min) / exp) % 10;
-      add('int digit = ((values[i] - offset) / exp) % 10;', `${working[i]} tiene dígito ${digit} en esta pasada.`, 'radix-digit', { position: i, sortComparePositions: [i], sortAuxValues: count, sortAuxLabel: `dígito ×${exp}`, variables: { exp, i, digit, value: working[i] } });
+      add('int digit = (int) ((((long) values[i] - offset) / exp) % 10);', `${working[i]} tiene dígito ${digit} en esta pasada.`, 'radix-digit', { position: i, sortComparePositions: [i], sortAuxValues: count, sortAuxLabel: `dígito ×${exp}`, variables: { exp, i, digit, value: working[i] } });
       count[digit]++;
       add('count[digit]++;', `El contador del dígito ${digit} aumenta a ${count[digit]}.`, 'radix-count', { position: i, sortComparePositions: [i], sortAuxValues: count, sortAuxLabel: `dígito ×${exp}`, variables: { exp, i, digit, count: count[digit] } });
     }

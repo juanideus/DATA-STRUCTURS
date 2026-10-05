@@ -73,9 +73,7 @@ const bloomOperations = {
 };
 
 const bloomHash = `int hash(const std::string& word, int seed) const {
-    unsigned int result = static_cast<unsigned int>(seed);
-    for (char character : word) result = result * 33u + static_cast<unsigned char>(character);
-    return static_cast<int>(result % BIT_COUNT);
+    return static_cast<int>((word.size() * seed + static_cast<unsigned char>(word[0])) % BIT_COUNT);
 }`;
 
 function bloomCpp(actionId) {

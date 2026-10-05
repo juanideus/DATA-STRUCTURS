@@ -556,6 +556,21 @@ test('los polinomios suman A y B avanzando p y q sobre nodos COEF EXP LINK', asy
   await expect(page.locator('[data-polynomial="C"]')).toHaveCount(0);
 });
 
+test('el C++ de polinomios parte del ejemplo visible y limpia C al cambiar A', async ({ page }) => {
+  await page.goto('/polinomios');
+  await page.getByRole('button', { name: 'C++', exact: true }).click();
+  await expect(page.locator('.code-panel pre')).toContainText('explicit LinkedPolynomial(bool loadExample = true)');
+  await page.getByRole('spinbutton', { name: 'Exponente', exact: true }).fill('8');
+  await page.getByRole('button', { name: 'Eliminar de A', exact: true }).click();
+  const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+  if (await pause.isVisible()) await pause.click();
+  for (let step = 0; step < 12; step++) {
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+  await expect(page.locator('.code-panel code.active')).toContainText('clearList(C);');
+  await expect(page.locator('[data-polynomial="A"][data-exponent="8"]')).toHaveCount(0);
+});
+
 test('la lista generalizada distingue tag, dlink, link y referencias compartidas', async ({ page }) => {
   await page.goto('/listas-generalizadas');
   await expect(page.getByRole('heading', { name: 'Listas generalizadas', level: 1 })).toBeVisible();
@@ -691,6 +706,15 @@ test('la línea Java, las variables y la animación avanzan juntas en distintas 
     expect(messages.size, `${sample.id}: la explicación no avanzó`).toBeGreaterThan(1);
     expect(sawVariables, `${sample.id}: no mostró variables`).toBe(true);
   }
+});
+
+test('cambiar de lenguaje durante una operación conserva el resultado confirmado', async ({ page }) => {
+  await page.goto('/array');
+  await page.getByLabel('Valor').fill('99');
+  await page.getByRole('button', { name: 'Agregar final', exact: true }).click();
+  await page.getByRole('button', { name: 'C++', exact: true }).click();
+  await expect(page.locator('.linear-visual .data-cell span').last()).toHaveText('99');
+  await expect(page.locator('.operation-message')).toContainText('99 fue agregado al final');
 });
 
 test('Quick Sort y Merge Sort ejecutan sus algoritmos reales junto al código', async ({ page }, testInfo) => {
@@ -1089,6 +1113,25 @@ test('Counting y Radix C++ conservan los negativos mediante desplazamiento', asy
     for (const fragment of sample.required) expect(code).toContain(fragment);
     expect(code).not.toContain('if (values[i] < 0) return false');
   }
+});
+
+test('Radix C++ ilumina el ciclo de dígitos que realmente ejecuta', async ({ page }) => {
+  await page.goto('/radix-sort');
+  await page.getByRole('button', { name: 'C++', exact: true }).click();
+  await page.getByRole('button', { name: 'Ordenar', exact: true }).click();
+  const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+  if (await pause.isVisible()) await pause.click();
+  let sawExponent = false;
+  for (let step = 0; step < 20; step++) {
+    const message = await page.locator('.operation-message p').textContent();
+    if (message?.includes('exp = 1')) {
+      await expect(page.locator('.code-panel code.active')).toContainText('for (long long exponent = 1;');
+      sawExponent = true;
+      break;
+    }
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+  expect(sawExponent).toBe(true);
 });
 
 test('ejecuta y restablece una operación de lista enlazada', async ({ page }) => {

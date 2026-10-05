@@ -2,9 +2,12 @@ const indent = source => source.split('\n').map(line => (line ? `    ${line}` : 
 
 const insert = (listName) => `void insert${listName}(int coefficient, int exponent) {
     insertTerm(${listName}, coefficient, exponent);
+    clearList(C);
 }`;
 const remove = (listName) => `bool remove${listName}(int exponent) {
-    return removeTerm(${listName}, exponent);
+    bool removed = removeTerm(${listName}, exponent);
+    if (removed) clearList(C);
+    return removed;
 }`;
 
 const operations = {
@@ -121,6 +124,16 @@ public:
     Node* A = nullptr;
     Node* B = nullptr;
     Node* C = nullptr;
+
+    explicit LinkedPolynomial(bool loadExample = true) {
+        if (!loadExample) return;
+        A = new Node(3, 14);
+        A->next = new Node(2, 8);
+        A->next->next = new Node(1, 0);
+        B = new Node(8, 14);
+        B->next = new Node(-3, 10);
+        B->next->next = new Node(10, 6);
+    }
 
     ~LinkedPolynomial() {
         clearList(A);

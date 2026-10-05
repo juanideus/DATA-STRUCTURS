@@ -338,7 +338,13 @@ const numericValue = (raw, current, forceText = false) => {
   const numbers = presentValues.length === 0 || presentValues.every(value => typeof value === 'number');
   if (!numbers) return raw.trim();
   const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : null;
+  return Number.isInteger(parsed) && parsed >= -2147483648 && parsed <= 2147483647 ? parsed : null;
+};
+
+const queenSize = (raw, values) => {
+  const input = String(raw ?? '').trim();
+  const size = input === '' ? values.length || 4 : Number(input);
+  return Number.isInteger(size) && size >= 4 && size <= 8 ? size : null;
 };
 
 const entryKey = item => String(item).split(':')[0];
@@ -742,7 +748,7 @@ const insertIntoKdTree = (values, value) => {
   const result = [...values];
   let index = 0;
   let depth = 0;
-  while (index < 255 && result[index] !== undefined && result[index] !== null) {
+  while (index < 15 && result[index] !== undefined && result[index] !== null) {
     if (Number(result[index]) === Number(value)) return { values: trimTreeSlots(result), position: index, duplicate: true };
     const axis = depth % 2;
     index = kdCoordinate(value, axis) < kdCoordinate(result[index], axis)
@@ -750,7 +756,7 @@ const insertIntoKdTree = (values, value) => {
       : index * 2 + 2;
     depth++;
   }
-  if (index >= 255) return { values: trimTreeSlots(result), position: -1, hiddenNode: true };
+  if (index >= 15) return { values: trimTreeSlots(result), position: -1, hiddenNode: true };
   result[index] = value;
   return { values: trimTreeSlots(result), position: index, duplicate: false };
 };
@@ -769,7 +775,7 @@ const kdNodeToTreeSlots = root => {
   let hiddenNode = false;
   const place = (node, index) => {
     if (!node) return;
-    if (index >= 255) {
+    if (index >= 15) {
       hiddenNode = true;
       return;
     }
@@ -1462,6 +1468,16 @@ function graphTraversalTrace({ algorithm, values, edges, start, depthFirst }) {
 }
 
 function minimumSpanningTreeTrace({ algorithm, values, edges, start = 0 }) {
+  if (values.length === 0) {
+    return {
+      ok: false,
+      values: [],
+      edges: edges.map(edge => [...edge]),
+      message: 'Agrega al menos un vértice antes de construir el árbol de expansión mínima.',
+      step: 0,
+      frames: [],
+    };
+  }
   const mode = algorithm.id === 'kruskal' ? 'kruskal' : 'prim';
   const frames = [];
   const selectedEdges = [];
@@ -5303,6 +5319,14 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
   const fail = message => ({ ok: false, values, edges, message, step: 0 });
   const done = (updated, message, step = Math.max(0, updated.length - 1), updatedEdges = edges) => ({ ok: true, values: updated, edges: updatedEdges, message, step });
 
+  if (['hash', 'cache'].includes(group) && !['clear', 'reset'].includes(actionId)) {
+    const key = String(fields.value ?? '').trim();
+    if (!key || key.includes(':')) return fail('Ingresa una clave no vacía y sin dos puntos.');
+    if (group === 'hash' && !/^[\x20-\x7E]+$/.test(key)) {
+      return fail('Usa una clave sin acentos ni emojis para que el hash coincida en Java y C++.');
+    }
+  }
+
   if (actionId === 'reset') {
     const result = done([...initialValues], 'Estructura restablecida a su estado inicial.', 0, initialEdges.map(edge => [...edge]));
     if (['quadtree', 'octree'].includes(algorithm.id)) return { ...result, spatialTree: createSpatialPartitionTree(algorithm.id, initialValues).snapshot() };
@@ -5329,7 +5353,11 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       ? { ...done([], 'Estructura vaciada.', 0), treeParents: [] }
     : done([], 'Estructura vaciada.', 0);
   if (actionId === 'clear-bits') return done(values.map(() => 0), 'Todos los bits fueron limpiados.', 0);
-  if (['add-start','add-end','add-index','push','enqueue','sorted-add','tree-add','heap-add'].includes(actionId) && value === null) return fail('Ingresa un valor válido antes de ejecutar la operación.');
+  if (['add-start','add-end','add-index','push','enqueue','sorted-add','tree-add','heap-add'].includes(actionId) && value === null) {
+    return fail(forceText
+      ? 'Ingresa un valor válido antes de ejecutar la operación.'
+      : 'Ingresa un entero entre -2147483648 y 2147483647.');
+  }
   if (group === 'merkle' && actionId === 'add-end' && next.length >= 8) return fail('La demostración Merkle admite hasta 8 bloques visibles.');
   if (group === 'btree' && actionId === 'sorted-add' && next.length >= 24) return fail('El árbol multicamino admite hasta 24 claves visibles en esta demostración.');
 
@@ -5365,7 +5393,6 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
 
   if (['hash-table', 'hash-open'].includes(algorithm.id)) {
     const key = String(fields.value ?? '').trim();
-    if (!key || key.includes(':')) return fail('Ingresa una clave no vacía y sin dos puntos.');
     const model = createOpenAddressingTable(next, hashTable);
     const found = next.findIndex(entry => entryKey(entry) === key);
     if (actionId === 'hash-put') {
@@ -5816,7 +5843,9 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       const found = next.findIndex(item => String(item).split(':')[0] === key);
       if (found < 0) return fail(`La clave ${key} no está en la caché.`);
       const [entry] = next.splice(found,1); next.push(entry);
-      return done(next, `Get(${key}) = ${String(entry).split(':')[1] ?? entry}. Se marcó como reciente.`, next.length-1);
+      const separator = String(entry).indexOf(':');
+      const result = separator < 0 ? entry : String(entry).slice(separator + 1);
+      return done(next, `Get(${key}) = ${result}. Se marcó como reciente.`, next.length-1);
     }
     case 'vertex-add': {
       const label = String(fields.value ?? '').trim().toUpperCase();
@@ -5952,8 +5981,9 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       return { ...done([trace.result], message, trace.tree.rootId), frames: trace.frames };
     }
     case 'hanoi-set': {
-      const disks = Math.max(1,Math.min(7,Number(fields.value)));
-      if (!Number.isInteger(disks)) return fail('Ingresa entre 1 y 7 discos.');
+      const input = String(fields.value ?? '').trim();
+      const disks = Number(input);
+      if (!input || !Number.isInteger(disks) || disks < 1 || disks > 7) return fail('Ingresa un entero entre 1 y 7 discos.');
       return done(Array.from({length:disks},(_,i)=>disks-i), `Torres creadas con ${disks} discos.`, 0);
     }
     case 'hanoi-solve': {
@@ -5976,7 +6006,8 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
         };
       }
       if (algorithm.id === 'n-reinas') {
-        const size = Math.max(4, Math.min(8, Number(fields.value) || next.length || 4));
+        const size = queenSize(fields.value, next);
+        if (size === null) return fail('Ingresa un tamaño entero entre 4 y 8.');
         const queenResult = solveQueensWithTrace(size);
         if (!queenResult.solved) return fail(`No se encontró una solución para ${size} reinas.`);
         return {
@@ -6006,7 +6037,8 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
         };
       }
       if (algorithm.id === 'n-reinas') {
-        const size = Math.max(4, Math.min(8, Number(fields.value) || next.length || 4));
+        const size = queenSize(fields.value, next);
+        if (size === null) return fail('Ingresa un tamaño entero entre 4 y 8.');
         const queenResult = solveQueensWithTrace(size);
         return {
           ...done(queenResult.values, `Ejecución paso a paso para ${size} reinas.`, 0),
@@ -6049,6 +6081,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     case 'bloom-add': {
       const text = String(fields.value ?? '').trim();
       if (!text) return fail('Ingresa un elemento.');
+      if (!/^[\x20-\x7E]+$/.test(text)) return fail('Usa un elemento sin acentos ni emojis para que el hash coincida en Java y C++.');
       const updated = [...next];
       const frames = [];
       [3,7,11].forEach((seed, iteration) => {
@@ -6065,6 +6098,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     case 'bloom-check': {
       const text = String(fields.value ?? '').trim();
       if (!text) return fail('Ingresa un elemento.');
+      if (!/^[\x20-\x7E]+$/.test(text)) return fail('Usa un elemento sin acentos ni emojis para que el hash coincida en Java y C++.');
       const frames = [];
       let missingIndex = -1;
       for (const [iteration, seed] of [3,7,11].entries()) {
