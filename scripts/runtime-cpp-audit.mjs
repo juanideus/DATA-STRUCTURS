@@ -318,13 +318,13 @@ int main() {
     graph.vertexNames[2] = 'D';
     graph.vertexCount++;
     for (int vertex = 0; vertex < graph.vertexCount; vertex++) {
-        assert(graph.weights[2][vertex] == 0);
-        assert(graph.weights[vertex][2] == 0);
+        assert(graph.weights[2][vertex] == graph.INF);
+        assert(graph.weights[vertex][2] == graph.INF);
     }
 }`,
   },
   {
-    label: 'Kruskal updates an existing edge even at capacity', id: 'kruskal', action: 'edge-add',
+    label: 'Kruskal rejects duplicate edges even at capacity', id: 'kruskal', action: 'edge-add',
     main: `
 int main() {
     KruskalGraph graph;
@@ -339,10 +339,81 @@ int main() {
         }
     }
     assert(graph.edgeCount == graph.MAX_EDGES);
-    assert(graph.addEdge('A', 'B', 7));
-    assert(graph.edges[0].weight == 7);
+    assert(!graph.addEdge('A', 'B', 7));
+    assert(graph.edges[0].weight == 5);
     assert(graph.edgeCount == graph.MAX_EDGES);
     assert(!graph.addEdge('N', 'O', 9));
+}`,
+  },
+  {
+    label: 'Prim accepts zero-weight edges and preserves absence separately', id: 'prim', action: 'edge-add',
+    main: `
+int main() {
+    PrimGraph graph;
+    graph.vertexNames[0] = 'A';
+    graph.vertexNames[1] = 'B';
+    graph.vertexCount = 2;
+    assert(graph.addEdge('A', 'B', 0));
+    assert(graph.weights[0][1] == 0 && graph.weights[1][0] == 0);
+    assert(!graph.addEdge('A', 'B', 3));
+    assert(!graph.addEdge('A', 'B', graph.INF));
+}`,
+  },
+  {
+    label: 'Kruskal accepts zero and negative weights', id: 'kruskal', action: 'edge-add',
+    main: `
+int main() {
+    KruskalGraph graph;
+    graph.vertexNames[0] = 'A';
+    graph.vertexNames[1] = 'B';
+    graph.vertexNames[2] = 'C';
+    graph.vertexCount = 3;
+    assert(graph.addEdge('A', 'B', 0));
+    assert(graph.addEdge('B', 'C', -4));
+    assert(graph.edges[0].weight == 0 && graph.edges[1].weight == -4);
+    assert(!graph.addEdge('B', 'A', 5));
+}`,
+  },
+  {
+    label: 'Prim exposes a zero-and-negative-weight MST and rejects disconnected graphs', id: 'prim', action: 'prim-run',
+    main: `
+int main() {
+    PrimGraph graph;
+    graph.vertexNames[0] = 'A';
+    graph.vertexNames[1] = 'B';
+    graph.vertexNames[2] = 'C';
+    graph.vertexCount = 3;
+    graph.weights[0][1] = graph.weights[1][0] = 0;
+    graph.weights[1][2] = graph.weights[2][1] = -2;
+    graph.weights[0][2] = graph.weights[2][0] = 5;
+    assert(graph.prim('A'));
+    assert(graph.treeEdgeCount == 2 && graph.treeCost == -2);
+    assert(graph.treeEdges[0].from == 0 && graph.treeEdges[0].to == 1);
+    assert(graph.treeEdges[1].from == 1 && graph.treeEdges[1].to == 2);
+    graph.weights[0][2] = graph.weights[2][0] = graph.INF;
+    graph.weights[1][2] = graph.weights[2][1] = graph.INF;
+    assert(!graph.prim('A'));
+    assert(graph.treeEdgeCount == 0 && graph.treeCost == 0);
+}`,
+  },
+  {
+    label: 'Kruskal exposes a zero-and-negative-weight MST and rejects disconnected graphs', id: 'kruskal', action: 'kruskal-run',
+    main: `
+int main() {
+    KruskalGraph graph;
+    graph.vertexNames[0] = 'A';
+    graph.vertexNames[1] = 'B';
+    graph.vertexNames[2] = 'C';
+    graph.vertexCount = 3;
+    graph.edges[graph.edgeCount++] = {0, 1, 0};
+    graph.edges[graph.edgeCount++] = {1, 2, -2};
+    graph.edges[graph.edgeCount++] = {0, 2, 5};
+    assert(graph.kruskal());
+    assert(graph.treeEdgeCount == 2 && graph.treeCost == -2);
+    assert(graph.treeEdges[0].weight == -2 && graph.treeEdges[1].weight == 0);
+    graph.edgeCount = 1;
+    assert(!graph.kruskal());
+    assert(graph.treeEdgeCount == 0 && graph.treeCost == 0);
 }`,
   },
   {
@@ -955,6 +1026,22 @@ int main() {
     assert(grid.ROWS == 12 && grid.COLUMNS == 22);
     assert(grid.shortestPath(0, AStarGrid::CELL_COUNT - 1));
     assert(grid.distance[AStarGrid::CELL_COUNT - 1] > 0);
+}`,
+  },
+  {
+    label: 'A-Star stays optimal with zero-cost cells', id: 'a-star', action: 'shortest-path',
+    main: `
+int main() {
+    int* cells = new int[AStarGrid::CELL_COUNT];
+    for (int cell = 0; cell < AStarGrid::CELL_COUNT; cell++) cells[cell] = -1;
+    cells[0] = cells[1] = cells[2] = 1;
+    cells[22] = cells[23] = cells[24] = 0;
+    AStarGrid grid(cells);
+    delete[] cells;
+    assert(grid.minStepCost == 0);
+    assert(grid.shortestPath(0, 2));
+    assert(grid.distance[2] == 1);
+    assert(grid.previous[2] == 24);
 }`,
   },
   {

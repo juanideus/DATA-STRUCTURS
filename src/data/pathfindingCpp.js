@@ -43,6 +43,7 @@ const astar = `bool shortestPath(int start, int goal) {
         previous[cell] = -1;
     }
     distance[start] = 0;
+    minStepCost = minimumPassableCost();
     score[start] = heuristic(start, goal);
 
     for (int step = 0; step < CELL_COUNT; step++) {
@@ -96,14 +97,22 @@ const dijkstraHelper = `int minimumDistance(const bool settled[]) const {
     return selected;
 }`;
 
-const astarHelpers = `int heuristic(int first, int second) const {
+const astarHelpers = `int minimumPassableCost() const {
+    int minimum = INF;
+    for (int cell = 0; cell < CELL_COUNT; cell++) {
+        if (map[cell] >= 0 && map[cell] < minimum) minimum = map[cell];
+    }
+    return minimum == INF ? 0 : minimum;
+}
+
+int heuristic(int first, int second) const {
     int firstRow = first / COLUMNS;
     int firstColumn = first % COLUMNS;
     int secondRow = second / COLUMNS;
     int secondColumn = second % COLUMNS;
     int rowDistance = firstRow > secondRow ? firstRow - secondRow : secondRow - firstRow;
     int columnDistance = firstColumn > secondColumn ? firstColumn - secondColumn : secondColumn - firstColumn;
-    return rowDistance + columnDistance;
+    return (rowDistance + columnDistance) * minStepCost;
 }
 
 int minimumScore(const int score[], const bool closed[]) const {
@@ -165,6 +174,7 @@ public:
     int* initialMap;
     int* distance;
     int* previous;
+    int minStepCost = 0;
 
     explicit ${algorithmId === 'dijkstra' ? 'DijkstraGrid' : 'AStarGrid'}(const int* cells = nullptr)
         : map(new int[CELL_COUNT]{}), initialMap(new int[CELL_COUNT]{}), distance(new int[CELL_COUNT]{}),

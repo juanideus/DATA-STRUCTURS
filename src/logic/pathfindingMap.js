@@ -88,10 +88,10 @@ export function createRandomPathMap(previousMap = DEFAULT_PATH_MAP) {
   return createCityMap(Date.now() + 97);
 }
 
-function heuristic(from, to, columns) {
+function heuristic(from, to, columns, minimumStepCost) {
   const [fromRow, fromColumn] = coordinates(from, columns);
   const [toRow, toColumn] = coordinates(to, columns);
-  return Math.abs(fromRow - toRow) + Math.abs(fromColumn - toColumn);
+  return (Math.abs(fromRow - toRow) + Math.abs(fromColumn - toColumn)) * minimumStepCost;
 }
 
 function neighborsOf(position, map) {
@@ -104,7 +104,7 @@ function neighborsOf(position, map) {
       && nextColumn < map.columns
     ))
     .map(([nextRow, nextColumn]) => indexOf(nextRow, nextColumn, map.columns))
-    .filter((next) => Number.isFinite(map.cells[next].cost));
+    .filter((next) => Number.isFinite(map.cells[next].cost) && map.cells[next].cost >= 0);
 }
 
 function reconstructPath(previous, start, goal) {
@@ -120,8 +120,8 @@ function reconstructPath(previous, start, goal) {
   return [];
 }
 
-function mapFrame({ map, mode, current, open, closed, distance, message, codeLine, codePhase, path = [], delayMs }) {
-  const h = current == null ? 0 : heuristic(current, map.goal, map.columns);
+function mapFrame({ map, mode, current, open, closed, distance, minimumStepCost, message, codeLine, codePhase, path = [], delayMs }) {
+  const h = current == null ? 0 : heuristic(current, map.goal, map.columns, minimumStepCost);
   const g = current == null ? 0 : distance[current];
   const [row, column] = current == null ? [null, null] : coordinates(current, map.columns);
   const algorithmName = mode === 'astar' ? 'A*' : 'Dijkstra';
@@ -159,6 +159,10 @@ function mapFrame({ map, mode, current, open, closed, distance, message, codeLin
 export function runGridPathfinding({ map = DEFAULT_PATH_MAP, mode = 'dijkstra' } = {}) {
   const cityMap = cloneMap(map);
   const total = cityMap.cells.length;
+  const minimumCost = cityMap.cells.reduce((best, cell) => (
+    Number.isFinite(cell.cost) && cell.cost >= 0 ? Math.min(best, cell.cost) : best
+  ), Infinity);
+  const minimumStepCost = Number.isFinite(minimumCost) ? minimumCost : 0;
   const distance = Array(total).fill(Infinity);
   const previous = Array(total).fill(-1);
   const open = new Set([cityMap.start]);
@@ -168,6 +172,7 @@ export function runGridPathfinding({ map = DEFAULT_PATH_MAP, mode = 'dijkstra' }
 
   frames.push(mapFrame({
     map: cityMap,
+    minimumStepCost,
     mode,
     current: cityMap.start,
     open,
@@ -184,7 +189,7 @@ export function runGridPathfinding({ map = DEFAULT_PATH_MAP, mode = 'dijkstra' }
 
     for (const candidate of open) {
       const priority = distance[candidate]
-        + (mode === 'astar' ? heuristic(candidate, cityMap.goal, cityMap.columns) : 0);
+        + (mode === 'astar' ? heuristic(candidate, cityMap.goal, cityMap.columns, minimumStepCost) : 0);
       if (priority < bestPriority) {
         bestPriority = priority;
         current = candidate;
@@ -193,6 +198,7 @@ export function runGridPathfinding({ map = DEFAULT_PATH_MAP, mode = 'dijkstra' }
 
     frames.push(mapFrame({
       map: cityMap,
+      minimumStepCost,
       mode,
       current,
       open,
@@ -212,6 +218,7 @@ export function runGridPathfinding({ map = DEFAULT_PATH_MAP, mode = 'dijkstra' }
     if (current === cityMap.goal) {
       frames.push(mapFrame({
         map: cityMap,
+        minimumStepCost,
         mode,
         current,
         open,
@@ -227,6 +234,7 @@ export function runGridPathfinding({ map = DEFAULT_PATH_MAP, mode = 'dijkstra' }
 
     frames.push(mapFrame({
       map: cityMap,
+      minimumStepCost,
       mode,
       current,
       open,
@@ -254,6 +262,7 @@ export function runGridPathfinding({ map = DEFAULT_PATH_MAP, mode = 'dijkstra' }
 
     frames.push(mapFrame({
       map: cityMap,
+      minimumStepCost,
       mode,
       current,
       open,
@@ -275,6 +284,7 @@ export function runGridPathfinding({ map = DEFAULT_PATH_MAP, mode = 'dijkstra' }
 
   frames.push(mapFrame({
     map: cityMap,
+    minimumStepCost,
     mode,
     current: found ? cityMap.goal : null,
     open,

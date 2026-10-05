@@ -41,6 +41,13 @@ const samples = [
         if (lab.parent[1] != 0 || lab.parent[2] != 2) throw new AssertionError("initial sets");
         lab.union(1, 2);
         if (lab.findRoot(1) != lab.findRoot(2)) throw new AssertionError("union");`],
+  ['a-star', 'shortest-path', `AlgorithmExample lab = new AlgorithmExample();
+        int[] map = {1, 1, 1, 0, 0, 0};
+        int[] route = lab.aStar(map, 2, 3, 0, 2);
+        int cost = 0;
+        for (int index = 1; index < route.length; index++) cost += map[route[index]];
+        if (cost != 1 || route[0] != 0 || route[route.length - 1] != 2)
+            throw new AssertionError("A* zero-cost route");`],
 ];
 
 const directory = await mkdtemp(path.join(tmpdir(), 'dsa-java-standalone-'));

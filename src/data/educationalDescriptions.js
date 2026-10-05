@@ -472,7 +472,7 @@ export const educationalDescriptions = {
     'Ordena todas las aristas y usa Union-Find para saber si los extremos ya pertenecen al mismo componente. Si están separados, incorpora la arista y une los componentes.',
     'Ordenar aristas por peso|Consultar los representantes con find|Agregar sólo si no crea ciclo|Unir componentes con union',
     'Conceptualmente sencillo|Excelente para grafos dispersos|Puede producir un bosque si el grafo está desconectado|Aprovecha Union-Find eficientemente',
-    'Ordenar aristas cuesta O(E log E)|Necesita almacenar las aristas|No parte de un vértice particular|No se aplica como tal a grafos dirigidos',
+    'El ordenamiento mostrado cuesta O(E²); con uno eficiente puede ser O(E log E)|Necesita almacenar las aristas|No parte de un vértice particular|No se aplica como tal a grafos dirigidos',
     'Diseño de redes|Agrupamiento|Conexiones de costo mínimo|Generación de laberintos',
     'Revisas todas las ofertas de cable de menor a mayor y rechazas las que cierran un ciclo innecesario.',
     'El algoritmo termina al aceptar V - 1 aristas si el grafo es conectado.'

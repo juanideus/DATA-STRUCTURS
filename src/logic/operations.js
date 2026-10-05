@@ -5850,6 +5850,9 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       if (found >= 0) return fail('Esa arista ya existe.');
       const weight = fields.index === '' ? 1 : Number(fields.index);
       if (!Number.isFinite(weight)) return fail('El peso debe ser un número válido.');
+      if (algorithm.type === 'weighted' && (!Number.isSafeInteger(weight) || Math.abs(weight) >= 1000000000)) {
+        return fail('Usa un peso entero entre -999999999 y 999999999 para que coincida con el código Java y C++.');
+      }
       if (['dijkstra', 'a-star'].includes(algorithm.id) && weight < 0) return fail(`${algorithm.name} no admite pesos negativos.`);
       return done(next, `Arista agregada con peso ${weight}.`, 0, [...edges,[from,to,weight]]);
     }

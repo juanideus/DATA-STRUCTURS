@@ -22,7 +22,7 @@ import {
   createTreeSynchronizedFrames,
   estimateLoopIterations,
 } from '../src/logic/codeAnimation.js';
-import { DEFAULT_PATH_MAP, MAP_COLUMNS, MAP_ROWS } from '../src/logic/pathfindingMap.js';
+import { DEFAULT_PATH_MAP, MAP_COLUMNS, MAP_ROWS, runGridPathfinding } from '../src/logic/pathfindingMap.js';
 
 const edges = () => DEFAULT_GRAPH_EDGES.map(edge => [...edge]);
 const mojibake = /Ã|â€|â†|�/;
@@ -182,11 +182,33 @@ for (const [algorithmId, expected] of specializedResetExpectations) {
   assert.ok(resetCode.includes(expected), `${algorithmId}/reset: no restaura su estado especializado.`);
   assert.ok(!resetCode.includes('values[i] = initialValues[i]'), `${algorithmId}/reset: todavía usa el reinicio genérico.`);
 }
+for (const algorithmId of ['prim', 'kruskal']) {
+  const weightedGraph = algorithms.find(item => item.id === algorithmId);
+  const inputs = { algorithm: weightedGraph, actionId: 'edge-add', values: ['A', 'B'], edges: [] };
+  const zeroWeight = executeOperation({ ...inputs, fields: { value: 'A', second: 'B', index: '0' } });
+  assert.equal(zeroWeight.ok, true, `${weightedGraph.name}: debe admitir una arista de peso cero.`);
+  assert.deepEqual(zeroWeight.edges, [[0, 1, 0]], `${weightedGraph.name}: debe conservar el peso cero.`);
+  const decimalWeight = executeOperation({ ...inputs, fields: { value: 'A', second: 'B', index: '1.5' } });
+  assert.equal(decimalWeight.ok, false, `${weightedGraph.name}: el código Java/C++ usa pesos enteros.`);
+  const reservedWeight = executeOperation({ ...inputs, fields: { value: 'A', second: 'B', index: '1000000000' } });
+  assert.equal(reservedWeight.ok, false, `${weightedGraph.name}: el valor reservado para ausencia de arista no es válido.`);
+}
+
 for (const algorithmId of ['dijkstra', 'a-star']) {
   const pathfindingCpp = getBeginnerCpp(algorithms.find(item => item.id === algorithmId), 'shortest-path');
   assert.ok(pathfindingCpp.includes(`static const int ROWS = ${MAP_ROWS};`), `${algorithmId}: C++ no usa las filas del mapa visual.`);
   assert.ok(pathfindingCpp.includes(`static const int COLUMNS = ${MAP_COLUMNS};`), `${algorithmId}: C++ no usa las columnas del mapa visual.`);
 }
+
+const zeroCostMap = {
+  rows: 2, columns: 3, start: 0, goal: 2,
+  cells: [1, 1, 1, 0, 0, 0].map(cost => ({ kind: 'road', cost })),
+};
+const zeroCostDijkstra = runGridPathfinding({ map: zeroCostMap, mode: 'dijkstra' });
+const zeroCostAStar = runGridPathfinding({ map: zeroCostMap, mode: 'astar' });
+assert.equal(zeroCostDijkstra.cost, 1, 'Dijkstra debe aceptar casillas de costo cero.');
+assert.equal(zeroCostAStar.cost, zeroCostDijkstra.cost, 'A* no debe sobreestimar rutas con casillas de costo cero.');
+assert.deepEqual(zeroCostAStar.path, [0, 3, 4, 5, 2], 'A* debe encontrar el desvío de menor costo.');
 assert.equal(Object.keys(educationalDescriptions).length, algorithms.length, 'La cantidad de descripciones no coincide con el catálogo.');
 const theoreticalTypes = new Set(['theory', 'complexity', 'oop', 'foundation']);
 assert.equal(Object.keys(guideJavaExamples).length, algorithms.filter(algorithm => !theoreticalTypes.has(algorithm.type)).length, 'Todas las secciones prácticas deben incluir ejemplo Java; las guías de Fundamentos no usan el panel práctico.');
