@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { request } from 'node:http';
 import { createReportEmail, sendReportEmail } from '../src/email.js';
 import { allowedOrigins, OFFICIAL_FRONTEND_ORIGINS } from '../src/origins.js';
 import { normalizeTurnstileToken, verifyTurnstile } from '../src/turnstile.js';
@@ -98,6 +99,53 @@ test('expone una ruta pública de estado compatible con Railway', async t => {
     assert.match(response.headers.get('content-security-policy'), /default-src 'none'/);
     assert.deepEqual(await response.json(), { ok: true, service: 'dsa-lab-report-api' });
   }
+});
+
+test('rechaza una URL malformada sin interrumpir la ruta de estado', async t => {
+  const previousNodeEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'test';
+  const { server } = await import('../src/server.js');
+  if (!server.listening) {
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', resolve);
+    });
+  }
+  t.after(async () => {
+    if (server.listening) await new Promise(resolve => server.close(resolve));
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+  });
+
+  const { port } = server.address();
+  const malformedResponse = await new Promise((resolve, reject) => {
+    const malformedRequest = request({
+      hostname: '127.0.0.1',
+      port,
+      method: 'GET',
+      path: '//[',
+      headers: { Connection: 'close' },
+    }, response => {
+      let body = '';
+      response.setEncoding('utf8');
+      response.on('data', chunk => { body += chunk; });
+      response.once('error', reject);
+      response.once('end', () => resolve({ status: response.statusCode, headers: response.headers, body }));
+    });
+    malformedRequest.once('error', reject);
+    malformedRequest.end();
+  });
+
+  assert.equal(malformedResponse.status, 400);
+  assert.equal(malformedResponse.headers['content-type'], 'application/json; charset=utf-8');
+  assert.deepEqual(JSON.parse(malformedResponse.body), {
+    ok: false,
+    message: 'La dirección de la solicitud no es válida.',
+  });
+
+  const healthResponse = await fetch(`http://127.0.0.1:${port}/health`);
+  assert.equal(healthResponse.status, 200);
+  assert.deepEqual(await healthResponse.json(), { ok: true, service: 'dsa-lab-report-api' });
 });
 
 test('usa X-Real-IP de Railway e ignora X-Forwarded-For controlado por el cliente', async () => {
