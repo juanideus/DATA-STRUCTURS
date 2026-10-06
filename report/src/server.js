@@ -73,7 +73,13 @@ const missingConfiguration = () => ['RESEND_API_KEY', 'REPORT_EMAIL', 'REPORT_FR
 
 export const server = http.createServer(async (request, response) => {
   setSecurityHeaders(response);
-  const url = new URL(request.url || '/', 'http://localhost');
+  let url;
+  try {
+    url = new URL(request.url || '/', 'http://localhost');
+  } catch {
+    sendJson(response, 400, { ok: false, message: 'La dirección de la solicitud no es válida.' });
+    return;
+  }
 
   if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/health')) {
     sendJson(response, 200, { ok: true, service: 'dsa-lab-report-api' });
