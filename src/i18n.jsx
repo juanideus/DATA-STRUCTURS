@@ -192,6 +192,9 @@ export function translateLearningText(value, language) {
   if (language !== 'en' || typeof value !== 'string') return value;
   if (exactLearningText[value]) return exactLearningText[value];
   const graphPatterns = [
+    [/^front se inicializa en 0\.$/, () => 'front is initialized to 0.'],
+    [/^rear se inicializa en 0\.$/, () => 'rear is initialized to 0.'],
+    [/^(.+) sale del frente de la cola; front avanza a (\d+)\.$/, match => `${match[1]} leaves the front of the queue; front advances to ${match[2]}.`],
     [/^Todas las llamadas recursivas regresaron; DFS puede liberar visited\.$/, () => 'All recursive calls returned; DFS can now release visited.'],
     [/^Se libera el arreglo dinámico visited\.$/, () => 'The dynamically allocated visited array is released.'],
     [/^Se libera la cola dinámica\.$/, () => 'The dynamically allocated queue is released.'],

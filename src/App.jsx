@@ -1462,36 +1462,90 @@ function App() {
         ? createTreeSynchronizedFrames
         : createCodeSynchronizedFrames;
     const cppNeedle = codeMode === 'cpp' ? cppCodeNeedle : null;
+    const isCppGraphTraversal = codeMode === 'cpp'
+      && ['grafo', 'grafo-dirigido', 'dfs', 'bfs'].includes(baseAlgorithm.id)
+      && ['bfs-run', 'dfs-run'].includes(actionId);
     const cppQueueCapacity = codeForAnimation.match(/\bMAX_VERTICES\s*=\s*(\d+)/)?.[1] ?? String(previousValues.length);
-    const traceFrames = result.frames?.map(frame => {
+    const sourceFrames = result.frames?.filter(frame => {
+      if (!isCppGraphTraversal) return true;
+      if (frame.codeNeedle === 'boolean hasEdge = adjacency[vertex][next];') return false;
+      return actionId !== 'bfs-run' || !['front++;', 'end++;'].includes(frame.codeNeedle);
+    });
+    const traceFrames = sourceFrames?.map(frame => {
       if (frame.codePhase && codeMode !== 'pseudo') {
         return { ...frame, codeNeedle: pathfindingCodeNeedle(baseAlgorithm.id, codeMode, frame) };
       }
       if (cppNeedle) {
         const codeNeedle = cppNeedle(baseAlgorithm.id, actionId, frame) ?? frame.codeNeedle;
-        if (['grafo', 'grafo-dirigido', 'dfs', 'bfs'].includes(baseAlgorithm.id)
-            && ['bfs-run', 'dfs-run'].includes(actionId)) {
+        if (isCppGraphTraversal) {
+          const isBfsAllocation = actionId === 'bfs-run'
+            && ['int[] queue = new int[vertexCount];', 'boolean[] visited = new boolean[vertexCount];']
+              .includes(frame.codeNeedle);
+          const isBfsEnqueue = actionId === 'bfs-run'
+            && ['queue[end] = start;', 'queue[end] = next;'].includes(frame.codeNeedle);
+          const isBfsDequeue = actionId === 'bfs-run' && frame.codeNeedle === 'int vertex = queue[front];';
+          const frontAfterDequeue = isBfsDequeue
+            ? Number(frame.variables.find(variable => variable.name === 'front')?.value) + 1
+            : null;
           const message = frame.message.startsWith('Se crea una cola con capacidad para')
             ? 'Se reserva una cola dinámica con capacidad para hasta ' + cppQueueCapacity + ' vértices.'
             : frame.message.replace(/\bend\b/g, 'rear');
           return {
             ...frame,
             codeNeedle,
+            graphState: isBfsAllocation
+              ? { ...frame.graphState, frontier: [] }
+              : isBfsDequeue
+                ? { ...frame.graphState, frontier: frame.graphState.frontier.slice(1) }
+                : frame.graphState,
             message: frame.completed && actionId === 'bfs-run'
               ? 'front alcanzó a rear; la cola quedó vacía y BFS sale del ciclo.'
               : frame.completed && actionId === 'dfs-run'
                 ? 'Todas las llamadas recursivas regresaron; DFS puede liberar visited.'
-                : message,
+                : isBfsDequeue
+                  ? `${frame.values[frame.graphState.current]} sale del frente de la cola; front avanza a ${frontAfterDequeue}.`
+                  : message,
             completed: frame.completed ? false : frame.completed,
-            variables: frame.variables?.map(variable => (
-              variable.name === 'end' ? { ...variable, name: 'rear' } : variable
-            )),
+            variables: frame.variables
+              ?.filter(variable => variable.name !== 'hasEdge'
+                && !(isBfsAllocation && ['front', 'end'].includes(variable.name)))
+              .map(variable => {
+                if (variable.name === 'next') return { ...variable, name: 'neighbor' };
+                if (isBfsDequeue && variable.name === 'front') {
+                  return { ...variable, value: frontAfterDequeue };
+                }
+                if (variable.name === 'end') {
+                  return { ...variable, name: 'rear', value: isBfsEnqueue ? Number(variable.value) + 1 : variable.value };
+                }
+                return variable;
+              }),
           };
         }
         return { ...frame, codeNeedle };
       }
       return frame;
     });
+    if (codeMode === 'cpp' && result.ok && traceFrames?.length && actionId === 'bfs-run') {
+      const visitedAllocationIndex = traceFrames.findIndex(frame => (
+        frame.codeNeedle === 'bool* visited = new bool[MAX_VERTICES]{};'
+      ));
+      if (visitedAllocationIndex >= 0) {
+        const allocationFrame = traceFrames[visitedAllocationIndex];
+        const frontFrame = {
+          ...allocationFrame,
+          codeNeedle: 'int front = 0;',
+          message: 'front se inicializa en 0.',
+          variables: [...allocationFrame.variables, { name: 'front', value: 0, role: 'index' }],
+        };
+        const rearFrame = {
+          ...frontFrame,
+          codeNeedle: 'int rear = 0;',
+          message: 'rear se inicializa en 0.',
+          variables: [...frontFrame.variables, { name: 'rear', value: 0, role: 'size' }],
+        };
+        traceFrames.splice(visitedAllocationIndex + 1, 0, frontFrame, rearFrame);
+      }
+    }
     if (codeMode === 'cpp' && result.ok && traceFrames?.length && ['bfs-run', 'dfs-run'].includes(actionId)) {
       const lastFrame = traceFrames.at(-1);
       const cleanupFrames = [{

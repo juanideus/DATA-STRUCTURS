@@ -1090,6 +1090,78 @@ test('BFS en C++ sincroniza rear, memoria dinámica y la condición final de la 
   await expect(page.locator('.code-panel code.active')).toContainText('return true;');
 });
 
+test('BFS y DFS en C++ muestran el estado y las variables de sus instrucciones reales', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chromium', 'La traza es idéntica y se comprueba en escritorio.');
+  test.setTimeout(60_000);
+  const activeLine = page.locator('.code-panel code.active');
+  const next = page.getByRole('button', { name: 'Siguiente', exact: true });
+  const variable = name => page.locator('.variables-panel .variable-item')
+    .filter({ has: page.getByText(name, { exact: true }) }).locator('strong');
+  const pending = page.locator('.graph-operation-status span')
+    .filter({ hasText: 'Pendientes' }).locator('b');
+  const stepTo = async needle => {
+    for (let step = 0; step < 90; step++) {
+      if ((await activeLine.textContent())?.includes(needle)) return;
+      await next.click();
+    }
+    throw new Error(`No se iluminó la instrucción C++: ${needle}`);
+  };
+  const pause = async () => {
+    const button = page.getByRole('button', { name: 'Pausar', exact: true });
+    if (await button.isVisible()) await button.click();
+  };
+
+  await page.goto('/bfs');
+  await page.getByRole('button', { name: 'C++', exact: true }).click();
+  await page.getByRole('button', { name: 'Ejecutar BFS', exact: true }).click();
+  await pause();
+
+  await stepTo('int* queue = new int[MAX_VERTICES]{};');
+  await expect(pending).toHaveText('∅');
+  await expect(variable('front')).toHaveCount(0);
+  await expect(variable('rear')).toHaveCount(0);
+  await stepTo('bool* visited = new bool[MAX_VERTICES]{};');
+  await expect(pending).toHaveText('∅');
+  await expect(variable('rear')).toHaveCount(0);
+  await stepTo('int front = 0;');
+  await expect(variable('front')).toHaveText('0');
+  await expect(variable('rear')).toHaveCount(0);
+  await stepTo('int rear = 0;');
+  await expect(variable('rear')).toHaveText('0');
+  await expect(pending).toHaveText('∅');
+  await stepTo('queue[rear++] = start;');
+  await expect(variable('rear')).toHaveText('1');
+  await expect(pending).toHaveText('A');
+  await stepTo('int vertex = queue[front++];');
+  await expect(variable('front')).toHaveText('1');
+  await expect(pending).toHaveText('∅');
+  await next.click();
+  await expect(activeLine).not.toContainText('int vertex = queue[front++];');
+  await stepTo('for (int neighbor = 0; neighbor < vertexCount; neighbor++) {');
+  await expect(variable('neighbor')).toHaveText('0');
+  await expect(variable('next')).toHaveCount(0);
+  await stepTo('if (adjacency[vertex][neighbor] && !visited[neighbor]) {');
+  await expect(variable('hasEdge')).toHaveCount(0);
+  await next.click();
+  await expect(activeLine).not.toContainText('if (adjacency[vertex][neighbor] && !visited[neighbor]) {');
+  await stepTo('queue[rear++] = neighbor;');
+  await expect(variable('rear')).toHaveText('2');
+  await next.click();
+  await expect(activeLine).not.toContainText('queue[rear++] = neighbor;');
+
+  await page.goto('/grafo');
+  await page.getByRole('button', { name: 'C++', exact: true }).click();
+  await page.getByRole('button', { name: 'Recorrer DFS', exact: true }).click();
+  await pause();
+  await stepTo('for (int neighbor = 0; neighbor < vertexCount; neighbor++) {');
+  await expect(variable('neighbor')).toHaveText('0');
+  await expect(variable('next')).toHaveCount(0);
+  await stepTo('if (adjacency[vertex][neighbor] && !visited[neighbor]) {');
+  await expect(variable('hasEdge')).toHaveCount(0);
+  await next.click();
+  await expect(activeLine).not.toContainText('if (adjacency[vertex][neighbor] && !visited[neighbor]) {');
+});
+
 test('avisa si falla la carga diferida del código en vez de dejar la operación sin respuesta', async ({ page }) => {
   await page.goto('/bfs');
   await page.route(/beginnerCpp.*\.js/, route => route.abort());
