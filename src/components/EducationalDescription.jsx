@@ -7,6 +7,10 @@ import { useLanguage } from '../i18n.jsx';
 import { getEnglishEducationalDescription } from '../data/educationalDescriptionsEnglish.js';
 
 const englishExampleCopy = {
+  deque: {
+    title: 'Insert at both ends',
+    explanation: 'Inserting at the front shifts values and takes O(n); inserting at the back writes the next position and takes O(1).',
+  },
   dijkstra: {
     title: 'Inspect a neighboring cell',
     explanation: 'A blocked cell is skipped; an improved distance and predecessor are saved for a walkable neighbor.',
@@ -43,6 +47,8 @@ export default function EducationalDescription({ algorithm }) {
     : getBeginnerJava(algorithm, firstAction.id);
   const javaLines = javaExample.split('\n').map(line => language === 'en'
     ? line.replace('// Método auxiliar utilizado arriba:', '// Helper method used above:')
+      .replace('// agregar al frente', '// add at the front')
+      .replace('// agregar al final', '// add at the back')
     : line);
 
   const copy = language === 'en' ? {

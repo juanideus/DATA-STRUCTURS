@@ -76,13 +76,13 @@ export const educationalDescriptions = {
   ),
   deque: guide(
     'Un Deque es una cola de doble extremo. Permite insertar y eliminar tanto por el frente como por el final.',
-    'Combina comportamientos de pila y cola. Si se implementa con un buffer circular o una lista doble, las cuatro operaciones de los extremos pueden realizarse en tiempo constante.',
-    'addFirst agrega al frente|addLast agrega al final|removeFirst retira el primero|removeLast retira el último',
-    'Muy flexible|Puede funcionar como pila o cola|Operaciones rápidas en ambos extremos|Útil para ventanas deslizantes',
-    'No da acceso rápido al centro|Su implementación circular requiere controlar bien los índices|Hay que distinguir claramente frente y final|Consume referencias extra si usa lista doble',
+    'Combina comportamientos de pila y cola. Esta lección usa un Array contiguo: insertar o eliminar al frente desplaza los elementos y cuesta O(n); insertar o eliminar al final cuesta O(1). No utiliza un buffer circular ni una lista doble.',
+    'addAtStart agrega al frente desplazando elementos|addAtEnd agrega al final|removeFromStart retira el primero y desplaza los restantes|removeFromEnd retira el último',
+    'Muy flexible|Puede funcionar como pila o cola|Operaciones al final O(1)|Permite operar por ambos extremos',
+    'Inserción y eliminación al frente O(n)|El Array de esta lección tiene capacidad fija|Hay que distinguir claramente frente y final|Una operación sobre un Deque vacío o lleno requiere validación',
     'Planificación de tareas|Algoritmos de ventana deslizante|Comprobación de palíndromos|Búsquedas bidireccionales',
     'Imagina un vagón con puertas en ambos extremos: puedes subir o bajar por cualquiera de ellas.',
-    'En Java, ArrayDeque suele ser preferible a Stack para implementar pilas y colas sin valores null.'
+    'Un buffer circular o una lista doble puede evitar los desplazamientos y ofrecer O(1) en ambos extremos. Esa no es la representación utilizada por el código de esta lección.'
   ),
   'lista-simple': guide(
     'Una Lista Simple está formada por nodos. Cada nodo guarda un valor y una referencia al nodo siguiente.',

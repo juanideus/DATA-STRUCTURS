@@ -1,3 +1,24 @@
+const structureClassNames = {
+  array: 'Array', deque: 'Deque',
+  'arbol-general': 'GeneralTree', 'arbol-nario': 'NaryTree',
+  'arbol-binario': 'BinaryTree', bst: 'BinarySearchTree', avl: 'AVLTree',
+  'splay-tree': 'SplayTree', heap: 'BinaryHeap', trie: 'Trie',
+  'suffix-tree': 'SuffixTrie', 'segment-tree': 'SegmentTree',
+  'fenwick-tree': 'FenwickTree', btree: 'BTree',
+  'bplus-tree': 'BPlusTree', 'bstar-tree': 'BStarTree',
+  'merkle-tree': 'MerkleTree', 'kd-tree': 'KDTree',
+  quadtree: 'QuadTree', octree: 'Octree', 'expression-tree': 'ExpressionTree',
+  dijkstra: 'Dijkstra', 'a-star': 'AStar', fibonacci: 'Fibonacci',
+  factorial: 'Factorial', hanoi: 'Hanoi',
+  'bubble-sort': 'BubbleSort', 'selection-sort': 'SelectionSort',
+  'insertion-sort': 'InsertionSort', 'merge-sort': 'MergeSort',
+  'quick-sort': 'QuickSort', 'shell-sort': 'ShellSort',
+  'heap-sort': 'HeapSort', 'counting-sort': 'CountingSort',
+  'radix-sort': 'RadixSort', 'bogo-sort': 'BogoSort',
+  'n-reinas': 'NQueens', laberinto: 'Maze', sudoku: 'Sudoku',
+  'union-find': 'UnionFind',
+};
+
 const nodeDefinition = (contextId, source) => {
   if (contextId === 'arbol-general') return `static class Node {
         int value;
@@ -121,8 +142,11 @@ const bareWordUsed = (source, word) => new RegExp(`(?<![.\\w])${word}\\b`).test(
 const declaresField = (source, declaration) => new RegExp(`^\\s*${declaration}\\s*;\\s*$`, 'm').test(source);
 
 export function makeJavaStandalone(source, contextId, initialValues = []) {
+  if (contextId === 'hash-table') source = source.replace(/\bOpenAddressingTable\b/g, 'HashTable');
   if (/\bclass\s+[A-Za-z_]\w*/.test(source)) return source;
 
+  const className = structureClassNames[contextId]
+    ?? contextId.split('-').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('');
   const declarations = [];
   const hasNode = wordUsed(source, 'Node') || wordUsed(source, 'Leaf') || wordUsed(source, 'Point');
   if (hasNode) {
@@ -144,7 +168,9 @@ export function makeJavaStandalone(source, contextId, initialValues = []) {
         && !(name === 'CAPACITY' && ['quadtree', 'octree'].includes(contextId) && hasNode)) continue;
     if (name === 'size' && declaresField(source, 'int\\s+size')) continue;
     if (name === 'queens' && declaresField(source, 'int\\[\\]\\s+queens')) continue;
-    declarations.push(name === 'MAX_KEYS' && contextId === 'bstar-tree'
+    declarations.push(name === 'values' && contextId === 'deque'
+      ? 'int[] values = new int[100];'
+      : name === 'MAX_KEYS' && contextId === 'bstar-tree'
       ? 'static final int MAX_KEYS = 5;'
       : name === 'CAPACITY' && ['quadtree', 'octree'].includes(contextId)
         ? 'static final int CAPACITY = 2;'
@@ -159,21 +185,21 @@ export function makeJavaStandalone(source, contextId, initialValues = []) {
   }
   if (contextId.endsWith('-sort') && Array.isArray(initialValues) && initialValues.every(Number.isInteger)) {
     const startingValues = `new int[]{${initialValues.join(', ')}}`;
-    declarations.push(`AlgorithmExample() {
+    declarations.push(`${className}() {
         int[] startingValues = ${startingValues};
         System.arraycopy(startingValues, 0, values, 0, startingValues.length);
 ${bareWordUsed(source, 'initialValues') ? '        System.arraycopy(startingValues, 0, initialValues, 0, startingValues.length);\n' : ''}${bareWordUsed(source, 'initialSize') ? '        initialSize = startingValues.length;\n' : ''}        size = startingValues.length;
     }`);
   }
   if (contextId === 'heap' && Array.isArray(initialValues) && initialValues.every(Number.isInteger)) {
-    declarations.push(`AlgorithmExample() {
+    declarations.push(`${className}() {
         int[] startingValues = {${initialValues.join(', ')}};
         System.arraycopy(startingValues, 0, heap, 0, startingValues.length);
         size = startingValues.length;
     }`);
   }
   if (contextId === 'union-find' && Array.isArray(initialValues) && initialValues.every(Number.isInteger)) {
-    declarations.push(`AlgorithmExample() {
+    declarations.push(`${className}() {
         int[] startingParents = {${initialValues.join(', ')}};
         System.arraycopy(startingParents, 0, parent, 0, startingParents.length);
 ${bareWordUsed(source, 'rank') ? `        for (int i = 0; i < startingParents.length; i++) {
@@ -194,7 +220,7 @@ ${bareWordUsed(source, 'rank') ? `        for (int i = 0; i < startingParents.le
   const indented = operation.split('\n').map(line => line ? `    ${line}` : '').join('\n');
   return `import java.util.*;
 
-public class AlgorithmExample {
+public class ${className} {
 ${indented}${context ? `\n\n${context}` : ''}
 }`;
 }

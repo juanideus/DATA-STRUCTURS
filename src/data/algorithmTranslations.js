@@ -24,7 +24,7 @@ export const englishAlgorithmNames = {
 export const englishAlgorithmDescriptions = {
   array: 'A contiguous, indexed collection with direct access. It is the foundation of many other data structures.',
   pila: 'A LIFO structure: the last element inserted is the first one removed.', cola: 'A FIFO structure: elements are served in the same order in which they arrived.',
-  deque: 'A double-ended queue that supports efficient operations at both ends.', 'lista-simple': 'Nodes linked in one direction; each node points to the next one.',
+  deque: 'A double-ended queue. In this array-backed implementation, operations at the front shift elements.', 'lista-simple': 'Nodes linked in one direction; each node points to the next one.',
   'lista-doble': 'Each node links to both the previous and next nodes, allowing traversal in either direction.',
   'lista-circular-simple': 'The last node points back to the head, forming a cycle with no final null reference.',
   'lista-circular-doble': 'A bidirectional list where the head and the last node are connected as well.',

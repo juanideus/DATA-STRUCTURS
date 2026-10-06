@@ -35,7 +35,9 @@ try {
       scenarios += checks.length;
       return `lab.root = ${isInsert ? 'new Node(true)' : javaNode(model.snapshot().root)};\n${checks.join('\n')}`;
     });
-    const displayedClass = snippet.replace('public class AlgorithmExample', 'public class AuditMultiway');
+    const className = snippet.match(/public class ([A-Za-z_]\w*)/)?.[1];
+    assert.ok(className, `${id}/${operation}: falta la clase Java visible`);
+    const displayedClass = snippet.replaceAll(className, 'AuditMultiway');
     const source = `${displayedClass.slice(0, displayedClass.lastIndexOf('}'))}
     static Node make(int[] keys, Node... children) {
         Node node = new Node(children.length == 0);

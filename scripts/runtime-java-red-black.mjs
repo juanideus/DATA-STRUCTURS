@@ -20,7 +20,7 @@ try {
   const scenarios = sequences.map(sequence => {
     const model = createRedBlackTree([]);
     const survivors = new Set();
-    const lines = ['RedBlackTreeExample tree = new RedBlackTreeExample();'];
+    const lines = ['RedBlackTree tree = new RedBlackTree();'];
     const verify = () => {
       const snapshot = model.snapshot();
       const slots = Array.from({ length: 15 }, (_, index) => snapshot.values[index] ?? '_').join(',');
@@ -52,20 +52,20 @@ try {
   const source = `${getRedBlackJava('tree-add', true)}
 
 class AuditRedBlack {
-    static String slots(RedBlackTreeExample.Node root, RedBlackTreeExample.Node nil, boolean colors) {
+    static String slots(RedBlackTree.Node root, RedBlackTree.Node nil, boolean colors) {
         String[] result = new String[15];
         java.util.Arrays.fill(result, "_");
         fill(root, nil, 0, result, colors);
         return String.join(",", result);
     }
-    static void fill(RedBlackTreeExample.Node node, RedBlackTreeExample.Node nil,
+    static void fill(RedBlackTree.Node node, RedBlackTree.Node nil,
                      int index, String[] result, boolean colors) {
         if (node == nil || index >= result.length) return;
         result[index] = colors ? (node.red ? "red" : "black") : String.valueOf(node.value);
         fill(node.left, nil, index * 2 + 1, result, colors);
         fill(node.right, nil, index * 2 + 2, result, colors);
     }
-    static int validate(RedBlackTreeExample.Node node, RedBlackTreeExample.Node nil,
+    static int validate(RedBlackTree.Node node, RedBlackTree.Node nil,
                         long minimum, long maximum) {
         if (node == nil) return 1;
         if (node.value <= minimum || node.value >= maximum) throw new AssertionError("BST order");
@@ -78,14 +78,14 @@ class AuditRedBlack {
         if (left != right) throw new AssertionError("black height");
         return left + (node.red ? 0 : 1);
     }
-    static void inorder(RedBlackTreeExample.Node node, RedBlackTreeExample.Node nil,
+    static void inorder(RedBlackTree.Node node, RedBlackTree.Node nil,
                         java.util.List<Integer> output) {
         if (node == nil) return;
         inorder(node.left, nil, output);
         output.add(node.value);
         inorder(node.right, nil, output);
     }
-    static void verify(RedBlackTreeExample tree, String expectedSlots,
+    static void verify(RedBlackTree tree, String expectedSlots,
                        String expectedColors, String expectedSorted) {
         if (tree.nil.red || tree.nil.left != tree.nil || tree.nil.right != tree.nil)
             throw new AssertionError("nil invariant");
@@ -106,7 +106,7 @@ class AuditRedBlack {
 ${scenarios.join('\n')}
     }
 }`;
-  const file = path.join(directory, 'RedBlackTreeExample.java');
+  const file = path.join(directory, 'RedBlackTree.java');
   await writeFile(file, source);
   const compilation = spawnSync('javac', [file], { encoding: 'utf8' });
   assert.equal(compilation.status, 0, `El Java rojo-negro no compila:\n${compilation.stderr}`);

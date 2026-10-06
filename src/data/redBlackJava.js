@@ -241,7 +241,7 @@ export function getRedBlackJava(actionId, includeBothMutations = false) {
   const selected = operations[actionId];
   if (!selected) return null;
   const additional = includeBothMutations && actionId === 'tree-add' ? `\n\n${operations['remove-value']}` : '';
-  return `public class RedBlackTreeExample {
+  return `public class RedBlackTree {
     static class Node {
         int value;
         boolean red;
@@ -252,7 +252,7 @@ export function getRedBlackJava(actionId, includeBothMutations = false) {
     final Node nil = new Node(0, false);
     Node root;
 
-    public RedBlackTreeExample() {
+    public RedBlackTree() {
         nil.left = nil;
         nil.right = nil;
         root = nil;

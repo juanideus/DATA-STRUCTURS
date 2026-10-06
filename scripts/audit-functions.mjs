@@ -4,6 +4,7 @@ import { algorithms } from '../src/data/algorithms.js';
 import { completeJavaSnippet, getBeginnerJava } from '../src/data/beginnerJava.js';
 import { getBeginnerCpp } from '../src/data/beginnerCpp.js';
 import { supportsCpp } from '../src/data/cppCatalog.js';
+import { translateComplexity } from '../src/data/complexityTranslations.js';
 import { educationalDescriptions } from '../src/data/educationalDescriptions.js';
 import { GRAPH_DESIGNS, graphEdgesFor, graphPositionsFor } from '../src/data/graphDesigns.js';
 import { guideJavaExamples } from '../src/data/guideJavaExamples.js';
@@ -216,6 +217,7 @@ assert.equal(Object.keys(guideJavaExamples).length, algorithms.filter(algorithm 
 let actionCount = 0;
 let executionCount = 0;
 const actionIds = new Set();
+const javaClassNames = new Map();
 const incompleteJavaSnippets = [];
 const actionsThatMustMutateBeforeCompletion = new Set([
   'add-end', 'remove-end', 'sorted-add', 'remove-value', 'set-word',
@@ -260,7 +262,14 @@ for (const algorithm of algorithms) {
     actionCount++;
     actionIds.add(action.id);
     const java = getBeginnerJava(algorithm, action.id);
-    assert.match(java, /\bclass [A-Za-z_]\w*/, `${algorithm.id}/${action.id}: el Java visible debe incluir su clase y contexto.`);
+    const className = java.match(/^(?:(?:public|final)\s+)*class\s+([A-Za-z_]\w*)/m)?.[1];
+    assert.ok(className, `${algorithm.id}/${action.id}: el Java visible debe incluir su clase exterior y contexto.`);
+    assert.doesNotMatch(className, /Example$/, `${algorithm.id}/${action.id}: la clase Java debe nombrar la estructura, no un ejemplo genérico.`);
+    if (javaClassNames.has(algorithm.id)) {
+      assert.equal(className, javaClassNames.get(algorithm.id), `${algorithm.id}/${action.id}: el nombre de clase Java debe mantenerse entre operaciones de la misma estructura.`);
+    } else {
+      javaClassNames.set(algorithm.id, className);
+    }
     assert.ok(!java.includes('Follow the visual steps'), `${algorithm.id}/${action.id}: falta código Java.`);
     assert.ok(java.split('\n').length >= 3, `${algorithm.id}/${action.id}: el código Java es demasiado breve.`);
     assert.ok(balanced(java, '{', '}'), `${algorithm.id}/${action.id}: el código Java tiene llaves desbalanceadas.`);
@@ -319,6 +328,10 @@ for (const algorithm of algorithms) {
       assert.ok(frames.every(frame => Number.isInteger(frame.codeLine)), `${label}: una línea de código no está sincronizada.`);
       assert.ok(frames.every(frame => typeof frame.message === 'string' && frame.message.length > 0), `${label}: un fotograma no explica lo que ocurre.`);
       assert.deepEqual(frames.at(-1).values, result.values, `${label}: el último fotograma no coincide con el resultado.`);
+      if (algorithm.id === 'deque' && result.ok) {
+        const javaLines = java.split('\n');
+        assert.ok(frames.every(frame => !/\bthrow\b/.test(javaLines[frame.codeLine])), `${label}: una operación válida de Deque no debe ejecutar una excepción Java.`);
+      }
 
       if (trial === 0 && supportsCpp(algorithm.id)) {
         const cpp = getBeginnerCpp(algorithm, action.id);
@@ -395,6 +408,135 @@ for (const algorithm of algorithms) {
 }
 
 assert.deepEqual(incompleteJavaSnippets, [], `Hay métodos Java utilizados pero no mostrados:\n${JSON.stringify(incompleteJavaSnippets, null, 2)}`);
+
+const dequeAlgorithm = algorithms.find(item => item.id === 'deque');
+assert.equal(dequeAlgorithm.complexity, 'Frente O(n) · Final O(1)', 'Deque: la complejidad debe corresponder al Array mostrado.');
+assert.equal(translateComplexity(dequeAlgorithm.complexity, 'en'), 'Front O(n) · Back O(1)', 'Deque: la complejidad en inglés debe conservar los costos de ambos extremos.');
+assert.match(educationalDescriptions.deque.how, /frente.*O\(n\)/i, 'Deque: la guía debe explicar el desplazamiento lineal al frente.');
+assert.match(educationalDescriptions.deque.how, /final.*O\(1\)/i, 'Deque: la guía debe explicar el costo constante al final.');
+for (const actionId of ['add-start', 'remove-start', 'add-end', 'remove-end']) {
+  for (const [language, source] of [['Java', getBeginnerJava(dequeAlgorithm, actionId)], ['C++', getBeginnerCpp(dequeAlgorithm, actionId)]]) {
+    const label = `Deque/${actionId}/${language}`;
+    if (language === 'Java') {
+      assert.match(source, /int\[\]\s+values\s*=\s*new\s+int\[100\]/, `${label}: la capacidad Java debe ser 100, como C++ y el visualizador.`);
+      const guard = actionId.startsWith('add-')
+        ? /if\s*\(size\s*==\s*values\.length\)\s*\{\s*throw\s+new\s+IllegalStateException\b/
+        : /if\s*\(size\s*==\s*0\)\s*\{\s*throw\s+new\s+IllegalStateException\b/;
+      assert.match(source, guard, `${label}: debe validar ${actionId.startsWith('add-') ? 'capacidad antes de insertar' : 'vacío antes de retirar'}.`);
+    } else {
+      assert.match(source, /CAPACITY\s*=\s*100\b/, `${label}: la capacidad C++ debe ser 100, como Java y el visualizador.`);
+    }
+    if (actionId.endsWith('-start')) {
+      assert.match(source, /for\s*\(/, `${label}: operar al frente debe mostrar el desplazamiento O(n).`);
+    } else {
+      assert.doesNotMatch(source, /(?:for|while)\s*\(/, `${label}: operar al final no debe recorrer el Array.`);
+    }
+  }
+}
+const fullDequeValues = Array.from({ length: 100 }, (_, index) => index);
+for (const actionId of ['add-start', 'add-end']) {
+  const overflow = run(dequeAlgorithm, actionId, { value: '999' }, fullDequeValues);
+  assert.equal(overflow.ok, false, `Deque/${actionId}: debe rechazar la inserción cuando sus 100 posiciones están llenas.`);
+  assert.deepEqual(overflow.values, fullDequeValues, `Deque/${actionId}: una inserción rechazada no debe alterar los datos.`);
+  const lastSlot = run(dequeAlgorithm, actionId, { value: '999' }, fullDequeValues.slice(0, -1));
+  assert.equal(lastSlot.ok, true, `Deque/${actionId}: debe aceptar la posición número 100.`);
+  assert.equal(lastSlot.values.length, 100, `Deque/${actionId}: la última inserción debe alcanzar exactamente su capacidad.`);
+}
+
+const dequeFramesFor = (sourceOf, actionId, beforeValues, fields = {}) => {
+  const code = sourceOf(dequeAlgorithm, actionId);
+  const result = run(dequeAlgorithm, actionId, fields, beforeValues);
+  const frames = createCodeSynchronizedFrames({
+    algorithm: dequeAlgorithm, code, actionId, beforeValues,
+    afterValues: result.values, beforeEdges: edges(), afterEdges: result.edges,
+    finalStep: result.step, finalMessage: result.message, succeeded: result.ok, inputValues: fields,
+  });
+  return { lines: code.split('\n'), frames, result };
+};
+for (const [language, sourceOf] of [['Java', getBeginnerJava], ['C++', getBeginnerCpp]]) {
+  for (const [actionId, beforeValues, fields] of [
+    ['add-start', [], { value: '99' }], ['remove-start', [99], {}],
+  ]) {
+    const label = `Deque/${actionId}/${language}/cero-iteraciones`;
+    const { lines, frames } = dequeFramesFor(sourceOf, actionId, beforeValues, fields);
+    const loopFrames = frames.filter(frame => /for\s*\(/.test(lines[frame.codeLine]));
+    assert.equal(loopFrames.length, 1, `${label}: sólo debe evaluar una vez la condición falsa del for.`);
+    assert.equal(loopFrames[0].loopExit, true, `${label}: el cuerpo no debe ejecutarse con cero iteraciones.`);
+    assert.ok(loopFrames[0].variables.some(variable => variable.name === 'condición' && variable.value === 'false'), `${label}: la condición del for debe ser falsa.`);
+    assert.ok(frames.every(frame => !/values\[i\]\s*=\s*values\[i\s*[+-]\s*1\]/.test(lines[frame.codeLine])), `${label}: no debe mostrar un desplazamiento inexistente.`);
+  }
+  for (const beforeValues of [[], [12, 20], fullDequeValues.slice(0, -1)]) {
+    const label = `Deque/add-start/${language}/tamaño-${beforeValues.length}`;
+    const { lines, frames, result } = dequeFramesFor(sourceOf, 'add-start', beforeValues, { value: '999' });
+    const insertionFrame = frames.find(frame => /values\[0\]\s*=\s*value/.test(lines[frame.codeLine]));
+    assert.ok(insertionFrame && !insertionFrame.completed, `${label}: la asignación al frente debe aparecer antes del fotograma final.`);
+    assert.deepEqual(insertionFrame.values, result.values, `${label}: el nuevo valor debe aparecer en su línea de asignación.`);
+    assert.equal(insertionFrame.position, 0, `${label}: la celda activa debe ser la posición escrita.`);
+    assert.ok(frames.every(frame => !/\bthrow\b/.test(lines[frame.codeLine])), `${label}: una inserción válida no debe ejecutar una excepción.`);
+  }
+  for (const actionId of ['add-start', 'add-end', 'remove-start', 'remove-end']) {
+    const insertion = actionId.startsWith('add-');
+    const fields = insertion ? { value: '999' } : {};
+    const validBefore = [12, 20];
+    const valid = dequeFramesFor(sourceOf, actionId, validBefore, fields);
+    const guardPattern = insertion ? /if \(size == (?:values\.length|CAPACITY)\)/ : /if \(size == 0\)/;
+    const guardFrame = valid.frames.find(frame => guardPattern.test(valid.lines[frame.codeLine]));
+    assert.ok(guardFrame?.variables.some(variable => variable.name === 'condición' && variable.value === 'false'), `Deque/${actionId}/${language}: la guarda debe ser falsa en una operación válida.`);
+    const invalidBefore = insertion ? fullDequeValues : [];
+    const invalid = dequeFramesFor(sourceOf, actionId, invalidBefore, fields);
+    assert.equal(invalid.result.ok, false, `Deque/${actionId}/${language}: el caso límite debe rechazarse.`);
+    assert.equal(invalid.frames.length, 1, `Deque/${actionId}/${language}: el rechazo debe detener la ejecución.`);
+    assert.match(invalid.lines[invalid.frames[0].codeLine], guardPattern, `Deque/${actionId}/${language}: el rechazo debe destacar la guarda correspondiente.`);
+    assert.ok(invalid.frames[0].variables.some(variable => variable.name === 'condición' && variable.value === 'true'), `Deque/${actionId}/${language}: la guarda que rechaza debe ser verdadera.`);
+    assert.deepEqual(invalid.frames[0].values, invalidBefore, `Deque/${actionId}/${language}: el rechazo no debe alterar el estado visible.`);
+  }
+}
+
+const rawArrayAlgorithm = algorithms.find(item => item.id === 'array');
+for (const length of [0, 100, 200]) {
+  const beforeValues = Array.from({ length }, (_, index) => index);
+  for (const actionId of ['add-start', 'add-end', 'add-index']) {
+    const fields = { value: '999', index: String(Math.floor(length / 2)) };
+    const result = run(rawArrayAlgorithm, actionId, fields, beforeValues);
+    const code = getBeginnerCpp(rawArrayAlgorithm, actionId);
+    const lines = code.split('\n');
+    const label = `RawArray/${actionId}/tamaño-${length}`;
+    const frames = createCodeSynchronizedFrames({
+      algorithm: rawArrayAlgorithm, code, actionId, beforeValues,
+      afterValues: result.values, beforeEdges: edges(), afterEdges: result.edges,
+      finalStep: result.step, finalMessage: result.message, succeeded: result.ok, inputValues: fields,
+    });
+    assert.equal(result.ok, true, `${label}: el Array debe permitir crecer más allá de 100 posiciones.`);
+    assert.match(code, /ensureCapacity\(\);/, `${label}: C++ debe reservar espacio antes de escribir.`);
+    assert.ok(frames.every(frame => !/return false;/.test(lines[frame.codeLine])), `${label}: una inserción válida no debe ejecutar la rama de rechazo.`);
+    const assignmentFrame = frames.find(frame => /values\[(?:0|size|index)\]\s*=\s*value/.test(lines[frame.codeLine]));
+    assert.ok(assignmentFrame && !assignmentFrame.completed, `${label}: debe conservar la asignación antes del fotograma final.`);
+    assert.deepEqual(assignmentFrame.values, result.values, `${label}: la línea de asignación debe mostrar la inserción completa.`);
+    assert.equal(assignmentFrame.position, result.step, `${label}: la celda activa debe ser la posición insertada.`);
+    assert.deepEqual(frames.at(-1).values, result.values, `${label}: la traza debe terminar en el resultado real.`);
+    assert.ok(frames.length <= 241, `${label}: la animación debe permanecer acotada incluso cuando el Array crece.`);
+    if (length === 100) {
+      assert.equal(result.values.length, 101, `${label}: debe llegar a la posición 101.`);
+      assert.ok(frames.every(frame => !frame.truncated), `${label}: 101 posiciones deben poder mostrarse sin truncado.`);
+    }
+    if (length === 200 && actionId === 'add-start') {
+      const jumpFrame = frames.find(frame => frame.truncated);
+      assert.ok(jumpFrame, `${label}: una traza larga debe resumir sus pasos intermedios.`);
+      assert.match(jumpFrame.message, /omite \d+ pasos intermedios/, `${label}: el salto debe explicarse al estudiante.`);
+      assert.ok(frames.some(frame => /size\+\+/.test(lines[frame.codeLine])), `${label}: el resumen debe conservar el incremento final de size.`);
+      assert.ok(frames.some(frame => /return true;/.test(lines[frame.codeLine])), `${label}: el resumen debe conservar el retorno exitoso.`);
+    }
+    if (actionId === 'add-index') {
+      const guardFrame = frames.find(frame => /if \(index < 0 \|\| index > size\)/.test(lines[frame.codeLine]));
+      assert.ok(guardFrame?.variables.some(variable => variable.name === 'condición' && variable.value === 'false'), `${label}: el índice válido debe marcar falsa la guarda C++.`);
+    }
+    if (length === 0 && actionId !== 'add-end') {
+      const loopFrames = frames.filter(frame => /for\s*\(/.test(lines[frame.codeLine]));
+      assert.equal(loopFrames.length, 1, `${label}: el for sólo debe comprobar su salida con el Array vacío.`);
+      assert.equal(loopFrames[0].loopExit, true, `${label}: no debe inventar un desplazamiento desde un Array vacío.`);
+    }
+  }
+}
 
 const separateChaining = algorithms.find(item => item.id === 'hash-chaining');
 const separateChainingPut = getBeginnerJava(separateChaining, 'hash-put');
