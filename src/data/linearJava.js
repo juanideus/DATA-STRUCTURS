@@ -77,6 +77,49 @@ const queueOperations = {
 }`,
 };
 
+const dequeOperations = {
+  'add-start': `void addAtStart(int value) {
+    if (size == values.length) {
+        throw new IllegalStateException("Deque is full");
+    }
+
+    for (int i = size; i > 0; i--) {
+        values[i] = values[i - 1];
+    }
+    values[0] = value;
+    size++;
+}`,
+  'add-end': `void addAtEnd(int value) {
+    if (size == values.length) {
+        throw new IllegalStateException("Deque is full");
+    }
+
+    values[size] = value;
+    size++;
+}`,
+  'remove-start': `int removeFromStart() {
+    if (size == 0) {
+        throw new IllegalStateException("Deque is empty");
+    }
+
+    int removed = values[0];
+    for (int i = 0; i < size - 1; i++) {
+        values[i] = values[i + 1];
+    }
+    size--;
+    return removed;
+}`,
+  'remove-end': `int removeFromEnd() {
+    if (size == 0) {
+        throw new IllegalStateException("Deque is empty");
+    }
+
+    int removed = values[size - 1];
+    size--;
+    return removed;
+}`,
+};
+
 function indent(source, spaces = 4) {
   const padding = ' '.repeat(spaces);
   return source.split('\n').map(line => `${padding}${line}`).join('\n');
@@ -128,5 +171,6 @@ ${indent(operation)}
 export function getLinearJava(algorithmId, actionId) {
   if (algorithmId === 'pila') return stackJava(actionId);
   if (algorithmId === 'cola') return queueJava(actionId);
+  if (algorithmId === 'deque') return dequeOperations[actionId] ?? null;
   return null;
 }

@@ -10,16 +10,60 @@ const algorithm = id => algorithms.find(item => item.id === id);
 
 const cases = [
   {
-    label: 'Array insertion at boundaries and capacity', id: 'array', action: 'add-index',
+    label: 'Array indexed insertion grows past 100 and preserves order', id: 'array', action: 'add-index',
     main: `
 int main() {
     RawArray array;
+    assert(array.capacity == RawArray::CAPACITY && array.size == 0);
     assert(!array.addAtIndex(5, -1));
     assert(!array.addAtIndex(5, 1));
     for (int value = 0; value < 100; value++) assert(array.addAtIndex(value, 0));
     assert(array.size == RawArray::CAPACITY);
     for (int index = 0; index < array.size; index++) assert(array.values[index] == 99 - index);
-    assert(!array.addAtIndex(100, 0));
+    assert(array.addAtIndex(100, 50));
+    assert(array.size == 101 && array.capacity >= array.size);
+    assert(!array.addAtIndex(-1, -1));
+    assert(!array.addAtIndex(-1, array.size + 1));
+    assert(array.size == 101);
+    for (int index = 0; index < array.size; index++) {
+        int expected = index < 50 ? 99 - index : index == 50 ? 100 : 100 - index;
+        assert(array.values[index] == expected);
+    }
+    for (int value = 101; value <= 200; value++) assert(array.addAtIndex(value, array.size));
+    assert(array.size == 201 && array.capacity >= array.size);
+    for (int index = 0; index < 101; index++) {
+        int expected = index < 50 ? 99 - index : index == 50 ? 100 : 100 - index;
+        assert(array.values[index] == expected);
+    }
+    for (int index = 101; index < array.size; index++) assert(array.values[index] == index);
+}`,
+  },
+  {
+    label: 'Array front insertion grows past 100 and preserves every value', id: 'array', action: 'add-start',
+    main: `
+int main() {
+    RawArray array;
+    assert(array.capacity == 100);
+    for (int value = 0; value <= 100; value++) assert(array.addAtStart(value));
+    assert(array.size == 101 && array.capacity >= array.size);
+    for (int index = 0; index < array.size; index++) assert(array.values[index] == 100 - index);
+    for (int value = 101; value <= 200; value++) assert(array.addAtStart(value));
+    assert(array.size == 201 && array.capacity >= array.size);
+    for (int index = 0; index < array.size; index++) assert(array.values[index] == 200 - index);
+}`,
+  },
+  {
+    label: 'Array back insertion grows past 100 and preserves every value', id: 'array', action: 'add-end',
+    main: `
+int main() {
+    RawArray array;
+    assert(array.capacity == 100);
+    for (int value = 0; value <= 100; value++) assert(array.addAtEnd(value));
+    assert(array.size == 101 && array.capacity >= array.size);
+    for (int index = 0; index < array.size; index++) assert(array.values[index] == index);
+    for (int value = 101; value <= 200; value++) assert(array.addAtEnd(value));
+    assert(array.size == 201 && array.capacity >= array.size);
+    for (int index = 0; index < array.size; index++) assert(array.values[index] == index);
 }`,
   },
   {

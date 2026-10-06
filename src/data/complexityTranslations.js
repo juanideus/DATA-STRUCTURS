@@ -23,6 +23,7 @@ const EXACT_TRANSLATIONS = {
   'Suma / actualización O(log n) · Mínimo prefijo O(n)': 'Sum / update O(log n) · Prefix minimum O(n)',
   'O(V²) con matriz de adyacencia': 'O(V²) with an adjacency matrix',
   'O(E²) en el código mostrado': 'O(E²) in the code shown',
+  'Frente O(n) · Final O(1)': 'Front O(n) · Back O(1)',
 };
 
 const REPLACEMENTS = [

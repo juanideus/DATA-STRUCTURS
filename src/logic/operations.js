@@ -5364,6 +5364,9 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       ? 'Ingresa un valor válido antes de ejecutar la operación.'
       : 'Ingresa un entero entre -2147483648 y 2147483647.');
   }
+  if (group === 'deque' && ['add-start', 'add-end'].includes(actionId) && next.length >= 100) {
+    return fail('El Deque admite hasta 100 elementos. Elimina uno antes de insertar otro.');
+  }
   if (group === 'merkle' && actionId === 'add-end' && next.length >= 8) return fail('La demostración Merkle admite hasta 8 bloques visibles.');
   if (group === 'btree' && actionId === 'sorted-add' && next.length >= 24) return fail('El árbol multicamino admite hasta 24 claves visibles en esta demostración.');
 

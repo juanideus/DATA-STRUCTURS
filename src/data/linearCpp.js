@@ -5,7 +5,7 @@ const indent = (source, spaces = 4) => {
 
 const arrayOperations = {
   'add-start': `bool addAtStart(int value) {
-    if (size == CAPACITY) return false;
+    ensureCapacity();
 
     for (int i = size; i > 0; i--) {
         values[i] = values[i - 1];
@@ -15,17 +15,18 @@ const arrayOperations = {
     return true;
 }`,
   'add-end': `bool addAtEnd(int value) {
-    if (size == CAPACITY) return false;
+    ensureCapacity();
 
     values[size] = value;
     size++;
     return true;
 }`,
   'add-index': `bool addAtIndex(int value, int index) {
-    if (index < 0 || index > size || size == CAPACITY) {
+    if (index < 0 || index > size) {
         return false;
     }
 
+    ensureCapacity();
     for (int i = size; i > index; i--) {
         values[i] = values[i - 1];
     }
@@ -174,12 +175,12 @@ const dequeOperations = {
 }`,
 };
 
-function wrapArray(className, operation) {
+function wrapArray(className, operation, extensible = false) {
   return `class ${className} {
 public:
     static const int CAPACITY = 100;
     int* values;
-    int size = 0;
+    int size = 0;${extensible ? '\n    int capacity = CAPACITY;' : ''}
 
     ${className}() : values(new int[CAPACITY]{}) {}
     ${className}(const ${className}&) = delete;
@@ -188,7 +189,21 @@ public:
 
     // Start of the selected operation
 ${indent(operation)}
-    // End of the selected operation
+    // End of the selected operation${extensible ? `
+
+private:
+    void ensureCapacity() {
+        if (size < capacity) return;
+
+        int newCapacity = capacity * 2;
+        int* expanded = new int[newCapacity]{};
+        for (int i = 0; i < size; i++) {
+            expanded[i] = values[i];
+        }
+        delete[] values;
+        values = expanded;
+        capacity = newCapacity;
+    }` : ''}
 };`;
 }
 
@@ -254,7 +269,7 @@ private:
 export function getLinearCpp(algorithmId, actionId) {
   if (algorithmId === 'array') {
     const operation = arrayOperations[actionId];
-    return operation ? wrapArray('RawArray', operation) : null;
+    return operation ? wrapArray('RawArray', operation, true) : null;
   }
   if (algorithmId === 'pila') return stackCpp(actionId);
   if (algorithmId === 'cola') return queueCpp(actionId);

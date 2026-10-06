@@ -178,7 +178,7 @@ export function estimateLoopIterations({ actionId, beforeValues, afterValues, fi
   return Math.min(10, Math.max(beforeLength, afterLength));
 }
 
-export function buildCodeExecutionTrace(code, iterationCount) {
+export function buildCodeExecutionTrace(code, iterationCount, { allowZeroIterations = false, maximumFrames = 180, preserveTail = false } = {}) {
   const lines = code.split('\n').map((text, index) => ({ index, text }));
   const operationMarker = lines.findIndex(line => line.text.trim() === '// Start of the selected operation');
   const operationEndMarker = lines.findIndex((line, index) => (
@@ -186,9 +186,19 @@ export function buildCodeExecutionTrace(code, iterationCount) {
   ));
   const firstExecutionLine = operationMarker >= 0 ? operationMarker + 1 : 0;
   const lastExecutionLine = operationEndMarker >= 0 ? operationEndMarker - 1 : lines.length - 1;
-  const expanded = expandBlock(lines, firstExecutionLine, lastExecutionLine, Math.max(1, iterationCount));
-  const maximumFrames = 180;
+  const expanded = expandBlock(lines, firstExecutionLine, lastExecutionLine, Math.max(allowZeroIterations ? 0 : 1, iterationCount));
   if (expanded.length <= maximumFrames) return expanded;
+
+  if (preserveTail) {
+    const tailLength = Math.min(12, maximumFrames - 2);
+    const prefixLength = maximumFrames - tailLength - 1;
+    const skippedLines = expanded.slice(prefixLength, -tailLength);
+    return [
+      ...expanded.slice(0, prefixLength),
+      { ...skippedLines.at(-1), truncated: true, skippedLines },
+      ...expanded.slice(-tailLength),
+    ];
+  }
 
   const finalLine = executableCodeLines(code).at(-1) ?? { index: 0, text: 'operation' };
   return [...expanded.slice(0, maximumFrames - 1), { ...finalLine, truncated: true }];
@@ -394,6 +404,9 @@ function createLiveVariables({ actionId, line, beforeValues, workingValues, fina
 }
 
 function executionMessage(line) {
+  if (line.truncated && line.skippedLines?.length) {
+    return `La animación omite ${line.skippedLines.length} pasos intermedios; el estado se actualiza y se conservan las líneas finales.`;
+  }
   if (line.loopExit) return `El bucle termina después de ${line.totalIterations} iteraciones.`;
   if (line.conditionResult !== undefined) {
     return `La condición de la línea ${line.index + 1} es ${line.conditionResult ? 'verdadera' : 'falsa'}: ${line.text}`;
@@ -404,17 +417,29 @@ function executionMessage(line) {
   return `Ejecutando línea ${line.index + 1}: ${line.text}`;
 }
 
-function synchronizeKnownBranches(sequence, { actionId, inputValues = {}, beforeValues, succeeded }) {
+function synchronizeKnownBranches(sequence, { algorithm, actionId, inputValues = {}, beforeValues, succeeded }) {
+  if (algorithm?.id === 'deque') {
+    return sequence.flatMap(line => {
+      const text = line.text.replace(/\s+/g, ' ');
+      if (/if \(size == (?:0|values\.length|CAPACITY)\)/.test(text)) {
+        return [{ ...line, conditionResult: !succeeded }];
+      }
+      if (succeeded && /throw new IllegalStateException\("Deque is (?:full|empty)"\)/.test(text)) return [];
+      return [line];
+    });
+  }
   if (!['add-index', 'remove-index'].includes(actionId)) return sequence;
   const requestedIndex = Number(inputValues.index);
   if (!Number.isInteger(requestedIndex)) return sequence;
 
   return sequence.flatMap(line => {
     const text = line.text.replace(/\s+/g, ' ');
-    if (/if \(index < 0 \|\| index (?:>|>=) n\)/.test(text)) {
+    if (/if \(index < 0 \|\| index (?:>|>=) n\)/.test(text)
+        || (algorithm?.id === 'array' && /if \(index < 0 \|\| index (?:>|>=) size\)/.test(text))) {
       return [{ ...line, conditionResult: !succeeded }];
     }
     if (/return values;/.test(text) && succeeded) return [];
+    if (algorithm?.id === 'array' && /return false;/.test(text) && succeeded) return [];
     if (/if \(i >= index\)/.test(text)) {
       return [{ ...line, conditionResult: Number(line.iteration) >= requestedIndex }];
     }
@@ -508,15 +533,35 @@ export function createCodeSynchronizedFrames({ algorithm, code, actionId, before
   const lengthBasedArray = /\bint\s+n\s*=\s*values\.length\b/.test(code);
 
   if (!succeeded) {
+    const dequeCapacity = Number((code.match(/int\[\] values = new int\[(\d+)\]/)
+      ?? code.match(/\bCAPACITY\s*=\s*(\d+)/))?.[1]);
+    const dequeGuardPattern = algorithm?.id !== 'deque' ? null
+      : ['remove-start', 'remove-end'].includes(actionId) && beforeValues.length === 0 ? /if \(size == 0\)/
+        : ['add-start', 'add-end'].includes(actionId) && beforeValues.length >= dequeCapacity ? /if \(size == (?:values\.length|CAPACITY)\)/
+          : null;
+    const guardLine = dequeGuardPattern ? executable.find(line => dequeGuardPattern.test(line.text)) : null;
+    const failureLine = guardLine ? { ...guardLine, conditionResult: true } : fallbackLine;
     return [{
       values: copyVisualValues(beforeValues), edges: cloneEdges(beforeEdges), position: 0,
-      codeLine: fallbackLine.index, message: finalMessage, delayMs: 0, failed: true,
-      variables: createLiveVariables({ actionId, line: fallbackLine, beforeValues, workingValues: beforeValues, finalStep, position: 0, inputValues, lengthBasedArray }),
+      codeLine: failureLine.index, message: finalMessage, delayMs: 0, failed: true,
+      variables: createLiveVariables({ actionId, line: failureLine, beforeValues, workingValues: beforeValues, finalStep, position: 0, inputValues, lengthBasedArray }),
     }];
   }
 
-  const iterationCount = estimateLoopIterations({ actionId, beforeValues, afterValues, finalStep, finalMessage, lengthBasedArray });
-  const sequence = synchronizeKnownBranches(buildCodeExecutionTrace(code, iterationCount), {
+  const isDeque = algorithm?.id === 'deque';
+  const isRawArrayCpp = algorithm?.id === 'array' && /\bclass RawArray\b/.test(code);
+  const rawArrayInsertion = isRawArrayCpp && ['add-start', 'add-end', 'add-index'].includes(actionId);
+  const iterationCount = (isDeque || rawArrayInsertion) && actionId === 'add-start' ? beforeValues.length
+    : isDeque && actionId === 'remove-start' ? afterValues.length
+      : rawArrayInsertion && actionId === 'add-index' ? beforeValues.length - Math.max(0, Number(finalStep) || 0)
+      : estimateLoopIterations({ actionId, beforeValues, afterValues, finalStep, finalMessage, lengthBasedArray });
+  // Keep every shift within Deque's 100-slot limit. RawArray can grow further,
+  // so compact only its middle steps while retaining the final assignments.
+  const traceOptions = isDeque ? { allowZeroIterations: true, maximumFrames: 240 }
+    : rawArrayInsertion ? { allowZeroIterations: true, maximumFrames: 240, preserveTail: true }
+      : undefined;
+  const sequence = synchronizeKnownBranches(buildCodeExecutionTrace(code, iterationCount, traceOptions), {
+    algorithm,
     actionId,
     inputValues,
     beforeValues,
@@ -527,7 +572,15 @@ export function createCodeSynchronizedFrames({ algorithm, code, actionId, before
   const mutationPattern = stateMutationPattern(actionId);
   let appliedFinalState = false;
   const frames = sequence.map(line => {
-    applyVisibleMutation({ actionId, line, workingValues, beforeValues, afterValues, finalStep, lengthBasedArray });
+    for (const mutationLine of line.skippedLines ?? [line]) {
+      applyVisibleMutation({ actionId, line: mutationLine, workingValues, beforeValues, afterValues, finalStep, lengthBasedArray });
+    }
+    const insertsAtDequeFront = isDeque && actionId === 'add-start' && /values\[0\]\s*=\s*value/.test(line.text);
+    if (insertsAtDequeFront) workingValues[0] = afterValues[0];
+    const insertsInRawArray = rawArrayInsertion && ['add-start', 'add-index'].includes(actionId)
+      && /values\[(?:0|index)\]\s*=\s*value/.test(line.text);
+    const rawArrayInsertionIndex = Math.max(0, Number(finalStep) || 0);
+    if (insertsInRawArray) workingValues[rawArrayInsertionIndex] = afterValues[rawArrayInsertionIndex];
     if (!appliedFinalState && mutationPattern?.test(line.text.replace(/\s+/g, ' '))) {
       const bloomStep = actionId === 'bloom-add' && /bits\[index\]\s*=\s*true/.test(line.text.replace(/\s+/g, ' '));
       if (!bloomStep) {
@@ -536,7 +589,8 @@ export function createCodeSynchronizedFrames({ algorithm, code, actionId, before
         appliedFinalState = true;
       }
     }
-    const position = framePosition(actionId, line, beforeValues, workingValues, finalStep, lengthBasedArray);
+    const position = insertsAtDequeFront ? 0 : insertsInRawArray ? rawArrayInsertionIndex
+      : framePosition(actionId, line, beforeValues, workingValues, finalStep, lengthBasedArray);
     return {
       values: copyVisualValues(workingValues),
       edges: cloneEdges(workingEdges),
@@ -547,6 +601,7 @@ export function createCodeSynchronizedFrames({ algorithm, code, actionId, before
       iteration: line.iteration,
       totalIterations: line.totalIterations,
       loopExit: line.loopExit ?? false,
+      truncated: line.truncated ?? false,
       variables: createLiveVariables({ actionId, line, beforeValues, workingValues, finalStep, position, inputValues, lengthBasedArray }),
     };
   });

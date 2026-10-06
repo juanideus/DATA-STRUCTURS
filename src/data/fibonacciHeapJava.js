@@ -110,5 +110,5 @@ void consolidate() {
 
 export function getFibonacciHeapJava(actionId) {
   const operation = operations[actionId];
-  return operation ? `import java.util.ArrayList;\nimport java.util.HashMap;\n\npublic class FibonacciHeapExample {\n${operation}\n\n// Estructura y métodos auxiliares usados arriba\n${helpers}\n}` : null;
+  return operation ? `import java.util.ArrayList;\nimport java.util.HashMap;\n\npublic class FibonacciHeap {\n${operation}\n\n// Estructura y métodos auxiliares usados arriba\n${helpers}\n}` : null;
 }

@@ -158,6 +158,16 @@ const specialDetails = {
 // These lessons need their own explanation: the generic family profile would
 // describe operations or performance that the code shown on the page does not use.
 const specificGuides = {
+  deque: {
+    definition: 'A Deque is a double-ended queue: values can be inserted or removed at either the front or the back.',
+    how: 'This lesson uses a contiguous array. Inserting or removing at the front shifts the stored values and takes O(n); inserting or removing at the back takes O(1). It does not use a circular buffer or a doubly linked list.',
+    operations: ['addAtStart shifts values and inserts at the front', 'addAtEnd inserts at the back', 'removeFromStart removes the first value and shifts the rest', 'removeFromEnd removes the last value'],
+    strengths: ['Supports both stack and queue behavior', 'Allows operations at either end', 'Back operations take O(1)', 'Has a straightforward array-backed representation'],
+    limits: ['Front insertion and removal take O(n)', 'The displayed array has a fixed capacity', 'Front and back must remain distinct', 'Empty and full cases require validation'],
+    uses: ['Task scheduling', 'Sliding-window algorithms', 'Palindrome checking', 'Bidirectional searches'],
+    example: 'Imagine a train car with doors at both ends: passengers can enter or leave from either door.',
+    tip: 'A circular buffer or a doubly linked list can avoid shifting and provide O(1) operations at both ends. That is not the representation used by this lesson’s code.',
+  },
   bfs: {
     definition: 'Breadth-First Search explores a graph level by level using a queue.',
     how: 'The starting vertex is marked and enqueued. BFS repeatedly removes the vertex at the front, visits each unvisited neighbor, marks that neighbor immediately, and enqueues it. Marking on enqueue prevents the same vertex from entering the queue more than once.',

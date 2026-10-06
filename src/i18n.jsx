@@ -90,6 +90,7 @@ const exactLearningText = {
   'Lista generalizada sin referencias': 'Generalized list with no references',
   'Usa los controles para modificar la estructura y observar el resultado.': 'Use the controls to modify the structure and observe the result.',
   'Estructura restablecida a su estado inicial.': 'The structure was reset to its initial state.',
+  'El Deque admite hasta 100 elementos. Elimina uno antes de insertar otro.': 'The Deque holds up to 100 elements. Remove one before inserting another.',
   'Predice el resultado antes de comprobarlo con la animación.': 'Predict the result before checking it with the animation.',
   'Se prepara el estado inicial y la estructura auxiliar.': 'The initial state and the auxiliary structure are prepared.',
   'El algoritmo completa la operación y devuelve el resultado.': 'The algorithm completes the operation and returns the result.',
@@ -192,6 +193,7 @@ export function translateLearningText(value, language) {
   if (language !== 'en' || typeof value !== 'string') return value;
   if (exactLearningText[value]) return exactLearningText[value];
   const graphPatterns = [
+    [/^La animación omite (\d+) pasos intermedios; el estado se actualiza y se conservan las líneas finales\.$/, match => `The animation skips ${match[1]} intermediate steps; the state is updated and the final lines are preserved.`],
     [/^front se inicializa en 0\.$/, () => 'front is initialized to 0.'],
     [/^rear se inicializa en 0\.$/, () => 'rear is initialized to 0.'],
     [/^(.+) sale del frente de la cola; front avanza a (\d+)\.$/, match => `${match[1]} leaves the front of the queue; front advances to ${match[2]}.`],

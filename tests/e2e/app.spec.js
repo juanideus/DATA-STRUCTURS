@@ -1389,6 +1389,52 @@ test('Stack y Queue muestran su código completo mientras cambia la estructura',
   expect(dequeueJava).not.toContain('for (');
 });
 
+test('Deque valida el vacío y no ejecuta excepciones durante una inserción válida', async ({ page }) => {
+  await page.goto('/deque');
+  await page.getByRole('button', { name: 'Java', exact: true }).click();
+  await page.getByRole('button', { name: 'Vaciar', exact: true }).click();
+  await expect(page.locator('.linear-visual .data-cell')).toHaveCount(0);
+
+  for (const action of ['Quitar frente', 'Quitar final']) {
+    await page.getByRole('button', { name: action, exact: true }).click();
+    await expect(page.locator('.operation-message')).toHaveClass(/error/);
+    await expect(page.locator('.linear-visual .data-cell')).toHaveCount(0);
+    await expect(page.locator('.code-panel code.active')).toContainText('if (size == 0)');
+  }
+
+  await page.getByLabel('Valor').fill('99');
+  await page.getByRole('button', { name: 'Agregar final', exact: true }).click();
+  const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+  if (await pause.isVisible()) await pause.click();
+  await expect(page.locator('.code-panel pre')).toContainText('if (size == values.length)');
+  await expect(page.locator('.code-panel pre')).toContainText('int[] values = new int[100]');
+  for (let step = 0; step < 12; step++) {
+    await expect(page.locator('.code-panel code.active')).not.toContainText('throw');
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+  await expect(page.locator('.linear-visual .data-cell span')).toHaveText('99');
+  await expect(page.locator('.operation-message')).not.toHaveClass(/error/);
+
+  await page.getByRole('button', { name: 'Vaciar', exact: true }).click();
+  await expect(page.locator('.linear-visual .data-cell')).toHaveCount(0);
+  await page.getByLabel('Valor').fill('99');
+  await page.getByRole('button', { name: 'Agregar frente', exact: true }).click();
+  if (await pause.isVisible()) await pause.click();
+  let sawFrontAssignment = false;
+  for (let step = 0; step < 12; step++) {
+    const activeLine = await page.locator('.code-panel code.active').textContent();
+    expect(activeLine).not.toContain('throw');
+    expect(activeLine).not.toContain('values[i] = values[i - 1]');
+    if (activeLine?.includes('values[0] = value')) {
+      sawFrontAssignment = true;
+      await expect(page.locator('.linear-visual .data-cell span')).toHaveText('99');
+    }
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+  expect(sawFrontAssignment).toBe(true);
+  await expect(page.locator('.linear-visual .data-cell span')).toHaveText('99');
+});
+
 test('sincroniza el recorrido BST con la línea Java y las variables', async ({ page }) => {
   await page.goto('/bst');
   await page.getByLabel('Valor').fill('1');
@@ -1707,10 +1753,22 @@ test('Dijkstra y A* mantienen visible la línea activa al avanzar por el código
 });
 
 test('el Java visible incluye la clase y el contexto de cada familia', async ({ page }) => {
-  for (const id of ['array', 'avl', 'btree', 'bubble-sort', 'laberinto']) {
+  for (const [id, className] of [
+    ['array', 'Array'], ['avl', 'AVLTree'], ['btree', 'BTree'],
+    ['bubble-sort', 'BubbleSort'], ['laberinto', 'Maze'],
+    ['rojo-negro', 'RedBlackTree'], ['fibonacci-heap', 'FibonacciHeap'],
+    ['heap', 'BinaryHeap'], ['union-find', 'UnionFind'], ['hash-table', 'HashTable'],
+  ]) {
     await page.goto(`/${id}`);
-    await expect(page.locator('.code-panel pre')).toContainText('class AlgorithmExample');
-    await expect(page.locator('.code-panel pre')).toContainText('// Start of the selected operation');
+    await page.getByRole('button', { name: 'Java', exact: true }).click();
+    await expect(page.locator('.code-panel pre')).toContainText(`class ${className} {`);
+    await expect(page.locator('.code-panel pre')).not.toContainText('AlgorithmExample');
+    if (id === 'fibonacci-heap') {
+      await expect(page.locator('.code-panel pre')).toContainText('void insertMinimum(int value)');
+      await expect(page.locator('.code-panel pre')).toContainText('void addRoot(Node node)');
+    } else {
+      await expect(page.locator('.code-panel pre')).toContainText('// Start of the selected operation');
+    }
   }
 });
 
