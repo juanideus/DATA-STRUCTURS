@@ -15,7 +15,46 @@ const radixNeedles = {
   'radix-complete': 'return true;',
 };
 
+const graphTraversalNeedles = {
+  'bfs-run': {
+    'void breadthFirst(String startName) {': 'bool breadthFirst(char startName) {',
+    'int start = findVertex(startName);': 'int start = findVertex(startName);',
+    'if (start == -1) {': 'if (start == -1) return false;',
+    'boolean[] visited = new boolean[vertexCount];': 'bool* visited = new bool[MAX_VERTICES]{};',
+    'int[] queue = new int[vertexCount];': 'int* queue = new int[MAX_VERTICES]{};',
+    'queue[end] = start;': 'queue[rear++] = start;',
+    'visited[start] = true;': 'visited[start] = true;',
+    'while (front < end) {': 'while (front < rear) {',
+    'int vertex = queue[front];': 'int vertex = queue[front++];',
+    'front++;': 'int vertex = queue[front++];',
+    'System.out.println(vertexNames[vertex]);': 'visit(vertexNames[vertex]);',
+    'for (int next = 0; next < vertexCount; next++) {': 'for (int neighbor = 0; neighbor < vertexCount; neighbor++) {',
+    'boolean hasEdge = adjacency[vertex][next];': 'if (adjacency[vertex][neighbor] && !visited[neighbor]) {',
+    'if (hasEdge && !visited[next]) {': 'if (adjacency[vertex][neighbor] && !visited[neighbor]) {',
+    'visited[next] = true;': 'visited[neighbor] = true;',
+    'queue[end] = next;': 'queue[rear++] = neighbor;',
+    'end++;': 'queue[rear++] = neighbor;',
+  },
+  'dfs-run': {
+    'void depthFirst(String startName) {': 'bool depthFirst(char startName) {',
+    'int start = findVertex(startName);': 'int start = findVertex(startName);',
+    'if (start == -1) {': 'if (start == -1) return false;',
+    'boolean[] visited = new boolean[vertexCount];': 'bool* visited = new bool[MAX_VERTICES]{};',
+    'depthFirstFrom(start, visited);': 'depthFirstFrom(start, visited);',
+    'void depthFirstFrom(int vertex, boolean[] visited) {': 'void depthFirstFrom(int vertex, bool visited[]) {',
+    'visited[vertex] = true;': 'visited[vertex] = true;',
+    'System.out.println(vertexNames[vertex]);': 'visit(vertexNames[vertex]);',
+    'for (int next = 0; next < vertexCount; next++) {': 'for (int neighbor = 0; neighbor < vertexCount; neighbor++) {',
+    'boolean hasEdge = adjacency[vertex][next];': 'if (adjacency[vertex][neighbor] && !visited[neighbor]) {',
+    'if (hasEdge && !visited[next]) {': 'if (adjacency[vertex][neighbor] && !visited[neighbor]) {',
+    'depthFirstFrom(next, visited);': 'depthFirstFrom(neighbor, visited);',
+  },
+};
+
 export function cppCodeNeedle(algorithmId, actionId, frame) {
+  if (['grafo', 'grafo-dirigido', 'dfs', 'bfs'].includes(algorithmId)) {
+    return graphTraversalNeedles[actionId]?.[frame.codeNeedle] ?? null;
+  }
   if (algorithmId === 'radix-sort') return radixNeedles[frame.sortPhase] ?? null;
   if (algorithmId !== 'polinomios') return null;
 

@@ -1254,6 +1254,12 @@ function graphTraversalTrace({ algorithm, values, edges, start, depthFirst }) {
       variables: [{ name: 'front', value: front, role: 'index' }, { name: 'end', value: queue.length, role: 'size' }],
     });
     addFrame({
+      codeNeedle: 'boolean[] visited = new boolean[vertexCount];',
+      message: `Se crea visited con ${values.length} posiciones inicialmente falsas.`,
+      frontier: [...queue],
+      variables: [{ name: 'visitados', value: '∅', role: 'value' }],
+    });
+    addFrame({
       codeNeedle: 'queue[end] = start;',
       message: `${values[start]} entra primero en la cola.`,
       frontier: [...queue],

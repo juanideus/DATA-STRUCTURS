@@ -192,6 +192,17 @@ export function translateLearningText(value, language) {
   if (language !== 'en' || typeof value !== 'string') return value;
   if (exactLearningText[value]) return exactLearningText[value];
   const graphPatterns = [
+    [/^front se inicializa en 0\.$/, () => 'front is initialized to 0.'],
+    [/^rear se inicializa en 0\.$/, () => 'rear is initialized to 0.'],
+    [/^(.+) sale del frente de la cola; front avanza a (\d+)\.$/, match => `${match[1]} leaves the front of the queue; front advances to ${match[2]}.`],
+    [/^Todas las llamadas recursivas regresaron; DFS puede liberar visited\.$/, () => 'All recursive calls returned; DFS can now release visited.'],
+    [/^Se libera el arreglo dinámico visited\.$/, () => 'The dynamically allocated visited array is released.'],
+    [/^Se libera la cola dinámica\.$/, () => 'The dynamically allocated queue is released.'],
+    [/^BFS termina después de liberar toda la memoria dinámica\.$/, () => 'BFS finishes after releasing all dynamically allocated memory.'],
+    [/^DFS termina después de liberar la memoria dinámica\.$/, () => 'DFS finishes after releasing dynamically allocated memory.'],
+    [/^Se reserva una cola dinámica con capacidad para hasta (\d+) vértices\.$/, match => 'A dynamically allocated queue reserves space for up to ' + match[1] + ' vertices.'],
+    [/^front \((\d+)\) es menor que rear \((\d+)\); la cola aún contiene elementos\.$/, match => 'front (' + match[1] + ') is less than rear (' + match[2] + '); the queue still contains elements.'],
+    [/^rear avanza a (\d+)\.$/, match => 'rear advances to ' + match[1] + '.'],
     [/^(BFS|DFS) comienza desde el vértice (.+)\.$/, match => `${match[1]} starts at vertex ${match[2]}.`],
     [/^(.+) corresponde al índice (\d+)\.$/, match => `${match[1]} corresponds to index ${match[2]}.`],
     [/^Se crea una cola con capacidad para (\d+) vértices\.$/, match => `A queue with capacity for ${match[1]} vertices is created.`],
@@ -227,6 +238,8 @@ export function translateLearningText(value, language) {
   }
   if (value === 'start es válido, por lo tanto el recorrido puede continuar.') return 'start is valid, so the traversal can continue.';
   if (value === 'front alcanzó a end; la cola quedó vacía y BFS termina.') return 'front reached end; the queue is empty and BFS finishes.';
+  if (value === 'front alcanzó a rear; la cola quedó vacía y BFS termina.') return 'front reached rear; the queue is empty and BFS finishes.';
+  if (value === 'front alcanzó a rear; la cola quedó vacía y BFS sale del ciclo.') return 'front reached rear; the queue is empty and BFS exits the loop.';
   if (value === 'Todas las llamadas recursivas regresaron; DFS terminó.') return 'All recursive calls returned; DFS finished.';
   const heapPatterns = [
     [/^(\d+) es la raíz y el máximo que se extraerá\.$/, match => `${match[1]} is the root and the maximum value to be extracted.`],

@@ -1033,6 +1033,146 @@ test('la animación C++ ilumina instrucciones reales y nunca el armazón de la c
   }
 });
 
+test('BFS en C++ sincroniza rear, memoria dinámica y la condición final de la cola', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chromium', 'La traza es idéntica y la prueba completa se ejecuta en escritorio.');
+  test.setTimeout(90_000);
+  await page.goto('/bfs');
+  await page.getByRole('button', { name: 'C++', exact: true }).click();
+  await page.getByRole('button', { name: 'Ejecutar BFS', exact: true }).click();
+  await expect(page.locator('.operation-message')).toContainText('BFS comienza desde el vértice A.');
+  await expect(page.locator('.code-panel pre')).toContainText('int* queue = new int[MAX_VERTICES]{};');
+  await expect(page.locator('.code-panel pre')).toContainText('bool* visited = new bool[MAX_VERTICES]{};');
+
+  const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+  if (await pause.isVisible()) await pause.click();
+
+  let completed = false;
+  const activeLines = new Set();
+  for (let step = 0; step < 220; step++) {
+    const message = (await page.locator('.operation-message p').textContent())?.trim() ?? '';
+    const activeLine = (await page.locator('.code-panel code.active').textContent())?.trim() ?? '';
+    if (activeLine) activeLines.add(activeLine.replace(/^\d+/, '').trim());
+    if (message.includes('BFS termina después de liberar toda la memoria dinámica.')) {
+      completed = true;
+      break;
+    }
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+
+  expect(completed, 'BFS debe alcanzar su condición de salida').toBe(true);
+  await expect(page.locator('.code-panel code.active')).toContainText('return true;');
+  await expect(page.locator('.operation-message')).toContainText('BFS termina después de liberar toda la memoria dinámica.');
+  expect(activeLines).toContain('while (front < rear) {');
+  expect(activeLines).toContain('delete[] visited;');
+  expect(activeLines).toContain('delete[] queue;');
+  await expect(page.locator('.variables-panel')).toContainText('rear');
+
+  await page.goto('/grafo');
+  await page.getByRole('button', { name: 'C++', exact: true }).click();
+  await page.getByRole('button', { name: 'Recorrer DFS', exact: true }).click();
+  await expect(page.locator('.operation-message')).toContainText('DFS comienza desde el vértice A.');
+  const dfsPause = page.getByRole('button', { name: 'Pausar', exact: true });
+  if (await dfsPause.isVisible()) await dfsPause.click();
+  let dfsCompleted = false;
+  const dfsActiveLines = new Set();
+  for (let step = 0; step < 160; step++) {
+    const message = (await page.locator('.operation-message p').textContent())?.trim() ?? '';
+    const activeLine = (await page.locator('.code-panel code.active').textContent())?.trim() ?? '';
+    if (activeLine) dfsActiveLines.add(activeLine.replace(/^\d+/, '').trim());
+    if (message.includes('DFS termina después de liberar la memoria dinámica.')) {
+      dfsCompleted = true;
+      break;
+    }
+    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  }
+  expect(dfsCompleted, 'DFS debe terminar después de liberar visited').toBe(true);
+  expect(dfsActiveLines).toContain('delete[] visited;');
+  await expect(page.locator('.code-panel code.active')).toContainText('return true;');
+});
+
+test('BFS y DFS en C++ muestran el estado y las variables de sus instrucciones reales', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === 'mobile-chromium', 'La traza es idéntica y se comprueba en escritorio.');
+  test.setTimeout(60_000);
+  const activeLine = page.locator('.code-panel code.active');
+  const next = page.getByRole('button', { name: 'Siguiente', exact: true });
+  const variable = name => page.locator('.variables-panel .variable-item')
+    .filter({ has: page.getByText(name, { exact: true }) }).locator('strong');
+  const pending = page.locator('.graph-operation-status span')
+    .filter({ hasText: 'Pendientes' }).locator('b');
+  const stepTo = async needle => {
+    for (let step = 0; step < 90; step++) {
+      if ((await activeLine.textContent())?.includes(needle)) return;
+      await next.click();
+    }
+    throw new Error(`No se iluminó la instrucción C++: ${needle}`);
+  };
+  const pause = async () => {
+    const button = page.getByRole('button', { name: 'Pausar', exact: true });
+    if (await button.isVisible()) await button.click();
+  };
+
+  await page.goto('/bfs');
+  await page.getByRole('button', { name: 'C++', exact: true }).click();
+  await page.getByRole('button', { name: 'Ejecutar BFS', exact: true }).click();
+  await pause();
+
+  await stepTo('int* queue = new int[MAX_VERTICES]{};');
+  await expect(pending).toHaveText('∅');
+  await expect(variable('front')).toHaveCount(0);
+  await expect(variable('rear')).toHaveCount(0);
+  await stepTo('bool* visited = new bool[MAX_VERTICES]{};');
+  await expect(pending).toHaveText('∅');
+  await expect(variable('rear')).toHaveCount(0);
+  await stepTo('int front = 0;');
+  await expect(variable('front')).toHaveText('0');
+  await expect(variable('rear')).toHaveCount(0);
+  await stepTo('int rear = 0;');
+  await expect(variable('rear')).toHaveText('0');
+  await expect(pending).toHaveText('∅');
+  await stepTo('queue[rear++] = start;');
+  await expect(variable('rear')).toHaveText('1');
+  await expect(pending).toHaveText('A');
+  await stepTo('int vertex = queue[front++];');
+  await expect(variable('front')).toHaveText('1');
+  await expect(pending).toHaveText('∅');
+  await next.click();
+  await expect(activeLine).not.toContainText('int vertex = queue[front++];');
+  await stepTo('for (int neighbor = 0; neighbor < vertexCount; neighbor++) {');
+  await expect(variable('neighbor')).toHaveText('0');
+  await expect(variable('next')).toHaveCount(0);
+  await stepTo('if (adjacency[vertex][neighbor] && !visited[neighbor]) {');
+  await expect(variable('hasEdge')).toHaveCount(0);
+  await next.click();
+  await expect(activeLine).not.toContainText('if (adjacency[vertex][neighbor] && !visited[neighbor]) {');
+  await stepTo('queue[rear++] = neighbor;');
+  await expect(variable('rear')).toHaveText('2');
+  await next.click();
+  await expect(activeLine).not.toContainText('queue[rear++] = neighbor;');
+
+  await page.goto('/grafo');
+  await page.getByRole('button', { name: 'C++', exact: true }).click();
+  await page.getByRole('button', { name: 'Recorrer DFS', exact: true }).click();
+  await pause();
+  await stepTo('for (int neighbor = 0; neighbor < vertexCount; neighbor++) {');
+  await expect(variable('neighbor')).toHaveText('0');
+  await expect(variable('next')).toHaveCount(0);
+  await stepTo('if (adjacency[vertex][neighbor] && !visited[neighbor]) {');
+  await expect(variable('hasEdge')).toHaveCount(0);
+  await next.click();
+  await expect(activeLine).not.toContainText('if (adjacency[vertex][neighbor] && !visited[neighbor]) {');
+});
+
+test('avisa si falla la carga diferida del código en vez de dejar la operación sin respuesta', async ({ page }) => {
+  await page.goto('/bfs');
+  await page.route(/beginnerCpp.*\.js/, route => route.abort());
+  await page.getByRole('button', { name: 'C++', exact: true }).click();
+  await expect(page.locator('.operation-message')).toHaveClass(/error/);
+  await expect(page.locator('.operation-message')).toContainText('No se pudo cargar el código de la operación.');
+
+  await page.getByRole('button', { name: 'Ejecutar BFS', exact: true }).click();
+  await expect(page.locator('.operation-message')).toContainText('Recarga la página e inténtalo de nuevo.');
+});
+
 test('QuadTree y Octree insertan coordenadas reales coherentes con su código', async ({ page }) => {
   test.setTimeout(60_000);
   const cases = [
@@ -1283,6 +1423,7 @@ test('los grafos muestran Java completo y Prim/Kruskal ejecutan su algoritmo', a
   await page.getByRole('button', { name: 'Agregar vértice', exact: true }).click();
   const addVertexJava = await page.locator('.code-panel pre').textContent();
   expect(addVertexJava).toContain('class UndirectedGraph');
+  expect(addVertexJava).toContain('static final int MAX_VERTICES = 8;');
   expect(addVertexJava).toContain('String[] vertexNames');
   expect(addVertexJava).toContain('boolean[][] adjacency');
   expect(addVertexJava).toContain('boolean addVertex(String name)');

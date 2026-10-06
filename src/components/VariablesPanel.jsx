@@ -11,7 +11,7 @@ const englishVariableNames = {
   frontera: 'frontier', visitadas: 'visited',
   anteriorFila: 'previous row node', actualFila: 'current row node',
   anteriorCol: 'previous column node', actualCol: 'current column node',
-  'vértice actual': 'current vertex', visitados: 'visited', pendientes: 'pending',
+  'vértice actual': 'current vertex', visitados: 'visited', pendientes: 'pending', rear: 'rear',
   profundidad: 'depth',
 };
 
