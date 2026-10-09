@@ -1,4 +1,4 @@
-import { getOperationDefinition, operationGroup } from '../logic/operations.js';
+import { getOperationDefinition, operationGroup } from '../logic/operationMetadata.js';
 import { translateOperationLabel } from '../i18n.jsx';
 
 const profiles = {

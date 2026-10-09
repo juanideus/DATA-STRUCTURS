@@ -1,6 +1,6 @@
 import { Variable } from 'lucide-react';
 import { translateLearningText, useLanguage } from '../i18n.jsx';
-import { SPARSE_MATRIX_COLUMNS, SPARSE_MATRIX_ROWS } from '../logic/operations.js';
+import { SPARSE_MATRIX_COLUMNS, SPARSE_MATRIX_ROWS } from '../logic/operationMetadata.js';
 
 const englishVariableNames = {
   filas: 'rows', columnas: 'columns', inicio: 'start', meta: 'goal',

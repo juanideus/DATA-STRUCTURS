@@ -1,5 +1,5 @@
 import { algorithms } from '../data/algorithms.js';
-import { getOperationDefinition, operationGroup } from './operations.js';
+import { getOperationDefinition, operationGroup } from './operationMetadata.js';
 
 const TEST_LENGTH = 10;
 const THEORY_GROUPS = new Set(['theory', 'complexity', 'oop', 'foundation']);

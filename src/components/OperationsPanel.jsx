@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getOperationDefinition } from '../logic/operations.js';
+import { getOperationDefinition } from '../logic/operationMetadata.js';
 import { translateLearningText, translateOperationLabel, useLanguage } from '../i18n.jsx';
 
 export default function OperationsPanel({ algorithm, message, status = 'idle', activeOperation, onAction }) {

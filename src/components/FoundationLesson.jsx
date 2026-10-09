@@ -1,4 +1,5 @@
 import { AlertTriangle, CheckCircle2, Code2, Lightbulb } from 'lucide-react';
+import '../theory.css';
 import { foundationLessonsById } from '../data/foundationLessons.js';
 
 export default function FoundationLesson({ algorithm }) {

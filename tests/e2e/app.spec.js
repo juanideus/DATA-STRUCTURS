@@ -27,6 +27,19 @@ test('la portada explica una operación real y mantiene accesibles las ayudas en
   await expect(page.locator('.welcome-demo')).toContainText('Adding at the beginning');
 });
 
+test('carga el ejecutor y la animación solo cuando se realiza una operación', async ({ page }) => {
+  const loadedAssets = () => page.evaluate(() => performance.getEntriesByType('resource').map(entry => entry.name));
+  await expect(page.getByRole('heading', { name: 'Las estructuras de datos se entienden mejor cuando las ves cambiar.' })).toBeVisible();
+  expect((await loadedAssets()).some(url => /\/assets\/(?:operations|codeAnimation)-[^/]+\.js/.test(url))).toBe(false);
+
+  await page.goto('/array');
+  await expect(page.locator('.data-cell').first()).toBeVisible();
+  expect((await loadedAssets()).some(url => /\/assets\/(?:operations|codeAnimation)-[^/]+\.js/.test(url))).toBe(false);
+
+  await page.getByRole('button', { name: 'Agregar inicio' }).click();
+  await expect.poll(async () => (await loadedAssets()).filter(url => /\/assets\/(?:operations|codeAnimation)-[^/]+\.js/.test(url)).length).toBe(2);
+});
+
 test('detecta inglés y traduce la guía completa cuando no existe una preferencia guardada', async ({ browser }) => {
   const context = await browser.newContext({ locale: 'en-US', viewport: { width: 1280, height: 900 } });
   const page = await context.newPage();

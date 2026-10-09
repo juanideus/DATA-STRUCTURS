@@ -1,6 +1,5 @@
-export const copyVisualValues = values => values.map(value => (
-  value && typeof value === 'object' ? { ...value } : value
-));
+import { copyVisualValues } from './visualValues.js';
+export { copyVisualValues } from './visualValues.js';
 
 export function executableCodeLines(code) {
   return code.split('\n')

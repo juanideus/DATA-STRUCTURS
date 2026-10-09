@@ -2,7 +2,7 @@ import { AlertTriangle, BookOpen, CheckCircle2, Cog, Gauge, Lightbulb, ListCheck
 import { completeJavaSnippet, getBeginnerJava } from '../data/beginnerJava.js';
 import { getEducationalDescription } from '../data/educationalDescriptions.js';
 import { getGuideJavaExample } from '../data/guideJavaExamples.js';
-import { getOperationDefinition } from '../logic/operations.js';
+import { getOperationDefinition } from '../logic/operationMetadata.js';
 import { useLanguage } from '../i18n.jsx';
 import { getEnglishEducationalDescription } from '../data/educationalDescriptionsEnglish.js';
 
