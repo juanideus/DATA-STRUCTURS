@@ -9,11 +9,11 @@ export const SOCIAL_IMAGE_URL = `${SITE_ORIGIN}/dsa-lab-social-v2.jpg`;
 
 const HOME = {
   es: {
-    title: 'DSA Lab — Estructuras de datos y algoritmos visuales',
+    title: 'DSA Lab',
     description: 'Aprende estructuras de datos y algoritmos con visualizaciones, animaciones paso a paso, código Java y C++, ejercicios y pruebas interactivas.',
   },
   en: {
-    title: 'DSA Lab — Visual Data Structures and Algorithms',
+    title: 'DSA Lab',
     description: 'Learn data structures and algorithms with visualizations, step-by-step animations, Java and C++ code, exercises, and interactive assessments.',
   },
 };
