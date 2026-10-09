@@ -1,4 +1,5 @@
 import { AlertTriangle, BookOpen, CheckCircle2, Code2, Lightbulb } from 'lucide-react';
+import '../theory.css';
 import ComplexityGrowthChart from './ComplexityGrowthChart.jsx';
 
 const profiles = {

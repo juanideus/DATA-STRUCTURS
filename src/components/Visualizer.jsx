@@ -1,7 +1,8 @@
 import { memo, useEffect, useMemo, useRef } from 'react';
+import '../visualizer.css';
 import { MapPin } from 'lucide-react';
 import { getGraphDesign } from '../data/graphDesigns.js';
-import { getThreadedTreeLinks, SPARSE_MATRIX_COLUMNS, SPARSE_MATRIX_ROWS } from '../logic/operations.js';
+import { getThreadedTreeLinks, SPARSE_MATRIX_COLUMNS, SPARSE_MATRIX_ROWS } from '../logic/operationMetadata.js';
 import { DENSE_MATRIX_SIZE, normalizeDenseMatrixValues } from '../logic/denseMatrix.js';
 import { generalizedListToString } from '../logic/generalizedList.js';
 import { formatPolynomial, polynomialTerms } from '../logic/polynomial.js';

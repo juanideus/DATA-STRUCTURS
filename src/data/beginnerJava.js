@@ -1,4 +1,4 @@
-import { operationGroup } from '../logic/operations.js';
+import { operationGroup } from '../logic/operationMetadata.js';
 import { makeJavaStandalone } from './javaStandaloneContext.js';
 import { getAstJava } from './astJava.js';
 import { getDenseMatrixJava } from './denseMatrixJava.js';
