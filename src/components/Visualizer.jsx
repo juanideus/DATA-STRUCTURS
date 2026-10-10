@@ -514,7 +514,7 @@ function LinearVisual({ algorithm, step }) {
   if (!values.length) return <div className="empty-visual"><strong>∅</strong><span>{algorithm.language === 'en' ? 'Empty structure' : 'Estructura vacía'}</span></div>;
   if (type === 'skip') return <SkipListVisual algorithm={algorithm} step={step}/>;
   if (type === 'stack') {
-    const activeIndex = step % values.length;
+    const activeIndex = algorithm.animationFrame ? step % values.length : values.length - 1;
     return <div className="stack-visual">{[...values].reverse().map((v, reversedIndex) => {
       const logicalIndex = values.length - 1 - reversedIndex;
       return <div className={`data-cell wide ${logicalIndex === activeIndex ? 'active' : ''}`} key={`${v}-${logicalIndex}`}>
@@ -891,8 +891,10 @@ function MultiwayTreeDiagram({ algorithm, step }) {
     return current;
   };
   const root = collect(structure.root, 0, 'root');
+  const nodeWidth = Math.max(7, Math.min(20, 84 / Math.max(1, leaves.length)));
+  const edgePadding = nodeWidth / 2 + 2;
   leaves.forEach((leaf, index) => {
-    leaf.x = leaves.length === 1 ? 50 : 8 + (index / (leaves.length - 1)) * 84;
+    leaf.x = leaves.length === 1 ? 50 : edgePadding + (index / (leaves.length - 1)) * (100 - edgePadding * 2);
   });
   for (let depth = levels.length - 2; depth >= 0; depth--) {
     levels[depth].forEach(current => {
@@ -910,7 +912,6 @@ function MultiwayTreeDiagram({ algorithm, step }) {
   const activeLeaf = leaves.find(leaf => leaf.keys.includes(activeKey)) ?? root;
   const promotedLeaf = leaves.find(leaf => leaf.keys.some(key => String(key) === String(promotedKey))) ?? activeLeaf;
   const activeMultiwayNode = ['search','promote','settled'].includes(frame?.treePhase) ? root : activeLeaf;
-  const nodeWidth = Math.max(7, Math.min(20, 84 / Math.max(1, leaves.length)));
   return <div className={`btree-visual ${algorithm.id} ${leaves.length > 5 ? 'many-leaves' : ''}`}>
     <span className="tree-kind-label">{algorithm.id==='bplus-tree'?'DATOS SOLO EN HOJAS':algorithm.id==='bstar-tree'?'MÁX. 5 CLAVES · REDISTRIBUCIÓN':'MÁX. 3 CLAVES · MEDIANA PROMOVIDA'}</span>
     <svg className="btree-edges" aria-hidden="true">
@@ -1018,7 +1019,7 @@ function FibonacciHeapDiagram({ algorithm, step }) {
     <span className="tree-kind-label">RAÍCES CIRCULARES: {roots.length} · MIN: {minimum}</span>
     <svg className="edge-layer" aria-hidden="true">{edges.map(([from, to, id]) => <TreeEdge key={id} from={from} to={to}/>)}</svg>
     {nodes.map(({ node, position, depth }, index) => <div
-      className={`tree-node fib-node ${index === step % nodes.length ? 'active' : ''}`}
+      className={`tree-node fib-node ${depth === 0 && node.value === minimum ? 'minimum' : ''} ${index === step % nodes.length ? 'active' : ''}`}
       data-fibonacci-role={depth === 0 ? 'root' : 'child'}
       data-fibonacci-degree={node.children.length}
       style={{ left: `${position[0]}%`, top: `${position[1]}%` }}

@@ -157,7 +157,7 @@
 
 .btree-visual .tree-kind-label{top:-8px}
 .bnode{display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center}
-.bnode small{font-family:'DM Mono',monospace;font-size:6px;letter-spacing:.08em;color:#89918c}
+.bnode small{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.04em;color:#5f6a65}
 .root-bnode small{color:#b9d1c7}
 .btree-visual.bplus-tree .child-bnode{border-color:var(--orange)}
 .btree-visual.bstar-tree .child-bnode{min-width:118px;background:#f3eee4}
@@ -178,7 +178,8 @@
 @keyframes parentReceives{0%{transform:translate(-50%,-50%) scale(.92);box-shadow:0 0 0 9px rgba(239,90,54,.2)}100%{transform:translate(-50%,-50%) scale(1)}}
 
 .fibonacci-forest .fib-node{border-color:#b88627;background:#fff8e9}
-.fibonacci-forest .fib-node:nth-of-type(2){background:#b88627;color:#fff}
+.fibonacci-forest .fib-node.minimum{background:#b88627;border-color:#b88627;color:#fff}
+.fibonacci-forest .fib-node.active:not(.minimum){background:var(--orange);border-color:var(--orange);color:#fff}
 
 .quadtree-visual{position:relative;z-index:2;width:270px;height:270px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;border:3px solid var(--green);background:#f8f5ee;box-shadow:0 12px 25px rgba(35,52,44,.14)}
 .quadtree-visual>div{display:grid;place-items:center;border:1px solid var(--green);color:#557168;font-family:'DM Mono',monospace;font-size:10px}
@@ -671,7 +672,9 @@
 .data-cell small{min-height:10px;font-size:8px;letter-spacing:.035em}
 .data-cell.first-cell:not(.active){border-left:2px solid #68788f}
 .data-cell.last-cell:not(.active){border-right:2px solid var(--orange)}
+.data-cell.active{background:#ae4a30;border-color:#ae4a30;color:#fff}
 .data-cell.active span{color:#fff}
+.data-cell.active small{color:#fff}
 .linear-connector{
   width:52px;
   height:36px;
@@ -758,18 +761,18 @@
 .row-axis{grid-column:1}
 .dense-matrix-cell{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid #aeb9c2;border-radius:7px;background:#fbfaf7;box-shadow:0 4px 10px rgba(38,54,76,.07);transition:.22s}
 .dense-matrix-cell strong{font-family:'DM Mono',monospace;font-size:14px}
-.dense-matrix-cell small{margin-top:3px;color:#8b949e;font-family:'DM Mono',monospace;font-size:6px}
+.dense-matrix-cell small{margin-top:3px;color:#596775;font-family:'DM Mono',monospace;font-size:8px}
 .dense-matrix-cell.diagonal{border-color:#9b7b3b;background:#f8f2e4}
 .dense-matrix-cell.active{z-index:2;transform:translateY(-3px) scale(1.06);border-color:var(--orange);background:var(--orange);color:#fff;box-shadow:0 8px 18px rgba(217,96,67,.25)}
 .dense-matrix-cell.active small{color:#ffe6dd}
-.dense-matrix-legend{display:flex;align-items:center;gap:6px;color:#7c8792;font-family:'DM Mono',monospace;font-size:7px}
+.dense-matrix-legend{display:flex;align-items:center;gap:6px;color:#596775;font-family:'DM Mono',monospace;font-size:9px}
 .dense-matrix-legend i{width:11px;height:11px;border:1px solid #9b7b3b;border-radius:3px;background:#f8f2e4}
 .sparse-matrix-visual{position:relative;z-index:2;width:min(760px,98%);height:330px;overflow:hidden}
 .sparse-matrix-visual svg{display:block;width:100%;height:100%;overflow:visible}
-.sparse-axis-title{font-family:'DM Mono',monospace;font-size:8px;font-weight:700;letter-spacing:.08em;fill:#7b8491}
+.sparse-axis-title{font-family:'DM Mono',monospace;font-size:9px;font-weight:700;letter-spacing:.04em;fill:#596775}
 .sparse-header rect{fill:#f9fafb;stroke:#64748b;stroke-width:1.2}
-.sparse-header text{font-family:'DM Mono',monospace;font-size:8px;font-weight:700;fill:#334155}
-.sparse-header .pointer-label{font-size:6.4px;font-weight:500;fill:#8a94a3}
+.sparse-header text{font-family:'DM Mono',monospace;font-size:9px;font-weight:700;fill:#334155}
+.sparse-header .pointer-label{font-size:8px;font-weight:500;fill:#596775}
 .sparse-header.active rect{fill:#fff1eb;stroke:var(--orange);stroke-width:2}
 .sparse-header.column-header.active rect{fill:#edf3fb;stroke:#49698f}
 .sparse-link,.sparse-return{fill:none;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
@@ -782,14 +785,14 @@
 .sparse-column-links marker path{fill:#49698f}
 .sparse-node rect{fill:#fbfaf7;stroke:#7f8b96;stroke-width:1.1;transition:fill .18s,stroke .18s,filter .18s}
 .sparse-node line{stroke:#c8cdd4;stroke-width:.8}
-.sparse-node text{font-family:'DM Mono',monospace;font-size:7px;fill:#596273}
-.sparse-node .node-value{font-size:10px;font-weight:700;fill:#1f2937}
+.sparse-node text{font-family:'DM Mono',monospace;font-size:8.5px;fill:#475569}
+.sparse-node .node-value{font-size:12px;font-weight:700;fill:#1f2937}
 .sparse-node.active rect{fill:#fff0e9;stroke:var(--orange);stroke-width:2;filter:drop-shadow(0 4px 6px rgba(217,96,67,.22))}
 .sparse-node.visited-row:not(.active) rect{stroke:#cf704f}
 .sparse-node.visited-column:not(.active) rect{stroke:#49698f}
 .sparse-node.pending rect{fill:#fff9f5;stroke:var(--orange);stroke-width:1.7;stroke-dasharray:4 2}
 .sparse-node.detached-row rect{fill:#f7f1ef;stroke:#b24a3c;stroke-dasharray:3 2}
-.sparse-node-legend text{font-family:'DM Mono',monospace;font-size:7px;fill:#7b8491}
+.sparse-node-legend text{font-family:'DM Mono',monospace;font-size:9px;fill:#596775}
 .sparse-node-legend .right-legend{fill:#b85f43}
 .sparse-node-legend .down-legend{fill:#405f84}
 
@@ -868,11 +871,11 @@
 .graph-canvas[class*="graph-design-"] .edge-layer{z-index:2;inset:20px 14px 10px;width:calc(100% - 28px);height:calc(100% - 30px)}
 .graph-canvas[class*="graph-design-"] .graph-node{z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:52px;height:52px}
 .graph-canvas[class*="graph-design-"] .graph-node>span{font-size:13px;line-height:1;font-weight:750}
-.graph-canvas[class*="graph-design-"] .graph-node>small{max-width:46px;overflow:hidden;color:#75818b;font-family:'DM Mono',monospace;font-size:6.5px;line-height:1;white-space:nowrap;text-overflow:ellipsis}
+.graph-canvas[class*="graph-design-"] .graph-node>small{max-width:46px;overflow:hidden;color:#596773;font-family:'DM Mono',monospace;font-size:8px;line-height:1.1;white-space:nowrap;text-overflow:ellipsis}
 .graph-canvas[class*="graph-design-"] .graph-node.active>small{color:#fff1eb}
 .graph-design-title{position:absolute;z-index:5;top:10px;right:12px;display:grid;justify-items:end;gap:2px;pointer-events:none}
-.graph-design-title span{color:#40515e;font-size:8px;font-weight:800;letter-spacing:.13em;text-transform:uppercase}
-.graph-design-title small{max-width:260px;color:#87939b;font-size:7px;text-align:right}
+.graph-design-title span{color:#40515e;font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.graph-design-title small{max-width:260px;color:#667581;font-size:8px;text-align:right}
 .graph-design-motif{position:absolute;inset:0;z-index:0;pointer-events:none}
 .graph-design-motif i{position:absolute;display:block}
 
@@ -960,7 +963,26 @@
 }
 @media(max-width:430px){
   .graph-canvas[class*="graph-design-"] .graph-node{width:42px;height:42px}
-  .graph-canvas[class*="graph-design-"] .graph-node>small{font-size:5.5px}
+  .graph-canvas[class*="graph-design-"] .graph-node>small{font-size:7px}
   .graph-design-title{top:6px;right:7px}
   .hanoi-scene{width:108%;transform:scale(.82)}
+}
+
+/* Keep labels clear of nodes and preserve contrast across visualizations. */
+.tree-kind-label,.btree-visual .tree-kind-label{top:2px;left:auto;right:0;max-width:56%;transform:none;white-space:normal;text-align:right;line-height:1.35;font-size:8px}
+.tree-canvas .tree-node.active:not(.minimum){background:#ae4a30;border-color:#ae4a30;color:#fff}
+.tree-segment-tree .tree-node.active{background:#ae4a30;border-color:#ae4a30;color:#fff}
+.fibonacci-forest .fib-node.minimum{background:#9a6519;border-color:#9a6519;color:#fff}
+.btree-visual.bstar-tree .child-bnode.active{background:#ae4a30;border-color:#ae4a30;color:#fff}
+.btree-visual .bnode.active small{color:#fff4ef}
+.canvas-grid[data-visualizer="hash-chaining"] .step-badge,
+.canvas-grid[data-visualizer="listas-generalizadas"] .step-badge{left:auto;right:15px}
+.canvas-grid[data-visualizer="dijkstra"] .step-badge,
+.canvas-grid[data-visualizer="a-star"] .step-badge{left:50%;right:auto;transform:translateX(-50%)}
+.graph-design-kruskal .graph-design-title{left:50%;right:auto;transform:translateX(-50%);justify-items:center;text-align:center}
+.graph-design-kruskal .graph-design-title small{text-align:center}
+.graph-canvas[class*="graph-design-"] .graph-node.active,
+.pathfinding-canvas .graph-node.active{background:#ae4a30;border-color:#ae4a30;color:#fff}
+@media(max-width:430px){
+  .btree-visual.bstar-tree .child-bnode{min-width:0;white-space:normal;font-size:8px;line-height:1.2}
 }
