@@ -66,3 +66,8 @@ Se añadió una regresión que también exige mantener sin resaltar una expresi�
 
 Después de la corrección pasaron `audit-functions.mjs` (86 temas, 310 acciones y 3100
 comprobaciones funcionales) y `audit-structure-fidelity.mjs`.
+
+La siguiente ejecución de CI pasó esos controles, seguridad y build, pero encontró
+una expectativa E2E antigua en Dijkstra/A*: exigía éxito en el primer paso con el
+reloj detenido. Se actualizó para exigir `Ejecutando` durante el recorrido y éxito
+únicamente después de llegar al último evento, sin omitir la prueba.

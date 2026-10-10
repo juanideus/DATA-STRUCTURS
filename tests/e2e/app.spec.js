@@ -1736,7 +1736,8 @@ test('Dijkstra y A* muestran código Java y C++ junto al mapa', async ({ page })
     await expect(page.locator('.code-panel pre')).toContainText('map[neighbor]');
     await page.clock.pauseAt(new Date());
     await page.getByRole('button', { name: id === 'dijkstra' ? 'Ejecutar Dijkstra' : 'Ejecutar A*', exact: true }).click();
-    await expect(page.locator('.operation-message')).toHaveClass(/success/);
+    await expect(page.locator('.operation-message')).toHaveClass(/running/);
+    await expect(page.locator('.operation-message')).toContainText('Ejecutando');
     await expect(page.locator('.code-panel code.active')).toContainText('distance[start] = 0;');
     const pause = page.getByRole('button', { name: 'Pausar', exact: true });
     if (await pause.isVisible()) await pause.click();
@@ -1744,6 +1745,12 @@ test('Dijkstra y A* muestran código Java y C++ junto al mapa', async ({ page })
     await expect(page.locator('.code-panel code.active')).toContainText(
       id === 'dijkstra' ? 'minimumDistance(settled)' : 'minimumScore(score, closed)',
     );
+    await expect(page.locator('.operation-message')).toHaveClass(/running/);
+    await page.getByRole('button', { name: 'Reproducir', exact: true }).click();
+    await page.clock.runFor(300_000);
+    await expect(page.locator('.operation-message')).toHaveClass(/success/);
+    await expect(page.locator('.operation-message')).toContainText('Operación completada');
+    await expect(page.getByRole('button', { name: 'Siguiente', exact: true })).toBeDisabled();
   }
 });
 
