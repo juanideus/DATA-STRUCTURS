@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { algorithms } from '../../src/data/algorithms.js';
+import { englishAlgorithmDescriptions } from '../../src/data/algorithmTranslations.js';
 import { getOperationDefinition } from '../../src/logic/operations.js';
 import { createSectionTest } from '../../src/logic/sectionTests.js';
 
@@ -17,6 +18,68 @@ test.beforeEach(async ({ page }) => {
     }
   });
   await page.goto('/');
+});
+
+test('la búsqueda lateral informa resultados y se puede borrar sin perder el foco', async ({ page }, testInfo) => {
+  if (testInfo.project.name.startsWith('mobile')) {
+    const menuButton = page.getByRole('button', { name: 'Abrir menú' });
+    await menuButton.focus();
+    await menuButton.press('Enter');
+    await expect(page.getByRole('dialog', { name: 'Navegación de algoritmos' })).toBeVisible();
+  }
+  const search = page.getByRole('searchbox', { name: 'Buscar algoritmo…' });
+  await search.fill('tema que no existe');
+  await expect(page.locator('.search-results-status')).toContainText('No hay temas que coincidan');
+  await expect(page.locator('.sidebar .nav-item')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Borrar búsqueda' }).click();
+  await expect(search).toHaveValue('');
+  await expect(search).toBeFocused();
+  await expect(page.locator('.sidebar .nav-item')).toHaveCount(algorithms.length);
+});
+
+test('un dato inválido permanece visible y Enter repite la operación seleccionada', async ({ page }) => {
+  await page.goto('/pila');
+  const value = page.locator('.operation-fields input').first();
+  await value.fill('2147483648');
+  await page.getByRole('button', { name: 'Push', exact: true }).click();
+  await expect(page.locator('.operation-message')).toHaveClass(/error/);
+  await expect(value).toHaveValue('2147483648');
+  await value.fill('37');
+  await value.press('Enter');
+  await expect(page.locator('.operation-message')).toContainText('Push');
+  await expect(value).toHaveValue('37');
+  await page.getByRole('button', { name: 'Pop', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Pop', exact: true })).toHaveClass(/selected-operation/);
+  await value.press('Enter');
+  await expect(page.locator('.operation-message')).toContainText('Pop');
+  await expect(page.getByRole('button', { name: 'Pop', exact: true })).toHaveClass(/selected-operation/);
+});
+
+test('cada tema tiene una descripción específica en inglés', async ({ page }) => {
+  expect(algorithms.filter(algorithm => !englishAlgorithmDescriptions[algorithm.id])).toEqual([]);
+  await page.goto('/en/skip-list');
+  await expect(page.locator('.hero p')).toContainText('Layered linked lists');
+  await page.goto('/en/matriz-dispersa');
+  await expect(page.locator('.sparse-node-legend')).toContainText('NODE:');
+  await expect(page.locator('.sparse-node-legend')).toContainText('circular return to header');
+  await page.goto('/en/grafo');
+  await expect(page.locator('.complexity-card')).toContainText('Traversal O(V²) with an adjacency matrix');
+});
+
+test('las trazas inglesas de Pila y Cola no mezclan los mensajes de sus primeros pasos', async ({ page }) => {
+  await page.goto('/en/pila');
+  await page.getByLabel('Value').fill('31');
+  await page.getByRole('button', { name: 'Push', exact: true }).click();
+  await expect(page.locator('.operation-message')).toContainText('Push receives the value 31.');
+  await expect(page.locator('.operation-message')).toContainText('top is', { timeout: 8_000 });
+  await expect(page.locator('.operation-message')).toContainText('Push finished: 31 is the new top.', { timeout: 15_000 });
+
+  await page.goto('/en/cola');
+  await page.getByLabel('Value').fill('31');
+  await page.getByRole('button', { name: 'Enqueue', exact: true }).click();
+  await expect(page.locator('.operation-message')).toContainText('Enqueue receives the value 31.');
+  await expect(page.locator('.operation-message')).toContainText('size is', { timeout: 8_000 });
+  await expect(page.locator('.operation-message')).toContainText('Enqueue finished: 31 is at the rear of the queue.', { timeout: 15_000 });
 });
 
 test('la portada explica una operación real y mantiene accesibles las ayudas en pantallas medianas', async ({ page }) => {

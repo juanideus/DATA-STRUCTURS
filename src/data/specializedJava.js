@@ -20,7 +20,6 @@ int level = 0;
 int size = 0;`;
   const operations = {
     'sorted-add': `void insert(int value) {
-    int newLevel = randomLevel();
     Node[] update = new Node[MAX_LEVEL + 1];
     Node current = head;
     for (int currentLevel = level; currentLevel >= 0; currentLevel--) {
@@ -30,6 +29,10 @@ int size = 0;`;
         }
         update[currentLevel] = current;
     }
+    Node candidate = current.next[0];
+    if (candidate != null && candidate.value == value) return;
+
+    int newLevel = randomLevel();
     if (newLevel > level) {
         for (int currentLevel = level + 1; currentLevel <= newLevel; currentLevel++) {
             update[currentLevel] = head;

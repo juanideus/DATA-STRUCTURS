@@ -70,10 +70,11 @@ function LinearConnector({ variant }) {
 function CircularListVisual({ algorithm, step }) {
   const values = algorithm.values;
   const doubleCircular = algorithm.id === 'lista-circular-doble';
-  const nodeSize = 58;
+  const nodeHeight = 58;
+  const nodeSize = Math.max(58, ...values.map(value => String(value).length * 10 + 20));
   const gap = 58;
   const padding = values.length === 1 ? 61 : 28;
-  const width = values.length === 1 ? 180 : padding * 2 + values.length * nodeSize + (values.length - 1) * gap;
+  const width = padding * 2 + values.length * nodeSize + (values.length - 1) * gap;
   const center = index => padding + nodeSize / 2 + index * (nodeSize + gap);
   const firstCenter = center(0);
   const lastCenter = center(values.length - 1);
@@ -97,14 +98,14 @@ function CircularListVisual({ algorithm, step }) {
     )}
 
     {values.length === 1
-      ? <path className="circle-return forward singleton-loop" data-link-direction="next" d={`M ${firstCenter+nodeSize/2} 55 C ${firstCenter+62} 55, ${firstCenter+62} 118, ${firstCenter} 118 C ${firstCenter-35} 118, ${firstCenter-35} 93, ${firstCenter} 85`} markerEnd={`url(#${forwardMarker})`} />
+      ? <path className="circle-return forward singleton-loop" data-link-direction="next" d={`M ${firstCenter+nodeSize/2} 55 C ${firstCenter+nodeSize/2+33} 55, ${firstCenter+nodeSize/2+33} 118, ${firstCenter} 118 C ${firstCenter-35} 118, ${firstCenter-35} 93, ${firstCenter} 85`} markerEnd={`url(#${forwardMarker})`} />
       : <path className="circle-return forward" data-link-direction="next" d={`M ${lastCenter} 85 C ${lastCenter} 132, ${firstCenter} 132, ${firstCenter} 85`} markerEnd={`url(#${forwardMarker})`} />}
     {doubleCircular && (values.length === 1
-      ? <path className="circle-return reverse singleton-loop" data-link-direction="prev" d={`M ${firstCenter-nodeSize/2} 57 C ${firstCenter-62} 57, ${firstCenter-62} 5, ${firstCenter} 5 C ${firstCenter+35} 5, ${firstCenter+35} 17, ${firstCenter} 27`} markerEnd={`url(#${reverseMarker})`} />
+      ? <path className="circle-return reverse singleton-loop" data-link-direction="prev" d={`M ${firstCenter-nodeSize/2} 57 C ${firstCenter-nodeSize/2-33} 57, ${firstCenter-nodeSize/2-33} 5, ${firstCenter} 5 C ${firstCenter+35} 5, ${firstCenter+35} 17, ${firstCenter} 27`} markerEnd={`url(#${reverseMarker})`} />
       : <path className="circle-return reverse" data-link-direction="prev" d={`M ${firstCenter} 26 C ${firstCenter} 5, ${lastCenter} 5, ${lastCenter} 26`} markerEnd={`url(#${reverseMarker})`} />)}
 
     {values.map((value,index) => <g className={`circle-node ${index===step%values.length?'active':''}`} key={`${value}-${index}`}>
-      <rect x={center(index)-nodeSize/2} y="27" width={nodeSize} height={nodeSize} rx="7" />
+      <rect x={center(index)-nodeSize/2} y="27" width={nodeSize} height={nodeHeight} rx="7" />
       <text className="circle-value" x={center(index)} y="51" textAnchor="middle" dominantBaseline="middle">{value}</text>
       <text className="circle-pointer" x={center(index)} y="70" textAnchor="middle">{doubleCircular ? 'prev · next' : 'next'}</text>
     </g>)}
@@ -475,13 +476,13 @@ function SparseMatrixVisual({ algorithm }) {
       })}
 
       <g className="sparse-node-legend" transform="translate(24 312)">
-        <text x="0" y="0">NODO:</text>
-        <text x="47" y="0">valor</text>
-        <text x="91" y="0">fila</text>
-        <text x="120" y="0">columna</text>
+        <text x="0" y="0">{en ? 'NODE:' : 'NODO:'}</text>
+        <text x="47" y="0">{en ? 'value' : 'valor'}</text>
+        <text x="91" y="0">{en ? 'row' : 'fila'}</text>
+        <text x="120" y="0">{en ? 'column' : 'columna'}</text>
         <text className="right-legend" x="195" y="0">left ← AROW</text>
         <text className="down-legend" x="315" y="0">up ↑ ACOL</text>
-        <text x="455" y="0">↻ regreso circular a la cabecera</text>
+        <text x="455" y="0">{en ? '↻ circular return to header' : '↻ regreso circular a la cabecera'}</text>
       </g>
     </svg>
   </div>;
@@ -501,9 +502,12 @@ function SkipListVisual({ algorithm, step }) {
   return <div className="skip-list-scene" role="img" aria-label={algorithm.language === 'en' ? 'Skip List with four linked levels' : 'Skip List con cuatro niveles enlazados'}>
     {[3, 2, 1, 0].map(level => <div className="skip-list-level" key={level}>
       <strong>L{level}</strong><span className="skip-list-head">HEAD</span>
-      {values.map((value, index) => levelFor(value) >= level
-        ? <span className={`skip-list-node ${index === step % values.length ? 'active' : ''}`} key={`${value}-${index}`}>{value}</span>
-        : <span className="skip-list-gap" aria-hidden="true" key={`${value}-${index}`}>────</span>)}
+      {values.map((value, index) => {
+        const columnStyle = { '--skip-column-width': `${Math.max(46, String(value).length * 8 + 16)}px` };
+        return levelFor(value) >= level
+          ? <span className={`skip-list-node ${index === step % values.length ? 'active' : ''}`} style={columnStyle} key={`${value}-${index}`}>{value}</span>
+          : <span className="skip-list-gap" style={columnStyle} aria-hidden="true" key={`${value}-${index}`}>────</span>;
+      })}
     </div>)}
     <small>{algorithm.language === 'en' ? 'Illustrative levels; random heights may differ in Java and C++.' : 'Niveles ilustrativos: las alturas aleatorias pueden variar en Java y C++.'}</small>
   </div>;
@@ -511,14 +515,16 @@ function SkipListVisual({ algorithm, step }) {
 
 function LinearVisual({ algorithm, step }) {
   const { values, type } = algorithm;
+  const english = algorithm.language === 'en';
   if (!values.length) return <div className="empty-visual"><strong>∅</strong><span>{algorithm.language === 'en' ? 'Empty structure' : 'Estructura vacía'}</span></div>;
   if (type === 'skip') return <SkipListVisual algorithm={algorithm} step={step}/>;
   if (type === 'stack') {
     const activeIndex = algorithm.animationFrame ? step % values.length : values.length - 1;
-    return <div className="stack-visual">{[...values].reverse().map((v, reversedIndex) => {
+    const cellWidth = Math.max(160, ...values.map(value => String(value).length * 11 + 64));
+    return <div className="stack-visual" style={{ '--stack-cell-width': `${cellWidth}px` }}>{[...values].reverse().map((v, reversedIndex) => {
       const logicalIndex = values.length - 1 - reversedIndex;
       return <div className={`data-cell wide ${logicalIndex === activeIndex ? 'active' : ''}`} key={`${v}-${logicalIndex}`}>
-        <span>{v}</span>{reversedIndex === 0 && <small>TOPE</small>}
+        <span>{v}</span>{reversedIndex === 0 && <small>{english ? 'TOP' : 'TOPE'}</small>}
       </div>;
     })}<div className="stack-base" /></div>;
   }
@@ -531,15 +537,17 @@ function LinearVisual({ algorithm, step }) {
   const cellHint = index => {
     if (doubleLinked) return 'prev · next';
     if (linked) return index === values.length - 1 ? 'next: null' : 'next';
-    if (algorithm.id === 'cola') return index === 0 ? 'FRENTE' : index === values.length - 1 ? 'FINAL' : index;
-    if (algorithm.id === 'deque') return index === 0 ? 'INICIO' : index === values.length - 1 ? 'FINAL' : index;
+    if (algorithm.id === 'cola') return values.length === 1 ? <>{english ? 'FRONT' : 'FRENTE'}<br/>{english ? 'REAR' : 'FINAL'}</>
+      : index === 0 ? (english ? 'FRONT' : 'FRENTE') : index === values.length - 1 ? (english ? 'REAR' : 'FINAL') : index;
+    if (algorithm.id === 'deque') return values.length === 1 ? <>{english ? 'FRONT' : 'INICIO'}<br/>{english ? 'BACK' : 'FINAL'}</>
+      : index === 0 ? (english ? 'FRONT' : 'INICIO') : index === values.length - 1 ? (english ? 'BACK' : 'FINAL') : index;
     if (type === 'union') return `i${index} · r${algorithm.unionRanks?.[index] ?? 0}`;
     return index;
   };
   return <div className={`linear-visual ${type}`} role="img" aria-label={`${algorithm.language === 'en' ? 'Visualization of' : 'Visualización de'} ${algorithm.name}`}>
     {values.map((value, index) => <div className="linear-unit" key={`${value}-${index}`}>
-      <div className={`data-cell ${index === 0 ? 'first-cell' : ''} ${index === values.length - 1 ? 'last-cell' : ''} ${index === step % values.length ? 'active' : ''}`}>
-        <span>{value}</span><small>{cellHint(index)}</small>
+      <div className={`data-cell ${index === 0 ? 'first-cell' : ''} ${index === values.length - 1 ? 'last-cell' : ''} ${index === step % values.length ? 'active' : ''}`} style={String(value).length > 4 ? { width: `${String(value).length * 11 + 20}px`, flexShrink: 0 } : undefined}>
+        <span>{value}</span><small className={values.length === 1 && ['cola', 'deque'].includes(algorithm.id) ? 'endpoint-pair' : undefined}>{cellHint(index)}</small>
       </div>
       {index < values.length - 1 && <LinearConnector variant={connectorVariant}/>}
     </div>)}

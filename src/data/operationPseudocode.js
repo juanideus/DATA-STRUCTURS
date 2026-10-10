@@ -86,7 +86,183 @@ const templates = {
   'glist-release': lines('disminuir el contador de referencias', 'si llega a cero: liberar recursivamente la estructura'),
 };
 
-export function getOperationPseudocode(algorithm, actionId) {
+function arrayPseudocode(actionId, language) {
+  const text = (es, en) => language === 'en' ? en : es;
+  const insert = ['add-start', 'add-end', 'add-index'].includes(actionId);
+  const remove = ['remove-start', 'remove-end', 'remove-index'].includes(actionId);
+  if (actionId === 'set-index') return lines(
+    text('n ← longitud de values en Java; size en C++', 'n ← values.length in Java; size in C++'),
+    text('si index < 0 o index ≥ n: devolver false', 'if index < 0 or index ≥ n: return false'),
+    'values[index] ← value', text('devolver true', 'return true'),
+  );
+  if (!insert && !remove) return null;
+  const indexed = actionId.endsWith('index');
+  const atStart = actionId.endsWith('start');
+  const position = indexed ? 'index' : atStart ? '0' : insert ? 'n' : 'n - 1';
+  const invalidJava = indexed
+    ? text(`si index < 0 o index ${insert ? '>' : '≥'} n: devolver values sin modificar`, `if index < 0 or index ${insert ? '>' : '≥'} n: return values unchanged`)
+    : text('si n = 0: devolver values sin modificar', 'if n = 0: return values unchanged');
+  const invalidCpp = indexed
+    ? text(`si index < 0 o index ${insert ? '>' : '≥'} size: devolver false`, `if index < 0 or index ${insert ? '>' : '≥'} size: return false`)
+    : text('si size = 0: devolver false', 'if size = 0: return false');
+  const javaCopy = insert
+    ? text(`copiar values[i] a result[i + 1] si i ≥ ${position}; en caso contrario, a result[i]`, `copy values[i] to result[i + 1] if i ≥ ${position}; otherwise, to result[i]`)
+    : text(`copiar todos los elementos a result, omitiendo la posición ${position}`, `copy all elements to result, skipping position ${position}`);
+  const cppPosition = indexed ? 'index' : atStart ? '0' : 'size';
+  return lines('Java:', '  n ← values.length',
+    ...(indexed || remove ? ['  ' + invalidJava] : []),
+    `  result ← new int[n ${insert ? '+' : '-'} 1]`, '  ' + javaCopy,
+    ...(insert ? [`  result[${position}] ← value`] : []),
+    '  ' + text('devolver result: el nuevo arreglo', 'return result: the new array'), '', 'C++:',
+    ...(indexed || remove ? ['  ' + invalidCpp] : []),
+    ...(insert ? [
+      '  ' + text('si size = capacity: reservar el doble, copiar values y liberar el bloque anterior', 'if size = capacity: allocate twice the capacity, copy values and free the old block'),
+      ...(atStart || indexed ? ['  ' + text(`desplazar a la derecha desde size hasta ${cppPosition} + 1`, `shift right from size down to ${cppPosition} + 1`)] : []),
+      `  values[${cppPosition}] ← value`, '  size++',
+    ] : [
+      ...(atStart || indexed ? ['  ' + text(`desplazar a la izquierda desde ${cppPosition} hasta size - 2`, `shift left from ${cppPosition} to size - 2`)] : []),
+      '  size--',
+    ]),
+    '  ' + text('devolver true: operación realizada', 'return true: operation succeeded'),
+  );
+}
+
+function linkedListPseudocode(id, actionId, language) {
+  const circular = id.includes('circular');
+  const doubly = id.endsWith('doble');
+  const text = (es, en) => language === 'en' ? en : es;
+  const connect = text('reconectar next de los vecinos', 'reconnect the neighbors through next');
+  const repairPrevious = doubly ? [text('reconectar también prev de los vecinos', 'also reconnect the neighbors through prev')] : [];
+  const closeCircle = circular ? [text('conservar el cierre del último nodo con head', 'preserve the link from the last node back to head')] : [];
+  const release = text('liberar el nodo en C++; desvincularlo en Java', 'free the node in C++; unlink it in Java');
+  const empty = text('si head = null: indicar que la lista está vacía', 'if head = null: report that the list is empty');
+  const findLast = doubly && circular ? 'last ← head.prev' : text(
+    circular ? 'last ← head; recorrer next hasta que last.next = head' : 'last ← head; recorrer next hasta que last.next = null',
+    circular ? 'last ← head; follow next until last.next = head' : 'last ← head; follow next until last.next = null',
+  );
+  const create = text('crear newNode con el valor', 'create newNode with the value');
+  const emptyInsert = circular
+    ? text(`si head = null: head ← newNode; newNode.next ← newNode${doubly ? '; newNode.prev ← newNode' : ''}; size++; terminar`, `if head = null: head ← newNode; newNode.next ← newNode${doubly ? '; newNode.prev ← newNode' : ''}; size++; finish`)
+    : text('si head = null: head ← newNode; size++; terminar', 'if head = null: head ← newNode; size++; finish');
+  const methods = {
+    'add-start': lines(create, ...(circular ? [emptyInsert, findLast] : []), 'newNode.next ← head',
+      ...(doubly ? [circular ? 'newNode.prev ← last; last.next ← newNode; head.prev ← newNode' : text('si head ≠ null: head.prev ← newNode', 'if head ≠ null: head.prev ← newNode')] : circular ? ['last.next ← newNode'] : []),
+      'head ← newNode', 'size++'),
+    'add-end': lines(create, emptyInsert, findLast, 'last.next ← newNode',
+      ...(doubly ? ['newNode.prev ← last'] : []), 'newNode.next ← ' + (circular ? 'head' : 'null'),
+      ...(doubly && circular ? ['head.prev ← newNode'] : []), 'size++'),
+    'add-index': lines(text('validar 0 ≤ index ≤ size', 'validate 0 ≤ index ≤ size'),
+      text('si index = 0: insertar al inicio y terminar', 'if index = 0: insert at start and finish'),
+      text('recorrer next hasta previous, en index - 1', 'follow next to previous, at index - 1'), create,
+      'newNode.next ← previous.next', ...(doubly ? ['newNode.prev ← previous', text('si previous.next ≠ null: previous.next.prev ← newNode', 'if previous.next ≠ null: previous.next.prev ← newNode')] : []),
+      'previous.next ← newNode', 'size++'),
+    'remove-start': lines(empty,
+      ...(circular ? [text('si head.next = head: liberar o desvincular head; head ← null; size--; terminar', 'if head.next = head: free or unlink head; head ← null; size--; finish'), findLast] : []),
+      'removed ← head', 'head ← head.next',
+      ...(circular ? ['last.next ← head', ...(doubly ? ['head.prev ← last'] : [])] : doubly ? [text('si head ≠ null: head.prev ← null', 'if head ≠ null: head.prev ← null')] : []), release, 'size--'),
+    'remove-end': lines(empty, text('si hay un solo nodo: eliminar al inicio y terminar', 'if there is only one node: remove at start and finish'),
+      text('localizar el último nodo y su anterior mediante los enlaces', 'locate the last node and its predecessor through the links'),
+      'removed ← last', 'previous.next ← ' + (circular ? 'head' : 'null'),
+      ...(doubly && circular ? ['head.prev ← previous'] : []), release, 'size--'),
+    'remove-index': lines(text('validar 0 ≤ index < size', 'validate 0 ≤ index < size'),
+      text('si index = 0: eliminar al inicio y terminar', 'if index = 0: remove at start and finish'),
+      text('recorrer next hasta el nodo del índice y conservar su anterior', 'follow next to the indexed node and retain its predecessor'),
+      connect, ...repairPrevious, ...closeCircle, release, 'size--'),
+    'remove-value': lines(empty,
+      text(circular ? 'buscar la primera coincidencia; detenerse al volver a head' : 'buscar la primera coincidencia; detenerse al llegar a null', circular ? 'find the first match; stop when returning to head' : 'find the first match; stop at null'),
+      text('si no existe: devolver falso', 'if it does not exist: return false'),
+      text('si es head: eliminar al inicio y terminar', 'if it is head: remove at start and finish'),
+      connect, ...repairPrevious, ...closeCircle, release, 'size--', text('devolver verdadero', 'return true')),
+    find: lines(text('si head = null: devolver -1', 'if head = null: return -1'), 'current ← head; index ← 0',
+      text('comparar current.value con el objetivo; si coincide: devolver index', 'compare current.value with the target; if equal: return index'),
+      'current ← current.next; index++',
+      text(circular ? 'repetir hasta que current = head' : 'repetir hasta que current = null', circular ? 'repeat until current = head' : 'repeat until current = null'), text('devolver -1', 'return -1')),
+    clear: lines(text(circular ? 'recorrer una vuelta completa conservando next antes de retirar cada nodo' : 'recorrer hasta null conservando next antes de retirar cada nodo', circular ? 'traverse one full cycle, retaining next before removing each node' : 'traverse to null, retaining next before removing each node'), release, 'head ← null; size ← 0'),
+  };
+  return methods[actionId];
+}
+
+function skipListPseudocode(actionId, language) {
+  const text = (es, en) => language === 'en' ? en : es;
+  const search = [
+    'current ← head',
+    text('para level desde el nivel activo más alto hasta 0:', 'for level from the highest active level down to 0:'),
+    text('  mientras current.next[level] ≠ null y current.next[level].value < value: avanzar', '  while current.next[level] ≠ null and current.next[level].value < value: advance'),
+  ];
+  const predecessors = [...search, '  update[level] ← current', 'candidate ← current.next[0]'];
+  const methods = {
+    'sorted-add': lines(...predecessors, text('si candidate ≠ null y candidate.value = value: terminar sin insertar', 'if candidate ≠ null and candidate.value = value: finish without inserting'),
+      text('elegir newLevel aleatorio dentro del máximo permitido', 'choose a random newLevel within the allowed maximum'),
+      text('si newLevel supera el nivel activo: completar update con head y aumentar el nivel activo', 'if newLevel exceeds the active level: fill update with head and raise the active level'),
+      text('crear newNode y, para cada nivel de 0 a newLevel:', 'create newNode and, for each level from 0 to newLevel:'),
+      '  newNode.next[level] ← update[level].next[level]', '  update[level].next[level] ← newNode', 'size++'),
+    'remove-value': lines(...predecessors, text('si candidate = null o candidate.value ≠ value: devolver falso', 'if candidate = null or candidate.value ≠ value: return false'),
+      text('en cada nivel que apunta a candidate: enlazar update[level] con candidate.next[level]', 'at each level pointing to candidate: link update[level] to candidate.next[level]'),
+      text('liberar candidate en C++; desvincularlo en Java', 'free candidate in C++; unlink it in Java'),
+      text('bajar el nivel activo mientras la capa superior esté vacía', 'lower the active level while the top layer is empty'), 'size--', text('devolver verdadero', 'return true')),
+    find: lines(...search, 'candidate ← current.next[0]', text('devolver candidate ≠ null y candidate.value = value', 'return candidate ≠ null and candidate.value = value')),
+    clear: lines(text('recorrer el nivel 0 y retirar todos los nodos', 'traverse level 0 and remove all nodes'), text('establecer todos los enlaces de head en null', 'set every head link to null'), 'level ← 0; size ← 0'),
+  };
+  return methods[actionId];
+}
+
+function boundedLinearPseudocode(id, actionId, language) {
+  const text = (es, en) => language === 'en' ? en : es;
+  const result = text('Java: devolver el valor; C++: guardarlo en el parámetro de salida y devolver true', 'Java: return the value; C++: store it in the output parameter and return true');
+  const empty = text('si está vacía: Java devuelve null; C++ devuelve false', 'if empty: Java returns null; C++ returns false');
+  if (id === 'pila') {
+    return {
+      push: lines(text('si top = 14: devolver false (capacidad: 15)', 'if top = 14: return false (capacity: 15)'), 'top++', 'values[top] ← value', text('devolver true', 'return true')),
+      pop: lines(empty, 'removed ← values[top]', 'values[top] ← 0', 'top--', result),
+      peek: lines(empty, text('consultar values[top] sin modificar la pila', 'read values[top] without modifying the stack'), result),
+      clear: lines(text('mientras top ≥ 0:', 'while top ≥ 0:'), '  values[top] ← 0', '  top--'),
+    }[actionId];
+  }
+  if (id === 'cola') {
+    return {
+      enqueue: lines(text('si size = 15: devolver false', 'if size = 15: return false'), text('crear newNode con value y next = null', 'create newNode with value and next = null'),
+        text('si rear = null: front ← newNode; rear ← newNode', 'if rear = null: front ← newNode; rear ← newNode'),
+        text('en otro caso: rear.next ← newNode; rear ← newNode', 'otherwise: rear.next ← newNode; rear ← newNode'), 'size++', text('devolver true', 'return true')),
+      dequeue: lines(empty, 'removed ← front.value', 'oldFront ← front', 'front ← front.next',
+        text('en C++: liberar oldFront; en Java, el nodo queda desvinculado', 'in C++: free oldFront; in Java, the node is unlinked'),
+        text('si front = null: rear ← null', 'if front = null: rear ← null'), 'size--', result),
+      front: lines(empty, text('consultar front.value sin retirar el nodo', 'read front.value without removing the node'), result),
+      clear: lines(text('Java: front ← null; rear ← null; size ← 0', 'Java: front ← null; rear ← null; size ← 0'),
+        text('C++: recorrer desde front, conservar next y liberar cada nodo', 'C++: traverse from front, retain next and free each node'),
+        text('C++: front ← null; rear ← null; size ← 0', 'C++: front ← null; rear ← null; size ← 0')),
+    }[actionId];
+  }
+  if (id === 'deque') {
+    const full = text('si size = 100: Java lanza una excepción; C++ devuelve false', 'if size = 100: Java throws an exception; C++ returns false');
+    const emptyDeque = text('si size = 0: Java lanza una excepción; C++ devuelve false', 'if size = 0: Java throws an exception; C++ returns false');
+    const inserted = text('Java: terminar; C++: devolver true', 'Java: finish; C++: return true');
+    return {
+      'add-start': lines(full, text('para i desde size hasta 1, descendiendo: values[i] ← values[i - 1]', 'for i from size down to 1: values[i] ← values[i - 1]'), 'values[0] ← value', 'size++', inserted),
+      'add-end': lines(full, 'values[size] ← value', 'size++', inserted),
+      'remove-start': lines(emptyDeque, 'removed ← values[0]', text('para i desde 0 hasta size - 2: values[i] ← values[i + 1]', 'for i from 0 to size - 2: values[i] ← values[i + 1]'), 'size--', result),
+      'remove-end': lines(emptyDeque, 'removed ← values[size - 1]', 'size--', result),
+    }[actionId];
+  }
+  return null;
+}
+
+export function getOperationPseudocode(algorithm, actionId, language = 'es') {
+  if (['pila', 'cola', 'deque'].includes(algorithm.id)) {
+    const source = boundedLinearPseudocode(algorithm.id, actionId, language);
+    if (source) return source;
+  }
+  if (algorithm.id === 'array') {
+    const source = arrayPseudocode(actionId, language);
+    if (source) return source;
+  }
+  if (['lista-simple', 'lista-doble', 'lista-circular-simple', 'lista-circular-doble'].includes(algorithm.id)) {
+    const source = linkedListPseudocode(algorithm.id, actionId, language);
+    if (source) return source;
+  }
+  if (algorithm.id === 'skip-list') {
+    const source = skipListPseudocode(actionId, language);
+    if (source) return source;
+  }
   return templates[actionId] ?? lines(
     `preparar operación ${actionId} sobre ${algorithm.name}`,
     'validar los datos de entrada',

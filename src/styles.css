@@ -568,6 +568,11 @@ body{background:var(--paper)}
 .brand-copy>span,.nav-heading,.author-credit small{text-transform:none;letter-spacing:.025em}
 .sidebar .search{border-radius:7px;background:rgba(7,20,16,.17);border-color:rgba(255,255,255,.16)}
 .sidebar .search:focus-within{border-color:rgba(255,255,255,.4);box-shadow:none}
+.sidebar .search input{min-width:0;flex:1}
+.sidebar .search input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none}
+.sidebar .search-clear{width:28px;height:28px;flex:0 0 28px;display:grid;place-items:center;border:0;border-radius:5px;background:transparent;color:#c6d4ce;cursor:pointer}
+.sidebar .search-clear:hover,.sidebar .search-clear:focus-visible{background:rgba(255,255,255,.12);color:#fff}
+.sidebar .search-results-status{margin:8px 12px;padding:10px 9px;color:#b9cbc3;font-size:12px;line-height:1.45}
 .nav-heading{font-weight:600;color:#a7b7b1}
 .nav-group button{border-radius:6px}
 .nav-group button:hover{background:rgba(255,255,255,.055)}
@@ -1047,6 +1052,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .skip-list-head{background:var(--green);color:#fff}
 .skip-list-node.active{border-color:var(--orange);background:var(--orange);color:#fff}
 .skip-list-gap{width:46px;text-align:center;color:var(--muted)}
+.skip-list-node,.skip-list-gap{width:var(--skip-column-width,46px);flex:0 0 var(--skip-column-width,46px);white-space:nowrap}
 .skip-list-scene>small{max-width:520px;color:var(--muted);font-size:10px}
 .hash-slot.deleted{border-style:dashed;background:var(--cream);color:var(--muted)}
 .hash-slot.deleted strong{font-size:9px}

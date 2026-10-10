@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { algorithms } from '../src/data/algorithms.js';
 import { completeJavaSnippet, getBeginnerJava } from '../src/data/beginnerJava.js';
 import { getBeginnerCpp } from '../src/data/beginnerCpp.js';
+import { getOperationPseudocode } from '../src/data/operationPseudocode.js';
 import { supportsCpp } from '../src/data/cppCatalog.js';
 import { translateComplexity } from '../src/data/complexityTranslations.js';
 import { educationalDescriptions } from '../src/data/educationalDescriptions.js';
@@ -561,6 +562,37 @@ const skipList = algorithms.find(item => item.id === 'skip-list');
 assert.match(getBeginnerJava(skipList, 'sorted-add'), /Node\[\]\s+next/, 'Skip List debe mostrar enlaces por nivel.');
 assert.match(getBeginnerJava(skipList, 'sorted-add'), /currentLevel--/, 'Skip List debe descender por sus niveles.');
 assert.match(getBeginnerJava(skipList, 'sorted-add'), /int newLevel = randomLevel\(\)/, 'Skip List debe calcular el nivel sin pedir un dato inexistente en el formulario.');
+assert.match(getBeginnerJava(skipList, 'sorted-add'), /candidate != null && candidate.value == value\) return;/, 'Skip List Java debe rechazar duplicados antes de modificar los niveles.');
+for (const id of ['lista-simple', 'lista-doble', 'lista-circular-simple', 'lista-circular-doble']) {
+  const list = algorithms.find(item => item.id === id);
+  for (const actionId of ['add-start', 'add-end', 'add-index', 'remove-start', 'remove-end', 'remove-index']) {
+    const pseudo = getOperationPseudocode(list, actionId);
+    assert.doesNotMatch(pseudo, /desplazar|espacio disponible|guardar valor en la posición/, `${id}/${actionId}: el pseudocódigo no debe describir un Array.`);
+    assert.match(pseudo, /next|enlaces|nodo/, `${id}/${actionId}: debe explicar sus nodos y enlaces.`);
+  }
+  assert.match(getOperationPseudocode(list, 'add-start'), /head ← newNode/, `${id}: insertar al inicio debe actualizar head.`);
+  if (id.endsWith('doble')) assert.match(getOperationPseudocode(list, 'add-index'), /prev/, `${id}: insertar debe conservar enlaces anteriores.`);
+  if (id.includes('circular')) assert.match(getOperationPseudocode(list, 'find'), /current = head/, `${id}: buscar debe detenerse al completar una vuelta.`);
+  assert.match(getOperationPseudocode(list, 'find', 'en'), /return -1/, `${id}: el pseudocódigo debe estar disponible en inglés.`);
+}
+for (const actionId of ['sorted-add', 'remove-value', 'find']) {
+  assert.doesNotMatch(getOperationPseudocode(skipList, actionId), /hoja|dividir|redistribuir|separador|padre/, 'Skip List no debe utilizar pseudocódigo de árboles multicamino.');
+  assert.match(getOperationPseudocode(skipList, actionId), /next\[level\]/, 'Skip List debe recorrer enlaces por nivel.');
+}
+assert.match(getOperationPseudocode(skipList, 'sorted-add'), /terminar sin insertar/, 'El pseudocódigo de Skip List debe explicar el rechazo de duplicados.');
+assert.match(skipList.complexity, /Niveles fijos: O\(n\)/, 'Skip List debe aclarar la complejidad de sus ejemplos con niveles fijos.');
+assert.equal(translateComplexity(skipList.complexity, 'en'), 'Fixed levels: O(n) · Scalable levels: expected O(log n)', 'La complejidad de Skip List debe conservar su aclaración en inglés.');
+
+const arrayPseudoAlgorithm = algorithms.find(item => item.id === 'array');
+for (const actionId of ['add-start', 'add-end', 'add-index', 'remove-start', 'remove-end', 'remove-index']) {
+  const pseudo = getOperationPseudocode(arrayPseudoAlgorithm, actionId);
+  assert.match(pseudo, /result ← new int\[n [+-] 1\]/, `Array/${actionId}: Java debe crear el arreglo resultante.`);
+  assert.match(pseudo, /devolver result: el nuevo arreglo/, `Array/${actionId}: Java debe devolver el arreglo.`);
+  assert.match(pseudo, /devolver true: operación realizada/, `Array/${actionId}: C++ debe devolver éxito.`);
+  assert.doesNotMatch(pseudo, /devolver elemento eliminado|validar que exista espacio/, `Array/${actionId}: no debe reutilizar el contrato de un buffer fijo.`);
+  assert.match(getOperationPseudocode(arrayPseudoAlgorithm, actionId, 'en'), /return result: the new array/, `Array/${actionId}: la distinción debe estar disponible en inglés.`);
+  if (actionId.startsWith('add-')) assert.match(pseudo, /reservar el doble.*liberar el bloque anterior/, `Array/${actionId}: C++ debe explicar la ampliación de memoria.`);
+}
 
 const openAddressing = algorithms.find(item => item.id === 'hash-open');
 const openAddressingRemove = getBeginnerJava(openAddressing, 'remove-value');
