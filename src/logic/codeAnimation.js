@@ -1,4 +1,6 @@
 import { copyVisualValues } from './visualValues.js';
+import { createOpenAddressingTable, javaStringHash } from './openAddressing.js';
+import { initialNaryParents, naryChildren } from './naryTree.js';
 export { copyVisualValues } from './visualValues.js';
 
 export function executableCodeLines(code) {
@@ -32,60 +34,6 @@ const normalizeCodeForMatching = text => text
 
 const normalizedSyntax = text => normalizeCodeForMatching(text).replace(/\s+/g, ' ').trim();
 
-// Reduce Java/C++ syntax differences before comparing an animation needle with
-// the code shown in the panel. Exact matches are still preferred; this is only
-// used when the frame was authored from the equivalent implementation in the
-// other language.
-const semanticCodeText = text => normalizeCodeForMatching(text)
-  .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-  .replace(/\b(?:public|private|protected|static|final|const|explicit)\b/g, ' ')
-  .replace(/\bstd::/g, '')
-  .replace(/\bSystem\.out\.println\s*\([^)]*\)/g, 'visit current')
-  .replace(/\bMath\./g, '')
-  .replace(/\bthis\./g, '')
-  .replace(/\bMAX_SIZE\b/g, 'CAPACITY')
-  .replace(/\b(?:Integer|String)\b/g, 'value')
-  .replace(/\b(?:int|boolean|char|void|long|double|float)\b/g, ' ')
-  .replace(/\b(?:new|delete)\b/g, ' ')
-  .replace(/\+\+/g, ' increment ')
-  .replace(/--/g, ' decrement ')
-  .replace(/[^\p{L}\p{N}_]+/gu, ' ')
-  .replace(/\s+/g, ' ')
-  .trim()
-  .toLowerCase();
-
-const ignoredSemanticTokens = new Set([
-  'a', 'an', 'and', 'as', 'at', 'by', 'class', 'else', 'false', 'for', 'if',
-  'in', 'is', 'null', 'of', 'or', 'return', 'the', 'true', 'while',
-]);
-
-const semanticTokens = text => semanticCodeText(text)
-  .split(' ')
-  .filter(token => token.length > 1 && !ignoredSemanticTokens.has(token));
-
-function semanticLineScore(needle, line, inSelectedOperation) {
-  const normalizedNeedle = semanticCodeText(needle);
-  const normalizedLine = semanticCodeText(line);
-  const wanted = semanticTokens(needle);
-  const available = new Set(semanticTokens(line));
-  if (!wanted.length || !available.size) return 0;
-  let shared = 0;
-  for (const token of wanted) {
-    if (available.has(token)) shared++;
-    else if (token === 'length' && available.has('size')) shared++;
-    else if (token === 'offer' && (available.has('enqueue') || available.has('rear'))) shared++;
-    else if (token === 'poll' && (available.has('dequeue') || available.has('front'))) shared++;
-    else if (token === 'temp' && available.has('temporary')) shared++;
-  }
-  const coverage = shared / wanted.length;
-  let aliasBonus = 0;
-  if (normalizedNeedle.startsWith('solve maze') && normalizedLine.startsWith('solve start row')) aliasBonus += 0.8;
-  if (normalizedNeedle.startsWith('if solve maze') && normalizedLine.startsWith('if explore')) aliasBonus += 0.8;
-  if (normalizedNeedle.includes('place queen') && normalizedLine.includes('place row')) aliasBonus += 0.35;
-  if (/return row \d+ column \d+/.test(normalizedNeedle)
-      && normalizedLine.startsWith('return row exit row') && normalizedLine.includes('exit column')) aliasBonus += 0.8;
-  return coverage + (shared >= 2 ? 0.25 : 0) + aliasBonus + (inSelectedOperation ? 0.03 : 0);
-}
 
 const isUsefulAnimationLine = text => {
   const trimmed = text.trim();
@@ -460,11 +408,7 @@ function createHashFindFrames({ algorithm, code, beforeValues, beforeEdges, fina
   if ([methodLine, hashLine, loopLine, matchLine].some(index => index < 0)) return null;
 
   const key = String(inputValues.value ?? '');
-  const unsignedHash = code.includes('unsigned int result');
-  const hashOf = text => [...text].reduce((value, character) => {
-    const next = Math.imul(value, 31) + character.charCodeAt(0);
-    return unsignedHash ? next >>> 0 : next | 0;
-  }, 0);
+  const hashOf = javaStringHash;
   const hash = hashOf(key);
   const capacity = algorithm.id === 'hash-chaining' ? 8 : 12;
   const bucketOf = text => ((hashOf(text) % capacity) + capacity) % capacity;
@@ -478,32 +422,29 @@ function createHashFindFrames({ algorithm, code, beforeValues, beforeEdges, fina
     });
     compared = bucket.reverse().map(entryKey);
   } else {
-    const slots = Array(capacity).fill(null);
-    for (const value of beforeValues) {
-      const candidate = entryKey(value);
-      let index = bucketOf(candidate);
-      while (slots[index] !== null && slots[index] !== candidate) index = (index + 1) % capacity;
-      slots[index] = candidate;
-    }
+    const slots = createOpenAddressingTable(beforeValues, algorithm.hashTable).snapshot();
     compared = [];
     let index = start;
-    while (slots[index] !== null && compared.length < capacity) {
-      compared.push(slots[index]);
-      if (slots[index] === key) break;
+    while (slots[index].state !== 'empty' && compared.length < capacity) {
+      const candidate = slots[index].state === 'deleted' ? null : entryKey(slots[index].entry);
+      compared.push(candidate);
+      if (candidate === key) break;
       index = (index + 1) % capacity;
     }
   }
   const foundAt = compared.indexOf(key);
   if (foundAt < 0) return null;
   const frames = [];
+  let probePosition = start;
   const push = (codeLine, message, comparison = null, completed = false) => {
     if (codeLine < 0) return;
     frames.push({
       values: copyVisualValues(beforeValues), edges: cloneEdges(beforeEdges),
-      position: Math.max(0, Number(finalStep) || 0), codeLine, message,
+      position: algorithm.id === 'hash-chaining' ? Math.max(0, Number(finalStep) || 0) : probePosition, codeLine, message,
       completed, delayMs: 420,
       variables: [
         { name: 'clave', value: key, role: 'input' },
+        { name: 'casilla', value: probePosition, role: 'index' },
         ...(comparison === null ? [] : [
           { name: 'clave actual', value: comparison, role: 'value' },
           { name: 'condición', value: comparison === key ? 'true' : 'false', role: comparison === key ? 'true' : 'false' },
@@ -514,9 +455,18 @@ function createHashFindFrames({ algorithm, code, beforeValues, beforeEdges, fina
   push(methodLine, 'Comienza la búsqueda de la clave.');
   push(hashLine, `hash sitúa la búsqueda en la posición ${start}.`);
   for (const candidate of compared.slice(0, foundAt + 1)) {
+    if (candidate === null) {
+      push(loopLine, 'La casilla está BORRADA: el sondeo no termina aquí.');
+      probePosition = (probePosition + 1) % capacity;
+      push(advanceLine, 'Se avanza después de la marca de borrado.');
+      continue;
+    }
     push(loopLine, `Se revisa la casilla o el nodo que contiene ${candidate}.`, candidate);
     push(matchLine, candidate === key ? `${candidate} coincide con la clave buscada.` : `${candidate} no coincide; la búsqueda continúa.`, candidate);
-    if (candidate !== key) push(advanceLine, 'Se avanza a la siguiente posición o nexo.', candidate);
+    if (candidate !== key) {
+      probePosition = (probePosition + 1) % capacity;
+      push(advanceLine, 'Se avanza a la siguiente posición o nexo.', candidate);
+    }
   }
   push(returnLine >= 0 ? returnLine : matchLine, finalMessage, key, true);
   return frames;
@@ -526,6 +476,12 @@ export function createCodeSynchronizedFrames({ algorithm, code, actionId, before
   if (actionId === 'find' && succeeded) {
     const semantic = createHashFindFrames({ algorithm, code, beforeValues, beforeEdges, finalStep, finalMessage, inputValues });
     if (semantic?.length) return semantic;
+  }
+  // A syntax walk is not an interpreter. Only the explicitly synchronized
+  // array/deque operations below may use it. Other families expose honest
+  // before/after states until they have operation-owned semantic events.
+  if (!['array', 'deque'].includes(algorithm?.id)) {
+    return createOperationSummaryFrames({ beforeValues, afterValues, beforeEdges, afterEdges, finalStep, finalMessage, succeeded });
   }
   const executable = executableCodeLines(code);
   const fallbackLine = executable[0] ?? { index: 0, text: 'operation' };
@@ -542,7 +498,8 @@ export function createCodeSynchronizedFrames({ algorithm, code, actionId, before
     const failureLine = guardLine ? { ...guardLine, conditionResult: true } : fallbackLine;
     return [{
       values: copyVisualValues(beforeValues), edges: cloneEdges(beforeEdges), position: 0,
-      codeLine: failureLine.index, message: finalMessage, delayMs: 0, failed: true,
+      codeLine: guardLine ? failureLine.index : null, codeUnmapped: !guardLine,
+      message: finalMessage, delayMs: 0, failed: true,
       variables: createLiveVariables({ actionId, line: failureLine, beforeValues, workingValues: beforeValues, finalStep, position: 0, inputValues, lengthBasedArray }),
     }];
   }
@@ -627,6 +584,20 @@ export function createCodeSynchronizedFrames({ algorithm, code, actionId, before
   if (!frames.length) return [finalFrame];
   frames.push(finalFrame);
   return frames;
+}
+
+function createOperationSummaryFrames({ beforeValues, afterValues, beforeEdges, afterEdges, finalStep, finalMessage, succeeded = true }) {
+  const frame = (values, edges, message, completed) => ({
+    values: copyVisualValues(values), edges: cloneEdges(edges),
+    position: Math.max(0, Number(finalStep) || 0), codeLine: null,
+    message, completed, failed: !succeeded && completed,
+    traceMode: 'summary', delayMs: 650,
+  });
+  if (!succeeded) return [frame(beforeValues, beforeEdges, finalMessage, true)];
+  return [
+    frame(beforeValues, beforeEdges, 'Estado anterior a la operación. Se muestran cambios de estado, no una ejecución línea por línea.', false),
+    frame(afterValues, afterEdges, finalMessage, true),
+  ];
 }
 
 export function createLinkedListSynchronizedFrames({
@@ -1374,8 +1345,24 @@ function heapVisitPositions(actionId, beforeValues, afterValues, finalStep) {
   return [Math.max(0, Number(finalStep) || 0)];
 }
 
-function treeVisitPositions({ algorithm, actionId, beforeValues, afterValues, finalStep, inputValues }) {
+function treeVisitPositions({ algorithm, actionId, beforeValues, afterValues, finalStep, inputValues, beforeTreeParents }) {
   const target = inputValues.value;
+  if (['arbol-general', 'arbol-nario'].includes(algorithm.id) && ['preorder', 'inorder', 'postorder'].includes(actionId)) {
+    const parents = beforeTreeParents ?? initialNaryParents(algorithm.id, beforeValues);
+    const positions = [];
+    const visit = index => {
+      const children = naryChildren(parents, index);
+      if (actionId === 'preorder') positions.push(index);
+      if (actionId === 'inorder') {
+        if (children.length) visit(children[0]);
+        positions.push(index);
+        children.slice(1).forEach(visit);
+      } else children.forEach(visit);
+      if (actionId === 'postorder') positions.push(index);
+    };
+    if (beforeValues.length) visit(0);
+    return positions;
+  }
   if (algorithm.type === 'heap') return heapVisitPositions(actionId, beforeValues, afterValues, finalStep);
 
   if (algorithm.id === 'kd-tree' && ['tree-add', 'find', 'remove-value'].includes(actionId)) {
@@ -1411,40 +1398,6 @@ function treeVisitPositions({ algorithm, actionId, beforeValues, afterValues, fi
   return [Math.max(0, Number(finalStep) || 0)];
 }
 
-function structuralMutationLine(code, algorithm, actionId) {
-  const lines = code.split('\n');
-  const patterns = actionId === 'tree-add'
-    ? algorithm.id === 'avl'
-      ? [/return node;/, /return rotate/, /new Node/]
-      : algorithm.id === 'rojo-negro'
-        ? [/fixAfterInsert/, /root =/, /new Node/]
-        : algorithm.id === 'splay-tree'
-          ? [/root = splay/, /return new Node/, /new Node/]
-          : [/return new Node/, /new Node/, /children\.add/, /children\[/, /points\[/, /node\.value\s*=/]
-    : actionId === 'heap-add'
-      ? [/swap\(/, /heap\[index\]\s*=\s*value/, /values\[size\]\s*=\s*value/]
-      : actionId === 'heap-extract'
-        ? [/size--/, /swap\(/, /heap\[0\]\s*=/]
-        : ['remove-value', 'remove-word', 'remove-end'].includes(actionId)
-          ? [/size--/, /isWord\s*=\s*false/, /return node\.(?:left|right)/, /keyCount--/]
-          : actionId === 'range-update'
-            ? [/\+=\s*delta/, /tree\[node\]\s*=/, /values\[index\]\s*=/]
-            : actionId === 'sorted-add'
-              ? [/insertIntoParent/, /split/, /keys\[index\]\s*=\s*value/, /keyCount\+\+/]
-              : actionId === 'set-word'
-                ? [/isWord\s*=\s*true/, /text\s*=/]
-                : actionId === 'set-expression'
-                  ? [/return root/, /new Node/]
-                  : actionId === 'add-end'
-                    ? [/blocks\[size\]\s*=/, /size\+\+/]
-                    : [];
-
-  for (const pattern of patterns) {
-    const index = lines.findIndex(line => pattern.test(line));
-    if (index >= 0) return index;
-  }
-  return null;
-}
 
 const semanticOrderedTreeIds = new Set(['bst', 'avl', 'kd-tree', 'rojo-negro']);
 
@@ -1597,8 +1550,8 @@ function createSemanticOrderedTreeFrames(args) {
         ? kdCoordinate(target, axis) < kdCoordinate(before[position], axis)
         : target < Number(before[position]);
       pushFrame(leftLine, position, goesLeft
-        ? `${target} queda antes que ${before[position]} en el eje ${axis === 0 ? 'X' : 'Y'}: continúa por la izquierda.`
-        : `${target} no queda antes que ${before[position]} en el eje ${axis === 0 ? 'X' : 'Y'}: descarta la rama izquierda.`, {
+        ? `${target} queda antes que ${before[position]}${args.algorithm.id === 'kd-tree' ? ` en el eje ${axis === 0 ? 'X' : 'Y'}` : ''}: continúa por la izquierda.`
+        : `${target} no queda antes que ${before[position]}${args.algorithm.id === 'kd-tree' ? ` en el eje ${axis === 0 ? 'X' : 'Y'}` : ''}: descarta la rama izquierda.`, {
         depth,
         conditionResult: goesLeft,
       });
@@ -1656,8 +1609,8 @@ function createSemanticOrderedTreeFrames(args) {
       ? kdCoordinate(target, axis) < kdCoordinate(before[position], axis)
       : target < Number(before[position]);
     pushFrame(leftConditionLine, position, goesLeft
-      ? `${target} queda antes que ${before[position]} en el eje ${axis === 0 ? 'X' : 'Y'}: baja por la izquierda.`
-      : `${target} no queda antes que ${before[position]} en el eje ${axis === 0 ? 'X' : 'Y'}.`, {
+      ? `${target} queda antes que ${before[position]}${args.algorithm.id === 'kd-tree' ? ` en el eje ${axis === 0 ? 'X' : 'Y'}` : ''}: baja por la izquierda.`
+      : `${target} no queda antes que ${before[position]}${args.algorithm.id === 'kd-tree' ? ` en el eje ${axis === 0 ? 'X' : 'Y'}` : ''}.`, {
       depth,
       conditionResult: goesLeft,
     });
@@ -1951,82 +1904,24 @@ export function createTreeSynchronizedFrames(args) {
   if (unorderedFind?.length) return unorderedFind;
   const semanticFrames = createSemanticOrderedTreeFrames(args);
   if (semanticFrames?.length) return semanticFrames;
-  const baseFrames = createCodeSynchronizedFrames(args);
-  if (!args.succeeded || !baseFrames.length) return baseFrames;
-
-  const visits = treeVisitPositions(args).filter(position => Number.isInteger(position) && position >= 0);
-  if (!visits.length) return baseFrames;
-
-  const repeatsRecursiveMethod = orderedBinaryTreeIds.has(args.algorithm.id)
-    && ['tree-add', 'find', 'remove-value', 'preorder', 'inorder', 'postorder'].includes(args.actionId)
-    && visits.length > 1;
-  const bodyFrames = baseFrames.filter(frame => !frame.completed);
-  const timeline = repeatsRecursiveMethod
-    ? [
-        ...visits.flatMap((position, visitIndex) => bodyFrames.map(frame => ({
-          ...frame,
-          treeVisitPosition: position,
-          treeVisitIndex: visitIndex,
-          treeVisitTotal: visits.length,
-        }))),
-        { ...baseFrames.at(-1), completed: true },
-      ]
-    : baseFrames;
-
-  const changesStructure = JSON.stringify(args.beforeValues) !== JSON.stringify(args.afterValues);
-  const mutationLine = structuralMutationLine(args.code, args.algorithm, args.actionId);
-  let mutationFrame = -1;
-  if (changesStructure && mutationLine !== null) {
-    for (let index = timeline.length - 1; index >= 0; index--) {
-      if (timeline[index].codeLine === mutationLine) {
-        mutationFrame = index;
-        break;
-      }
-    }
-  }
-  if (changesStructure && mutationFrame < 0) mutationFrame = Math.max(0, timeline.length - 2);
-
-  return timeline.map((frame, index) => {
-    const progress = timeline.length <= 1 ? 1 : index / (timeline.length - 1);
-    const visitIndex = Math.min(visits.length - 1, Math.floor(progress * visits.length));
-    let position = frame.completed
-      ? Math.max(0, Number(args.finalStep) || 0)
-      : frame.treeVisitPosition ?? visits[visitIndex];
-    const values = changesStructure && index < mutationFrame
-      ? copyVisualValues(args.beforeValues)
-      : changesStructure
-        ? copyVisualValues(args.afterValues)
-        : copyVisualValues(frame.values);
-    if (values[position] === undefined && index < mutationFrame) {
-      const previousVisiblePosition = visits.slice(0, visitIndex + 1).reverse()
-        .find(candidate => args.beforeValues[candidate] !== undefined);
-      if (previousVisiblePosition !== undefined) position = previousVisiblePosition;
-    }
-    const visibleValue = values[position] ?? args.beforeValues[position];
-    const variables = [
-      ...(frame.variables ?? []).filter(variable => variable.name !== 'posición activa'),
-      { name: 'nodo activo', value: readableVariableValue(visibleValue), role: 'value' },
-      { name: 'índice del nodo', value: readableVariableValue(position), role: 'position' },
+  if (['preorder', 'inorder', 'postorder'].includes(args.actionId) && args.succeeded) {
+    const visits = treeVisitPositions(args).filter(position => occupiedTreePosition(args.beforeValues, position));
+    return [
+      ...visits.map((position, index) => ({
+        values: copyVisualValues(args.beforeValues), edges: cloneEdges(args.beforeEdges),
+        position, codeLine: null, delayMs: 430, traceMode: 'summary',
+        message: `Visita ${index + 1} de ${visits.length}: nodo ${args.beforeValues[position]}. El recorrido representa visitas, no cada llamada del código.`,
+        variables: [{ name: 'nodo activo', value: args.beforeValues[position], role: 'value' }],
+      })),
+      ...createOperationSummaryFrames(args).slice(-1),
     ];
-    if (frame.treeVisitIndex !== undefined) {
-      variables.push({
-        name: 'llamada recursiva',
-        value: `${frame.treeVisitIndex + 1} de ${frame.treeVisitTotal}`,
-        role: 'index',
-      });
-    }
-    const message = frame.completed
-      ? args.finalMessage
-      : visibleValue !== undefined
-        ? `Nodo ${visibleValue}: ${frame.message}`
-        : frame.message;
-    return { ...frame, values, position, variables, message };
-  });
+  }
+  return createOperationSummaryFrames(args);
 }
+
 
 export function adaptFramesToCode(frames, code, keepOriginalLines) {
   const lines = executableCodeLines(code);
-  const lastCodeLine = Math.max(0, code.split('\n').length - 1);
   const sourceLines = code.split('\n');
   const operationMarker = sourceLines.findIndex(line => line.trim() === '// Start of the selected operation');
   const operationEndMarker = sourceLines.findIndex((line, index) => (
@@ -2089,6 +1984,15 @@ export function adaptFramesToCode(frames, code, keepOriginalLines) {
               && normalizedSyntax(line) === syntaxNeedle
             ));
             if (matchedLine < 0) matchedLine = sourceLines.findIndex(line => normalizedSyntax(line) === syntaxNeedle);
+            // A needle may be an expression inside an instruction (for example,
+            // current.value inside println / cout), not the entire statement.
+            // Translate pointer syntax only; do not infer a semantic fallback.
+            if (matchedLine < 0) matchedLine = sourceLines.findIndex((line, sourceIndex) => (
+              sourceIndex >= selectedStart
+              && sourceIndex <= selectedEnd
+              && normalizedSyntax(line).includes(syntaxNeedle)
+            ));
+            if (matchedLine < 0) matchedLine = sourceLines.findIndex(line => normalizedSyntax(line).includes(syntaxNeedle));
           }
           if (matchedLine < 0) {
             const languageAliases = [
@@ -2123,33 +2027,6 @@ export function adaptFramesToCode(frames, code, keepOriginalLines) {
               if (matchedLine >= 0) break;
             }
           }
-          if (matchedLine < 0) {
-            const normalizedNeedle = semanticCodeText(frame.codeNeedle);
-            matchedLine = sourceLines.findIndex((line, sourceIndex) => (
-              sourceIndex >= selectedStart
-              && sourceIndex <= selectedEnd
-              && normalizedNeedle
-              && semanticCodeText(line).includes(normalizedNeedle)
-            ));
-          }
-          if (matchedLine < 0) {
-            let bestScore = 0;
-            for (const candidate of usefulLines) {
-              const score = semanticLineScore(
-                frame.codeNeedle,
-                candidate.text,
-                candidate.index >= selectedStart && candidate.index <= selectedEnd,
-              );
-              if (score > bestScore) {
-                bestScore = score;
-                matchedLine = candidate.index;
-              }
-            }
-            // A single coincidental token is not enough to claim a semantic
-            // match. The progress fallback below is safer and never highlights
-            // class declarations or other scaffolding.
-            if (bestScore < 0.5) matchedLine = -1;
-          }
           needleLineCache.set(frame.codeNeedle, matchedLine);
         }
         if (matchedLine >= 0) return { ...frame, codeLine: matchedLine };
@@ -2170,15 +2047,10 @@ export function adaptFramesToCode(frames, code, keepOriginalLines) {
         }
         if (matchedLine >= 0) return { ...frame, codeLine: matchedLine };
       }
-      const candidates = selectedUsefulLines.length ? selectedUsefulLines : usefulLines;
-      const progress = frames.length <= 1 ? 1 : index / (frames.length - 1);
-      const candidate = candidates[Math.min(
-        Math.max(0, candidates.length - 1),
-        Math.round(progress * Math.max(0, candidates.length - 1)),
-      )];
       return {
         ...frame,
-        codeLine: candidate?.index ?? Math.min(lastCodeLine, Math.max(0, frame.codeLine ?? 0)),
+        codeLine: null,
+        codeUnmapped: true,
       };
     }
     const progress = frames.length <= 1 ? 1 : index / (frames.length - 1);

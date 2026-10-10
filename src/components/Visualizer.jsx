@@ -407,7 +407,7 @@ function SparseMatrixVisual({ algorithm }) {
     return segments;
   };
 
-  return <div className="sparse-matrix-visual" role="img" aria-label={en ? 'Sparse matrix with AROW and ACOL headers' : 'Matriz poco poblada con cabeceras AROW y ACOL'}>
+  return <div className="sparse-matrix-visual" tabIndex="0" role="img" aria-label={en ? 'Sparse matrix with AROW and ACOL headers. Scroll to inspect the complete diagram.' : 'Matriz poco poblada con cabeceras AROW y ACOL. Desplázate para ver el diagrama completo.'}>
     <svg viewBox="0 0 735 330" aria-hidden="true">
       <defs>
         <marker id="sparse-row-arrow" viewBox="0 0 8 8" markerWidth="7" markerHeight="7" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z"/></marker>
@@ -637,6 +637,7 @@ function SortVisual({ algorithm, step }) {
     if (frame?.sortComparePositions?.[1] === index) return 'b';
     if (indexInsideRange(index, frame?.sortLeftRange)) return en ? 'LEFT' : 'IZQ.';
     if (indexInsideRange(index, frame?.sortRightRange)) return en ? 'RIGHT' : 'DER.';
+    if (frame?.sortOrderedPositions?.includes(index)) return en ? 'SORTED' : 'ORDENADO';
     if (frame?.sortFixedPositions?.includes(index)) return en ? 'FIXED' : 'FIJO';
     return `i=${index}`;
   };
@@ -663,6 +664,7 @@ function SortVisual({ algorithm, step }) {
             index === frame?.sortCompareIndex || frame?.sortComparePositions?.includes(index) ? 'comparing' : '',
             frame?.sortSwapPositions?.includes(index) ? 'swapping' : '',
             frame?.sortFixedPositions?.includes(index) ? 'fixed' : '',
+            frame?.sortOrderedPositions?.includes(index) ? 'ordered-prefix' : '',
             index === frame?.sortWriteIndex ? 'writing' : '',
             index === step ? 'active' : '',
           ].filter(Boolean).join(' ');
@@ -691,7 +693,7 @@ function SortVisual({ algorithm, step }) {
         ? <><span><i className="pivot-sample"/> {en ? 'pivot' : 'pivote'}</span><span><i className="compare-sample"/> {en ? 'comparison' : 'comparación'}</span><span><i className="fixed-sample"/> {en ? 'final position' : 'posición final'}</span></>
         : isMerge
           ? <><span><i className="left-sample"/> {en ? 'left half' : 'mitad izquierda'}</span><span><i className="right-sample"/> {en ? 'right half' : 'mitad derecha'}</span><span><i className="write-sample"/> {en ? 'write' : 'escritura'}</span></>
-          : <><span><i className="compare-sample"/> {en ? 'comparison' : 'comparación'}</span><span><i className="pivot-sample"/> {en ? 'movement' : 'movimiento'}</span><span><i className="fixed-sample"/> {en ? 'ordered position' : 'posición ordenada'}</span></>}
+          : <><span><i className="compare-sample"/> {en ? 'comparison' : 'comparación'}</span><span><i className="pivot-sample"/> {en ? 'movement' : 'movimiento'}</span><span><i className="fixed-sample"/> {algorithm.id === 'insertion-sort' && !frame?.completed ? (en ? 'sorted prefix' : 'prefijo ordenado') : (en ? 'final position' : 'posición final')}</span></>}
     </div>
   </div>;
 }
@@ -760,6 +762,7 @@ function BinaryTreeDiagram({ algorithm, step, displayValues = algorithm.values.s
       <span className="tree-value">{algorithm.id === 'expression-tree' && values[index] === '*' ? '×'
         : algorithm.id === 'expression-tree' && values[index] === '-' ? '−' : values[index]}</span>
       {badges?.[index] && <small className="tree-node-badge">{badges[index]}</small>}
+      {algorithm.id === 'rojo-negro' && <small className="red-black-label">{redBlackClass === 'red-node' ? (algorithm.language === 'en' ? 'RED' : 'ROJO') : (algorithm.language === 'en' ? 'BLACK' : 'NEGRO')}</small>}
       </div>;
     })}
   </div>;
@@ -1325,7 +1328,8 @@ function GraphVisual({ algorithm, step }) {
   const [designLabel, designCaption] = english
     ? (englishDesignCopy[algorithm.id] ?? [design.label, design.caption])
     : [design.label, design.caption];
-  const nodes = (algorithm.positions ?? design.positions).slice(0,algorithm.values.length);
+  // Reserve the top band for the localized caption, even for y=0 vertices.
+  const nodes = (algorithm.positions ?? design.positions).slice(0,algorithm.values.length).map(([x, y]) => [x, 24 + y * 0.65]);
   const edges = (algorithm.edges ?? design.edges).filter(([from,to])=>from<algorithm.values.length&&to<algorithm.values.length);
   const directed = algorithm.type === 'digraph';
   const arrowMarker = `graph-arrow-${algorithm.id}`;
@@ -1498,7 +1502,7 @@ function HashTableVisual({ algorithm, step }) {
       const index = ((javaStringHash(hashKey(entry)) % buckets.length) + buckets.length) % buckets.length;
       buckets[index].unshift(entry);
     });
-    return <div className="chaining-visual" aria-label={english ? 'Hash table with separate chaining' : 'Tabla hash con encadenamiento separado'}>
+    return <div className="chaining-visual" tabIndex="0" role="region" aria-label={english ? 'Hash table with separate chaining. Scroll to inspect every bucket.' : 'Tabla hash con encadenamiento separado. Desplázate para revisar todos los buckets.'}>
       {buckets.map((bucket, index) => <div className="chain-row" key={index}>
         <span className="chain-index">{index.toString().padStart(2, '0')}</span>
         <span className="chain-head">bucket[{index}]</span>

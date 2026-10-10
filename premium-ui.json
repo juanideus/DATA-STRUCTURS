@@ -1,0 +1,5 @@
+{
+  "profile": "product-admin",
+  "sourceRoots": ["src"],
+  "ownership": { "Select/Listbox": "native" }
+}

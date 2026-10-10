@@ -52,6 +52,41 @@ const graphTraversalNeedles = {
 };
 
 export function cppCodeNeedle(algorithmId, actionId, frame) {
+  if (algorithmId === 'merge-sort') {
+    if (frame.codeNeedle === 'int[] help = new int[size];') return 'int* help = new int[size]{};';
+    if (frame.codeNeedle?.includes('int[] help')) return frame.codeNeedle.replaceAll('int[] help', 'int help[]');
+  }
+  if (algorithmId === 'cola') {
+    if (frame.codeNeedle === 'if (front == null) {' && /rear|también/.test(frame.message)) return 'if (front == nullptr) rear = nullptr;';
+    if (frame.codeNeedle === 'rear = null;') return 'if (front == nullptr) rear = nullptr;';
+    const queueNeedles = {
+      'boolean enqueue(int value) {': 'bool enqueue(int value) {',
+      'if (size == MAX_SIZE) {': 'if (size == CAPACITY) return false;',
+      'Node newNode = new Node(value);': 'Node* newNode = new Node(value);',
+      'rear = front;': 'rear = newNode;',
+      'Integer dequeue() {': 'bool dequeue(int& removed) {',
+      'if (front == null) {': 'if (front == nullptr)',
+      'int removed = front.value;': 'removed = oldFront->value;',
+      'return removed;': 'return true;',
+      'Integer peekFront() {': 'bool peekFront(int& value) const {',
+      'return front.value;': 'value = front->value;',
+      'return null;': 'return false;',
+    };
+    return queueNeedles[frame.codeNeedle] ?? null;
+  }
+  if (algorithmId === 'pila') {
+    const stackNeedles = {
+      'Integer pop() {': 'bool pop(int& removed) {',
+      'Integer peek() {': 'bool peek(int& value) const {',
+      'int removed = values[top];': 'removed = values[top];',
+      'return removed;': 'return true;',
+      'return values[top];': 'value = values[top];',
+      'return null;': 'return false;',
+      'if (top == -1) {': 'if (top == -1) return false;',
+      'if (top == MAX_SIZE - 1) {': 'if (top == CAPACITY - 1) return false;',
+    };
+    return stackNeedles[frame.codeNeedle] ?? null;
+  }
   if (['grafo', 'grafo-dirigido', 'dfs', 'bfs'].includes(algorithmId)) {
     return graphTraversalNeedles[actionId]?.[frame.codeNeedle] ?? null;
   }

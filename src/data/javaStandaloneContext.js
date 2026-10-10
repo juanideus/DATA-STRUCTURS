@@ -162,6 +162,7 @@ export function makeJavaStandalone(source, contextId, initialValues = []) {
     if (contextId === 'array') continue;
     if (name === 'parent' && !/\bparent\s*\[/.test(source)) continue;
     if (!bareWordUsed(source, name)
+        && !(contextId === 'fenwick-tree' && ['values', 'bit', 'size'].includes(name))
         && !(contextId === 'heap' && ['heap', 'size'].includes(name))
         && !(name === 'N' && contextId === 'arbol-nario' && hasNode)
         && !(name === 'MAX_KEYS' && ['btree', 'bplus-tree', 'bstar-tree'].includes(contextId) && hasNode)
@@ -182,6 +183,20 @@ export function makeJavaStandalone(source, contextId, initialValues = []) {
         : ['btree', 'bplus-tree', 'bstar-tree'].includes(contextId) ? 'Node root = new Node(true);'
           : 'Node root;';
     declarations.push(initialRoot);
+  }
+  if (contextId === 'fenwick-tree' && Array.isArray(initialValues) && initialValues.every(Number.isInteger)) {
+    declarations.push(`${className}() {
+        values = new int[]{${initialValues.join(', ')}};
+        size = values.length;
+        bit = new int[size + 1];
+        for (int i = 0; i < size; i++) {
+            int index = i + 1;
+            while (index <= size) {
+                bit[index] += values[i];
+                index += index & -index;
+            }
+        }
+    }`);
   }
   if (contextId.endsWith('-sort') && Array.isArray(initialValues) && initialValues.every(Number.isInteger)) {
     const startingValues = `new int[]{${initialValues.join(', ')}}`;

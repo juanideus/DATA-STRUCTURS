@@ -490,6 +490,8 @@ const segmentTree = {
 
 const fenwickTree = {
   'range-update': animated(`void add(int index, int delta) {
+    if (index < 0 || index >= values.length) throw new IllegalArgumentException("Index out of range");
+    values[index] += delta;
     index++;
     while (index < bit.length) {
         bit[index] += delta;
@@ -497,6 +499,7 @@ const fenwickTree = {
     }
 }`),
   'prefix-sum': animated(`int prefixSum(int index) {
+    if (index < 0 || index >= values.length) throw new IllegalArgumentException("Index out of range");
     index++;
     int sum = 0;
     while (index > 0) {
@@ -506,6 +509,7 @@ const fenwickTree = {
     return sum;
 }`),
   'range-min': animated(`int prefixMinimum(int end) {
+    if (end < 0 || end >= values.length) throw new IllegalArgumentException("Index out of range");
     int minimum = values[0];
     for (int index = 1; index <= end; index++) {
         if (values[index] < minimum) minimum = values[index];
@@ -1619,8 +1623,9 @@ const merkleTree = {
     return level[0];
 }`, `int simpleHash(String text) {
     int hash = 7;
-    for (int i = 0; i < text.length(); i++) {
-        hash = hash * 31 + text.charAt(i);
+    byte[] bytes = text.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    for (int i = 0; i < bytes.length; i++) {
+        hash = hash * 31 + (bytes[i] & 0xff);
     }
     return hash;
 }

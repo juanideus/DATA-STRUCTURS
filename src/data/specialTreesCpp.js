@@ -256,6 +256,7 @@ ${indent(segmentBuild)}` : ''}
 
 const fenwickOperations = {
   'range-update': `void add(int index, int delta) {
+    if (index < 0 || index >= size) throw std::out_of_range("Index out of range");
     values[index] += delta;
     index++;
     while (index <= size) {
@@ -264,6 +265,7 @@ const fenwickOperations = {
     }
 }`,
   'prefix-sum': `int prefixSum(int index) const {
+    if (index < 0 || index >= size) throw std::out_of_range("Index out of range");
     index++;
     int sum = 0;
     while (index > 0) {
@@ -273,6 +275,7 @@ const fenwickOperations = {
     return sum;
 }`,
   'range-min': `int prefixMinimum(int end) const {
+    if (end < 0 || end >= size) throw std::out_of_range("Index out of range");
     int minimum = values[0];
     for (int index = 1; index <= end; index++) {
         if (values[index] < minimum) minimum = values[index];
@@ -296,7 +299,9 @@ const fenwickOperations = {
 function fenwickCpp(actionId) {
   const operation = fenwickOperations[actionId];
   if (!operation) return null;
-  return `class FenwickTree {
+  return `#include <stdexcept>
+
+class FenwickTree {
 public:
     static const int CAPACITY = 100;
     int* values;

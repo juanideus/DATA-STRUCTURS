@@ -3,6 +3,12 @@ import { algorithms } from '../../src/data/algorithms.js';
 import { getOperationDefinition } from '../../src/logic/operations.js';
 import { createSectionTest } from '../../src/logic/sectionTests.js';
 
+async function advanceAvailableStep(page) {
+  const next = page.getByRole('button', { name: 'Siguiente', exact: true });
+  // The player now disables its boundary controls instead of accepting no-op clicks.
+  if (await next.isEnabled()) await next.click();
+}
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem('dsa-language', 'es');
@@ -19,8 +25,7 @@ test('la portada explica una operación real y mantiene accesibles las ayudas en
   await expect(page.locator('.welcome-demo')).toContainText('result[0] = value;');
   await expect(page.locator('.welcome-path')).toHaveCount(0);
   for (const selector of ['.accessibility-launch', '.guided-tour-launch', '.bug-fab']) {
-    const width = await page.locator(selector).evaluate(element => element.getBoundingClientRect().width);
-    expect(width).toBeLessThanOrEqual(46);
+    await expect(page.locator(`.global-tools ${selector}`)).toHaveCSS('position', 'static');
   }
   await page.getByRole('button', { name: 'EN', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Data structures make more sense when you can see them change.' })).toBeVisible();
@@ -476,7 +481,7 @@ test('el AST construye la asignación, anima su Java completo y recorre en preor
   for (let index = 0; index < 12; index++) {
     const activeLine = page.locator('.code-panel code.active');
     if (await activeLine.count()) activeLines.add((await activeLine.innerText()).trim());
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
   }
   expect(activeLines.size).toBeGreaterThan(5);
   await expect(page.locator('.tree-ast .tree-node')).toHaveCount(7);
@@ -489,7 +494,7 @@ test('el AST construye la asignación, anima su Java completo y recorre en preor
   await page.getByRole('button', { name: 'Recorrer preorden', exact: true }).click();
   if (await pause.isVisible()) await pause.click();
   for (let index = 0; index < 60; index++) {
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
   }
   await expect(page.locator('.operation-message')).toContainText('Preorden: ASSIGN → total → + → price → * → quantity → 2');
 
@@ -513,7 +518,7 @@ test('la matriz densa sincroniza índices, recorridos y transposición con Java'
   const pause = page.getByRole('button', { name: 'Pausar', exact: true });
   if (await pause.isVisible()) await pause.click();
   for (let index = 0; index < 8; index++) {
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
   }
   await expect(page.locator('[data-matrix-row="1"][data-matrix-column="2"]')).toContainText('42');
   await expect(page.locator('.operation-message')).toContainText('Celda (1, 2) actualizada');
@@ -521,7 +526,7 @@ test('la matriz densa sincroniza índices, recorridos y transposición con Java'
   await page.getByRole('button', { name: 'Transponer', exact: true }).click();
   if (await pause.isVisible()) await pause.click();
   for (let index = 0; index < 35; index++) {
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
   }
   await expect(page.locator('[data-matrix-row="0"][data-matrix-column="1"]')).toContainText('5');
   await expect(page.locator('[data-matrix-row="2"][data-matrix-column="1"]')).toContainText('42');
@@ -551,7 +556,7 @@ test('los polinomios suman A y B avanzando p y q sobre nodos COEF EXP LINK', asy
   const visitedLines = new Set();
   for (let index = 0; index < 38; index++) {
     visitedLines.add((await page.locator('.code-panel code.active').textContent())?.trim());
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
   }
   expect(visitedLines.size).toBeGreaterThan(8);
   await expect(page.locator('[data-polynomial="C"]')).toHaveCount(5);
@@ -563,7 +568,7 @@ test('los polinomios suman A y B avanzando p y q sobre nodos COEF EXP LINK', asy
   await page.getByRole('button', { name: 'Insertar / agrupar en A', exact: true }).click();
   if (await pause.isVisible()) await pause.click();
   for (let index = 0; index < 14; index++) {
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
   }
   await expect(page.locator('[data-polynomial="A"][data-exponent="8"]')).toHaveCount(0);
   await expect(page.locator('[data-polynomial="C"]')).toHaveCount(0);
@@ -578,7 +583,7 @@ test('el C++ de polinomios parte del ejemplo visible y limpia C al cambiar A', a
   const pause = page.getByRole('button', { name: 'Pausar', exact: true });
   if (await pause.isVisible()) await pause.click();
   for (let step = 0; step < 12; step++) {
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
   }
   await expect(page.locator('.code-panel code.active')).toContainText('clearList(C);');
   await expect(page.locator('[data-polynomial="A"][data-exponent="8"]')).toHaveCount(0);
@@ -597,7 +602,7 @@ test('la lista generalizada distingue tag, dlink, link y referencias compartidas
   const pause = page.getByRole('button', { name: 'Pausar', exact: true });
   if (await pause.isVisible()) await pause.click();
   for (let index = 0; index < 34; index++) {
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
   }
   await expect(page.locator('.generalized-node.tag-0')).toHaveCount(5);
   await expect(page.locator('.generalized-node.tag-1')).toHaveCount(3);
@@ -606,17 +611,17 @@ test('la lista generalizada distingue tag, dlink, link y referencias compartidas
 
   await page.getByRole('button', { name: 'Obtener Head', exact: true }).click();
   if (await pause.isVisible()) await pause.click();
-  for (let index = 0; index < 5; index++) await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  for (let index = 0; index < 5; index++) await advanceAvailableStep(page);
   await expect(page.locator('.operation-message')).toContainText('Head(A) = (a,b)');
 
   await page.getByRole('button', { name: 'Calcular profundidad', exact: true }).click();
   if (await pause.isVisible()) await pause.click();
-  for (let index = 0; index < 60; index++) await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  for (let index = 0; index < 60; index++) await advanceAvailableStep(page);
   await expect(page.locator('.operation-message')).toContainText('Depth(A) = 3');
 
   await page.getByRole('button', { name: 'Compartir raíz', exact: true }).click();
   if (await pause.isVisible()) await pause.click();
-  for (let index = 0; index < 5; index++) await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  for (let index = 0; index < 5; index++) await advanceAvailableStep(page);
   await expect(page.locator('[data-generalized-path="root.header"]')).toContainText('2');
   await expect(page.locator('.generalized-aliases')).toContainText('R2');
 });
@@ -712,7 +717,7 @@ test('la línea Java, las variables y la animación avanzan juntas en distintas 
       const message = await page.locator('.operation-message p').textContent();
       if (message) messages.add(message.trim());
       sawVariables ||= await page.locator('.variable-item').count() > 0;
-      await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+      await advanceAvailableStep(page);
     }
 
     expect(activeLines.size, `${sample.id}: el código no avanzó`).toBeGreaterThan(2);
@@ -829,7 +834,7 @@ test('los otros ocho ordenamientos usan su lógica y animación propias', async 
         completed = true;
         break;
       }
-      await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+      await advanceAvailableStep(page);
     }
 
     expect(completed, `${sample.id}: no alcanzó su fase final`).toBe(true);
@@ -850,7 +855,7 @@ test('Laberinto mueve el código entre isFree, isExit, recursión y backtracking
   for (let step = 0; step < 100; step++) {
     const activeLine = (await page.locator('.code-panel code.active').textContent())?.replace(/^\d+\s*/, '').trim();
     if (activeLine) visitedLines.add(activeLine);
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
   }
 
   expect([...visitedLines].some(line => line.startsWith('if (!isFree'))).toBe(true);
@@ -874,7 +879,7 @@ test('Sudoku recorre todas las líneas ejecutables del Java mostrado', async ({ 
   for (let step = 0; step < 110; step++) {
     const activeLine = (await page.locator('.code-panel code.active').textContent())?.replace(/^\d+\s*/, '').trim();
     if (activeLine) visitedLines.add(activeLine);
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
   }
 
   const requiredFragments = [
@@ -1034,7 +1039,7 @@ test('la animación C++ ilumina instrucciones reales y nunca el armazón de la c
     for (let step = 0; step < sample.steps; step++) {
       const active = (await page.locator('.code-panel code.active').textContent())?.trim();
       if (active) activeLines.add(active);
-      await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+      await advanceAvailableStep(page);
     }
 
     expect(activeLines.size, `${sample.id}: C++ quedó detenido`).toBeGreaterThan(2);
@@ -1069,7 +1074,7 @@ test('BFS en C++ sincroniza rear, memoria dinámica y la condición final de la 
       completed = true;
       break;
     }
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
   }
 
   expect(completed, 'BFS debe alcanzar su condición de salida').toBe(true);
@@ -1096,7 +1101,7 @@ test('BFS en C++ sincroniza rear, memoria dinámica y la condición final de la 
       dfsCompleted = true;
       break;
     }
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
   }
   expect(dfsCompleted, 'DFS debe terminar después de liberar visited').toBe(true);
   expect(dfsActiveLines).toContain('delete[] visited;');
@@ -1201,7 +1206,7 @@ test('QuadTree y Octree insertan coordenadas reales coherentes con su código', 
     if (await pause.isVisible()) await pause.click();
     const visiblePoint = page.locator(sample.pointSelector, { hasText: sample.point });
     for (let step = 0; step < 80 && await visiblePoint.count() === 0; step++) {
-      await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+      await advanceAvailableStep(page);
     }
     await expect(visiblePoint).toBeVisible();
     await expect(page.locator('.operation-message')).toContainText(sample.point);
@@ -1282,7 +1287,7 @@ test('Radix C++ ilumina el ciclo de dígitos que realmente ejecuta', async ({ pa
       sawExponent = true;
       break;
     }
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
   }
   expect(sawExponent).toBe(true);
 });
@@ -1370,7 +1375,7 @@ test('Stack y Queue muestran su código completo mientras cambia la estructura',
     stackLines.add((await page.locator('.code-panel code.active').textContent())?.trim());
     const visibleValues = await page.locator('.stack-visual .data-cell span').allTextContents();
     if (visibleValues.includes('99')) stackChangedDuringTrace = true;
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
   }
   expect(stackLines.size).toBeGreaterThanOrEqual(4);
   expect(stackChangedDuringTrace).toBe(true);
@@ -1389,7 +1394,7 @@ test('Stack y Queue muestran su código completo mientras cambia la estructura',
     queueLines.add((await page.locator('.code-panel code.active').textContent())?.trim());
     const visibleValues = await page.locator('.linear-visual.queue .data-cell span').allTextContents();
     if (visibleValues.includes('99')) queueChangedDuringTrace = true;
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
   }
   expect(queueLines.size).toBeGreaterThanOrEqual(6);
   expect(queueChangedDuringTrace).toBe(true);
@@ -1423,7 +1428,7 @@ test('Deque valida el vacío y no ejecuta excepciones durante una inserción vá
   await expect(page.locator('.code-panel pre')).toContainText('int[] values = new int[100]');
   for (let step = 0; step < 12; step++) {
     await expect(page.locator('.code-panel code.active')).not.toContainText('throw');
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
   }
   await expect(page.locator('.linear-visual .data-cell span')).toHaveText('99');
   await expect(page.locator('.operation-message')).not.toHaveClass(/error/);
@@ -1442,7 +1447,7 @@ test('Deque valida el vacío y no ejecuta excepciones durante una inserción vá
       sawFrontAssignment = true;
       await expect(page.locator('.linear-visual .data-cell span')).toHaveText('99');
     }
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
   }
   expect(sawFrontAssignment).toBe(true);
   await expect(page.locator('.linear-visual .data-cell span')).toHaveText('99');
@@ -1466,7 +1471,7 @@ test('sincroniza el recorrido BST con la línea Java y las variables', async ({ 
       visitedNodes.add(nodeValue);
     }
     activeLines.add((await page.locator('.code-panel code.active').textContent())?.trim());
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
   }
 
   expect([...visitedNodes]).toEqual(expect.arrayContaining(['8', '3', '1']));
@@ -1536,7 +1541,7 @@ test('árbol binario inserta recursivamente sin utilizar Queue', async ({ page }
   for (let step = 0; step < 75; step++) {
     const activeNode = page.locator('.tree-node.active .tree-value');
     if (await activeNode.count()) visitedNodes.add((await activeNode.textContent())?.trim());
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
   }
 
   expect([...visitedNodes]).toEqual(expect.arrayContaining(['8', '3', '1', '99']));
@@ -1563,7 +1568,7 @@ test('árbol binario rechaza el 1 repetido y luego inserta correctamente el 2', 
   const pause = page.getByRole('button', { name: 'Pausar', exact: true });
   if (await pause.isVisible()) await pause.click();
   for (let step = 0; step < 75; step++) {
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
   }
 
   await expect(nodes).toHaveCount(8);
@@ -1693,7 +1698,7 @@ test('Sudoku y Hanoi C++ narran el mismo código y estado que muestran', async (
   if (await sudokuPause.isVisible()) await sudokuPause.click();
   await expect(page.locator('.operation-message')).toContainText('solveSudoku(0, 0)');
   await expect(page.locator('.code-panel code.active')).toContainText('bool solveSudoku(int row, int column)');
-  await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+  await advanceAvailableStep(page);
   await expect(page.locator('.operation-message')).toContainText('caso base');
   await expect(page.locator('.code-panel code.active')).toContainText('if (row == 9) return true;');
 
@@ -1719,6 +1724,7 @@ test('N-Reinas y Laberinto C++ nombran la función que se ilumina', async ({ pag
 });
 
 test('Dijkstra y A* muestran código Java y C++ junto al mapa', async ({ page }) => {
+  test.setTimeout(60_000);
   for (const id of ['dijkstra', 'a-star']) {
     await page.goto(`/${id}`);
     await expect(page.locator('.code-panel')).toBeVisible();
@@ -1731,14 +1737,25 @@ test('Dijkstra y A* muestran código Java y C++ junto al mapa', async ({ page })
     await expect(page.locator('.code-panel pre')).toContainText('map[neighbor]');
     await page.clock.pauseAt(new Date());
     await page.getByRole('button', { name: id === 'dijkstra' ? 'Ejecutar Dijkstra' : 'Ejecutar A*', exact: true }).click();
-    await expect(page.locator('.operation-message')).toHaveClass(/success/);
+    await expect(page.locator('.operation-message')).toHaveClass(/running/);
+    await expect(page.locator('.operation-message')).toContainText('Ejecutando');
     await expect(page.locator('.code-panel code.active')).toContainText('distance[start] = 0;');
     const pause = page.getByRole('button', { name: 'Pausar', exact: true });
     if (await pause.isVisible()) await pause.click();
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
     await expect(page.locator('.code-panel code.active')).toContainText(
       id === 'dijkstra' ? 'minimumDistance(settled)' : 'minimumScore(score, closed)',
     );
+    await expect(page.locator('.operation-message')).toHaveClass(/running/);
+    // Advance through the actual player while the clock remains paused.
+    // A single large clock jump cannot flush React's per-step timer effects.
+    const next = page.getByRole('button', { name: 'Siguiente', exact: true });
+    for (let remainingSteps = 0; remainingSteps < 1000 && await next.isEnabled(); remainingSteps++) {
+      await next.press('Enter');
+    }
+    await expect(page.locator('.operation-message')).toHaveClass(/success/);
+    await expect(page.locator('.operation-message')).toContainText('Operación completada');
+    await expect(next).toBeDisabled();
   }
 });
 
@@ -1752,7 +1769,7 @@ test('Dijkstra y A* mantienen visible la línea activa al avanzar por el código
       if (await pause.isVisible()) await pause.click();
       const code = page.locator('.panel.code-panel pre');
       for (let step = 0; step < 12; step++) {
-        await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+        await advanceAvailableStep(page);
         await expect.poll(async () => code.evaluate(panel => {
           const active = panel.querySelector('code.active');
           if (!active) return false;
@@ -1794,7 +1811,7 @@ test('AVL inserta 1 sin reconstruir ni rotar incorrectamente el árbol', async (
   if (await pause.isVisible()) await pause.click();
 
   for (let step = 0; step < 75; step++) {
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
   }
 
   const nodes = await page.locator('.tree-avl .tree-node').evaluateAll(items => items.map(item => ({
@@ -1830,7 +1847,7 @@ test('B+ acepta inserciones seguidas y mantiene nodos de máximo tres claves', a
   const pause = page.getByRole('button', { name: 'Pausar' });
   if (await pause.isVisible()) await pause.click();
   for (let step = 0; step < 6; step++) {
-    await page.getByRole('button', { name: 'Siguiente', exact: true }).click();
+    await advanceAvailableStep(page);
   }
 
   const leaves = page.locator('.leaf-bnode');

@@ -767,8 +767,8 @@
 .dense-matrix-cell.active small{color:#ffe6dd}
 .dense-matrix-legend{display:flex;align-items:center;gap:6px;color:#596775;font-family:'DM Mono',monospace;font-size:9px}
 .dense-matrix-legend i{width:11px;height:11px;border:1px solid #9b7b3b;border-radius:3px;background:#f8f2e4}
-.sparse-matrix-visual{position:relative;z-index:2;width:min(760px,98%);height:330px;overflow:hidden}
-.sparse-matrix-visual svg{display:block;width:100%;height:100%;overflow:visible}
+.sparse-matrix-visual{position:relative;z-index:2;width:min(760px,98%);height:330px;max-height:100%;overflow:auto;scrollbar-gutter:stable}
+.sparse-matrix-visual svg{display:block;width:735px;min-width:735px;height:330px;overflow:visible}
 .sparse-axis-title{font-family:'DM Mono',monospace;font-size:9px;font-weight:700;letter-spacing:.04em;fill:#596775}
 .sparse-header rect{fill:#f9fafb;stroke:#64748b;stroke-width:1.2}
 .sparse-header text{font-family:'DM Mono',monospace;font-size:9px;font-weight:700;fill:#334155}
@@ -781,8 +781,8 @@
 .row-link,.row-return{stroke:#cf704f}
 .column-link,.column-return{stroke:#49698f}
 .sparse-link.active-link,.sparse-return.active-link{stroke-width:2;opacity:1;filter:drop-shadow(0 1px 2px rgba(30,41,59,.18))}
-.sparse-row-links marker path{fill:#cf704f}
-.sparse-column-links marker path{fill:#49698f}
+#sparse-row-arrow path{fill:#cf704f}
+#sparse-column-arrow path{fill:#49698f}
 .sparse-node rect{fill:#fbfaf7;stroke:#7f8b96;stroke-width:1.1;transition:fill .18s,stroke .18s,filter .18s}
 .sparse-node line{stroke:#c8cdd4;stroke-width:.8}
 .sparse-node text{font-family:'DM Mono',monospace;font-size:8.5px;fill:#475569}
@@ -874,8 +874,8 @@
 .graph-canvas[class*="graph-design-"] .graph-node>small{max-width:46px;overflow:hidden;color:#596773;font-family:'DM Mono',monospace;font-size:8px;line-height:1.1;white-space:nowrap;text-overflow:ellipsis}
 .graph-canvas[class*="graph-design-"] .graph-node.active>small{color:#fff1eb}
 .graph-design-title{position:absolute;z-index:5;top:10px;right:12px;display:grid;justify-items:end;gap:2px;pointer-events:none}
-.graph-design-title span{color:#40515e;font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
-.graph-design-title small{max-width:260px;color:#667581;font-size:8px;text-align:right}
+.graph-design-title span{color:#40515e;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase}
+.graph-design-title small{max-width:260px;color:#667581;font-size:10px;text-align:right}
 .graph-design-motif{position:absolute;inset:0;z-index:0;pointer-events:none}
 .graph-design-motif i{position:absolute;display:block}
 
@@ -970,7 +970,7 @@
 
 /* Keep labels clear of nodes and preserve contrast across visualizations. */
 .tree-kind-label,.btree-visual .tree-kind-label{top:2px;left:auto;right:0;max-width:56%;transform:none;white-space:normal;text-align:right;line-height:1.35;font-size:8px}
-.tree-canvas .tree-node.active:not(.minimum){background:#ae4a30;border-color:#ae4a30;color:#fff}
+.tree-canvas:not(.tree-rojo-negro) .tree-node.active:not(.minimum){background:#ae4a30;border-color:#ae4a30;color:#fff}
 .tree-segment-tree .tree-node.active{background:#ae4a30;border-color:#ae4a30;color:#fff}
 .fibonacci-forest .fib-node.minimum{background:#9a6519;border-color:#9a6519;color:#fff}
 .btree-visual.bstar-tree .child-bnode.active{background:#ae4a30;border-color:#ae4a30;color:#fff}

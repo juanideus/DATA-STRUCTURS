@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createFibonacciForest } from '../src/logic/fibonacciHeap.js';
 import { createMultiwayTree } from '../src/logic/multiwayTree.js';
 import { createRedBlackTree } from '../src/logic/redBlackTree.js';
-import { formatMerkleHash, merkleLevels } from '../src/logic/merkle.js';
+import { formatMerkleHash, merkleHash, merkleLevels } from '../src/logic/merkle.js';
 import { initialNaryParents, naryTraversal, removeNarySubtree } from '../src/logic/naryTree.js';
 import { algorithms } from '../src/data/algorithms.js';
 import { getBeginnerJava } from '../src/data/beginnerJava.js';
@@ -127,10 +127,19 @@ for (const sourceOf of [getBeginnerJava, getBeginnerCpp]) {
       beforeTreeParents: initialNaryParents(id, algorithm.values),
     });
     assert.ok(frames.length > 1, `${id}/${actionId}: faltan pasos`);
-    const lastLine = code.split('\n')[frames.at(-1).codeLine];
-    assert.doesNotMatch(lastLine, /return (?:false|null|nullptr);/, `${id}/${actionId}: terminó en la rama de fracaso`);
+    const lastFrame = frames.at(-1);
+    if (lastFrame.codeLine === null) {
+      assert.equal(lastFrame.traceMode, 'summary', `${id}/${actionId}: una traza sin línea debe identificarse como resumen`);
+      assert.ok(frames.every(frame => frame.codeLine === null && frame.iteration == null), `${id}/${actionId}: un resumen no debe inventar instrucciones o iteraciones`);
+    } else {
+      const lastLine = code.split('\n')[lastFrame.codeLine];
+      assert.doesNotMatch(lastLine, /return (?:false|null|nullptr);/, `${id}/${actionId}: terminó en la rama de fracaso`);
+    }
     assert.equal(frames.at(-1).completed, true, `${id}/${actionId}: la animación no termina`);
   }
 }
+
+assert.equal(merkleHash('á'), 0x3285, 'Merkle debe procesar los dos bytes UTF-8 de á.');
+assert.notEqual(merkleHash('😀'), merkleHash('😁'), 'Merkle debe conservar todos los bytes de los caracteres suplementarios.');
 
 console.log('FIDELIDAD DE ESTRUCTURAS OK: B/B+/B*, Fibonacci Heap, rojo-negro, Merkle y N-ario.');

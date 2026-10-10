@@ -84,6 +84,29 @@ html[data-dark-mode="true"] .welcome-features article{background:transparent;bor
 
 /* Structure-specific surfaces that do not inherit the generic node palette. */
 html[data-dark-mode="true"] .variable-item strong{color:#f1f6fb}
+/* Semantic colors must survive the generic dark-node rules above. */
+.tree-rojo-negro .tree-node.active{outline:3px solid var(--orange);outline-offset:4px}
+.tree-rojo-negro .tree-node.red-node{background:#c84a39;border-color:#8f2f23;color:#fff}
+.tree-rojo-negro .tree-node.black-node{background:#25302d;border-color:#111b18;color:#fff}
+.tree-rojo-negro .tree-node.red-node.active{background:#c84a39;border-color:#8f2f23;color:#fff}
+.tree-rojo-negro .tree-node.black-node.active{background:#25302d;border-color:#111b18;color:#fff}
+.red-black-label{position:absolute;top:100%;margin-top:5px;font:700 9px/1.2 monospace;white-space:nowrap;color:var(--ink)}
+html[data-dark-mode="true"] .tree-rojo-negro .tree-node.red-node{background:#a9362b;border-color:#ec9889;color:#fff}
+html[data-dark-mode="true"] .tree-rojo-negro .tree-node.black-node{background:#101722;border-color:#b0c3d7;color:#fff}
+html[data-dark-mode="true"] .tree-rojo-negro .tree-node.red-node.active{background:#a9362b;border-color:#ec9889;color:#fff}
+html[data-dark-mode="true"] .tree-rojo-negro .tree-node.black-node.active{background:#101722;border-color:#b0c3d7;color:#fff}
+html[data-dark-mode="true"] .graph-design-prim .graph-node::after{background:#2c3d50}
+html[data-dark-mode="true"] :is(.complexity-lesson p,.complexity-lesson li,.foundation-lesson p,.foundation-lesson li,.bnode small,.graph-node-meta,.graph-design-title small,.polynomial-name small,.polynomial-null,.polynomial-rule,.generalized-caption span,.generalized-legend,.dense-matrix-heading span,.dense-matrix-cell small,.matrix-axis,.matrix-corner){color:var(--muted)}
+html[data-dark-mode="true"] :is(.complexity-lesson b,.complexity-lesson strong,.graph-design-title span,.polynomial-name strong,.polynomial-expression,.generalized-caption strong,.generalized-aliases){color:var(--ink)}
+html[data-dark-mode="true"] .skip-list-node.active{background:#a84631;color:#fff}
+html[data-dark-mode="true"] .skip-list-head{background:#365977;color:#fff}
+html[data-dark-mode="true"] :is(.graph-node small,.graph-node-meta){color:var(--muted)}
+html[data-dark-mode="true"] .graph-canvas[class*="graph-design-"] .graph-node>small{color:var(--muted)}
+html[data-dark-mode="true"] .graph-canvas[class*="graph-design-"] .graph-node.active>small{color:#fff}
+html[data-dark-mode="true"] :is(.bnode.active small,.dense-matrix-cell.active small){color:#fff}
+html[data-dark-mode="true"] :is(.available-description>p,.description-overview-grid p,.description-learning-grid p,.description-deep-dive p,.description-deep-dive li,.description-details p,.description-details li){color:var(--muted)}
+.sort-cell.ordered-prefix:not(.swapping):not(.writing){border-color:#668078;background:#e8efec;color:#213e35}
+html[data-dark-mode="true"] .sort-cell.ordered-prefix:not(.swapping):not(.writing){background:#243e43;border-color:#88b6aa;color:var(--ink)}
 html[data-dark-mode="true"] .operation-message{background:#28394c}
 html[data-dark-mode="true"] .operation-message p{color:#e0eaf3}
 html[data-dark-mode="true"] .operation-message.success{background:#243e43}
