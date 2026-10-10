@@ -21,7 +21,7 @@ const profiles = {
   stack: {
     how: 'All changes happen at one end called the top. Push places a value on top, while pop removes exactly the most recently inserted value.',
     strengths: ['Push and pop are constant-time operations', 'The LIFO rule is easy to reason about', 'Naturally represents nested work', 'Supports undo and recursive execution'],
-    limits: ['Only the top is directly accessible', 'Searching requires traversal', 'Pop on an empty stack is invalid', 'Uncontrolled growth can exhaust memory'],
+    limits: ['Only the top is directly accessible', 'Searching requires traversal', 'Pop on an empty stack is invalid', 'The Java and C++ examples hold at most 15 values; push returns false when full'],
     uses: ['Java call stacks', 'Undo histories', 'Expression evaluation', 'Depth-first search'],
     example: 'It behaves like a stack of plates: the plate placed last is removed first.',
     tip: 'Always check whether the stack is empty before pop or peek.',
@@ -158,6 +158,11 @@ const specialDetails = {
 // These lessons need their own explanation: the generic family profile would
 // describe operations or performance that the code shown on the page does not use.
 const specificGuides = {
+  array: {
+    how: 'Elements occupy consecutive indexed positions, so reading or updating a known index takes O(1). In these Java examples, insertion and removal create and return a new array, copying values into their corresponding positions. The C++ example uses dynamically allocated memory, grows its capacity when full, and shifts values when operating at the front or in the middle.',
+    operations: ['Read or update a known index', 'Traverse indices from 0 to length - 1', 'Search by comparing stored values', 'In Java, retain the returned array after insertion or removal; in C++, grow capacity or shift values as required'],
+    limits: ['Java insertion and removal allocate and copy a new array', 'C++ front and middle operations shift values; capacity growth also copies them', 'Indices must be checked before accessing a value', 'Searching an unsorted array is linear'],
+  },
   deque: {
     definition: 'A Deque is a double-ended queue: values can be inserted or removed at either the front or the back.',
     how: 'This lesson uses a contiguous array. Inserting or removing at the front shifts the stored values and takes O(n); inserting or removing at the back takes O(1). It does not use a circular buffer or a doubly linked list.',
@@ -230,9 +235,9 @@ const specificGuides = {
   },
   'skip-list': {
     definition: 'A Skip List is a sorted linked list with extra levels of forward links that let a search skip over groups of values.',
-    how: 'Level 0 contains every value. Starting at the highest occupied level, search moves right while the next value is smaller than the target, then drops one level. Insertion chooses the new node’s height at random and repairs the forward links at every level it occupies.',
-    strengths: ['Expected O(log n) search and insertion', 'Maintains sorted values without tree rotations', 'Level 0 always supports a complete ordered traversal'],
-    limits: ['The worst case is O(n)', 'Extra forward links use memory', 'The chosen random levels affect the shape of the structure'],
+    how: 'Level 0 contains every value. Starting at the highest occupied level, search moves right while the next value is smaller than the target, then drops one level. Insertion chooses the new node’s height at random and repairs its forward links. These examples cap Java at four levels and C++ at six: with a fixed maximum, the asymptotic cost is O(n). Expected O(log n) applies when the number of levels can grow with the data set.',
+    strengths: ['Forward shortcuts without tree rotations', 'Expected O(log n) when levels grow with the data set', 'Level 0 always supports a complete ordered traversal'],
+    limits: ['These fixed-level examples have asymptotic O(n) cost', 'Extra forward links use memory', 'The chosen random levels affect the shape of the structure'],
     uses: ['Ordered in-memory indexes', 'Sorted sets', 'Concurrent indexing designs'],
     example: 'Think of express lanes above a local road: travel far on the top lane, then descend to reach an exact address.',
     tip: 'Follow the downward search path; the value is confirmed only after checking the next node on level 0.',

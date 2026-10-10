@@ -46,8 +46,8 @@ export const educationalDescriptions = {
   ),
   array: guide(
     'Un Array es una colección de elementos del mismo tipo almacenados en posiciones consecutivas. Cada posición tiene un índice y, en Java, el primer índice siempre es 0.',
-    'Java reserva un bloque continuo de memoria y calcula la dirección de cada elemento usando su índice. Por eso leer o actualizar una posición conocida es inmediato. Su tamaño se fija al crearlo; insertar en medio exige desplazar los elementos siguientes.',
-    'Acceder o actualizar mediante array[indice]|Recorrer desde el índice 0 hasta length - 1|Buscar un valor comparando cada elemento|Insertar o eliminar desplazando posiciones',
+    'Los elementos ocupan posiciones consecutivas y leer o actualizar un índice conocido cuesta O(1). En los ejemplos Java, insertar o eliminar crea y devuelve un nuevo arreglo, copiando los elementos a sus posiciones correspondientes. En C++, el arreglo usa memoria dinámica: amplía su capacidad cuando se llena y desplaza elementos al operar al inicio o en medio.',
+    'Acceder o actualizar mediante array[indice]|Recorrer desde el índice 0 hasta length - 1|Buscar un valor comparando cada elemento|En Java, conservar el nuevo arreglo devuelto al insertar o eliminar; en C++, ampliar capacidad o desplazar posiciones según la operación',
     'Acceso directo muy rápido|Orden claro y predecible|Bajo consumo adicional de memoria|Base de matrices, listas y muchas otras estructuras',
     'Tamaño fijo en los Arrays tradicionales de Java|Insertar al inicio o en medio puede ser lento|Un índice fuera de rango provoca una excepción en Java; en C++ el acceso sin comprobar puede causar comportamiento indefinido|Buscar sin conocer la posición requiere recorrerlo',
     'Notas de un curso|Temperaturas de una semana|Tableros y matrices|Implementación de pilas, colas y tablas hash',
@@ -59,7 +59,7 @@ export const educationalDescriptions = {
     'Todas las operaciones principales ocurren en un único extremo llamado tope. Push coloca un elemento sobre el tope y pop retira precisamente ese elemento, sin acceder primero a los que están debajo.',
     'push agrega un elemento al tope|pop retira y devuelve el elemento superior|peek consulta el tope sin eliminarlo|isEmpty comprueba si quedan elementos',
     'Push y pop son muy rápidos|Modelo sencillo de comprender|Ideal para deshacer pasos|Encaja naturalmente con la recursividad',
-    'Sólo permite trabajar directamente con el tope|Buscar un elemento requiere revisar la pila|Un pop sobre una pila vacía produce underflow|Puede crecer demasiado si no se controla',
+    'Sólo permite trabajar directamente con el tope|Buscar un elemento requiere revisar la pila|Un pop sobre una pila vacía produce underflow|Los ejemplos Java y C++ tienen capacidad fija de 15 elementos; push devuelve false cuando se llena',
     'Historial de deshacer|Pila de llamadas de Java|Evaluación de expresiones|Navegación atrás en aplicaciones',
     'Una pila de platos: se agrega y se quita siempre el plato que está arriba.',
     'Antes de ejecutar pop o peek, verifica que la pila no esté vacía.'
@@ -126,10 +126,10 @@ export const educationalDescriptions = {
   ),
   'skip-list': guide(
     'Una Skip List mantiene varias capas de listas ordenadas. Las capas superiores contienen atajos que permiten saltar sobre muchos nodos.',
-    'La búsqueda empieza en el nivel más alto, avanza mientras el siguiente valor sea menor que la clave y baja cuando ya no puede continuar. El nivel 0 contiene todos los valores; los niveles superiores contienen sólo algunos atajos. Al insertar, se elige aleatoriamente hasta qué nivel enlazar el nodo.',
+    'La búsqueda empieza en el nivel más alto, avanza mientras el siguiente valor sea menor que la clave y baja cuando ya no puede continuar. El nivel 0 contiene todos los valores; los niveles superiores contienen sólo algunos atajos. Al insertar, se elige aleatoriamente hasta qué nivel enlazar el nodo. Estos ejemplos fijan cuatro niveles en Java y seis en C++: con ese máximo constante, el costo asintótico es O(n). El promedio O(log n) corresponde a una Skip List cuyos niveles pueden crecer con la cantidad de datos.',
     'Buscar descendiendo por niveles|Insertar en orden y lanzar niveles aleatorios|Eliminar el nodo de todas sus capas|Recorrer la capa inferior completa',
-    'Promedio logarítmico sin rotaciones|Implementación más simple que muchos árboles balanceados|Inserciones dinámicas|Buen comportamiento en datos ordenados',
-    'El peor caso es lineal|Usa referencias adicionales|Su rendimiento depende de una buena aleatoriedad|No garantiza balance estricto',
+    'Atajos entre nodos sin rotaciones|Promedio O(log n) cuando los niveles crecen con los datos|Inserciones dinámicas|Recorrido ordenado completo en el nivel 0',
+    'Los ejemplos con niveles fijos tienen costo asintótico O(n)|Usa referencias adicionales|Su rendimiento depende de una buena aleatoriedad|No garantiza balance estricto',
     'Índices en memoria|Conjuntos ordenados|Bases de datos y sistemas concurrentes|Alternativa educativa a árboles balanceados',
     'Como una autopista con vías rápidas y salidas hacia calles locales.',
     'La capa 0 siempre contiene todos los elementos y debe permanecer ordenada.'

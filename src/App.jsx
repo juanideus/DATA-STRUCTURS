@@ -530,8 +530,8 @@ function App() {
         ? javaCodeFactory?.(baseAlgorithm, activeOperation) ?? '// Cargando código Java…'
         : codeMode === 'cpp'
           ? cppCodeFactory?.(baseAlgorithm, activeOperation) ?? '// Cargando código C++…'
-        : getOperationPseudocode(baseAlgorithm, activeOperation)
-  ), [activeOperation, baseAlgorithm, codeMode, isTheoryPage, javaCodeFactory, cppCodeFactory]);
+        : getOperationPseudocode(baseAlgorithm, activeOperation, language)
+  ), [activeOperation, baseAlgorithm, codeMode, isTheoryPage, javaCodeFactory, cppCodeFactory, language]);
   const displayedCode = useMemo(() => translateCodeText(sourceCode, language), [language, sourceCode]);
   const codeLines = useMemo(() => displayedCode.split('\n'), [displayedCode]);
   const highlightedCodeLine = activeCodeLine;
@@ -891,7 +891,7 @@ function App() {
         ? loadJavaCodeFactory().then(factory => factory(baseAlgorithm, actionId))
         : codeMode === 'cpp'
           ? loadCppCodeFactory().then(factory => factory(baseAlgorithm, actionId))
-          : Promise.resolve(getOperationPseudocode(baseAlgorithm, actionId));
+          : Promise.resolve(getOperationPseudocode(baseAlgorithm, actionId, language));
       const [code, operationModule, animationModule] = await Promise.all([
         codePromise,
         import('./logic/operations.js'),

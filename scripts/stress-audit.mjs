@@ -198,9 +198,11 @@ function validateResult({ algorithm, actionId, fields, beforeValues, beforeEdges
 
   assert.ok(frames.length > 0, `${label}: no genera animación.`);
   assert.ok(frames.every(frame => (
-    Number.isInteger(frame.codeLine)
-    && frame.codeLine >= 0
-    && frame.codeLine < sourceLines.length
+    frame.codeLine === null
+      ? frame.codeUnmapped === true || frame.traceMode === 'summary'
+      : Number.isInteger(frame.codeLine)
+        && frame.codeLine >= 0
+        && frame.codeLine < sourceLines.length
   )), `${label}: una animación apunta fuera del código.`);
   assert.ok(frames.every(frame => typeof frame.message === 'string' && frame.message.trim()), `${label}: un cuadro no explica el paso.`);
   assert.deepEqual(frames.at(-1).values, result.values, `${label}: el último cuadro no coincide con los valores finales.`);
@@ -211,6 +213,7 @@ function validateResult({ algorithm, actionId, fields, beforeValues, beforeEdges
   for (let index = 0; index < (customFrames?.length ?? 0); index++) {
     const needle = customFrames[index].codeNeedle;
     if (!needle) continue;
+    if (frames[index].codeLine === null && frames[index].codeUnmapped) continue;
     const mappedLine = normalized(sourceLines[frames[index].codeLine]);
     assert.ok(
       mappedLine.includes(normalized(needle)),

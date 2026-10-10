@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { Boxes, ChevronDown, PanelLeftClose, Search, Sparkles, X } from 'lucide-react';
 import { algorithms, categories, navigationIndexes } from '../data/algorithms.js';
 import { useDialogFocus } from '../accessibility/useDialogFocus.js';
@@ -11,6 +11,7 @@ const initiallyClosedSidebarGroups = Object.fromEntries(categories.map(category 
 
 function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setMobileOpen, collapsed, onToggle }) {
   const { language, setLanguage, t } = useLanguage();
+  const searchRef = useRef(null);
   const [closedGroups, setClosedGroups] = useState(() => initiallyClosedSidebarGroups);
   const groupedAlgorithms = useMemo(() => {
     const term = normalizeSidebarText(query);
@@ -23,6 +24,7 @@ function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setM
     return groups;
   }, [query, language]);
   const hasQuery = Boolean(query.trim());
+  const resultCount = [...groupedAlgorithms.values()].reduce((count, items) => count + items.length, 0);
   const toggleGroup = useCallback(category => setClosedGroups(current => ({ ...current, [category]: !current[category] })), []);
   const closeMobile = useCallback(() => setMobileOpen(false), [setMobileOpen]);
   const sidebarRef = useDialogFocus({ open: mobileOpen, onClose: closeMobile });
@@ -37,12 +39,13 @@ function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setM
       <button className="sidebar-collapse-button" onClick={onToggle} aria-label={t('hideMenu')} title={t('hideMenu')}><PanelLeftClose size={18}/></button>
       <button className="close-mobile" onClick={closeMobile} aria-label={t('close')}><X/></button>
     </div>
-    <div className="search"><Search size={16}/><input value={query} onChange={event => setQuery(event.target.value)} placeholder={t('search')} aria-label={t('search')}/></div>
+    <div className="search"><Search size={16}/><input ref={searchRef} type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={t('search')} aria-label={t('search')} aria-controls="sidebar-search-results"/>{query && <button type="button" className="search-clear" onClick={() => { setQuery(''); searchRef.current?.focus(); }} aria-label={language === 'en' ? 'Clear search' : 'Borrar búsqueda'} title={language === 'en' ? 'Clear search' : 'Borrar búsqueda'}><X size={15}/></button>}</div>
     <div className="language-switch" role="group" aria-label="Language / Idioma">
       <button type="button" className={language === 'es' ? 'active' : ''} aria-pressed={language === 'es'} onClick={() => setLanguage('es')}>ES</button>
       <button type="button" className={language === 'en' ? 'active' : ''} aria-pressed={language === 'en'} onClick={() => setLanguage('en')}>EN</button>
     </div>
-    <nav aria-label={navigationLabel}>
+    <nav id="sidebar-search-results" aria-label={navigationLabel}>
+      {hasQuery && <p className="search-results-status" role="status" aria-live="polite">{resultCount === 0 ? (language === 'en' ? 'No matching topics. Clear the search to see all topics.' : 'No hay temas que coincidan. Borra la búsqueda para ver todos los temas.') : (language === 'en' ? `${resultCount} matching topics` : `${resultCount} temas encontrados`)}</p>}
       {categories.map(category => {
         const list = groupedAlgorithms.get(category) ?? [];
         if (!list.length) return null;

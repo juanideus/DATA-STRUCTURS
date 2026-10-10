@@ -10,17 +10,15 @@ export default function OperationsPanel({ algorithm, message, status = 'idle', a
   useEffect(() => setFields({ value: '', second: '', index: '' }), [algorithm.id]);
 
   const run = actionId => {
+    if (!actionId) return;
     onAction(actionId, fields);
-    if (algorithm.id !== 'matriz-dispersa' && !['find','peek','front','word-find','prefix-sum','range-min','evaluate','cache-get','bloom-check','find-root'].includes(actionId)) {
-      setFields(current => ({ ...current, value: '', second: '' }));
-    }
   };
 
   return <section className="operations-panel" data-tour="operations">
     <div className="operation-fields">
       {definition.fields.map(input => <label key={input.id}>
         <span>{translateOperationLabel(input.label, language)}</span>
-        <input aria-label={translateOperationLabel(input.label, language)} type={input.type} value={fields[input.id]} placeholder={input.type === 'number' ? '0' : t('typeHere')} onChange={event=>setFields({...fields,[input.id]:event.target.value})} onKeyDown={event=>{if(event.key==='Enter' && !event.nativeEvent.isComposing)run(definition.actions[0].id)}} />
+        <input aria-label={translateOperationLabel(input.label, language)} type={input.type} value={fields[input.id]} placeholder={input.type === 'number' ? '0' : t('typeHere')} onChange={event=>setFields({...fields,[input.id]:event.target.value})} onKeyDown={event=>{if(event.key==='Enter' && !event.nativeEvent.isComposing){event.preventDefault();run(definition.actions.some(action => action.id === activeOperation) ? activeOperation : definition.actions[0]?.id)}}} />
       </label>)}
     </div>
     <div className="operation-actions">
