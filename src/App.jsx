@@ -534,8 +534,8 @@ function App() {
   ), [activeOperation, baseAlgorithm, codeMode, isTheoryPage, javaCodeFactory, cppCodeFactory]);
   const displayedCode = useMemo(() => translateCodeText(sourceCode, language), [language, sourceCode]);
   const codeLines = useMemo(() => displayedCode.split('\n'), [displayedCode]);
-  const highlightedCodeLine = activeCodeLine ?? step % codeLines.length;
-  const totalSteps = operationFrames.length || Math.max(algorithm.values.length, codeLines.length);
+  const highlightedCodeLine = activeCodeLine;
+  const totalSteps = operationFrames.length || 1;
   const currentAnimationFrame = operationFrames[step] ?? null;
   const sectionTestLockedUntil = getSectionTestLockedUntil(baseAlgorithm.id, sectionTestClock);
   const sectionTestRemainingMs = Math.max(0, sectionTestLockedUntil - sectionTestClock);
@@ -910,7 +910,7 @@ function App() {
         : 'No se pudo cargar la operación. Recarga la página e inténtalo de nuevo.');
       return;
     }
-    const pendingFinalFrame = operationStatus === 'success' ? operationFrames.at(-1) : null;
+    const pendingFinalFrame = operationFrames.at(-1)?.failed ? null : operationFrames.at(-1);
     const previousValues = copyVisualValues(pendingFinalFrame?.values ?? demoValues);
     const previousTreeColors = pendingFinalFrame?.treeColors ?? demoTreeColors;
     const previousFibonacciForest = pendingFinalFrame?.fibonacciForest ?? demoFibonacciForest;
@@ -1001,10 +1001,55 @@ function App() {
               }),
           };
         }
-        return { ...frame, codeNeedle };
+        const outputParameter = ['cola', 'pila'].includes(baseAlgorithm.id)
+          && ['return removed;', 'return front.value;', 'return values[top];'].includes(frame.codeNeedle);
+        return { ...frame, codeNeedle, ...(outputParameter && {
+          message: `${frame.message} En C++ el dato se entrega por referencia y el retorno booleano indica éxito.`,
+        }) };
       }
       return frame;
     });
+    if (codeMode === 'cpp' && result.ok && traceFrames?.length && baseAlgorithm.id === 'cola' && actionId === 'dequeue') {
+      const removedIndex = traceFrames.findIndex(frame => frame.codeNeedle === 'removed = oldFront->value;');
+      if (removedIndex >= 0) traceFrames.splice(removedIndex, 0, {
+        ...traceFrames[removedIndex], codeNeedle: 'Node* oldFront = front;',
+        message: 'oldFront conserva el puntero al nodo que se retirará.', completed: false,
+      });
+      const advanceIndex = traceFrames.findIndex(frame => frame.codeNeedle === 'front = front.next;');
+      if (advanceIndex >= 0) traceFrames.splice(advanceIndex + 1, 0, {
+        ...traceFrames[advanceIndex], codeNeedle: 'delete oldFront;',
+        message: 'Se libera el nodo retirado. oldFront no se vuelve a dereferenciar.', completed: false,
+      });
+    }
+    if (codeMode === 'cpp' && result.ok && traceFrames?.length && baseAlgorithm.id === 'merge-sort' && actionId === 'sort') {
+      const finalFrame = traceFrames.at(-1);
+      traceFrames.splice(traceFrames.length - 1, 0, {
+        ...finalFrame, codeNeedle: 'delete[] help;', message: 'Se libera el arreglo auxiliar dinámico help.', completed: false,
+      });
+      finalFrame.codeNeedle = 'delete[] help;';
+    }
+    if (codeMode === 'cpp' && result.ok && traceFrames?.length && ['cola', 'pila'].includes(baseAlgorithm.id) && ['front', 'peek'].includes(actionId)) {
+      const output = traceFrames.at(-1);
+      output.completed = false;
+      output.message = `El dato ${previousValues[baseAlgorithm.id === 'pila' ? previousValues.length - 1 : 0]} se copia al parámetro de salida value.`;
+      traceFrames.push({ ...output, codeNeedle: 'return true;', message: 'La consulta devuelve true: el dato se entregó sin modificar la estructura.', completed: true });
+    }
+    if (codeMode === 'cpp' && result.ok && traceFrames?.length && baseAlgorithm.id === 'cola' && actionId === 'clear') {
+      const template = traceFrames[0];
+      traceFrames.splice(0, traceFrames.length, { ...template, codeNeedle: 'void clear() {', completed: false });
+      for (let index = 0; index < previousValues.length; index++) {
+        const beforeRemoval = previousValues.slice(index);
+        const afterRemoval = previousValues.slice(index + 1);
+        const add = (codeNeedle, message, values) => traceFrames.push({ ...template, values: [...values], codeNeedle, message, completed: false, variables: [{ name: 'size', value: previousValues.length, role: 'size' }] });
+        add('while (front != nullptr) {', `front apunta a ${beforeRemoval[0]}: el ciclo continúa.`, beforeRemoval);
+        add('Node* removed = front;', `removed conserva el puntero al nodo ${beforeRemoval[0]}.`, beforeRemoval);
+        add('front = front->next;', 'front avanza al siguiente nodo.', afterRemoval);
+        add('delete removed;', 'Se libera el nodo retirado antes de continuar.', afterRemoval);
+      }
+      traceFrames.push({ ...template, values: [], codeNeedle: 'while (front != nullptr) {', message: 'front es nullptr: termina el ciclo.', completed: false });
+      traceFrames.push({ ...template, values: [], codeNeedle: 'rear = nullptr;', message: 'rear queda en nullptr.', completed: false });
+      traceFrames.push({ ...template, values: [], codeNeedle: 'size = 0;', message: result.message, variables: [{ name: 'size', value: 0, role: 'size' }], completed: true });
+    }
     if (codeMode === 'cpp' && result.ok && traceFrames?.length && actionId === 'bfs-run') {
       const visitedAllocationIndex = traceFrames.findIndex(frame => (
         frame.codeNeedle === 'bool* visited = new bool[MAX_VERTICES]{};'
@@ -1055,7 +1100,7 @@ function App() {
     let synchronizedFrames = traceFrames?.length
       ? adaptFramesToCode(traceFrames, codeForAnimation, codeMode !== 'pseudo')
       : synchronizedFrameFactory({
-          algorithm: baseAlgorithm,
+          algorithm: { ...baseAlgorithm, hashTable: previousHashTable },
           code: codeForAnimation,
           actionId,
           beforeValues: previousValues,
@@ -1148,7 +1193,7 @@ function App() {
     setDemoEdges((firstFrame.edges ?? result.edges).map(edge => [...edge]));
     setOperationMessage(firstFrame.message);
     setOperationStatus(result.ok === false ? 'error' : 'success');
-    setActiveCodeLine(firstFrame.codeLine ?? 0);
+    setActiveCodeLine(firstFrame.codeLine ?? null);
     setStep(0);
     setPlaying(frames.length > 1);
   };
@@ -1230,11 +1275,12 @@ function App() {
       <section className={`lab-grid ${['dijkstra', 'a-star'].includes(baseAlgorithm.id) ? 'pathfinding-grid' : ''}`}>
         <article className="panel visual-panel" data-tour="visualizer">
           <div className="panel-head"><div><span className="panel-index">01</span><h2>{t('visualization')}</h2></div><div className="panel-head-actions">{operationDefinition.actions.length > 0 && <button className={`challenge-toggle ${challengeMode ? 'active' : ''}`} onClick={toggleChallengeMode} title={challengeMode ? t('exit') : t('challengeMode')} aria-label={challengeMode ? t('exit') : t('challengeMode')} aria-pressed={challengeMode}><Brain size={15}/>{challengeMode ? t('exit') : t('challenge')}</button>}<button onClick={createNewExample} title={t('generateData')}><Shuffle size={15}/> {t('newExample')}</button><button className="clear-demo-button" onClick={clearDemo} title={t('clearCurrentData')}><Eraser size={15}/> {t('clearData')}</button><button onClick={resetDemo} title={t('originalData')}><RotateCcw size={15}/> {t('reset')}</button></div></div>
-          <div className="canvas-grid" data-visualizer={algorithm.id}><Suspense fallback={<div className="description-loading" aria-label={t('loadingDescription')}><span/></div>}><MemoizedVisualizer algorithm={visualAlgorithm} step={operationFrames.length ? currentAnimationFrame?.position ?? step : step}/></Suspense><div className={`step-badge ${currentAnimationFrame?.iteration != null ? 'loop-step' : ''}`}>{currentAnimationFrame?.loopExit ? <>{t('loopEnd')}</> : currentAnimationFrame?.iteration != null ? <>{t('iteration')} <b>{Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)}/{currentAnimationFrame.totalIterations}</b></> : <>{t('step')} <b>{String(step+1).padStart(2,'0')}</b></>}</div></div>
+          <div className="visual-statusbar"><div className={`step-badge ${currentAnimationFrame?.iteration != null ? 'loop-step' : ''}`}>{!currentAnimationFrame ? t('currentState') : currentAnimationFrame?.loopExit ? <>{t('loopEnd')}</> : currentAnimationFrame?.iteration != null ? <>{t('iteration')} <b>{Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)}/{currentAnimationFrame.totalIterations}</b></> : <>{t('step')} <b>{String(step+1).padStart(2,'0')}</b></>}</div>{currentAnimationFrame?.traceMode === 'summary' && <span>{language === 'en' ? 'State overview · no line-by-line trace' : 'Resumen de estados · sin traza línea por línea'}</span>}{currentAnimationFrame?.codeUnmapped && <span>{language === 'en' ? 'No exact code-line mapping for this step' : 'Este paso no tiene una línea equivalente exacta'}</span>}</div>
+          <div className="canvas-grid" data-visualizer={algorithm.id}><Suspense fallback={<div className="description-loading" aria-label={t('loadingDescription')}><span/></div>}><MemoizedVisualizer algorithm={visualAlgorithm} step={operationFrames.length ? currentAnimationFrame?.position ?? 0 : 0}/></Suspense></div>
           {challengeMode
             ? <Suspense fallback={<section className="challenge-panel" aria-label="Cargando desafío"/>}><ChallengePanel algorithm={algorithm} values={demoValues} playing={playing} scenarioKey={challengeScenarioKey} onVerify={handleOperation}/></Suspense>
-            : <OperationsPanel algorithm={baseAlgorithm} message={operationMessage} status={operationStatus} activeOperation={activeOperation} onAction={handleOperation}/>}
-          <div className="player"><button onClick={()=>goToStep(step-1)} aria-label={t('previous')}><ArrowLeft size={17}/></button><button className="play" onClick={togglePlayback}>{playing?<Pause size={18}/>:<Play size={18}/>}<span>{playing?t('pause'):t('play')}</span></button><button onClick={()=>goToStep(step+1)} aria-label={t('next')}><ArrowRight size={17}/></button><div className="timeline"><span style={{width:`${((step+1)/totalSteps)*100}%`}}/></div><label><span>{t('speed')}</span><select value={speed} onChange={e=>setSpeed(Number(e.target.value))}><option value="0.5">0.5×</option><option value="1">1×</option><option value="2">2×</option></select><ChevronDown size={13}/></label></div>
+            : <OperationsPanel algorithm={baseAlgorithm} message={operationMessage} status={operationStatus === 'success' && currentAnimationFrame && !currentAnimationFrame.completed ? 'running' : operationStatus} activeOperation={activeOperation} onAction={handleOperation}/>}
+          <div className="player"><button disabled={!operationFrames.length || step === 0} onClick={()=>goToStep(step-1)} aria-label={t('previous')}><ArrowLeft size={17}/></button><button className="play" disabled={!operationFrames.length} onClick={togglePlayback} aria-label={playing?t('pause'):t('play')} title={!operationFrames.length ? (language === 'en' ? 'Run an operation to enable playback' : 'Ejecuta una operación para habilitar la reproducción') : undefined}>{playing?<Pause size={18}/>:<Play size={18}/>}<span>{playing?t('pause'):t('play')}</span></button><button disabled={!operationFrames.length || step >= totalSteps - 1} onClick={()=>goToStep(step+1)} aria-label={t('next')}><ArrowRight size={17}/></button><div className="timeline"><span style={{width:`${operationFrames.length ? ((step+1)/totalSteps)*100 : 0}%`}}/></div><label><span>{t('speed')}</span><select aria-label={t('speed')} value={speed} onChange={e=>setSpeed(Number(e.target.value))}><option value="0.5">0.5×</option><option value="1">1×</option><option value="2">2×</option></select><ChevronDown size={13}/></label></div>
         </article>
 
         <article className="panel code-panel" data-tour="code">
@@ -1263,9 +1309,11 @@ function App() {
       <footer className="algorithm-nav"><a href={seoPath(algorithms[(selectedIndex-1+algorithms.length)%algorithms.length].id, language)} onClick={event=>{event.preventDefault();selectRelative(-1)}}><ArrowLeft size={16}/><span><small>{t('previous')}</small>{localizeAlgorithm(algorithms[(selectedIndex-1+algorithms.length)%algorithms.length], language).name}</span></a><a href={seoPath(algorithms[(selectedIndex+1)%algorithms.length].id, language)} onClick={event=>{event.preventDefault();selectRelative(1)}}><span><small>{t('next')}</small>{localizeAlgorithm(algorithms[(selectedIndex+1)%algorithms.length], language).name}</span><ArrowRight size={16}/></a></footer>
       </>}
     </main>
+    <div className="global-tools" aria-label={language === 'en' ? 'Help and preferences' : 'Ayuda y preferencias'}>
     <button className="guided-tour-launch" type="button" onClick={startGuidedTour} aria-label={t('guidedTourLabel')} title={t('howItWorks')}><CircleHelp size={19}/><span>{t('howItWorks')}</span></button>
     <BugReporter section={showWelcome ? t('welcome') : algorithm.name}/>
     <AccessibilityPanel/>
+    </div>
     {tourOpen && <Suspense fallback={null}><GuidedTour onClose={closeGuidedTour} onStepChange={handleTourStepChange}/></Suspense>}
     {sectionTest && <Suspense fallback={null}><SectionTestModal
       algorithm={sectionTest.algorithm}

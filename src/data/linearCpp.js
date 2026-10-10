@@ -78,6 +78,7 @@ const stackOperations = {
     if (top == -1) return false;
 
     removed = values[top];
+    values[top] = 0;
     top--;
     return true;
 }`,
@@ -89,6 +90,7 @@ const stackOperations = {
 }`,
   clear: `void clear() {
     while (top >= 0) {
+        values[top] = 0;
         top--;
     }
 }`,

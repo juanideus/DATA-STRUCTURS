@@ -1,4 +1,22 @@
+import { getSortingJava } from './sortingJava.js';
+
 const indent = source => source.split('\n').map(line => (line ? `    ${line}` : '')).join('\n');
+
+// These variants intentionally share the same variables and instruction order
+// as the semantic trace. C++ still owns every dynamic allocation explicitly.
+function synchronizedSortSource(algorithmId) {
+  if (!['bubble-sort', 'selection-sort', 'insertion-sort', 'merge-sort', 'quick-sort', 'shell-sort', 'heap-sort'].includes(algorithmId)) return null;
+  const source = getSortingJava(algorithmId, 'sort')
+    .replaceAll('boolean ', 'bool ')
+    .replace('int[] help = new int[size];', 'int* help = new int[size]{};')
+    .replaceAll('int[] help', 'int help[]')
+    .replace('mergeSort(0, size - 1, help);', 'mergeSort(0, size - 1, help);\n    delete[] help;');
+  const entryPoint = {
+    'bubble-sort': 'bubbleSort', 'selection-sort': 'selectionSort',
+    'insertion-sort': 'insertionSort', 'shell-sort': 'shellSort', 'heap-sort': 'heapSort',
+  }[algorithmId];
+  return entryPoint ? `void sort() {\n    ${entryPoint}();\n}\n\n${source}` : source;
+}
 
 const commonOperations = {
   'add-end': `bool addAtEnd(int value) {
@@ -262,9 +280,10 @@ export function getSortingCpp(algorithmId, actionId) {
     'bogo-sort',
   ]);
   if (!sortingIds.has(algorithmId)) return null;
-  const operation = actionId === 'sort' ? sortOperations[algorithmId] : commonOperations[actionId];
+  const synchronizedSource = actionId === 'sort' ? synchronizedSortSource(algorithmId) : null;
+  const operation = actionId === 'sort' ? synchronizedSource ?? sortOperations[algorithmId] : commonOperations[actionId];
   if (!operation) return null;
-  const extra = dependencies(algorithmId, actionId);
+  const extra = synchronizedSource ? [] : dependencies(algorithmId, actionId);
   return `class RawArraySorter {
 public:
     static const int CAPACITY = 100;

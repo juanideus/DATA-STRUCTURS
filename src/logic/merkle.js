@@ -1,7 +1,9 @@
-// Match the 32-bit overflow of Java int and C++ unsigned int bit for bit.
+// All three implementations hash unsigned UTF-8 bytes with 32-bit overflow.
+// This educational rolling hash is not a cryptographic integrity guarantee.
+const utf8 = new TextEncoder();
 export const merkleHash = value => {
   let hash = 7;
-  for (const character of String(value)) hash = (Math.imul(hash, 31) + character.charCodeAt(0)) >>> 0;
+  for (const byte of utf8.encode(String(value))) hash = (Math.imul(hash, 31) + byte) >>> 0;
   return hash;
 };
 

@@ -24,7 +24,7 @@ function formatValue(value) {
 
 function fallbackVariables(frame, algorithm, step) {
   const values = frame?.values ?? algorithm.values ?? [];
-  const position = Math.max(0, frame?.position ?? step ?? 0);
+  const position = Math.max(0, frame?.position ?? (algorithm.id === 'pila' ? values.length - 1 : 0));
   if (['dijkstra', 'a-star'].includes(algorithm.id) && algorithm.map) {
     const { rows, columns, start, goal } = algorithm.map;
     return [
@@ -41,7 +41,7 @@ function fallbackVariables(frame, algorithm, step) {
       { name: 'noCeros', value: values.length, role: 'size' },
     ];
   }
-  const variables = [{ name: 'size', value: values.length, role: 'size' }];
+  const variables = [{ name: 'size', value: values.filter(value => value !== null && value !== undefined).length, role: 'size' }];
 
   if (algorithm.id === 'sudoku') {
     variables.push(
@@ -60,7 +60,7 @@ function fallbackVariables(frame, algorithm, step) {
       { name: 'fila', value: position, role: 'index' },
       { name: 'columna', value: values[position] ?? '—', role: 'value' },
     );
-  } else if (values.length) {
+  } else if (values.length && (frame || ['pila', 'cola', 'array', 'deque'].includes(algorithm.id))) {
     const safePosition = Math.min(position, values.length - 1);
     variables.push(
       { name: 'índice activo', value: safePosition, role: 'position' },

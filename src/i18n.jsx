@@ -191,6 +191,31 @@ const learningReplacements = [
 /** Translates runtime teaching text (operation traces, questions and diagram captions). */
 export function translateLearningText(value, language) {
   if (language !== 'en' || typeof value !== 'string') return value;
+  const correctedTraceText = {
+    'Estado anterior a la operación. Se muestran cambios de estado, no una ejecución línea por línea.': 'State before the operation. This is a state overview, not a line-by-line execution trace.',
+    'La casilla está BORRADA: el sondeo no termina aquí.': 'The slot is DELETED: probing does not stop here.',
+    'Se avanza después de la marca de borrado.': 'Probing advances past the deleted slot.',
+    'oldFront conserva el puntero al nodo que se retirará.': 'oldFront keeps the pointer to the node that will be removed.',
+    'Se libera el nodo retirado. oldFront no se vuelve a dereferenciar.': 'The removed node is released. oldFront is not dereferenced again.',
+    'Se libera el arreglo auxiliar dinámico help.': 'The dynamically allocated help array is released.',
+    'La consulta devuelve true: el dato se entregó sin modificar la estructura.': 'The query returns true: the value was provided without changing the structure.',
+    'Se libera el nodo retirado antes de continuar.': 'The removed node is released before continuing.',
+    'front es nullptr: termina el ciclo.': 'front is nullptr: the loop ends.',
+    'rear queda en nullptr.': 'rear is set to nullptr.',
+  };
+  if (correctedTraceText[value]) return correctedTraceText[value];
+  const outputSuffix = ' En C++ el dato se entrega por referencia y el retorno booleano indica éxito.';
+  if (value.endsWith(outputSuffix)) return `${translateLearningText(value.slice(0, -outputSuffix.length), language)} In C++, the value is provided by reference and the boolean return indicates success.`;
+  const visit = value.match(/^Visita (\d+) de (\d+): nodo (.+)\. El recorrido representa visitas, no cada llamada del código\.$/);
+  if (visit) return `Visit ${visit[1]} of ${visit[2]}: node ${visit[3]}. The traversal represents node visits, not every code call.`;
+  const hashStart = value.match(/^hash sitúa la búsqueda en la posición (\d+)\.$/);
+  if (hashStart) return `hash starts the search at slot ${hashStart[1]}.`;
+  const outputValue = value.match(/^El dato (.+) se copia al parámetro de salida value\.$/);
+  if (outputValue) return `The value ${outputValue[1]} is copied to the output parameter value.`;
+  const removedPointer = value.match(/^removed conserva el puntero al nodo (.+)\.$/);
+  if (removedPointer) return `removed keeps the pointer to node ${removedPointer[1]}.`;
+  const frontPointer = value.match(/^front apunta a (.+): el ciclo continúa\.$/);
+  if (frontPointer) return `front points to ${frontPointer[1]}: the loop continues.`;
   if (exactLearningText[value]) return exactLearningText[value];
   const graphPatterns = [
     [/^La animación omite (\d+) pasos intermedios; el estado se actualiza y se conservan las líneas finales\.$/, match => `The animation skips ${match[1]} intermediate steps; the state is updated and the final lines are preserved.`],

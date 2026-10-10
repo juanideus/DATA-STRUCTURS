@@ -1,6 +1,8 @@
 const indent = source => source.split('\n').map(line => (line ? `    ${line}` : '')).join('\n');
 
 const dijkstra = `bool shortestPath(int start, int goal) {
+    if (start < 0 || start >= CELL_COUNT || goal < 0 || goal >= CELL_COUNT) return false;
+    if (map[start] < 0 || map[goal] < 0) return false;
     bool* settled = new bool[CELL_COUNT]{};
     for (int cell = 0; cell < CELL_COUNT; cell++) {
         distance[cell] = INF;
@@ -35,6 +37,8 @@ const dijkstra = `bool shortestPath(int start, int goal) {
 }`;
 
 const astar = `bool shortestPath(int start, int goal) {
+    if (start < 0 || start >= CELL_COUNT || goal < 0 || goal >= CELL_COUNT) return false;
+    if (map[start] < 0 || map[goal] < 0) return false;
     bool* closed = new bool[CELL_COUNT]{};
     int* score = new int[CELL_COUNT];
     for (int cell = 0; cell < CELL_COUNT; cell++) {
@@ -130,9 +134,10 @@ int minimumScore(const int score[], const bool closed[]) const {
 const reconstructPath = `// After shortestPath succeeds, the caller owns the returned array (delete[]).
 int* reconstructPath(int start, int goal, int& length) const {
     length = 0;
+    if (start < 0 || start >= CELL_COUNT || goal < 0 || goal >= CELL_COUNT) return nullptr;
     if (distance[goal] == INF) return nullptr;
     int current = goal;
-    while (current != -1 && length < CELL_COUNT) {
+    while (current >= 0 && current < CELL_COUNT && length < CELL_COUNT) {
         length++;
         if (current == start) break;
         current = previous[current];

@@ -2,6 +2,7 @@ const indent = source => source.split('\n').map(line => (line ? `    ${line}` : 
 
 const unionOperations = {
   union: `void unite(int first, int second) {
+    if (first < 0 || first >= size || second < 0 || second >= size) return;
     int rootA = findRoot(first);
     int rootB = findRoot(second);
     if (rootA == rootB) return;
@@ -13,11 +14,12 @@ const unionOperations = {
     }
 }`,
   'find-root': `int findRoot(int value) {
+    if (value < 0 || value >= size) return -1;
     if (parent[value] != value) parent[value] = findRoot(parent[value]);
     return parent[value];
 }`,
   reset: `void reset(int amount) {
-    size = amount > CAPACITY ? CAPACITY : amount;
+    size = amount < 0 ? 0 : amount > CAPACITY ? CAPACITY : amount;
     for (int i = 0; i < size; i++) {
         parent[i] = i;
         rank[i] = 0;

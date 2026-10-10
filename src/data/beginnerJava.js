@@ -906,9 +906,10 @@ const commonHelpers = {
     size--;
 }`,
   simpleHash: `int simpleHash(String text) {
-    int hash = 0;
-    for (int i = 0; i < text.length(); i++) {
-        hash = hash * 31 + text.charAt(i);
+    int hash = 7;
+    byte[] bytes = text.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    for (int i = 0; i < bytes.length; i++) {
+        hash = hash * 31 + (bytes[i] & 0xff);
     }
     return hash;
 }`,

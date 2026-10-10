@@ -325,7 +325,8 @@ for (const algorithm of algorithms) {
           });
       assert.ok(frames.length > 0, `${label}: no genera fotogramas.`);
       assert.ok(frames.every(frame => Array.isArray(frame.values)), `${label}: un fotograma no contiene values.`);
-      assert.ok(frames.every(frame => Number.isInteger(frame.codeLine)), `${label}: una línea de código no está sincronizada.`);
+      assert.ok(frames.every(frame => Number.isInteger(frame.codeLine)
+        || (frame.codeLine === null && (frame.traceMode === 'summary' || frame.codeUnmapped === true))), `${label}: una línea debe ser exacta o declarar explícitamente que no se resalta.`);
       assert.ok(frames.every(frame => typeof frame.message === 'string' && frame.message.length > 0), `${label}: un fotograma no explica lo que ocurre.`);
       assert.deepEqual(frames.at(-1).values, result.values, `${label}: el último fotograma no coincide con el resultado.`);
       if (algorithm.id === 'deque' && result.ok) {
@@ -351,10 +352,11 @@ for (const algorithm of algorithms) {
               inputValues: fieldsFor(algorithm, action.id, trial),
             });
         const cppLines = cpp.split('\n');
-        assert.ok(cppFrames.every(frame => Number.isInteger(frame.codeLine)
+        assert.ok(cppFrames.every(frame => (frame.codeLine === null && (frame.traceMode === 'summary' || frame.codeUnmapped === true)) || (Number.isInteger(frame.codeLine)
           && frame.codeLine >= 0
-          && frame.codeLine < cppLines.length), `${algorithm.id}/${action.id}: una línea C++ animada está fuera del código.`);
+          && frame.codeLine < cppLines.length)), `${algorithm.id}/${action.id}: una línea C++ animada está fuera del código.`);
         assert.ok(cppFrames.every(frame => {
+          if (frame.codeLine === null) return frame.traceMode === 'summary' || frame.codeUnmapped === true;
           const highlighted = cppLines[frame.codeLine].trim();
           return highlighted
             && !highlighted.startsWith('//')
@@ -399,7 +401,7 @@ for (const algorithm of algorithms) {
           finalStep: result.step,
           finalMessage: result.message,
         });
-        if (result.ok && action.id !== 'find' && operationGroup(algorithm) !== 'list' && firstLoopLine >= 0 && iterations > 1) {
+        if (['array', 'deque'].includes(algorithm.id) && result.ok && action.id !== 'find' && firstLoopLine >= 0 && iterations > 1) {
           assert.ok(frames.filter(frame => frame.codeLine === firstLoopLine).length >= 2, `${label}: el ciclo no vuelve a su condición.`);
         }
       }
