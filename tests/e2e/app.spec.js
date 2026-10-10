@@ -1724,6 +1724,7 @@ test('N-Reinas y Laberinto C++ nombran la función que se ilumina', async ({ pag
 });
 
 test('Dijkstra y A* muestran código Java y C++ junto al mapa', async ({ page }) => {
+  test.setTimeout(60_000);
   for (const id of ['dijkstra', 'a-star']) {
     await page.goto(`/${id}`);
     await expect(page.locator('.code-panel')).toBeVisible();
@@ -1746,11 +1747,15 @@ test('Dijkstra y A* muestran código Java y C++ junto al mapa', async ({ page })
       id === 'dijkstra' ? 'minimumDistance(settled)' : 'minimumScore(score, closed)',
     );
     await expect(page.locator('.operation-message')).toHaveClass(/running/);
-    await page.getByRole('button', { name: 'Reproducir', exact: true }).click();
-    await page.clock.runFor(300_000);
+    // Advance through the actual player while the clock remains paused.
+    // A single large clock jump cannot flush React's per-step timer effects.
+    const next = page.getByRole('button', { name: 'Siguiente', exact: true });
+    for (let remainingSteps = 0; remainingSteps < 1000 && await next.isEnabled(); remainingSteps++) {
+      await next.press('Enter');
+    }
     await expect(page.locator('.operation-message')).toHaveClass(/success/);
     await expect(page.locator('.operation-message')).toContainText('Operación completada');
-    await expect(page.getByRole('button', { name: 'Siguiente', exact: true })).toBeDisabled();
+    await expect(next).toBeDisabled();
   }
 });
 

@@ -71,3 +71,9 @@ La siguiente ejecución de CI pasó esos controles, seguridad y build, pero enco
 una expectativa E2E antigua en Dijkstra/A*: exigía éxito en el primer paso con el
 reloj detenido. Se actualizó para exigir `Ejecutando` durante el recorrido y éxito
 únicamente después de llegar al último evento, sin omitir la prueba.
+
+La comprobación del final descubrió además un fallo real: los eventos de pathfinding
+no llevan la bandera `completed`, por lo que el encabezado seguía en ejecución aun
+con la ruta terminada. El reproductor ahora determina ese estado por la posición
+en la secuencia, no por una bandera opcional de cada familia. La regresión recorre
+los controles reales por teclado y exige el estado final y el botón Siguiente deshabilitado.
