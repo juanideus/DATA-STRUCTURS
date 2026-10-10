@@ -55,3 +55,14 @@ Los controles de límite del reproductor y el contrato de resúmenes se reflejar
 las comprobaciones de regresión del repositorio. **No se ejecutó `npm run test` ni
 la suite funcional/E2E completa.** La compilación no prueba todo el comportamiento
 nativo, y esta revisión dirigida no certifica todas las entradas de las 86 páginas.
+
+## Corrección de CI de la PR #67
+
+La auditoría detectó que `current.value`, usado como expresión dentro de una impresión,
+no encontraba `current->value` en C++. Se corrigió el buscador compartido para reconocer
+fragmentos sintácticos equivalentes dentro de la operación seleccionada, sin recurrir
+a aproximaciones semánticas ni eliminar la comprobación de la matriz poco poblada.
+Se añadió una regresión que también exige mantener sin resaltar una expresión inexistente.
+
+Después de la corrección pasaron `audit-functions.mjs` (86 temas, 310 acciones y 3100
+comprobaciones funcionales) y `audit-structure-fidelity.mjs`.

@@ -783,6 +783,17 @@ for (const actionId of ['matrix-row', 'matrix-column']) {
   assert.doesNotMatch(cpp, /output\[current->/, 'C++ no debe devolver un arreglo denso si la animación muestra nodos dispersos.');
 }
 
+const expressionMapping = adaptFramesToCode([
+  { codeNeedle: 'current.value' },
+  { codeNeedle: 'current.missingValue' },
+], `void helper() { visit(current->value); }
+// Start of the selected operation
+std::cout << current->value << '\\n';
+// End of the selected operation`, true);
+assert.equal(expressionMapping[0].codeLine, 2, 'Una expresión Java debe mapear su equivalente C++ dentro de la operación seleccionada.');
+assert.equal(expressionMapping[1].codeLine, null, 'Una expresión inexistente no debe iluminar otra línea por aproximación.');
+assert.equal(expressionMapping[1].codeUnmapped, true, 'La falta de equivalencia debe mantenerse explícita.');
+
 let fifteenSparseCells = [];
 for (let index = 0; index < 15; index++) {
   const result = run(

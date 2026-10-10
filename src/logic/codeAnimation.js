@@ -1984,6 +1984,15 @@ export function adaptFramesToCode(frames, code, keepOriginalLines) {
               && normalizedSyntax(line) === syntaxNeedle
             ));
             if (matchedLine < 0) matchedLine = sourceLines.findIndex(line => normalizedSyntax(line) === syntaxNeedle);
+            // A needle may be an expression inside an instruction (for example,
+            // current.value inside println / cout), not the entire statement.
+            // Translate pointer syntax only; do not infer a semantic fallback.
+            if (matchedLine < 0) matchedLine = sourceLines.findIndex((line, sourceIndex) => (
+              sourceIndex >= selectedStart
+              && sourceIndex <= selectedEnd
+              && normalizedSyntax(line).includes(syntaxNeedle)
+            ));
+            if (matchedLine < 0) matchedLine = sourceLines.findIndex(line => normalizedSyntax(line).includes(syntaxNeedle));
           }
           if (matchedLine < 0) {
             const languageAliases = [
