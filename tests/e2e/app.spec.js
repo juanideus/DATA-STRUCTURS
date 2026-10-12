@@ -1751,6 +1751,57 @@ test('árbol enhebrado no adelanta conexiones y muestra delete en C++', async ({
   expect(predecessor && released).toBe(true);
 });
 
+for (const language of ['Java', 'C++']) {
+  for (const { value, index, side } of [
+    { value: '1', index: '7', side: 'left' },
+    { value: '40', index: '14', side: 'right' },
+  ]) {
+    test(`árbol enhebrado enruta el hilo externo pendiente ${side} en ${language}`, async ({ page }) => {
+      test.setTimeout(30_000);
+      await page.goto('/arbol-enhebrado');
+      await page.getByRole('button', { name: language, exact: true }).click();
+      await page.getByLabel('Valor').fill(value);
+      await page.getByRole('button', { name: 'Insertar nodo', exact: true }).click();
+      const access = language === 'C++' ? '->' : '.';
+      const assignment = `newNode${access}${side} = parent${access}${side};`;
+      const attachment = `parent${access}${side}Thread = false;`;
+      const node = page.locator(`.threaded-node[data-tree-index="${index}"]`);
+      const thread = page.locator(`.thread-edge[data-thread-from="${index}"][data-thread-side="${side}"][data-thread-to="header"]`);
+      let pending = false;
+      let connected = false;
+      await inspectThreadedSteps(page, async line => {
+        if (line === assignment) {
+          pending = true;
+          await expect(node).toHaveAttribute('data-connected', 'false');
+          await expect(page.locator('.threaded-child-layer line')).toHaveCount(7);
+          await expect(thread).toHaveAttribute('data-root-return', 'true');
+          await expect(thread).toHaveAttribute('d', /^M .* C /);
+          const crossesDataRoot = await thread.evaluate(path => {
+            const root = document.querySelector('.threaded-node[data-tree-index="0"]').getBoundingClientRect();
+            const transform = path.getScreenCTM();
+            const length = path.getTotalLength();
+            for (let sample = 0; sample <= 200; sample++) {
+              const point = path.getPointAtLength(length * sample / 200).matrixTransform(transform);
+              const dx = (point.x - (root.left + root.width / 2)) / (root.width / 2);
+              const dy = (point.y - (root.top + root.height / 2)) / (root.height / 2);
+              if (dx * dx + dy * dy < 1) return true;
+            }
+            return false;
+          });
+          expect(crossesDataRoot).toBe(false);
+        }
+        if (line === attachment) {
+          connected = true;
+          await expect(node).toHaveAttribute('data-connected', 'true');
+          await expect(thread).toHaveAttribute('data-root-return', 'true');
+          await expect(thread).toHaveAttribute('d', /^M .* C /);
+        }
+      });
+      expect(pending && connected).toBe(true);
+    });
+  }
+}
+
 test('árbol enhebrado conserva cabecera en vacío y al insertar', async ({ page }) => {
   test.setTimeout(30_000);
   await page.goto('/arbol-enhebrado');

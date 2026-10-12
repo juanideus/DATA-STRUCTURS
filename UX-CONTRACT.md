@@ -32,6 +32,8 @@ amarilla separada de los nodos con datos. `root.left` enlaza el primer nodo con 
 `leftThread = true`; en no vacío, `leftThread = false`. El menor tiene `left` hacia la
 cabecera y el mayor tiene `right` hacia ella; los demás hilos apuntan al vecino inorden.
 Un único nodo con datos cierra ambos hilos hacia la cabecera, no hacia sí mismo.
+Durante una inserción, un hilo que ya apunta a la cabecera usa el recorrido exterior,
+aunque el nodo nuevo todavía no esté conectado al árbol por un enlace real.
 Java, C++, pseudocódigo, escenas y explicaciones muestran esta misma variante.
 Inorden empieza en `leftMost(root.left)` y termina al regresar a `root`, sin visitarla.
 Buscar devuelve la cabecera si la clave no existe. Eliminar reconecta antes de liberar el
