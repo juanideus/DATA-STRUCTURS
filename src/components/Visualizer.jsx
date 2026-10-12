@@ -859,9 +859,10 @@ function ThreadedTreeDiagram({ algorithm, step }) {
   };
   const header = byId.get(state.root);
   if (!header.leftThread) visit(header.left);
-  const isRootReturn = edge => edge.to === state.root && (
-    edge.side === 'left' ? edge.from === inorder[0] : edge.from === inorder.at(-1)
-  );
+  // A newly allocated extreme can already point to the header before its
+  // parent links it into the inorder traversal. Route by the actual pointer
+  // destination so that pending threads never cut through the data root.
+  const isRootReturn = edge => edge.to === state.root && edge.from !== state.root;
   const threadTarget = edge => position(edge.to);
   const threadPath = edge => {
     const [fromX, fromY] = position(edge.from);
