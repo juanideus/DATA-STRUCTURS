@@ -108,12 +108,17 @@ html[data-dark-mode="true"] :is(.available-description>p,.description-overview-g
 .sort-cell.ordered-prefix:not(.swapping):not(.writing){border-color:#668078;background:#e8efec;color:#213e35}
 html[data-dark-mode="true"] .sort-cell.ordered-prefix:not(.swapping):not(.writing){background:#243e43;border-color:#88b6aa;color:var(--ink)}
 html[data-dark-mode="true"] .operation-message{background:#28394c}
+html[data-dark-mode="true"] .operation-message>span{color:var(--ink)}
 html[data-dark-mode="true"] .operation-message p{color:#e0eaf3}
 html[data-dark-mode="true"] .operation-message.success{background:#243e43}
+html[data-dark-mode="true"] .operation-message.success>span{color:#b5d8f6}
 html[data-dark-mode="true"] .operation-message.error{background:#493036}
+html[data-dark-mode="true"] .operation-message.error>span{color:#f9d4cb}
 html[data-dark-mode="true"] .operation-message.error p{color:#f9d4cb}
 html[data-dark-mode="true"] .description-loading{background:#26374a}
 html[data-dark-mode="true"] .description-loading>span{background:#384b5f}
+html[data-dark-mode="true"] .description-complexity-row{background:var(--cream);border-color:var(--line);color:var(--ink)}
+html[data-dark-mode="true"] .description-complexity-row :is(small,p){color:var(--muted);border-color:var(--line)}
 
 html[data-dark-mode="true"] .circle-node rect{fill:#30445a;stroke:#8ba9bf}
 html[data-dark-mode="true"] .circle-node .circle-pointer{fill:#c0cfdb}
@@ -147,6 +152,19 @@ html[data-dark-mode="true"] .sort-legend :is(.fixed-sample,.left-sample,.right-s
 
 html[data-dark-mode="true"] .tree-node.active .tree-node-badge{background:#4a3740;border-color:#e7957a;color:#ffe6dc}
 html[data-dark-mode="true"] .threaded-node.active .tree-node-badge{background:#4a3740;border-color:#e7957a;color:#ffe6dc}
+html[data-dark-mode="true"] .threaded-tree-canvas .threaded-header{background:#d6bd72;border-color:#f0da91;color:#302711}
+html[data-dark-mode="true"] .threaded-tree-visual .threaded-tree-canvas.tree-arbol-enhebrado .tree-node.threaded-header.active{background:#d6bd72;border-color:#f0da91;color:#302711;outline:3px solid var(--orange);outline-offset:4px}
+html[data-dark-mode="true"] .threaded-child-layer line,html[data-dark-mode="true"] .threaded-child-layer .header-self-link{stroke:#a7c976}
+html[data-dark-mode="true"] .threaded-child-layer marker path{fill:#a7c976}
+html[data-dark-mode="true"] .thread-edge:not(.active){stroke:#9fbfdc}
+html[data-dark-mode="true"] .thread-layer marker#thread-arrow path{fill:#9fbfdc}
+html[data-dark-mode="true"] .threaded-tree-legend .real-child-sample{border-color:#a7c976}
+html[data-dark-mode="true"] .threaded-tree-legend .thread-sample{border-color:#9fbfdc}
+html[data-dark-mode="true"] .diagram-threaded-tree svg .diagram-threaded-header{fill:#d6bd72;stroke:#f0da91}
+html[data-dark-mode="true"] .diagram-threaded-tree svg circle:not(.diagram-threaded-header){fill:#2c3d50;stroke:#a1b5c9}
+html[data-dark-mode="true"] .diagram-threaded-tree svg .diagram-threaded-header-text{fill:#302711}
+html[data-dark-mode="true"] .diagram-threaded-tree svg path:not(.diagram-dashed){stroke:#a7c976}
+html[data-dark-mode="true"] .diagram-threaded-tree svg .diagram-dashed{stroke:#9fbfdc}
 html[data-dark-mode="true"] .chess-board{border-color:#8399ad}
 html[data-dark-mode="true"] .chess-board>div{background:#34465a;color:#f0b69f}
 html[data-dark-mode="true"] .chess-board .dark{background:#263a48}

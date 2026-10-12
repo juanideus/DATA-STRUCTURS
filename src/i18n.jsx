@@ -121,6 +121,12 @@ const exactLearningText = {
 };
 
 const learningReplacements = [
+  ['BST con cabecera root separada de los datos, hilos inorden internos y dos hilos externos que vuelven a la cabecera.', 'A BST with a separate root header, internal inorder threads, and two outer threads returning to the header.'],
+  ['root es la cabecera separada de los datos; los hilos externos vuelven a ella', 'root is the header, separate from data nodes; the outer threads return to it'],
+  ['usa los enlaces sin hijo como hilos y cierra los externos en la cabecera root', 'uses links without children as threads and closes the outer threads at the root header'],
+  ['LT y RT distinguen enlaces reales de hilos; root.left enlaza los datos y root.right vuelve a root', 'LT and RT distinguish real links from threads; root.left links the data and root.right returns to root'],
+  ['un sendero marcado entre nodos con una cabecera que indica inicio y fin', 'a marked path between nodes with a header identifying the start and end'],
+  ['recorrer en inorden sin pila auxiliar', 'traverse inorder without an auxiliary stack'],
   ['Observa el diagrama. ¿Qué tema representa mejor esta organización?', 'Look at the diagram. Which topic best represents this organization?'],
   ['¿Cuál es la idea central de', 'What is the central idea of'], ['Durante cualquier operación válida de', 'During any valid operation of'],
   ['¿qué propiedad debe conservarse?', 'which property must be preserved?'], ['¿Qué estructura o algoritmo elegirías para', 'Which data structure or algorithm would you choose to'],
@@ -270,6 +276,7 @@ export function translateLearningText(value, language) {
     if (match) return format(match);
   }
   const correctedTraceText = {
+    'Ingresa un entero válido de 32 bits.': 'Enter a valid 32-bit integer.',
     'Estado anterior a la operación. Se muestran cambios de estado, no una ejecución línea por línea.': 'State before the operation. This is a state overview, not a line-by-line execution trace.',
     'La casilla está BORRADA: el sondeo no termina aquí.': 'The slot is DELETED: probing does not stop here.',
     'Se avanza después de la marca de borrado.': 'Probing advances past the deleted slot.',

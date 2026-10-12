@@ -7,6 +7,7 @@ import { useLanguage } from '../i18n.jsx';
 import { getEnglishEducationalDescription } from '../data/educationalDescriptionsEnglish.js';
 
 const englishExampleCopy = {
+  'arbol-enhebrado': { title: 'Recognizing the header', explanation: 'root is the header, separate from data nodes. After visiting the largest node, its right thread returns current to root; traversal ends without printing the header.' },
   deque: {
     title: 'Insert at both ends',
     explanation: 'Inserting at the front shifts values and takes O(n); inserting at the back writes the next position and takes O(1).',

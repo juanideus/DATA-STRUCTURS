@@ -1,8 +1,8 @@
-import { memo, useEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import '../visualizer.css';
 import { MapPin } from 'lucide-react';
 import { getGraphDesign } from '../data/graphDesigns.js';
-import { getThreadedTreeLinks, SPARSE_MATRIX_COLUMNS, SPARSE_MATRIX_ROWS } from '../logic/operationMetadata.js';
+import { getThreadedTreeLinks, THREADED_HEADER, SPARSE_MATRIX_COLUMNS, SPARSE_MATRIX_ROWS } from '../logic/operationMetadata.js';
 import { DENSE_MATRIX_SIZE, normalizeDenseMatrixValues } from '../logic/denseMatrix.js';
 import { generalizedListToString } from '../logic/generalizedList.js';
 import { formatPolynomial, polynomialTerms } from '../logic/polynomial.js';
@@ -777,87 +777,161 @@ function BinaryTreeDiagram({ algorithm, step, displayValues = algorithm.values.s
 }
 
 function ThreadedTreeDiagram({ algorithm, step }) {
-  const values = algorithm.values.slice(0, 15);
-  const { inorder, links } = getThreadedTreeLinks(values);
+  const english = algorithm.language === 'en';
+  const canvasRef = useRef(null);
+  const [canvasWidth, setCanvasWidth] = useState(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const observer = new ResizeObserver(entries => setCanvasWidth(entries[0].contentRect.width));
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, []);
   const frame = algorithm.animationFrame;
+  const { links } = getThreadedTreeLinks(algorithm.values);
+  const state = frame?.threadedState ?? {
+    root: THREADED_HEADER,
+    nodes: [{ id: THREADED_HEADER, header: true, value: 'root', connected: true,
+      left: links.has(0) ? 0 : THREADED_HEADER, right: THREADED_HEADER,
+      leftThread: !links.has(0), rightThread: false }, ...[...links.values()].map(meta => ({
+      id: meta.index, value: meta.value, connected: true,
+      leftThread: meta.leftThread, rightThread: meta.rightThread,
+      left: meta.leftThread ? meta.predecessor : meta.index * 2 + 1,
+      right: meta.rightThread ? meta.successor : meta.index * 2 + 2,
+    }))],
+  };
+  const nodes = state.nodes;
   const activeThread = frame?.activeThread;
   const threadEdges = [];
-
-  links.forEach(meta => {
-    if (meta.leftThread) {
-      threadEdges.push({ from: meta.index, to: meta.predecessor, side: 'left' });
-    }
-    if (meta.rightThread) {
-      threadEdges.push({ from: meta.index, to: meta.successor, side: 'right' });
+  const childEdges = [];
+  nodes.forEach(node => {
+    for (const side of ['left', 'right']) {
+      const edge = { from: node.id, to: node[side], side };
+      if (node[`${side}Thread`]) threadEdges.push(edge);
+      else if (edge.from !== edge.to) childEdges.push(edge);
     }
   });
-
-  const threadTarget = edge => {
-    if (edge.to !== null) return BINARY_POSITIONS[edge.to];
-    return edge.side === 'left' ? [3, 85] : [97, 85];
+  const position = id => id === THREADED_HEADER ? [57, 10] : [BINARY_POSITIONS[id][0], 28 + BINARY_POSITIONS[id][1] * .68];
+  const nodeWidth = Math.max(58, ...nodes.filter(node => !node.header).map(node => String(node.value).length * 8 + 22));
+  let closestGap = 100;
+  nodes.forEach((node, index) => nodes.slice(index + 1).forEach(other => {
+    const [x, y] = position(node.id);
+    const [otherX, otherY] = position(other.id);
+    if (y === otherY) closestGap = Math.min(closestGap, Math.abs(x - otherX));
+  }));
+  const edgeClearance = Math.max(0, ...nodes.map(node => {
+    const [x] = position(node.id);
+    return (nodeWidth * 1.12 / 2 + 14) * 100 / Math.min(x, 100 - x);
+  }));
+  const minimumWidth = Math.ceil(Math.max(600, Math.max(nodeWidth * 1.12 + 24, 116) * 100 / closestGap, edgeClearance));
+  const renderedWidth = canvasWidth ?? minimumWidth;
+  const byId = new Map(nodes.map(node => [node.id, node]));
+  // Attach arrow tips to the actual node boundary, including long numbers and
+  // the active-node scale; percentage offsets would leave gaps on wide trees.
+  const boundary = (id, towardX, towardY) => {
+    const [x, y] = position(id);
+    const node = byId.get(id);
+    const scale = id === step ? 1.12 : 1;
+    const radiusX = (node.header ? 68 : nodeWidth) * scale / 2 + 2;
+    const radiusY = (node.header ? 52 : 46) * scale / 2 + 2;
+    const dx = (towardX - x) * renderedWidth / 100;
+    const dy = (towardY - y) * 460 / 100;
+    const factor = 1 / (Math.hypot(dx / radiusX, dy / radiusY) || 1);
+    return [x + dx * factor * 100 / renderedWidth, y + dy * factor * 100 / 460];
   };
+  const selfLinkPath = (id, side) => {
+    const [x, y] = position(id);
+    const direction = side === 'left' ? -1 : 1;
+    const width = byId.get(id).header ? 68 : nodeWidth;
+    const loopX = Math.max(1, Math.min(99, x + direction * (width / 2 + 48) * 100 / renderedWidth));
+    const start = boundary(id, loopX, y - 1);
+    const end = boundary(id, loopX, y + 3);
+    return `M ${start.join(' ')} C ${loopX} ${y - 8}, ${loopX} ${y + 13}, ${end.join(' ')}`;
+  };
+  const inorder = [];
+  const seen = new Set();
+  const visit = id => {
+    if (id === THREADED_HEADER || seen.has(id) || !byId.has(id)) return;
+    seen.add(id);
+    const node = byId.get(id);
+    if (!node.leftThread) visit(node.left);
+    inorder.push(id);
+    if (!node.rightThread) visit(node.right);
+  };
+  const header = byId.get(state.root);
+  if (!header.leftThread) visit(header.left);
+  const isRootReturn = edge => edge.to === state.root && (
+    edge.side === 'left' ? edge.from === inorder[0] : edge.from === inorder.at(-1)
+  );
+  const threadTarget = edge => position(edge.to);
   const threadPath = edge => {
-    const [fromX, fromY] = BINARY_POSITIONS[edge.from];
+    const [fromX, fromY] = position(edge.from);
     const [toX, toY] = threadTarget(edge);
     const direction = edge.side === 'left' ? -1 : 1;
+    if (edge.from === edge.to) {
+      return selfLinkPath(edge.from, edge.side);
+    }
+    const start = boundary(edge.from, fromX, fromY + 20);
+    if (isRootReturn(edge)) {
+      const lane = edge.side === 'left' ? 2 : 98;
+      const end = boundary(edge.to, lane, toY);
+      return `M ${start.join(' ')} C ${lane} ${Math.min(98, fromY + 18)}, ${lane} ${toY}, ${end.join(' ')}`;
+    }
     const controlX = (fromX + toX) / 2 + direction * 7;
-    const controlY = Math.min(90, Math.max(fromY, toY) + (edge.to === null ? 3 : 12));
-    return `M ${fromX} ${fromY + 5} Q ${controlX} ${controlY} ${toX} ${toY + (edge.to === null ? 0 : 5)}`;
+    const controlY = Math.min(96, Math.max(fromY, toY) + 12);
+    const end = boundary(edge.to, controlX, controlY);
+    return `M ${start.join(' ')} Q ${controlX} ${controlY} ${end.join(' ')}`;
   };
-  const isActiveThread = edge => (
-    activeThread
-    && edge.from === activeThread.from
-    && edge.to === activeThread.to
-    && edge.side === activeThread.side
-  );
+  const isActiveThread = edge => activeThread && edge.from === activeThread.from && edge.to === activeThread.to && edge.side === activeThread.side;
 
-  return <div className="tree-canvas threaded-tree-canvas tree-arbol-enhebrado" role="img" aria-label="Árbol binario enhebrado: líneas sólidas para hijos y líneas discontinuas para hilos inorden">
-    <span className="tree-kind-label">BST DOBLEMENTE ENHEBRADO</span>
-    <svg className="edge-layer threaded-child-layer" aria-hidden="true">
-      {BINARY_EDGES.filter(([from,to]) => to < values.length && values[from] !== undefined && values[to] !== undefined).map(([from,to]) =>
-        <TreeEdge key={`${from}-${to}`} from={BINARY_POSITIONS[from]} to={BINARY_POSITIONS[to]} label={to === from * 2 + 1 ? 'L' : 'R'}/>
-      )}
-    </svg>
-    <svg className="thread-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-      <defs>
-        <marker id="thread-arrow" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto">
-          <path d="M0,0 L5,2.5 L0,5 Z"/>
-        </marker>
-        <marker id="thread-arrow-active" markerWidth="6" markerHeight="6" refX="5.4" refY="3" orient="auto">
-          <path d="M0,0 L6,3 L0,6 Z"/>
-        </marker>
-      </defs>
-      {threadEdges.map(edge => <path
-        key={`${edge.from}-${edge.side}`}
-        className={`thread-edge ${edge.side}-thread ${isActiveThread(edge) ? 'active' : ''}`}
-        data-thread-from={edge.from}
-        data-thread-to={edge.to ?? 'null'}
-        data-thread-side={edge.side}
-        d={threadPath(edge)}
-        markerEnd={isActiveThread(edge) ? 'url(#thread-arrow-active)' : 'url(#thread-arrow)'}
-      />)}
-    </svg>
-    <span className="thread-null-anchor left-null">NULL</span>
-    <span className="thread-null-anchor right-null">NULL</span>
-    {BINARY_POSITIONS.map(([x,y], index) => {
-      if (values[index] === undefined) return null;
-      const meta = links.get(index);
-      const badge = `${meta.leftThread ? 'LT' : 'L hijo'} · ${meta.rightThread ? 'RT' : 'R hijo'}`;
-      return <div
-        key={index}
-        data-tree-index={index}
-        data-inorder-position={meta.order}
-        className={`tree-node threaded-node ${index >= 7 ? 'deep-node' : ''} ${index === step ? 'active' : ''}`}
-        style={{left:`${x}%`,top:`${y}%`}}
-      >
-        <span className="tree-value">{values[index]}</span>
-        <small className="tree-node-badge">{badge}</small>
-      </div>;
-    })}
+  return <div className="threaded-tree-visual">
+    <div className="threaded-tree-scroll" role="region" tabIndex={0} aria-label={english ? 'Threaded tree diagram; scroll horizontally to see all nodes' : 'Diagrama del árbol enhebrado; desplaza horizontalmente para ver todos los nodos'}>
+      <div ref={canvasRef} className="tree-canvas threaded-tree-canvas tree-arbol-enhebrado" role="img"
+        style={{ minWidth: `${minimumWidth}px`, '--thread-node-width': `${nodeWidth}px` }}
+        data-root-index={state.root} data-data-root-index={header.left}
+        aria-label={english ? 'Threaded binary tree with a root header: solid lines are real links, dashed lines are inorder threads' : 'Árbol binario enhebrado con cabecera root: líneas sólidas para enlaces reales y líneas discontinuas para hilos inorden'}>
+        <span className="tree-kind-label">{english ? 'DOUBLE-THREADED BST · HEADER' : 'BST DOBLEMENTE ENHEBRADO · CABECERA'}</span>
+        <svg className="edge-layer threaded-child-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <defs><marker id="thread-child-arrow" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 Z"/></marker></defs>
+          {childEdges.map(edge => {
+            const from = position(edge.from), to = position(edge.to);
+            const start = boundary(edge.from, ...to), end = boundary(edge.to, ...from);
+            return <line key={`${edge.from}-${edge.side}`} data-child-from={edge.from} data-child-to={edge.to}
+              x1={start[0]} y1={start[1]} x2={end[0]} y2={end[1]} markerEnd="url(#thread-child-arrow)"/>;
+          })}
+          <path className="header-self-link" data-child-from={state.root} data-child-to={state.root}
+            d={selfLinkPath(state.root, 'right')} markerEnd="url(#thread-child-arrow)"/>
+        </svg>
+        <svg className="thread-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <marker id="thread-arrow" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 Z"/></marker>
+            <marker id="thread-arrow-active" markerWidth="6" markerHeight="6" refX="5.4" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z"/></marker>
+          </defs>
+          {threadEdges.map(edge => <path key={`${edge.from}-${edge.side}`}
+            className={`thread-edge ${edge.side}-thread ${isRootReturn(edge) ? 'root-return' : ''} ${isActiveThread(edge) ? 'active' : ''}`}
+            data-root-return={isRootReturn(edge)}
+            data-thread-from={edge.from} data-thread-to={edge.to ?? 'null'} data-thread-side={edge.side}
+            d={threadPath(edge)} markerEnd={isActiveThread(edge) ? 'url(#thread-arrow-active)' : 'url(#thread-arrow)'}/>)}
+        </svg>
+        {nodes.map(node => {
+          const [x, y] = position(node.id);
+          const badge = node.header ? (english ? 'HEADER' : 'CABECERA') : `${node.leftThread ? 'LT' : 'L'} · ${node.rightThread ? 'RT' : 'R'}`;
+          return <div key={node.id} data-tree-index={node.id} data-inorder-position={inorder.indexOf(node.id)}
+            data-connected={node.connected}
+            className={`tree-node ${node.header ? 'threaded-header' : 'threaded-node'} ${node.id === step ? 'active' : ''} ${node.connected ? '' : 'unlinked-node'}`}
+            style={{ left: `${x}%`, top: `${y}%` }}>
+            <span className="tree-value">{node.value}</span>
+            <small className="tree-node-badge">{badge}</small>
+            {!node.connected && <small className="threaded-pending-label">{english ? 'UNLINKED' : 'SIN CONECTAR'}</small>}
+          </div>;
+        })}
+      </div>
+    </div>
     <div className="threaded-tree-legend">
-      <span><i className="real-child-sample"/> hijo real</span>
-      <span><i className="thread-sample"/> hilo inorden</span>
-      <span>Orden: {inorder.map(index => values[index]).join(' → ')}</span>
+      <span><i className="real-child-sample"/>{english ? 'real link' : 'enlace real'}</span>
+      <span><i className="thread-sample"/>{english ? 'inorder thread' : 'hilo inorden'}</span>
+      <span>{english ? 'Outer threads return to the root header' : 'Los hilos externos vuelven a la cabecera root'}</span>
+      <span>{english ? 'L/R: real child · LT/RT: thread · root: header without data' : 'L/R: hijo real · LT/RT: hilo · root: cabecera sin dato'}</span>
+      <span>{english ? 'Order' : 'Orden'}: {inorder.map(id => byId.get(id).value).join(' → ') || '∅'}</span>
     </div>
   </div>;
 }
@@ -1089,9 +1163,9 @@ function SpatialTreeDiagram({ algorithm, step }) {
 function TreeVisual({ algorithm, step }) {
   const values = algorithm.values.slice(0,15);
   const english = algorithm.language === 'en';
+  if (algorithm.id === 'arbol-enhebrado') return <ThreadedTreeDiagram algorithm={algorithm} step={step}/>;
   if (!values.length) return <div className="empty-visual"><strong>∅</strong><span>{algorithm.language === 'en' ? 'Empty tree' : 'Árbol vacío'}</span></div>;
   if (['arbol-general','arbol-nario'].includes(algorithm.id)) return <NaryTreeDiagram algorithm={algorithm} step={step}/>;
-  if (algorithm.id === 'arbol-enhebrado') return <ThreadedTreeDiagram algorithm={algorithm} step={step}/>;
   if (algorithm.type==='btree') return <MultiwayTreeDiagram algorithm={algorithm} step={step}/>;
   if (algorithm.id==='segment-tree') return <SegmentTreeDiagram algorithm={algorithm} step={step}/>;
   if (algorithm.id==='merkle-tree') return <MerkleTreeDiagram algorithm={algorithm} step={step}/>;
@@ -1634,6 +1708,7 @@ function Visualizer({ algorithm, step }) {
   if (algorithm.type === 'generalized-list') return <GeneralizedListVisual algorithm={algorithm}/>;
   if (algorithm.type === 'matrix') return <DenseMatrixVisual algorithm={algorithm} step={step}/>;
   if (algorithm.type === 'sparse-matrix') return <SparseMatrixVisual algorithm={algorithm}/>;
+  if (algorithm.id === 'arbol-enhebrado') return <ThreadedTreeDiagram algorithm={algorithm} step={step}/>;
   if (!algorithm.values.length) return <EmptyVisual/>;
   if (['dijkstra','a-star'].includes(algorithm.id)) return <PathMapVisual algorithm={algorithm}/>;
   if (algorithm.type === 'sort') return <SortVisual algorithm={algorithm} step={step}/>;

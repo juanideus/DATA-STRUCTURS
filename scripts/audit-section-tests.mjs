@@ -22,6 +22,19 @@ for (const algorithm of algorithms) {
   }
   if (visualQuestions.length !== 1) failures.push(`${algorithm.id}: debe incluir exactamente una pregunta visual.`);
 
+  if (algorithm.id === 'arbol-enhebrado') {
+    const expected = ['header-role', 'header-links', 'empty-header', 'thread-flags', 'outer-threads', 'single-data-node', 'inorder-start', 'inorder-stop', 'remove-data-root', 'cpp-destruction'];
+    for (const id of expected) {
+      if (!sectionTest.questions.some(question => question.id === id)) failures.push(`${algorithm.id}: falta el concepto ${id}.`);
+    }
+    for (const question of sectionTest.questions) {
+      if (!question.promptEn || !question.explanationEn || question.choices.some(choice => !choice.labelEn)) {
+        failures.push(`${algorithm.id}/${question.id}: falta traducción inglesa explícita.`);
+      }
+    }
+    if (!visualQuestions[0]?.visual.captionEn) failures.push(`${algorithm.id}: falta el título inglés del diagrama.`);
+  }
+
   if (algorithm.id === 'complejidad-algoritmica') {
     const codeQuestions = sectionTest.questions.filter(question => question.code);
     const assessedComplexities = new Set(codeQuestions.flatMap(question => question.choices.filter(choice => choice.correct).map(choice => choice.label)));

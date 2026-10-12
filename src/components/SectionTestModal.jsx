@@ -34,12 +34,18 @@ function QuestionVisual({ visual, language }) {
     </>;
   } else if (type === 'stack') {
     drawing = <>{[0, 1, 2, 3].map(index => <g key={index}><rect x="112" y={104 - index * 28} width="76" height="24" rx="5"/><text x="150" y={121 - index * 28}>{String.fromCharCode(65 + index)}</text></g>)}<path d="M205 31 L190 31"/><text className="diagram-label" x="210" y="35">top</text></>;
+  } else if (type === 'threaded-tree') {
+    drawing = <g transform="translate(0 6)">
+      <path d="M168 28 L150 54 M150 54 L94 91 M150 54 L210 91"/>
+      <path d="M186 20 C228 10 212 53 186 28"/>
+      <path className="diagram-dashed" d="M94 99 C24 151 22 16 151 17 M210 99 C279 144 283 17 189 17 M94 99 Q115 141 150 69 M210 99 Q181 141 150 69"/>
+      {[[170,18,'root'],[150,61,'B'],[94,99,'A'],[210,99,'C']].map(([x,y,label], index) => <g key={index}><circle className={index === 0 ? 'diagram-threaded-header' : undefined} cx={x} cy={y} r={index ? 16 : 19}/><text className={index === 0 ? 'diagram-threaded-header-text' : undefined} x={x} y={y+4}>{label}</text></g>)}
+    </g>;
   } else if (TREE_VISUAL_TYPES.has(type)) {
     const root = type === 'trie' ? 'P' : type === 'expression' ? '+' : type === 'ast' ? '=' : type === 'heap' ? '90' : type === 'bst' ? '50' : type === 'avl' ? '40' : type === 'splay' ? '↑' : 'R';
     drawing = <>
       <path d="M150 40 L92 77 M150 40 L208 77 M92 77 L60 112 M92 77 L120 112 M208 77 L180 112 M208 77 L240 112"/>
       {[[150,32,root],[92,76,type === 'trie'?'R':'A'],[208,76,type === 'trie'?'E':'B'],[60,116,'C'],[120,116,'D'],[180,116,'E'],[240,116,type === 'trie'?'•':'F']].map(([x,y,label], index)=><g key={index}><circle cx={x} cy={y} r={index?16:19}/><text x={x} y={y+4}>{label}</text></g>)}
-      {type === 'threaded-tree' && <path className="diagram-dashed" d="M60 116 C35 70 105 48 130 36"/>}
       {type === 'btree' && <rect className="diagram-accent" x="122" y="15" width="56" height="34" rx="7"/>}
       {type === 'merkle' && <text className="diagram-label" x="132" y="8">{language === 'en' ? 'root hash' : 'hash raíz'}</text>}
       {type === 'heap' && <text className="diagram-label" x="124" y="8">{language === 'en' ? 'maximum' : 'máximo'}</text>}
@@ -82,9 +88,10 @@ function QuestionVisual({ visual, language }) {
     drawing = <><circle cx="80" cy="80" r="28"/><circle cx="150" cy="48" r="28"/><circle cx="220" cy="80" r="28"/><path d="M107 68 L123 60 M177 60 L193 68"/><text x="80" y="84">idea</text><text x="150" y="52">regla</text><text x="220" y="84">paso</text></>;
   }
 
-  return <figure className={`section-test-diagram diagram-${type}`} aria-label={`${language === 'en' ? 'Concept diagram' : 'Diagrama conceptual'}: ${translateLearningText(visual.caption, language)}`}>
+  const caption = language === 'en' && visual.captionEn ? visual.captionEn : translateLearningText(visual.caption, language);
+  return <figure className={`section-test-diagram diagram-${type}`} aria-label={`${language === 'en' ? 'Concept diagram' : 'Diagrama conceptual'}: ${caption}`}>
     <svg viewBox="0 0 300 155" role="img" aria-hidden="true">{drawing}</svg>
-    <figcaption>{translateLearningText(visual.caption, language)}</figcaption>
+    <figcaption>{caption}</figcaption>
   </figure>;
 }
 
@@ -195,6 +202,7 @@ export default function SectionTestModal({ algorithm, externalViolation, onClose
   const lt = value => translateLearningText(value, language);
   const localizedPrompt = item => language === 'en' && item.promptEn ? item.promptEn : lt(item.prompt);
   const localizedExplanation = item => language === 'en' && item.explanationEn ? item.explanationEn : lt(item.explanation);
+  const localizedChoice = choice => language === 'en' && choice.labelEn ? choice.labelEn : lt(choice.label);
   const answerReview = result ? test.questions.map((item, index) => {
     const selected = item.choices.find(choice => choice.id === answers[item.id]);
     const correct = item.choices.find(choice => choice.correct);
@@ -247,7 +255,7 @@ export default function SectionTestModal({ algorithm, externalViolation, onClose
           {question.code && <pre className="section-test-code" aria-label={language === 'en' ? 'Code to analyze' : 'Código para analizar'}><code>{question.code}</code></pre>}
           {question.choices.map(choice => <label className={selectedChoice === choice.id ? 'selected' : ''} key={choice.id}>
             <input type="radio" name={question.id} checked={selectedChoice === choice.id} onChange={() => selectAnswer(choice.id)}/>
-            <span>{lt(choice.label)}</span>
+            <span>{localizedChoice(choice)}</span>
           </label>)}
         </fieldset>
         <div className="section-test-actions right">
@@ -281,8 +289,8 @@ export default function SectionTestModal({ algorithm, externalViolation, onClose
               </div>
               {item.code && <pre className="section-test-review-code" aria-label={c.codeReview}><code>{item.code}</code></pre>}
               <dl>
-                <div className="selected-answer"><dt>{c.yourAnswer}</dt><dd>{selected ? lt(selected.label) : c.unanswered}</dd></div>
-                {!isCorrect && <div className="correct-answer"><dt>{c.correctAnswer}</dt><dd>{correct ? lt(correct.label) : c.unanswered}</dd></div>}
+                <div className="selected-answer"><dt>{c.yourAnswer}</dt><dd>{selected ? localizedChoice(selected) : c.unanswered}</dd></div>
+                {!isCorrect && <div className="correct-answer"><dt>{c.correctAnswer}</dt><dd>{correct ? localizedChoice(correct) : c.unanswered}</dd></div>}
               </dl>
               <div className="section-test-review-explanation"><strong>{c.explanation}</strong><p>{localizedExplanation(item)}</p></div>
             </li>)}

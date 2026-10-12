@@ -129,7 +129,7 @@ const specialDetails = {
   'lista-doble': 'Its prev and next references allow traversal in both directions, but both neighboring links must be repaired after a change.',
   'lista-circular-simple': 'Its last node points back to head, so traversal stops when it returns to the starting node rather than when it finds null.',
   'lista-circular-doble': 'The last and first nodes connect through both next and prev; even a one-node list must show both circular relationships.',
-  'arbol-enhebrado': 'Empty child references become inorder threads. A flag distinguishes a real child from a predecessor or successor thread.',
+  'arbol-enhebrado': 'A separate root header links the data tree on its left; the two outer inorder threads return to that header.',
   avl: 'Every node tracks height and a balance factor. Rotations restore the valid range from -1 to 1 after an update.',
   'rojo-negro': 'Color rules and rotations keep every root-to-leaf path within a bounded height.',
   trie: 'Each edge represents a character and an end-of-word flag distinguishes a complete stored word from a shared prefix.',
@@ -158,6 +158,16 @@ const specialDetails = {
 // These lessons need their own explanation: the generic family profile would
 // describe operations or performance that the code shown on the page does not use.
 const specificGuides = {
+  'arbol-enhebrado': {
+    definition: 'A threaded binary tree uses links without real children as threads to the inorder predecessor or successor. In this implementation, a root header separate from the data nodes receives both outer threads: the minimum node’s left thread and the maximum node’s right thread.',
+    how: 'Each node stores left, right, leftThread and rightThread: false identifies a real link and true a thread. The header has no tree key: root.left links the first data node, and root.right points to root with rightThread = false. When empty, root.left also points to root and leftThread = true. Internal threads point to inorder neighbors. A single data node has both threads pointing to the header, not to itself. Inorder begins at leftMost(root.left), follows successors, and ends at current == root without visiting the header. Removal can change root.left but never replaces or releases the header; C++ releases the removed node after repairing its neighboring links.',
+    operations: ['Insert a node and connect its predecessor and successor threads', 'Search through real children only; return root when absent', 'Remove a data node and repair neighboring threads while retaining the header', 'Traverse inorder without a stack or recursion'],
+    strengths: ['Reuses links that have no real child', 'Inorder needs O(1) extra space', 'Makes predecessor and successor links explicit', 'Works with dynamically allocated nodes'],
+    limits: ['Each reference needs a thread flag', 'Never follow a thread as a real child', 'Do not compare or visit the header value', 'Stop at the header to avoid cycling through the tree'],
+    uses: ['Ordered iterators', 'Memory-constrained traversal', 'Repeated ordered scans', 'Learning pointers and references'],
+    example: 'Real children open new chapters; inorder threads are bookmarks leading to the previous or next page. The header is the book cover, not one of its pages.',
+    tip: 'No node link is null, even when empty: the header closes its references. root is the header; root.left is the data tree. Search returns root when a key is absent. Inorder stops at root and never prints its value.',
+  },
   array: {
     how: 'Elements occupy consecutive indexed positions, so reading or updating a known index takes O(1). In these Java examples, insertion and removal create and return a new array, copying values into their corresponding positions. The C++ example uses dynamically allocated memory, grows its capacity when full, and shifts values when operating at the front or in the middle.',
     operations: ['Read or update a known index', 'Traverse indices from 0 to length - 1', 'Search by comparing stored values', 'In Java, retain the returned array after insertion or removal; in C++, grow capacity or shift values as required'],

@@ -1653,16 +1653,21 @@ test('árbol binario C++ elimina usando el nodo más profundo a la derecha', asy
   expect(valuesByIndex).toEqual([[0, 8], [1, 15], [2, 12], [3, 1], [4, 5], [5, 10]]);
 });
 
-test('árbol enhebrado distingue hijos, sigue hilos e inserta correctamente', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name === 'mobile-chromium', 'La estructura se valida completa en escritorio y comparte la misma lógica en móvil.');
-  test.setTimeout(45_000);
+test('árbol enhebrado distingue hijos, sigue hilos e inserta correctamente', async ({ page }) => {
+  test.setTimeout(65_000);
   await page.goto('/arbol-enhebrado');
 
   await expect(page.getByRole('heading', { name: 'Árbol binario enhebrado', level: 1 })).toBeVisible();
-  await expect(page.locator('.threaded-child-layer line')).toHaveCount(6);
+  await expect(page.locator('.threaded-child-layer line')).toHaveCount(7);
+  await expect(page.locator('.threaded-child-layer line').first()).toHaveCSS('stroke', 'rgb(102, 137, 57)');
   await expect(page.locator('.thread-edge')).toHaveCount(8);
   await expect(page.locator('.thread-edge[data-thread-from="3"][data-thread-to="1"][data-thread-side="right"]')).toHaveCount(1);
   await expect(page.locator('.thread-edge[data-thread-from="4"][data-thread-to="0"][data-thread-side="right"]')).toHaveCount(1);
+  await expect(page.locator('.thread-edge[data-thread-from="3"][data-thread-to="header"][data-thread-side="left"]')).toHaveCount(1);
+  await expect(page.locator('.thread-edge[data-thread-from="6"][data-thread-to="header"][data-thread-side="right"]')).toHaveCount(1);
+  await expect(page.locator('.threaded-header')).toHaveCount(1);
+  await expect(page.locator('.header-self-link')).toHaveCount(1);
+  await expect(page.locator('.thread-null-anchor')).toHaveCount(0);
   await expect(page.locator('.code-panel pre')).toContainText('leftThread');
   await expect(page.locator('.code-panel pre')).toContainText('rightThread');
   await page.getByLabel('Velocidad').selectOption('2');
@@ -1676,9 +1681,154 @@ test('árbol enhebrado distingue hijos, sigue hilos e inserta correctamente', as
 
   await page.getByRole('button', { name: 'Inorden sin pila', exact: true }).click();
   await expect(page.locator('.thread-edge.active')).toBeVisible({ timeout: 12_000 });
-  await expect(page.locator('.operation-message')).toContainText('5 → 10 → 12 → 15 → 20 → 25 → 30 → 35', { timeout: 20_000 });
+  await expect(page.locator('.operation-message')).toContainText('5 → 10 → 12 → 15 → 20 → 25 → 30 → 35', { timeout: 30_000 });
+  await expect(page.locator('.threaded-header.active')).toHaveCSS('background-color', 'rgb(244, 228, 172)');
   await expect(page.locator('.code-panel pre')).not.toContainText('Stack');
   await expect(page.locator('.code-panel pre')).not.toContainText('Queue');
+});
+
+async function inspectThreadedSteps(page, inspect, english = false) {
+  const pause = page.getByRole('button', { name: english ? 'Pause' : 'Pausar', exact: true });
+  await expect(pause).toBeEnabled();
+  await pause.click();
+  const previous = page.locator('.player button').first();
+  while (await previous.isEnabled()) await previous.click();
+  const next = page.getByRole('button', { name: english ? 'Next' : 'Siguiente', exact: true });
+  let count = 0;
+  do {
+    const active = page.locator('.code-panel code.active');
+    await expect(active).toHaveCount(1);
+    const line = (await active.textContent()).replace(/^\s*\d+\s*/, '').trim();
+    await inspect(line);
+    if (!await next.isEnabled()) return;
+    await next.click();
+  } while (++count < 120);
+  throw new Error('El recorrido del árbol enhebrado no terminó en 120 pasos.');
+}
+
+test('árbol enhebrado no adelanta conexiones y muestra delete en C++', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto('/arbol-enhebrado');
+  await page.getByRole('button', { name: 'Java', exact: true }).click();
+  await page.getByLabel('Valor').fill('12');
+  await page.getByRole('button', { name: 'Insertar nodo', exact: true }).click();
+  let allocation = false;
+  let attachment = false;
+  await inspectThreadedSteps(page, async line => {
+    if (line === 'Node newNode = new Node(value);') {
+      allocation = true;
+      await expect(page.locator('.threaded-node[data-tree-index="9"]')).toHaveAttribute('data-connected', 'false');
+      await expect(page.locator('.threaded-node[data-tree-index="4"] .tree-node-badge')).toHaveText('LT · RT');
+      await expect(page.locator('.threaded-child-layer line')).toHaveCount(7);
+      await expect(page.locator('.thread-edge[data-thread-from="9"][data-thread-to="9"]')).toHaveCount(2);
+    }
+    if (line === 'parent.leftThread = false;') {
+      attachment = true;
+      await expect(page.locator('.threaded-node[data-tree-index="9"]')).toHaveAttribute('data-connected', 'true');
+      await expect(page.locator('.threaded-child-layer line')).toHaveCount(8);
+      await expect(page.locator('.variable-item').filter({ has: page.locator('small', { hasText: /^current\.leftThread$/ }) }).locator('strong')).toHaveText('false');
+    }
+  });
+  expect(allocation && attachment).toBe(true);
+  await page.goto('/arbol-enhebrado');
+  await page.getByRole('button', { name: 'C++', exact: true }).click();
+  await page.getByLabel('Valor').fill('10');
+  await page.getByRole('button', { name: 'Eliminar nodo', exact: true }).click();
+  let predecessor = false;
+  let released = false;
+  await inspectThreadedSteps(page, async line => {
+    if (line === 'Node* predecessor = inorderPredecessor(current);') {
+      predecessor = true;
+      await expect(page.locator('.threaded-node')).toHaveCount(7);
+      await expect(page.locator('.threaded-node[data-tree-index="4"]')).toHaveAttribute('data-connected', 'true');
+    }
+    if (line === 'delete current;') {
+      released = true;
+      await expect(page.locator('.threaded-node')).toHaveCount(6);
+      await expect(page.locator('.variables-panel')).toContainText('dangling');
+    }
+  });
+  expect(predecessor && released).toBe(true);
+});
+
+test('árbol enhebrado conserva cabecera en vacío y al insertar', async ({ page }) => {
+  test.setTimeout(30_000);
+  await page.goto('/arbol-enhebrado');
+  await page.getByRole('button', { name: 'Java', exact: true }).click();
+  await page.locator('.clear-demo-button').click();
+  await expect(page.locator('.threaded-header')).toHaveCount(1);
+  await expect(page.locator('.threaded-node')).toHaveCount(0);
+  await expect(page.locator('.thread-edge[data-thread-from="header"][data-thread-to="header"][data-thread-side="left"]')).toHaveCount(1);
+  await expect(page.locator('.header-self-link')).toHaveCount(1);
+  await page.getByLabel('Valor').fill('7');
+  await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+  const searchLines = [];
+  await inspectThreadedSteps(page, async line => searchLines.push(line));
+  expect(searchLines).toEqual(['Node current = root.left;', 'while (current != root) {', 'return root;']);
+  await page.getByRole('button', { name: 'Insertar nodo', exact: true }).click();
+  const insertLines = [];
+  await inspectThreadedSteps(page, async line => {
+    insertLines.push(line);
+    if (line === 'Node newNode = new Node(value);') await expect(page.locator('.threaded-tree-canvas')).toHaveAttribute('data-data-root-index', 'header');
+  });
+  expect(insertLines.indexOf('Node newNode = new Node(value);')).toBeLessThan(insertLines.indexOf('root.left = newNode;'));
+  expect(insertLines.at(-1)).toBe('return root;');
+  await expect(page.locator('.threaded-tree-canvas')).toHaveAttribute('data-root-index', 'header');
+  await expect(page.locator('.threaded-tree-canvas')).toHaveAttribute('data-data-root-index', '0');
+});
+
+test('árbol enhebrado conserva enteros largos, contraste e inglés', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.addInitScript(() => localStorage.setItem('dsa-accessibility-preferences-v1', JSON.stringify({ darkMode: true })));
+  await page.goto('/arbol-enhebrado');
+  for (const value of [-2147483648, 2147483647]) {
+    await page.getByLabel('Valor').fill(String(value));
+    await page.getByRole('button', { name: 'Insertar nodo', exact: true }).click();
+    await inspectThreadedSteps(page, async () => {});
+  }
+  await expect(page.locator('html')).toHaveAttribute('data-dark-mode', 'true');
+  const geometry = await page.locator('.threaded-node').evaluateAll(nodes => nodes.map(node => {
+    const bounds = node.getBoundingClientRect();
+    const range = document.createRange();
+    range.selectNodeContents(node.querySelector('.tree-value'));
+    const text = range.getBoundingClientRect();
+    return text.left >= bounds.left && text.right <= bounds.right;
+  }));
+  expect(geometry.every(Boolean)).toBe(true);
+  const layout = await page.evaluate(() => {
+    const legend = document.querySelector('.threaded-tree-legend').getBoundingClientRect();
+    return {
+      pageOverflow: document.documentElement.scrollWidth > innerWidth,
+      badgesBeforeLegend: [...document.querySelectorAll('.threaded-node .tree-node-badge')].every(badge => badge.getBoundingClientRect().bottom < legend.top),
+      nodesInsideCanvas: [...document.querySelectorAll('.threaded-node')].every(node => {
+        const bounds = node.getBoundingClientRect();
+        const canvas = document.querySelector('.threaded-tree-canvas').getBoundingClientRect();
+        return bounds.left >= canvas.left && bounds.right <= canvas.right;
+      }),
+      noNullAnchors: document.querySelectorAll('.thread-null-anchor').length === 0,
+    };
+  });
+  expect(layout).toEqual({ pageOverflow: false, badgesBeforeLegend: true, nodesInsideCanvas: true, noNullAnchors: true });
+  await page.goto('/en/arbol-enhebrado');
+  await expect(page.locator('.threaded-tree-visual')).not.toContainText(/hijo|Orden|ENHEBRADO/);
+  await expect(page.locator('.threaded-tree-canvas')).toHaveAttribute('aria-label', /^Threaded binary tree/);
+  await page.getByRole('button', { name: 'C++', exact: true }).click();
+  await page.getByRole('button', { name: 'Inorder without stack', exact: true }).click();
+  const visited = [];
+  await inspectThreadedSteps(page, async line => {
+    await expect(page.locator('.operation-message p')).not.toContainText(/Se visita|hilo|árbol|comprueba/);
+    if (line === 'visit(current->value);') visited.push(await page.locator('.threaded-node.active .tree-value').textContent());
+  }, true);
+  expect(visited).toEqual(['5', '10', '15', '20', '25', '30', '35']);
+  await expect(page.locator('.variable-item').filter({ has: page.locator('small', { hasText: /^current$/ }) }).locator('strong')).toHaveText('root');
+  await page.getByRole('button', { name: 'Pseudocode', exact: true }).click();
+  await expect(page.locator('.operation-message p')).toContainText('current reached the header');
+  await expect(page.locator('.operation-message p')).not.toContainText(/llegó|cabecera|sin visitarla/);
+  await page.getByRole('button', { name: 'Java', exact: true }).click();
+  await expect(page.locator('.note')).toContainText('root is the separate header');
+  await page.getByLabel('Value', { exact: true }).fill('');
+  await page.getByRole('button', { name: 'Insert node', exact: true }).click();
+  await expect(page.locator('.operation-message p')).toHaveText('Enter a valid 32-bit integer.');
 });
 
 test('muestra Java específico para árboles especializados', async ({ page }) => {

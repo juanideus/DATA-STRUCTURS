@@ -481,6 +481,7 @@ function App() {
   const [demoPositions, setDemoPositions] = useState(() => positionsForAlgorithm(startingAlgorithm));
   const [demoMap, setDemoMap] = useState(DEFAULT_PATH_MAP);
   const [operationMessage, setOperationMessage] = useState('Usa los controles para modificar la estructura y observar el resultado.');
+  const [operationMessageTranslation, setOperationMessageTranslation] = useState(null);
   const [operationStatus, setOperationStatus] = useState('idle');
   const [challengeMode, setChallengeMode] = useState(false);
   const [challengeScenarioKey, setChallengeScenarioKey] = useState(0);
@@ -517,7 +518,9 @@ function App() {
     : baseAlgorithm.id === 'listas-generalizadas'
       ? 'El código usa un único Node con tag 0 para átomos, tag 1 para sublistas y tag 2 para encabezamientos. link avanza en el mismo nivel, dlink baja a una sublista y ref protege las listas compartidas.'
       : baseAlgorithm.id === 'arbol-enhebrado'
-        ? 'Las líneas sólidas son hijos reales. Las flechas discontinuas son hilos: LT lleva al predecesor y RT al sucesor inorden. El código comprueba los indicadores antes de seguir cada referencia.'
+        ? language === 'en'
+          ? 'root is the separate header, not a data node. root.left links the data tree and root.right points to itself. Solid lines are real links; dashed lines are inorder threads. Both outer threads return to the header, where inorder stops without visiting it.'
+          : 'root es la cabecera separada, no un nodo con datos. root.left enlaza el árbol y root.right apunta a sí misma. Las líneas sólidas son enlaces reales; las discontinuas son hilos inorden. Ambos hilos externos vuelven a la cabecera, donde inorden termina sin visitarla.'
       : ['fibonacci', 'factorial'].includes(baseAlgorithm.id)
         ? 'Cada nodo representa una llamada real del método recursivo. Naranja indica la llamada activa, azul una llamada que espera el retorno de su hija y verde un resultado ya calculado. La línea Java y las variables avanzan junto al nodo enfocado.'
       : baseAlgorithm.id === 'ast'
@@ -658,6 +661,7 @@ function App() {
     setStep(frameIndex);
     setActiveCodeLine(frame.codeLine ?? null);
     setOperationMessage(frame.message);
+    setOperationMessageTranslation(frame.messageEn ? { source: frame.message, english: frame.messageEn } : null);
   };
 
   useEffect(()=>{ window.scrollTo({ top: 0, behavior: 'auto' }); },[showWelcome, selectedId]);
@@ -947,11 +951,19 @@ function App() {
       && ['bfs-run', 'dfs-run'].includes(actionId);
     const cppQueueCapacity = codeForAnimation.match(/\bMAX_VERTICES\s*=\s*(\d+)/)?.[1] ?? String(previousValues.length);
     const sourceFrames = result.frames?.filter(frame => {
+      if (frame.codeLanguage && frame.codeLanguage !== codeMode) return false;
       if (!isCppGraphTraversal) return true;
       if (frame.codeNeedle === 'boolean hasEdge = adjacency[vertex][next];') return false;
       return actionId !== 'bfs-run' || !['front++;', 'end++;'].includes(frame.codeNeedle);
     });
-    const traceFrames = sourceFrames?.map(frame => {
+    const traceFrames = sourceFrames?.map((frame, index) => {
+      if (baseAlgorithm.id === 'arbol-enhebrado') frame = { ...frame, completed: index === sourceFrames.length - 1 };
+      if (baseAlgorithm.id === 'arbol-enhebrado' && codeMode === 'cpp') {
+        frame = { ...frame, variables: frame.variables.map(variable => variable.cppValue ? { ...variable, value: variable.cppValue } : variable) };
+      }
+      if (baseAlgorithm.id === 'arbol-enhebrado' && codeMode === 'pseudo') {
+        return { ...frame, traceMode: 'summary', codeLine: null };
+      }
       if (frame.codePhase && codeMode !== 'pseudo') {
         return { ...frame, codeNeedle: pathfindingCodeNeedle(baseAlgorithm.id, codeMode, frame) };
       }
@@ -1113,6 +1125,9 @@ function App() {
           inputValues: fields,
           beforeTreeParents: previousTreeParents,
         });
+    if (baseAlgorithm.id === 'arbol-enhebrado' && !traceFrames?.length && result.messageEn) {
+      synchronizedFrames = synchronizedFrames.map(frame => ({ ...frame, messageEn: result.messageEn }));
+    }
     if (baseAlgorithm.id === 'fibonacci-heap' && result.ok && codeMode !== 'pseudo'
         && ['heap-add', 'heap-extract'].includes(actionId)) {
       const sourceLines = codeForAnimation.split('\n');
@@ -1192,6 +1207,7 @@ function App() {
     if (firstFrame.unionRanks) setDemoUnionRanks(firstFrame.unionRanks);
     setDemoEdges((firstFrame.edges ?? result.edges).map(edge => [...edge]));
     setOperationMessage(firstFrame.message);
+    setOperationMessageTranslation(firstFrame.messageEn ? { source: firstFrame.message, english: firstFrame.messageEn } : null);
     setOperationStatus(result.ok === false ? 'error' : 'success');
     setActiveCodeLine(firstFrame.codeLine ?? null);
     setStep(0);
@@ -1279,7 +1295,7 @@ function App() {
           <div className="canvas-grid" data-visualizer={algorithm.id}><Suspense fallback={<div className="description-loading" aria-label={t('loadingDescription')}><span/></div>}><MemoizedVisualizer algorithm={visualAlgorithm} step={operationFrames.length ? currentAnimationFrame?.position ?? 0 : 0}/></Suspense></div>
           {challengeMode
             ? <Suspense fallback={<section className="challenge-panel" aria-label="Cargando desafío"/>}><ChallengePanel algorithm={algorithm} values={demoValues} playing={playing} scenarioKey={challengeScenarioKey} onVerify={handleOperation}/></Suspense>
-            : <OperationsPanel algorithm={baseAlgorithm} message={operationMessage} status={operationStatus === 'success' && currentAnimationFrame && step < totalSteps - 1 ? 'running' : operationStatus} activeOperation={activeOperation} onAction={handleOperation}/>}
+            : <OperationsPanel algorithm={baseAlgorithm} message={language === 'en' ? currentAnimationFrame?.messageEn ?? (operationMessageTranslation?.source === operationMessage ? operationMessageTranslation.english : operationMessage) : operationMessage} status={operationStatus === 'success' && currentAnimationFrame && step < totalSteps - 1 ? 'running' : operationStatus} activeOperation={activeOperation} onAction={handleOperation}/>}
           <div className="player"><button disabled={!operationFrames.length || step === 0} onClick={()=>goToStep(step-1)} aria-label={t('previous')}><ArrowLeft size={17}/></button><button className="play" disabled={!operationFrames.length} onClick={togglePlayback} aria-label={playing?t('pause'):t('play')} title={!operationFrames.length ? (language === 'en' ? 'Run an operation to enable playback' : 'Ejecuta una operación para habilitar la reproducción') : undefined}>{playing?<Pause size={18}/>:<Play size={18}/>}<span>{playing?t('pause'):t('play')}</span></button><button disabled={!operationFrames.length || step >= totalSteps - 1} onClick={()=>goToStep(step+1)} aria-label={t('next')}><ArrowRight size={17}/></button><div className="timeline"><span style={{width:`${operationFrames.length ? ((step+1)/totalSteps)*100 : 0}%`}}/></div><label><span>{t('speed')}</span><select aria-label={t('speed')} value={speed} onChange={e=>setSpeed(Number(e.target.value))}><option value="0.5">0.5×</option><option value="1">1×</option><option value="2">2×</option></select><ChevronDown size={13}/></label></div>
         </article>
 
@@ -1298,7 +1314,7 @@ function App() {
           <pre ref={codePanelRef}><CodeListing lines={codeLines} activeLine={highlightedCodeLine}/></pre>
           <div className="full-code-trigger"><button type="button" onClick={() => setFullCodeOpen(true)} aria-haspopup="dialog"><Maximize2 size={15}/>{language === 'en' ? 'View full code' : 'Ver código completo'}</button></div>
           <VariablesPanel frame={currentAnimationFrame} algorithm={algorithm} step={step} playing={playing}/>
-          <div className="note"><CircleHelp size={17}/><p><strong>{codeMode === 'java' ? `${language === 'en' ? 'Basic Java' : 'Java básico'} · ${activeOperationLabel}` : codeMode === 'cpp' ? `C++ · ${activeOperationLabel}` : language === 'en' ? 'What happens here?' : '¿Qué ocurre aquí?'}</strong><span>{codeMode !== 'pseudo' ? currentAnimationFrame?.iteration != null ? language === 'en' ? `The loop is at iteration ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} of ${currentAnimationFrame.totalIterations}. The highlighted line and active element advance together.` : `El ciclo está en la iteración ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} de ${currentAnimationFrame.totalIterations}. La línea iluminada y el elemento activo avanzan juntos.` : codeMode === 'cpp' ? language === 'en' ? 'The panel shows the C++ implementation of this operation, including its helper methods.' : 'El panel muestra la implementación en C++ de esta operación, incluidos sus métodos auxiliares.' : language === 'en' ? 'The code uses small variables, arrays, loops, conditions, and methods. Each highlighted line matches the visible change in the structure.' : javaOverview : step === 0 ? translateLearningText('Se prepara el estado inicial y la estructura auxiliar.', language) : step >= totalSteps-1 ? translateLearningText('El algoritmo completa la operación y devuelve el resultado.', language) : language === 'en' ? `The active element at step ${step+1} is processed and the state is updated.` : `Se procesa el elemento activo del paso ${step+1} y se actualiza el estado.`}</span></p></div>
+          <div className="note"><CircleHelp size={17}/><p><strong>{codeMode === 'java' ? `${language === 'en' ? 'Basic Java' : 'Java básico'} · ${activeOperationLabel}` : codeMode === 'cpp' ? `C++ · ${activeOperationLabel}` : language === 'en' ? 'What happens here?' : '¿Qué ocurre aquí?'}</strong><span>{baseAlgorithm.id === 'arbol-enhebrado' ? javaOverview : codeMode !== 'pseudo' ? currentAnimationFrame?.iteration != null ? language === 'en' ? `The loop is at iteration ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} of ${currentAnimationFrame.totalIterations}. The highlighted line and active element advance together.` : `El ciclo está en la iteración ${Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)} de ${currentAnimationFrame.totalIterations}. La línea iluminada y el elemento activo avanzan juntos.` : codeMode === 'cpp' ? language === 'en' ? 'The panel shows the C++ implementation of this operation, including its helper methods.' : 'El panel muestra la implementación en C++ de esta operación, incluidos sus métodos auxiliares.' : language === 'en' ? 'The code uses small variables, arrays, loops, conditions, and methods. Each highlighted line matches the visible change in the structure.' : javaOverview : step === 0 ? translateLearningText('Se prepara el estado inicial y la estructura auxiliar.', language) : step >= totalSteps-1 ? translateLearningText('El algoritmo completa la operación y devuelve el resultado.', language) : language === 'en' ? `The active element at step ${step+1} is processed and the state is updated.` : `Se procesa el elemento activo del paso ${step+1} y se actualiza el estado.`}</span></p></div>
         </article>
       </section>
 
