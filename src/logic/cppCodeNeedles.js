@@ -52,6 +52,7 @@ const graphTraversalNeedles = {
 };
 
 export function cppCodeNeedle(algorithmId, actionId, frame) {
+  if (algorithmId === 'arbol-enhebrado') return frame.cppCodeNeedle ?? null;
   if (algorithmId === 'merge-sort') {
     if (frame.codeNeedle === 'int[] help = new int[size];') return 'int* help = new int[size]{};';
     if (frame.codeNeedle?.includes('int[] help')) return frame.codeNeedle.replaceAll('int[] help', 'int help[]');

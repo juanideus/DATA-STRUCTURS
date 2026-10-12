@@ -51,7 +51,7 @@ export const englishAlgorithmDescriptions = {
   'skip-list': 'Layered linked lists skip over groups of elements to speed up searches.',
   'arbol-general': 'A flexible hierarchy in which each node may have any number of children.',
   'arbol-nario': 'A tree in which each node may have at most N children.',
-  'arbol-enhebrado': 'A BST that uses empty links as threads to its inorder predecessor and successor, enabling traversal without a stack or recursion.',
+  'arbol-enhebrado': 'A BST with a separate root header, internal inorder threads, and two outer threads returning to the header.',
   'rojo-negro': 'A BST kept balanced by color rules and rotations.',
   'splay-tree': 'Moves an accessed node toward the root through rotations.',
   'fibonacci-heap': 'A collection of trees with deferred consolidation, useful in graph algorithms.',

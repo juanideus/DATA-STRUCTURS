@@ -23,3 +23,16 @@ de la anterior, aunque su reproducción estuviera pausada.
 
 Los selectores conservan el popup nativo del sistema. Los diálogos conservan foco, Escape y
 restauración del foco mediante el hook compartido. Ningún acceso global tapa contenido.
+
+## Variante de árbol enhebrado de la asignatura
+
+Decisión del usuario, aclarada mediante el esquema de la asignatura: `root` es una cabecera
+amarilla separada de los nodos con datos. `root.left` enlaza el primer nodo con datos y
+`root.right` vuelve a `root` con `rightThread = false`. En vacío, `root.left = root` y
+`leftThread = true`; en no vacío, `leftThread = false`. El menor tiene `left` hacia la
+cabecera y el mayor tiene `right` hacia ella; los demás hilos apuntan al vecino inorden.
+Un único nodo con datos cierra ambos hilos hacia la cabecera, no hacia sí mismo.
+Java, C++, pseudocódigo, escenas y explicaciones muestran esta misma variante.
+Inorden empieza en `leftMost(root.left)` y termina al regresar a `root`, sin visitarla.
+Buscar devuelve la cabecera si la clave no existe. Eliminar reconecta antes de liberar el
+nodo y nunca libera la cabecera; el destructor C++ libera sus datos y luego la cabecera.

@@ -19,7 +19,7 @@ const GROUP_PROFILES = {
   list: { visual: 'linked-list', visualCaption: 'Cada nodo enlaza al siguiente', principle: 'conecta nodos mediante referencias', invariant: 'los enlaces mantienen el orden lógico de los nodos', useCase: 'insertar datos sin desplazar un bloque completo', analogy: 'una cadena de vagones' },
   skip: { visual: 'skip-list', visualCaption: 'Niveles rápidos sobre la lista base', principle: 'agrega niveles para saltar grupos de nodos', invariant: 'el nivel inferior conserva todos los elementos ordenados', useCase: 'buscar rápidamente manteniendo inserciones sencillas', analogy: 'una autopista con vías expresas' },
   tree: { visual: 'tree', visualCaption: 'Una raíz conecta niveles de descendientes', principle: 'organiza nodos jerárquicamente', invariant: 'cada nodo, excepto la raíz, tiene un padre', useCase: 'representar jerarquías y búsquedas', analogy: 'un árbol genealógico' },
-  threadedTree: { visual: 'threaded-tree', visualCaption: 'Los hilos apuntan al vecino inorden', principle: 'reutiliza enlaces nulos como hilos de recorrido', invariant: 'LT y RT distinguen hijos reales de hilos', useCase: 'recorrer en inorden sin pila auxiliar', analogy: 'un sendero marcado entre los nodos' },
+  threadedTree: { visual: 'threaded-tree', visualCaption: 'root es la cabecera separada de los datos; los hilos externos vuelven a ella', principle: 'usa los enlaces sin hijo como hilos y cierra los externos en la cabecera root', invariant: 'LT y RT distinguen enlaces reales de hilos; root.left enlaza los datos y root.right vuelve a root', useCase: 'recorrer en inorden sin pila auxiliar', analogy: 'un sendero marcado entre nodos con una cabecera que indica inicio y fin' },
   heap: { visual: 'heap', visualCaption: 'La prioridad máxima ocupa la raíz', principle: 'mantiene el elemento prioritario en la raíz', invariant: 'un max-heap nunca tiene un hijo mayor que su padre', useCase: 'implementar colas de prioridad', analogy: 'un podio que siempre muestra al mayor arriba' },
   range: { visual: 'range-tree', visualCaption: 'Los nodos resumen intervalos', principle: 'guarda información acumulada de rangos', invariant: 'cada nodo resume el intervalo que representa', useCase: 'consultar sumas o mínimos de intervalos', analogy: 'un índice que resume capítulos' },
   btree: { visual: 'btree', visualCaption: 'Un nodo contiene varias claves', principle: 'mantiene varias claves e hijos por nodo', invariant: 'todas las hojas permanecen a la misma profundidad', useCase: 'indexar grandes volúmenes en disco', analogy: 'un archivador con varios separadores' },
@@ -249,7 +249,149 @@ while (size > 1) {
   ];
 }
 
+function threadedHeaderQuestions() {
+  const items = [
+    {
+      id: 'header-role',
+      prompt: 'En el diagrama, ¿qué representa el nodo root?',
+      promptEn: 'In the diagram, what does the root node represent?',
+      explanation: 'root es una cabecera separada de los datos; su valor no se compara ni se visita.',
+      explanationEn: 'root is a header separate from the data; its value is never compared or visited.',
+      visual: { type: 'threaded-tree', caption: 'root es la cabecera separada de los datos; los hilos externos vuelven a ella', captionEn: 'root is the header, separate from data nodes; the outer threads return to it' },
+      answers: [
+        ['Una cabecera separada de los nodos de datos', 'A header separate from the data nodes'],
+        ['El dato mínimo del árbol', 'The minimum tree key'],
+        ['El dato máximo del árbol', 'The maximum tree key'],
+        ['Un puntero nulo', 'A null pointer'],
+      ],
+    },
+    {
+      id: 'header-links',
+      prompt: 'Cuando el árbol tiene datos, ¿a dónde apuntan los enlaces de la cabecera?',
+      promptEn: 'When the tree contains data, where do the header links point?',
+      explanation: 'root.left enlaza la raíz de datos y root.right apunta a la propia cabecera, con ambas banderas en false.',
+      explanationEn: 'root.left links the data root and root.right points to the header itself, with both flags false.',
+      answers: [
+        ['root.left a la raíz de datos; root.right a root', 'root.left to the data root; root.right to root'],
+        ['Ambos enlaces al dato mínimo', 'Both links to the minimum key'],
+        ['Ambos enlaces a null', 'Both links to null'],
+        ['root.left al máximo; root.right al mínimo', 'root.left to the maximum; root.right to the minimum'],
+      ],
+    },
+    {
+      id: 'empty-header',
+      prompt: '¿Cuál es el estado correcto de la cabecera en un árbol vacío?',
+      promptEn: 'What is the correct header state in an empty tree?',
+      explanation: 'Los dos enlaces vuelven a root; leftThread es true y rightThread es false. La cabecera permanece asignada.',
+      explanationEn: 'Both links return to root; leftThread is true and rightThread is false. The header remains allocated.',
+      answers: [
+        ['left = root, right = root, leftThread = true, rightThread = false', 'left = root, right = root, leftThread = true, rightThread = false'],
+        ['left = null, right = null', 'left = null, right = null'],
+        ['La cabecera se elimina', 'The header is deleted'],
+        ['left = root, right = root, ambas banderas false', 'left = root, right = root, both flags false'],
+      ],
+    },
+    {
+      id: 'thread-flags',
+      prompt: '¿Cómo se distingue un hijo real de un hilo inorden?',
+      promptEn: 'How is a real child distinguished from an inorder thread?',
+      explanation: 'Una bandera false identifica un enlace real; true identifica un hilo. Nunca se trata un hilo como hijo.',
+      explanationEn: 'A false flag identifies a real link; true identifies a thread. A thread is never treated as a child.',
+      answers: [
+        ['false: enlace real; true: hilo', 'false: real link; true: thread'],
+        ['true: hijo real; false: hilo', 'true: real child; false: thread'],
+        ['Todos los enlaces son hijos reales', 'Every link is a real child'],
+        ['El valor del nodo determina la bandera', 'The node value determines the flag'],
+      ],
+    },
+    {
+      id: 'outer-threads',
+      prompt: '¿A dónde llegan el hilo izquierdo del mínimo y el derecho del máximo?',
+      promptEn: 'Where do the minimum node’s left thread and the maximum node’s right thread lead?',
+      explanation: 'Ambos hilos externos vuelven a la cabecera root, no a la raíz de datos ni a null.',
+      explanationEn: 'Both outer threads return to the root header, not to the data root or null.',
+      answers: [
+        ['A la cabecera root', 'To the root header'],
+        ['A la raíz de datos', 'To the data root'],
+        ['A null', 'To null'],
+        ['Al propio nodo extremo', 'To the extreme node itself'],
+      ],
+    },
+    {
+      id: 'single-data-node',
+      prompt: 'Si existe un único nodo de datos, ¿cómo quedan sus dos enlaces?',
+      promptEn: 'If there is only one data node, how are its two links configured?',
+      explanation: 'El nodo único no tiene hijos reales: sus dos hilos apuntan a la cabecera root y ambas banderas son true.',
+      explanationEn: 'The single node has no real children: both threads point to the root header and both flags are true.',
+      answers: [
+        ['Ambos a root, con leftThread = true y rightThread = true', 'Both to root, with leftThread = true and rightThread = true'],
+        ['Ambos a sí mismo, con banderas false', 'Both to itself, with false flags'],
+        ['Ambos a null', 'Both to null'],
+        ['El izquierdo a root y el derecho a null', 'Left to root and right to null'],
+      ],
+    },
+    {
+      id: 'inorder-start',
+      prompt: '¿Cómo comienza el recorrido inorden sin pila?',
+      promptEn: 'How does inorder traversal without a stack begin?',
+      explanation: 'leftMost(root.left) baja solamente por hijos izquierdos reales hasta el primer dato; si está vacío, devuelve root.',
+      explanationEn: 'leftMost(root.left) follows only real left children to the first key; if empty, it returns root.',
+      answers: [
+        ['current = leftMost(root.left)', 'current = leftMost(root.left)'],
+        ['Imprimiendo primero el valor de root', 'By printing the value of root first'],
+        ['current = root.right', 'current = root.right'],
+        ['Siguiendo todos los enlaces izquierdos sin mirar banderas', 'By following every left link without checking flags'],
+      ],
+    },
+    {
+      id: 'inorder-stop',
+      prompt: '¿Qué condición termina el recorrido después del dato máximo?',
+      promptEn: 'Which condition ends traversal after the maximum key?',
+      explanation: 'El hilo derecho del máximo lleva current a root. La condición current != root falla sin visitar la cabecera.',
+      explanationEn: 'The maximum node’s right thread takes current to root. The current != root condition fails without visiting the header.',
+      answers: [
+        ['current == root, sin visitar la cabecera', 'current == root, without visiting the header'],
+        ['current == null', 'current == null'],
+        ['current coincide con la raíz de datos', 'current reaches the data root'],
+        ['Se imprime root y se vuelve a comenzar', 'root is printed and traversal restarts'],
+      ],
+    },
+    {
+      id: 'remove-data-root',
+      prompt: 'Al eliminar la raíz de datos, ¿qué debe conservarse?',
+      promptEn: 'When deleting the data root, what must be preserved?',
+      explanation: 'La cabecera permanece; se actualiza root.left cuando corresponda y se reparan los enlaces e hilos afectados.',
+      explanationEn: 'The header remains; root.left is updated when needed and affected real links and threads are repaired.',
+      answers: [
+        ['La cabecera root, reparando root.left y los hilos afectados', 'The root header, while repairing root.left and affected threads'],
+        ['Se elimina también la cabecera', 'The header is also deleted'],
+        ['Se dejan hilos apuntando al nodo eliminado', 'Threads are left pointing to the deleted node'],
+        ['root.right se cambia al nuevo dato máximo', 'root.right is changed to the new maximum key'],
+      ],
+    },
+    {
+      id: 'cpp-destruction',
+      prompt: 'En C++, ¿cómo se libera la memoria sin seguir ciclos?',
+      promptEn: 'In C++, how is memory released without following cycles?',
+      explanation: 'Se liberan los nodos de datos siguiendo solamente hijos reales desde root.left; después se libera la cabecera una sola vez.',
+      explanationEn: 'Data nodes are released by following only real children from root.left; the header is then released exactly once.',
+      answers: [
+        ['Liberar hijos reales y después la cabecera, sin seguir hilos ni root.right', 'Release real children, then the header, without following threads or root.right'],
+        ['Recorrer todos los enlaces recursivamente', 'Recursively follow every link'],
+        ['Liberar solo la cabecera', 'Release only the header'],
+        ['No usar delete porque no existen enlaces null', 'Never use delete because there are no null links'],
+      ],
+    },
+  ];
+  return items.map(({ answers, ...item }) => ({
+    ...item,
+    choices: rotate(answers.map(([label, labelEn], index) => ({ label, labelEn, correct: index === 0 })), `threaded-${item.id}`)
+      .map((choice, index) => ({ ...choice, id: `choice-${index}` })),
+  }));
+}
+
 function questionPool(algorithm) {
+  if (algorithm.id === 'arbol-enhebrado') return threadedHeaderQuestions();
   if (algorithm.id === 'complejidad-algoritmica') return complexityQuestionPool(algorithm);
   const group = operationGroup(algorithm);
   const profile = profileFor(algorithm);

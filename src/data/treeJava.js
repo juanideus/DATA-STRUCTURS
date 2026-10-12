@@ -1708,11 +1708,12 @@ const threadedNodeCode = `static class Node {
 
     Node(int value) {
         this.value = value;
+        this.left = this;
+        this.right = this;
     }
 }`;
 
 const threadedHelpers = `Node leftMost(Node node) {
-    if (node == null) return null;
     while (!node.leftThread) {
         node = node.left;
     }
@@ -1735,10 +1736,17 @@ Node inorderSuccessor(Node node) {
         current = current.left;
     }
     return current;
-}`;
+}
+
+`;
 
 const threadedProgram = (selectedOperation, helpers = '') => `class ThreadedBinaryTree {
-    Node root;
+    Node root = new Node(0);
+
+    ThreadedBinaryTree() {
+        // root is a header; its value is never compared or visited.
+        root.rightThread = false;
+    }
 
     // Start of the selected operation
 ${selectedOperation.split('\n').map(line => `    ${line}`).join('\n')}
@@ -1749,10 +1757,10 @@ ${helpers ? `\n    ${helpers.split('\n').join('\n    ')}` : ''}
 }`;
 
 const threadedInsert = threadedProgram(`Node insert(Node root, int value) {
-    Node parent = null;
-    Node current = root;
+    Node parent = root;
+    Node current = root.left;
 
-    while (current != null) {
+    while (current != root) {
         if (value == current.value) return root;
         parent = current;
         if (value < current.value) {
@@ -1765,40 +1773,43 @@ const threadedInsert = threadedProgram(`Node insert(Node root, int value) {
     }
 
     Node newNode = new Node(value);
-    if (parent == null) return newNode;
-
-    if (value < parent.value) {
+    if (parent == root) {
+        newNode.left = root;
+        newNode.right = root;
+        root.left = newNode;
+        root.leftThread = false;
+    } else if (value < parent.value) {
         newNode.left = parent.left;
         newNode.right = parent;
-        parent.leftThread = false;
         parent.left = newNode;
+        parent.leftThread = false;
     } else {
         newNode.left = parent;
         newNode.right = parent.right;
-        parent.rightThread = false;
         parent.right = newNode;
+        parent.rightThread = false;
     }
     return root;
 }`);
 
 const threadedFind = threadedProgram(`Node search(Node root, int target) {
-    Node current = root;
-    while (current != null) {
+    Node current = root.left;
+    while (current != root) {
         if (target == current.value) return current;
         if (target < current.value) {
-            if (current.leftThread) return null;
+            if (current.leftThread) return root;
             current = current.left;
         } else {
-            if (current.rightThread) return null;
+            if (current.rightThread) return root;
             current = current.right;
         }
     }
-    return null;
+    return root;
 }`);
 
 const threadedInorder = threadedProgram(`void inorder(Node root) {
-    Node current = leftMost(root);
-    while (current != null) {
+    Node current = leftMost(root.left);
+    while (current != root) {
         System.out.println(current.value);
         if (current.rightThread) {
             current = current.right;
@@ -1807,7 +1818,6 @@ const threadedInorder = threadedProgram(`void inorder(Node root) {
         }
     }
 }`, `Node leftMost(Node node) {
-    if (node == null) return null;
     while (!node.leftThread) {
         node = node.left;
     }
@@ -1815,10 +1825,10 @@ const threadedInorder = threadedProgram(`void inorder(Node root) {
 }`);
 
 const threadedRemove = threadedProgram(`Node remove(Node root, int target) {
-    Node parent = null;
-    Node current = root;
+    Node parent = root;
+    Node current = root.left;
 
-    while (current != null && current.value != target) {
+    while (current != root && current.value != target) {
         parent = current;
         if (target < current.value) {
             if (current.leftThread) return root;
@@ -1828,7 +1838,7 @@ const threadedRemove = threadedProgram(`Node remove(Node root, int target) {
             current = current.right;
         }
     }
-    if (current == null) return root;
+    if (current == root) return root;
 
     if (!current.leftThread && !current.rightThread) {
         Node successorParent = current;
@@ -1845,32 +1855,33 @@ const threadedRemove = threadedProgram(`Node remove(Node root, int target) {
     Node child;
     if (!current.leftThread) child = current.left;
     else if (!current.rightThread) child = current.right;
-    else child = null;
+    else child = root;
 
     Node predecessor = inorderPredecessor(current);
     Node successor = inorderSuccessor(current);
 
-    if (parent == null) {
-        root = child;
+    if (parent == root) {
+        root.left = child;
+        root.leftThread = (child == root);
     } else if (current == parent.left) {
-        if (child == null) {
-            parent.leftThread = true;
+        if (child == root) {
             parent.left = predecessor;
+            parent.leftThread = true;
         } else {
             parent.left = child;
         }
     } else {
-        if (child == null) {
-            parent.rightThread = true;
+        if (child == root) {
             parent.right = successor;
+            parent.rightThread = true;
         } else {
             parent.right = child;
         }
     }
 
-    if (child != null && !current.leftThread && predecessor != null) {
+    if (child != root && !current.leftThread) {
         predecessor.right = successor;
-    } else if (child != null && !current.rightThread && successor != null) {
+    } else if (child != root && !current.rightThread) {
         successor.left = predecessor;
     }
     return root;

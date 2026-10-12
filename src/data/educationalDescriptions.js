@@ -166,14 +166,14 @@ export const educationalDescriptions = {
     'Binario significa hasta dos hijos; no significa automáticamente que sea un Binary Search Tree.'
   ),
   'arbol-enhebrado': guide(
-    'Un Árbol Binario Enhebrado es un árbol de búsqueda que aprovecha las referencias de hijo que normalmente quedarían en null. Esas referencias se convierten en hilos hacia el nodo anterior o siguiente del recorrido inorden.',
-    'Cada nodo guarda left, right y dos indicadores booleanos: leftThread y rightThread. Cuando el indicador es false, la referencia conduce a un hijo real; cuando es true, conduce al predecesor o sucesor inorden. El nodo menor puede tener un hilo izquierdo a null y el mayor un hilo derecho a null. Gracias a esta información, el recorrido comienza en el nodo más izquierdo y avanza por hijos derechos o por hilos, sin utilizar una pila y sin hacer llamadas recursivas.',
+    'Un árbol binario enhebrado utiliza los enlaces sin hijo real como hilos hacia el predecesor o sucesor inorden. En esta implementación, una cabecera root separada de los datos recibe los dos hilos externos: el izquierdo del menor y el derecho del mayor.',
+    'Cada nodo guarda left, right y los indicadores leftThread y rightThread: false significa enlace real y true significa hilo. La cabecera no contiene una clave del árbol: root.left apunta al primer nodo con datos y root.right vuelve a root con rightThread = false. En vacío, root.left también vuelve a root y leftThread = true. Los hilos internos apuntan al vecino inorden. Un único nodo con datos tiene ambos hilos hacia la cabecera, no hacia sí mismo. Inorden comienza en leftMost(root.left), sigue sucesores y termina cuando current == root, sin visitar la cabecera. Eliminar puede cambiar root.left, pero nunca sustituye ni libera la cabecera; C++ libera el nodo retirado después de reconectar sus vecinos.',
     'Insertar una clave y conectar sus hilos al predecesor y sucesor|Buscar respetando la diferencia entre hijos e hilos|Eliminar y reparar los enlaces vecinos|Recorrer inorden sin pila ni recursión',
     'Reutiliza referencias que estaban vacías|El recorrido inorden necesita espacio adicional O(1)|Permite encontrar sucesor y predecesor con facilidad|Hace visible la relación entre nodos consecutivos',
-    'Cada referencia necesita un indicador adicional|Insertar y eliminar es más delicado que en un BST común|Un hilo nunca debe recorrerse como si fuera un hijo|Otros recorridos pueden necesitar reglas distintas',
+    'Cada referencia necesita un indicador adicional|Insertar y eliminar es más delicado que en un BST común|Un hilo nunca debe recorrerse como si fuera un hijo|No comparar ni visitar el valor de la cabecera',
     'Iteradores ordenados|Sistemas con memoria limitada|Recorridos frecuentes de índices|Enseñanza de punteros y referencias',
     'Piensa en un libro: los hijos reales abren capítulos nuevos y los hilos son marcadores que llevan directamente a la página anterior o siguiente.',
-    'Antes de seguir left o right, revisa su indicador. leftThread o rightThread en true significa hilo; en false significa hijo real.'
+    'No hay enlaces de nodo a null, ni siquiera en vacío: la cabecera cierra sus referencias. root es la cabecera; root.left es el árbol de datos. La búsqueda devuelve root si no encuentra una clave. El recorrido se detiene al regresar a root y nunca imprime su valor.'
   ),
   bst: guide(
     'Un Binary Search Tree o BST es un árbol binario ordenado: los valores menores quedan a la izquierda y los mayores a la derecha.',

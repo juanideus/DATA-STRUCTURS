@@ -25,6 +25,7 @@ import {
   estimateLoopIterations,
 } from '../src/logic/codeAnimation.js';
 import { DEFAULT_PATH_MAP, MAP_COLUMNS, MAP_ROWS, runGridPathfinding } from '../src/logic/pathfindingMap.js';
+import { cppCodeNeedle } from '../src/logic/cppCodeNeedles.js';
 
 const edges = () => DEFAULT_GRAPH_EDGES.map(edge => [...edge]);
 const mojibake = /Ã|â€|â†|�/;
@@ -291,10 +292,11 @@ for (const algorithm of algorithms) {
       assert.ok(result.message.length > 0, `${label}: mensaje vacío.`);
       assert.equal(typeof result.ok, 'boolean', `${label}: no informa si la operación tuvo éxito.`);
 
-      const usesCustomFrames = Boolean(result.frames?.length);
+      const javaFrames = result.frames?.filter(frame => !frame.codeLanguage || frame.codeLanguage === 'java');
+      const usesCustomFrames = Boolean(javaFrames?.length);
       if (usesCustomFrames) {
         const javaLineCount = java.split('\n').length;
-        assert.ok(result.frames.every(frame => {
+        assert.ok(javaFrames.every(frame => {
           const hasValidLine = Number.isInteger(frame.codeLine)
             && frame.codeLine >= 0
             && frame.codeLine < javaLineCount;
@@ -310,7 +312,7 @@ for (const algorithm of algorithms) {
           ? createTreeSynchronizedFrames
           : createCodeSynchronizedFrames;
       const frames = usesCustomFrames
-        ? adaptFramesToCode(result.frames, java, true)
+        ? adaptFramesToCode(javaFrames, java, true)
         : frameFactory({
             algorithm,
             code: java,
@@ -338,7 +340,8 @@ for (const algorithm of algorithms) {
       if (trial === 0 && supportsCpp(algorithm.id)) {
         const cpp = getBeginnerCpp(algorithm, action.id);
         const cppFrames = usesCustomFrames
-          ? adaptFramesToCode(result.frames, cpp, true)
+          ? adaptFramesToCode(result.frames.filter(frame => !frame.codeLanguage || frame.codeLanguage === 'cpp')
+              .map(frame => ({ ...frame, codeNeedle: cppCodeNeedle(algorithm.id, action.id, frame) ?? frame.codeNeedle })), cpp, true)
           : frameFactory({
               algorithm,
               code: cpp,
@@ -375,6 +378,7 @@ for (const algorithm of algorithms) {
           || JSON.stringify(frame.edges ?? initialEdges) !== JSON.stringify(initialEdges)
           || (frame.trieState?.revealed ?? 0) > 0
           || (frame.recursionTree?.nodes?.length ?? 0) > 0
+          || (frame.threadedState && JSON.stringify(frame.threadedState) !== JSON.stringify(frames[0].threadedState))
         ));
         assert.ok(firstVisibleChange >= 0 && firstVisibleChange < frames.length - 1, `${label}: el visual cambia recién al terminar, separado de la línea Java que muta la estructura.`);
       }
@@ -1144,6 +1148,8 @@ assert.deepEqual(
 assert.equal(initialThreads.links.get(3).successor, 1, 'Árbol enhebrado: 5 debe enhebrarse hacia el sucesor 10.');
 assert.equal(initialThreads.links.get(4).predecessor, 1, 'Árbol enhebrado: 15 debe enhebrarse hacia el predecesor 10.');
 assert.equal(initialThreads.links.get(4).successor, 0, 'Árbol enhebrado: 15 debe enhebrarse hacia el sucesor 20.');
+assert.equal(initialThreads.links.get(3).predecessor, 'header', 'El menor debe cerrar su hilo izquierdo hacia la cabecera.');
+assert.equal(initialThreads.links.get(6).successor, 'header', 'El mayor debe cerrar su hilo derecho hacia la cabecera.');
 const threadedInsertResult = run(threadedTree, 'tree-add', { value: '12', second: '', index: '' });
 assert.equal(threadedInsertResult.values[9], 12, 'Árbol enhebrado: 12 debe insertarse como hijo izquierdo de 15.');
 assert.ok(threadedInsertResult.frames.some(frame => frame.activeThread), 'Árbol enhebrado: la inserción debe mostrar los hilos creados.');
@@ -1183,6 +1189,86 @@ for (const actionId of ['tree-add', 'remove-value', 'find', 'inorder']) {
   assert.match(code, /rightThread/, `Árbol enhebrado/${actionId}: falta distinguir el hilo derecho.`);
 }
 assert.doesNotMatch(getBeginnerJava(threadedTree, 'inorder'), /Stack|Queue|inorder\s*\(\s*current/, 'Árbol enhebrado/inorden: no debe usar pila, cola ni recursión.');
+
+const allocatedThreadedNode = threadedInsertResult.frames.find(frame => frame.codeNeedle === 'Node newNode = new Node(value);');
+assert.equal(allocatedThreadedNode.threadedState.nodes.find(node => node.id === 9).connected, false, 'El nodo nuevo debe estar desconectado durante su reserva.');
+assert.equal(allocatedThreadedNode.threadedState.nodes.find(node => node.id === 4).leftThread, true, 'La reserva no debe cambiar el indicador del padre.');
+assert.equal(allocatedThreadedNode.threadedState.nodes.find(node => node.id === 9).left, 9, 'El constructor inicializa el hilo izquierdo hacia sí mismo, sin adelantar el predecesor.');
+assert.equal(allocatedThreadedNode.threadedState.nodes.find(node => node.id === 9).right, 9, 'El constructor inicializa el hilo derecho hacia sí mismo, sin adelantar el sucesor.');
+const attachedThreadedNode = threadedInsertResult.frames.find(frame => frame.codeNeedle === 'parent.leftThread = false;');
+assert.equal(attachedThreadedNode.threadedState.nodes.find(node => node.id === 9).connected, true);
+assert.equal(attachedThreadedNode.variables.find(variable => variable.name === 'current.leftThread').value, false, 'Las variables de current deben reflejar su indicador actualizado, no el del nodo nuevo resaltado.');
+const predecessorBeforeUnlink = threadedRemove.frames.find(frame => frame.codeNeedle === 'Node predecessor = inorderPredecessor(current);');
+assert.equal(predecessorBeforeUnlink.threadedState.nodes.length, threadedTree.values.length + 1, 'Buscar el predecesor no debe retirar aún el sucesor ni la cabecera.');
+assert.equal(predecessorBeforeUnlink.threadedState.nodes.find(node => node.id === 4).connected, true);
+assert.equal(threadedRemove.frames.at(-1).variables.find(variable => variable.name === 'current').value, 15, 'Java conserva la referencia al objeto desvinculado hasta regresar.');
+assert.equal(threadedRemove.frames.at(-1).variables.find(variable => variable.name === 'current').cppValue, 'dangling', 'C++ no debe mostrar un valor obtenido dereferenciando el nodo liberado.');
+assert.equal(threadedInorder.frames.at(-1).variables.find(variable => variable.name === 'current').value, 'root', 'El recorrido debe regresar a la cabecera sin visitarla.');
+assert.equal(threadedInorder.frames.at(-1).codeNeedle, 'while (current != root)');
+const threadedEmptySearch = run(threadedTree, 'find', { value: '7' }, []);
+const threadedPromoteRoot = run(threadedTree, 'remove-value', { value: '7' }, [7, undefined, 9]);
+assert.equal(threadedPromoteRoot.frames.at(-1).threadedState.root, 'header', 'La cabecera se conserva al promover el hijo.');
+assert.equal(threadedPromoteRoot.frames.at(-1).threadedState.nodes.find(node => node.id === 0).value, 9);
+assert.equal(threadedEmptySearch.frames.at(-1).codeNeedle, 'return root;');
+assert.ok(threadedEmptySearch.frames.every(frame => !frame.codeNeedle.includes('current.leftThread') && !frame.codeNeedle.includes('current.rightThread')), 'La búsqueda vacía no puede leer campos de null.');
+const emptyAllocationIndex = threadedInsertEmpty.frames.findIndex(frame => frame.codeNeedle === 'Node newNode = new Node(value);');
+const emptyRootReturnIndex = threadedInsertEmpty.frames.findIndex(frame => frame.codeNeedle === 'root.left = newNode;');
+assert.ok(emptyAllocationIndex < emptyRootReturnIndex, 'La raíz se debe reservar antes de devolverla.');
+const threadedTraceCases = [
+  ['tree-add', threadedInsertResult], ['tree-add', threadedInsertEmpty], ['find', threadedEmptySearch],
+  ['tree-add', run(threadedTree, 'tree-add', { value: '15' })],
+  ['remove-value', run(threadedTree, 'remove-value', { value: '999' })],
+  ['remove-value', run(threadedTree, 'remove-value', { value: '7' }, [])],
+  ['inorder', run(threadedTree, 'inorder', {}, [])],
+  ['find', run(threadedTree, 'find', { value: '999' })], ['find', run(threadedTree, 'find', { value: '15' })],
+  ['inorder', threadedInorder], ['remove-value', threadedRemove], ['remove-value', threadedRemoveLeaf],
+  ['remove-value', threadedRemoveOneChild], ['remove-value', threadedRemoveRoot],
+  ['remove-value', run(threadedTree, 'remove-value', { value: '7' }, [7])],
+  ['remove-value', run(threadedTree, 'remove-value', { value: '7' }, [7, undefined, 9])],
+];
+for (const [actionId, result] of threadedTraceCases) {
+  if (result.ok) {
+    const state = result.frames.at(-1).threadedState;
+    const expected = getThreadedTreeLinks(result.values);
+    for (const node of state.nodes) {
+      if (node.header) {
+        assert.equal(node.id, 'header');
+        assert.equal(node.right, 'header');
+        assert.equal(node.leftThread, result.values.length === 0);
+        assert.equal(node.rightThread, false);
+        continue;
+      }
+      const meta = expected.links.get(node.id);
+      assert.equal(node.left, meta.leftThread ? meta.predecessor : node.id * 2 + 1);
+      assert.equal(node.right, meta.rightThread ? meta.successor : node.id * 2 + 2);
+      assert.notEqual(node.left, null, 'Un nodo enlazado no debe tener referencia izquierda nula.');
+      assert.notEqual(node.right, null, 'Un nodo enlazado no debe tener referencia derecha nula.');
+    }
+  }
+  for (const language of ['java', 'cpp']) {
+    const code = language === 'java' ? getBeginnerJava(threadedTree, actionId) : getBeginnerCpp(threadedTree, actionId);
+    const frames = result.frames.filter(frame => !frame.codeLanguage || frame.codeLanguage === language)
+      .map(frame => language === 'cpp' ? { ...frame, codeNeedle: cppCodeNeedle(threadedTree.id, actionId, frame) ?? frame.codeNeedle } : frame);
+    const adapted = adaptFramesToCode(frames, code, true);
+    for (const frame of adapted) assert.ok(frame.codeLine !== null && !frame.codeUnmapped, `${language}/${actionId}: sin correspondencia para ${frame.codeNeedle}`);
+    if (language === 'cpp' && actionId === 'remove-value' && result.ok) assert.ok(adapted.some(frame => frame.codeNeedle === 'delete current;'), 'C++ debe mostrar la liberación del nodo.');
+  }
+}
+const owningThreadedCpp = getBeginnerCpp(threadedTree, 'tree-add');
+assert.match(owningThreadedCpp, /ThreadedBinaryTree\(const ThreadedBinaryTree&\) = delete/);
+assert.match(owningThreadedCpp, /operator=\(const ThreadedBinaryTree&\) = delete/);
+assert.doesNotMatch(owningThreadedCpp, /nullptr/, 'La variante con cabecera no debe almacenar enlaces nulos.');
+assert.match(owningThreadedCpp, /root\(new Node\(0\)\)/, 'La cabecera C++ también debe usar memoria dinámica.');
+assert.match(owningThreadedCpp, /delete root;/, 'El destructor libera la cabecera después de sus nodos con datos.');
+assert.match(getOperationPseudocode(threadedTree, 'inorder', 'en'), /current.rightThread/);
+assert.match(getOperationPseudocode(threadedTree, 'tree-add', 'es'), /ese enlace es un hilo: salir/);
+assert.doesNotMatch(getOperationPseudocode(threadedTree, 'tree-add', 'es'), /recursivamente/);
+for (const values of [[7], [7, 3], [7, undefined, 9], [7, 3, 9], [7, 3, undefined, 1, 5]]) {
+  const traversal = run(threadedTree, 'inorder', {}, values);
+  const expected = values.filter(value => value !== undefined).sort((a, b) => a - b);
+  assert.deepEqual(traversal.frames.filter(frame => frame.codeNeedle === 'System.out.println(current.value);').map(frame => frame.variables.find(variable => variable.name === 'current').value), expected, 'Los retornos internos a la raíz no deben cortar el recorrido.');
+  assert.equal(traversal.frames.at(-1).variables.find(variable => variable.name === 'current').value, 'root');
+}
 
 const bplus = algorithms.find(item => item.id === 'bplus-tree');
 let bplusValues = [...bplus.values];

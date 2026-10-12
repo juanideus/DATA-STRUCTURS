@@ -41,6 +41,17 @@ function fallbackVariables(frame, algorithm, step) {
       { name: 'noCeros', value: values.length, role: 'size' },
     ];
   }
+  if (algorithm.id === 'arbol-enhebrado') {
+    const empty = values[0] === null || values[0] === undefined;
+    return [
+      { name: 'size', value: values.filter(value => value !== null && value !== undefined).length, role: 'size' },
+      { name: 'root', value: 'root', role: 'value' },
+      { name: 'root.left', value: empty ? 'root' : values[0], role: 'value' },
+      { name: 'root.right', value: 'root', role: 'value' },
+      { name: 'root.leftThread', value: empty, role: empty ? 'true' : 'false' },
+      { name: 'root.rightThread', value: false, role: 'false' },
+    ];
+  }
   const variables = [{ name: 'size', value: values.filter(value => value !== null && value !== undefined).length, role: 'size' }];
 
   if (algorithm.id === 'sudoku') {
@@ -75,7 +86,7 @@ export default function VariablesPanel({ frame, algorithm, step, playing }) {
   const variables = frame?.variables?.length ? frame.variables : fallbackVariables(frame, algorithm, step);
   const status = frame?.failed ? t('error') : frame?.completed ? t('finished') : playing ? t('running') : t('currentState');
 
-  return <section className="variables-panel" data-tour="variables" aria-live="polite" aria-label={t('realTimeVariables')}>
+  return <section className="variables-panel" data-structure={algorithm.id} data-tour="variables" aria-live="polite" aria-label={t('realTimeVariables')}>
     <header>
       <div><Variable size={16}/><strong>{t('realTimeVariables')}</strong></div>
       <span className={playing ? 'is-running' : ''}><i/>{status}</span>

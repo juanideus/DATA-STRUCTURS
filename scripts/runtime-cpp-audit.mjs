@@ -587,12 +587,14 @@ int main() {
     for (int value : input) assert(tree.insert(value));
     assert(!tree.insert(40));
     int expected[] = {20, 30, 35, 40, 45, 50, 55, 60, 65, 70, 80};
-    ThreadedBinaryTree::Node* current = tree.leftMost(tree.root);
+    ThreadedBinaryTree::Node* current = tree.leftMost(tree.root->left);
     for (int value : expected) {
         assert(current != nullptr && current->value == value);
         current = current->rightThread ? current->right : tree.leftMost(current->right);
     }
-    assert(current == nullptr);
+    assert(current == tree.root);
+    assert(tree.leftMost(tree.root->left)->left == tree.root);
+    assert(tree.root->right == tree.root && !tree.root->rightThread);
 }`,
   },
   {
@@ -612,16 +614,19 @@ int main() {
     nodes[6]->left = nodes[5]; nodes[6]->leftThread = false;
     nodes[6]->right = nodes[7]; nodes[6]->rightThread = false;
     nodes[7]->left = nodes[6];
-    tree.root = nodes[4];
+    tree.root->left = nodes[4];
+    tree.root->leftThread = false;
+    nodes[1]->left = tree.root;
+    nodes[7]->right = tree.root;
 
     auto check = [&](const int* expected, int expectedSize) {
-        ThreadedBinaryTree::Node* current = tree.leftMost(tree.root);
+        ThreadedBinaryTree::Node* current = tree.leftMost(tree.root->left);
         int count = 0;
-        while (current != nullptr) {
+        while (current != tree.root) {
             assert(count < expectedSize);
             assert(current->value == expected[count]);
-            current = current->rightThread ? current->right : tree.leftMost(current->right);
             count++;
+            current = current->rightThread ? current->right : tree.leftMost(current->right);
         }
         assert(count == expectedSize);
     };

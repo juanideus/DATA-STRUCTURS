@@ -1947,7 +1947,14 @@ export function adaptFramesToCode(frames, code, keepOriginalLines) {
   const needleLineCache = new Map();
   const phaseLineCache = new Map();
   return frames.map((frame, index) => {
+    if (frame.traceMode === 'summary') return { ...frame, codeLine: null };
     if (keepOriginalLines) {
+      if (frame.codeNeedle && frame.codeOccurrence !== undefined) {
+        const needle = normalizedSyntax(frame.codeNeedle);
+        const matches = selectedUsefulLines.filter(line => normalizedSyntax(line.text).includes(needle));
+        const matched = matches[frame.codeOccurrence];
+        return { ...frame, codeLine: matched?.index ?? null, codeUnmapped: !matched };
+      }
       if (frame.traceKey === 'valid-return') {
         const validationStart = sourceLines.findIndex(line => /\b(?:boolean|bool) isValid\(/.test(line));
         const validationReturn = sourceLines.findIndex((line, sourceIndex) => (

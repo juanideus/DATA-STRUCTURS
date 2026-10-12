@@ -246,7 +246,57 @@ function boundedLinearPseudocode(id, actionId, language) {
   return null;
 }
 
+function threadedTreePseudocode(actionId, language) {
+  const text = (es, en) => language === 'en' ? en : es;
+  return {
+    'tree-add': lines(
+      'parent ← root; current ← root.left',
+      text('mientras current ≠ root:', 'while current ≠ root:'),
+      text('  si value = current.value: no insertar duplicado', '  if value = current.value: do not insert a duplicate'),
+      '  parent ← current',
+      text('  elegir left o right según value < current.value', '  choose left or right according to value < current.value'),
+      text('  si ese enlace es un hilo: salir del ciclo; si no: avanzar al hijo real', '  if that link is a thread: break; otherwise: move to the real child'),
+      text('reservar newNode con dos hilos que inicialmente apuntan a sí mismo', 'allocate newNode with two threads initially pointing to itself'),
+      text('si parent = root (árbol vacío):', 'if parent = root (empty tree):'),
+      '  newNode.left ← root; newNode.right ← root',
+      '  root.left ← newNode; root.leftThread ← false',
+      text('si no, y value < parent.value:', 'otherwise, if value < parent.value:'),
+      '  newNode.left ← parent.left; newNode.right ← parent',
+      '  parent.left ← newNode; parent.leftThread ← false',
+      text('en otro caso:', 'otherwise:'),
+      '  newNode.left ← parent; newNode.right ← parent.right',
+      '  parent.right ← newNode; parent.rightThread ← false',
+      text('Java: devolver root; C++: devolver true', 'Java: return root; C++: return true'),
+    ),
+    find: lines('current ← root.left', text('mientras current ≠ root:', 'while current ≠ root:'),
+      text('  si target = current.value: devolver current', '  if target = current.value: return current'),
+      text('  elegir left o right según target < current.value', '  choose left or right according to target < current.value'),
+      text('  si ese enlace es un hilo: devolver root (no encontrado)', '  if that link is a thread: return root (not found)'),
+      text('  avanzar únicamente al hijo real', '  move only to the real child'), text('devolver root (no encontrado)', 'return root (not found)')),
+    inorder: lines(text('leftMost(node): mientras no node.leftThread, avanzar a node.left; devolver node', 'leftMost(node): while not node.leftThread, move to node.left; return node'),
+      'current ← leftMost(root.left)', text('mientras current ≠ root:', 'while current ≠ root:'),
+      text('  visitar current.value', '  visit current.value'),
+      text('  si current.rightThread: current ← current.right (sucesor inorden)', '  if current.rightThread: current ← current.right (inorder successor)'),
+      text('  si no: current ← leftMost(current.right)', '  otherwise: current ← leftMost(current.right)'),
+      text('terminar al regresar a la cabecera root; no visitar ni imprimir su valor', 'stop on returning to the root header; do not visit or print its value')),
+    'remove-value': lines(text('buscar target siguiendo sólo hijos reales; si no existe, no modificar el árbol', 'search for target through real children only; if absent, leave the tree unchanged'),
+      text('si tiene dos hijos reales: copiar el valor del sucesor inorden y retirar ese nodo sucesor', 'if it has two real children: copy the inorder successor value and remove that successor node'),
+      text('child ← único hijo real, o root si es hoja', 'child ← the only real child, or root for a leaf'),
+      text('conservar predecessor y successor antes de desconectar current', 'keep predecessor and successor before unlinking current'),
+      text('si parent = root: root.left ← child; root.leftThread ← (child = root)', 'if parent = root: root.left ← child; root.leftThread ← (child = root)'),
+      text('si es hoja: marcar el enlace del padre como hilo y apuntarlo al vecino inorden', 'if it is a leaf: mark the parent link as a thread and point it to the inorder neighbor'),
+      text('si tiene un hijo: conectar el padre a child y reparar el hilo del predecesor o sucesor', 'if it has one child: connect the parent to child and repair the predecessor or successor thread'),
+      text('conservar la cabecera root y su enlace derecho hacia sí misma', 'retain the root header and its right self-link'),
+      text('C++: delete current después de reconectar; Java: el nodo queda desvinculado', 'C++: delete current after reconnection; Java: the node remains unlinked'),
+      text('Java: devolver root; C++: devolver true', 'Java: return root; C++: return true')),
+  }[actionId];
+}
+
 export function getOperationPseudocode(algorithm, actionId, language = 'es') {
+  if (algorithm.id === 'arbol-enhebrado') {
+    const source = threadedTreePseudocode(actionId, language);
+    if (source) return source;
+  }
   if (['pila', 'cola', 'deque'].includes(algorithm.id)) {
     const source = boundedLinearPseudocode(algorithm.id, actionId, language);
     if (source) return source;

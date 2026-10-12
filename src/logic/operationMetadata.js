@@ -319,6 +319,8 @@ export const occupiedThreadedPosition = (values, index) => (
   index >= 0 && index < values.length && values[index] !== undefined && values[index] !== null
 );
 
+export const THREADED_HEADER = 'header';
+
 export function getThreadedTreeLinks(values) {
   const inorder = [];
   const visit = index => {
@@ -339,8 +341,8 @@ export function getThreadedTreeLinks(values) {
       order,
       leftThread: !occupiedThreadedPosition(values, leftChild),
       rightThread: !occupiedThreadedPosition(values, rightChild),
-      predecessor: order > 0 ? inorder[order - 1] : null,
-      successor: order < inorder.length - 1 ? inorder[order + 1] : null,
+      predecessor: order > 0 ? inorder[order - 1] : THREADED_HEADER,
+      successor: order < inorder.length - 1 ? inorder[order + 1] : THREADED_HEADER,
     });
   });
   return { inorder, links };
