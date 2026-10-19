@@ -62,12 +62,45 @@ const CLOUDFLARE_RANGES = [
 
 const cloudflareAddresses = blockListFromRanges(parseTrustedProxyCidrs(CLOUDFLARE_RANGES.join(',')));
 
+export function clientIpSource(environment = process.env) {
+  const value = environment?.CLIENT_IP_SOURCE;
+  return value === undefined ? '' : typeof value === 'string' ? value.trim() : null;
+}
+
+// This is an explicit deployment/topology declaration, not request authentication.
+// Railway public HTTP ingress overwrites X-Real-IP; its private mesh does not.
+// Do not enable this mode for a listener reachable by untrusted private callers
+// or a TCP proxy. See report/README.md for the supported, dedicated topology.
+export function isRailwayPublicIngress(environment = process.env) {
+  return clientIpSource(environment) === 'railway-public'
+    && environment.NODE_ENV === 'production'
+    && ['RAILWAY_PROJECT_ID', 'RAILWAY_SERVICE_ID', 'RAILWAY_DEPLOYMENT_ID']
+      .every(name => typeof environment[name] === 'string' && environment[name].trim().length > 0);
+}
+
 let previousProxyConfiguration;
 let trustedProxyAddresses = new net.BlockList();
 
 export const clientAddress = (request, environment = process.env) => {
   const socketAddress = canonicalIp(request?.socket?.remoteAddress);
   if (!socketAddress) return 'unknown';
+
+  const source = clientIpSource(environment);
+  if (source === 'railway-public') {
+    if (!isRailwayPublicIngress(environment) || parseTrustedProxyCidrs(environment.TRUSTED_PROXY_CIDRS)?.length !== 0) return 'unknown';
+    if (request.rawHeaders) {
+      let occurrences = 0;
+      for (let index = 0; index < request.rawHeaders.length; index += 2) {
+        if (String(request.rawHeaders[index]).toLowerCase() === 'x-real-ip') occurrences++;
+      }
+      if (occurrences !== 1) return 'unknown';
+    }
+    // Consume only Railway's result, never derive it again from CF/XFF/Forwarded.
+    // A missing/ambiguous result must not collapse all visitors onto the socket.
+    return canonicalIp(request.headers?.['x-real-ip']) || 'unknown';
+  }
+  if (source === 'socket') return socketAddress;
+  if (!['', 'trusted-proxy'].includes(source)) return 'unknown';
 
   const configuration = environment?.TRUSTED_PROXY_CIDRS;
   if (configuration !== previousProxyConfiguration) {

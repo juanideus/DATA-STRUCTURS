@@ -104,7 +104,12 @@ export const server = http.createServer(async (request, response) => {
     sendJson(response, 415, { ok: false, message: 'El contenido debe enviarse como JSON.' });
     return;
   }
-  const rateLimit = checkRateLimit(clientAddress(request));
+  const address = clientAddress(request);
+  if (address === 'unknown') {
+    sendJson(response, 503, { ok: false, message: 'No fue posible verificar la conexión. Inténtalo nuevamente más tarde.' });
+    return;
+  }
+  const rateLimit = checkRateLimit(address);
   if (!rateLimit.allowed) {
     response.setHeader('Retry-After', String(rateLimit.retryAfterSeconds));
     sendJson(response, 429, { ok: false, message: 'Se enviaron demasiados reportes. Inténtalo más tarde.' });
@@ -132,7 +137,7 @@ export const server = http.createServer(async (request, response) => {
     const turnstile = await verifyTurnstile({
       secret: process.env.TURNSTILE_SECRET_KEY,
       token: input.turnstileToken,
-      remoteIp: clientAddress(request),
+      remoteIp: address,
     });
     if (!turnstile.success) {
       sendJson(response, 422, {
