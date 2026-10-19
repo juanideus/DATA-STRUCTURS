@@ -7,7 +7,7 @@ test('una instalación directa no confía en proxies de forma implícita', () =>
 });
 
 test('Railway producción exige un contrato explícito de ingress antes de arrancar', () => {
-  assert.throws(() => assertProxyConfiguration({ NODE_ENV: 'production', RAILWAY_PROJECT_ID: 'test-project' }), /TRUSTED_PROXY_CIDRS/);
+  assert.throws(() => assertProxyConfiguration({ NODE_ENV: 'production', RAILWAY_PROJECT_ID: 'test-project' }), /CLIENT_IP_SOURCE/);
   assert.doesNotThrow(() => assertProxyConfiguration({ NODE_ENV: 'production', RAILWAY_PROJECT_ID: 'test-project', TRUSTED_PROXY_CIDRS: '192.0.2.8/32' }));
 });
 

@@ -45,35 +45,55 @@ ALLOWED_ORIGINS=https://www.dsalab.dev,https://dsalab.dev,https://data-structurs
 TURNSTILE_SECRET_KEY=clave-secreta-entregada-por-cloudflare
 TURNSTILE_HOSTNAMES=www.dsalab.dev,dsalab.dev,data-structurs.vercel.app
 NODE_ENV=production
-TRUSTED_PROXY_CIDRS=rangos-CIDR-confirmados-del-ingress
+CLIENT_IP_SOURCE=railway-public
 ```
 
 No agregues `RESEND_API_KEY` ni `TURNSTILE_SECRET_KEY` al frontend, a una variable `VITE_*`, al repositorio ni al archivo `.env.example`. Los orígenes oficiales ya están autorizados en el servicio; `ALLOWED_ORIGINS` permite añadir otros sin reemplazarlos.
 
-### Requisito antes de desplegar: confianza en el proxy
+### Requisito antes de desplegar: entrada HTTP pública de Railway
 
-`TRUSTED_PROXY_CIDRS` no es la IP del visitante ni el listado de Cloudflare: debe
-contener exclusivamente los rangos del proxy que establece la conexión TCP hacia
-Node. Confirma esos rangos y la garantía de que Railway **sobrescribe** `X-Real-IP`
-antes de configurar la variable. No copies rangos privados genéricos ni autorices
-todo Internet. El placeholder de arriba no es un valor desplegable.
+En Railway configura `CLIENT_IP_SOURCE=railway-public` y deja
+`TRUSTED_PROXY_CIDRS` ausente o vacío. El modo exige `NODE_ENV=production` y las
+variables de contexto `RAILWAY_PROJECT_ID`, `RAILWAY_SERVICE_ID` y
+`RAILWAY_DEPLOYMENT_ID` que proporciona la plataforma; no las inventes.
 
-Sin rangos configurados se usa la IP del socket y se ignoran las cabeceras de
-identidad. En producción con `RAILWAY_PROJECT_ID`, el proceso se niega a arrancar
-si falta esta configuración; un CIDR malformado también impide el arranque. Esto
-evita publicar una versión que acepte cabeceras arbitrarias o agrupe silenciosamente
-a todos los alumnos bajo la IP del ingress. Las pruebas locales usan loopback de
-forma explícita; no hay detección automática de proxies privados.
+Railway documenta `X-Real-IP` como IP del cliente. Un empleado confirma que su
+edge HTTP sobrescribe los valores enviados por el cliente para los dominios
+personalizados y generados, y que **no publica CIDRs de proxies ni un número
+estable de saltos**. Exigir esos rangos causaba un bloqueo de arranque imposible
+de configurar de forma mantenible. Fuentes primarias verificadas el 19/10/2026:
+[especificaciones](https://docs.railway.com/networking/public-networking/specs-and-limits#technical-specifications)
+y [aclaración del equipo de Railway](https://station.railway.com/questions/need-authoritative-client-ip-proxy-tru-090eac86).
 
-Antes de activar una nueva versión, valida el contrato en un entorno de prueba:
+En este modo la API usa solo un `X-Real-IP` válido y canonicalizado. Rechaza
+valores ausentes, duplicados, listas o IP inválidas con 503 antes de consumir
+cuota; no cae en la IP compartida del socket. Ignora `CF-Connecting-IP`,
+`X-Forwarded-For` y `Forwarded`, sin volver a interpretar el resultado del edge.
 
-1. Dos clientes reales diferentes deben obtener cuotas distintas.
-2. Alterar `X-Real-IP`, `CF-Connecting-IP` o `X-Forwarded-For` desde el cliente no debe cambiar la identidad efectiva.
-3. Las representaciones equivalentes de IPv6 y IPv4-mapped deben compartir cuota.
-4. Comprueba los dominios personalizado y generado de Railway, si ambos siguen habilitados.
+**Condición de seguridad:** los reportes deben llegar únicamente por ingress
+HTTP público, en un entorno dedicado sin servicios privados no confiables ni
+TCP proxy. Las variables de contexto y `Host` no autentican una petición.
+La red `*.railway.internal` no sanitiza estas cabeceras, y escuchar en
+`0.0.0.0` tampoco la aísla (puede usar IPv4 e IPv6). No reutilices este modo para
+llamadas privadas: si incorporas otros servicios, revisa el límite de confianza
+o añade un gateway autenticado. Ver [aislamiento de red privada](https://docs.railway.com/networking/private-networking/how-it-works#network-isolation).
 
-No despliegues esta corrección sin completar ese paso. El repositorio no puede
-deducir los CIDRs reales ni modificar la configuración de Railway por sí solo.
+Antes de activar una nueva versión:
+
+1. Comprueba en Architecture que el entorno sea dedicado y en Networking que no exista TCP proxy.
+2. Valida en staging que las cabeceras falsificadas no cambien la identidad a través del edge, tanto en el dominio propio como en el generado. Las pruebas locales solo simulan ese contrato, no certifican a Railway.
+3. Dos IP públicas distintas deben obtener cuotas distintas; alias IPv6/IPv4-mapped deben compartir cuota. Alumnos detrás de un mismo NAT universitario seguirán compartiéndola.
+4. Comprueba `/health`, los logs de arranque y un envío legítimo tras desplegar. No expongas direcciones de visitantes en endpoints de diagnóstico.
+
+Railway solo ha confirmado la derivación del usuario desde Cloudflare sobre
+IPv4. Si Cloudflare llega por IPv6, no supongas que la IP representa al usuario:
+puede representar al edge y compartir cuota. No lo compenses confiando en un
+`CF-Connecting-IP` sin autenticar; monitoriza falsos positivos.
+
+Fuera de Railway, `CLIENT_IP_SOURCE=socket` ignora las cabeceras. Para un reverse
+proxy propio usa `CLIENT_IP_SOURCE=trusted-proxy` con `TRUSTED_PROXY_CIDRS`
+confirmados y un contrato de sobrescritura. El modo previo sin selector conserva
+esa configuración por compatibilidad; no detecta proxies privados automáticamente.
 
 ### Protección anti-bot con Turnstile
 
@@ -137,7 +157,7 @@ Resend permite enviar desde cualquier dirección del dominio verificado, por lo 
 - Honeypot contra envíos automatizados.
 - Cloudflare Turnstile con validación obligatoria en el servidor; sin secret key no se envían reportes.
 - Límite de cinco solicitudes por IP cada quince minutos y un presupuesto global de 120 solicitudes por minuto por instancia.
-- `X-Real-IP` solo se acepta si el socket pertenece a `TRUSTED_PROXY_CIDRS`. Si el hop acreditado pertenece a Cloudflare, se usa `CF-Connecting-IP`; en conexiones no confiables se ignoran ambas cabeceras y siempre se ignora `X-Forwarded-For`.
+- La identidad usa el modo de despliegue explícito: `railway-public` consume solo el `X-Real-IP` del edge HTTP en un entorno dedicado; `trusted-proxy` exige CIDRs propios confirmados y `socket` ignora las cabeceras. Siempre se ignora `X-Forwarded-For`.
 - IP canonicalizada antes de usarla como clave: formatos IPv6 equivalentes e IPv4-mapped comparten contador.
 - Tope de direcciones rastreadas que rechaza nuevas IP al saturarse, sin expulsar y desbloquear IP previamente limitadas.
 - Respuestas sin detalles internos ni credenciales.

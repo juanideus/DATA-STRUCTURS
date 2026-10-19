@@ -2,9 +2,15 @@
 
 Cambios locales, sin despliegue, envío de correos, modificación de credenciales ni cambios en las cuentas de infraestructura.
 
+Actualización del requisito de proxy: la exigencia original de CIDRs bloqueó el
+despliegue de la PR #72. Railway no publica esos rangos. La corrección posterior
+añade el modo explícito `CLIENT_IP_SOURCE=railway-public`, sujeto a un entorno
+dedicado sin llamadores privados no confiables ni TCP proxy; ver los requisitos
+y fuentes en [despliegue de reportes](../report/README.md).
+
 | Hallazgo | Corrección y estado |
 | --- | --- |
-| SEC01 — confianza en cabeceras de IP | Las cabeceras se ignoran salvo que el socket pertenezca a un CIDR explícitamente confiable. Railway en producción exige configurar esos CIDR antes de arrancar. **Falta confirmar el contrato real del ingress y configurarlo antes de desplegar.** |
+| SEC01 — confianza en cabeceras de IP | Modo directo/CIDR explícito para despliegues propios; modo `railway-public` para consumir solo `X-Real-IP` sobrescrito por el edge de Railway en una topología pública dedicada. No se adivinan CIDRs. **Hay que verificar la topología y configurar el selector antes de desplegar.** |
 | SEC02 — representaciones equivalentes de IPv6 | Se normalizan IPv6 e IPv4 mapeada antes de calcular la identidad y consumir el límite. Las variantes textuales comparten contador. |
 | SEC03 — agotamiento del cupo global y contadores por instancia | Se conserva el límite temprano para proteger parsing, memoria y servicios externos. **No está resuelto solo con código:** falta protección de borde en todas las rutas públicas y, antes de usar varias réplicas, un almacén compartido de contadores. |
 | SEC04 — runtime desactualizado | `.nvmrc`, manifiestos, lockfiles y CI usan un contrato LTS actualizado. **Falta comprobar el runtime efectivo de los despliegues.** |
@@ -24,10 +30,10 @@ Cambios locales, sin despliegue, envío de correos, modificación de credenciale
 
 ## Antes de desplegar
 
-1. Confirmar con Railway los CIDR del ingress que llega al socket y que `X-Real-IP` se sobrescribe, no se conserva desde el cliente. No usar rangos universales ni adivinar rangos privados. Ver [despliegue de reportes](../report/README.md).
+1. Verificar el entorno dedicado sin TCP proxy y configurar `CLIENT_IP_SOURCE=railway-public`; dejar `TRUSTED_PROXY_CIDRS` vacío. No usar este modo con llamadores privados no confiables ni adivinar rangos. Ver [despliegue de reportes](../report/README.md).
 2. Preparar protección de borde para el dominio personalizado y cualquier dominio alternativo accesible. CORS no reemplaza esta protección. Probar falsos positivos de alumnos que comparten IP universitaria y observar respuestas 429.
 3. Mantener una réplica hasta contar con límites compartidos; comprobar el runtime LTS efectivo en Railway/Vercel.
 4. Ejecutar CI remoto y comprobar protección de `main`, detección de secretos y protección de push disponibles. Ver [controles de seguridad](security-checks.md).
-5. En staging, probar el reporte con dos clientes y cabeceras falsificadas antes del cambio de producción. No desplegar la nueva política de proxy sin la configuración confirmada.
+5. En staging, probar el reporte con dos IP públicas distintas y cabeceras falsificadas antes del cambio de producción. El modo nuevo sigue requiriendo configuración y revisión de topología; no asume que las variables de entorno autentiquen cada petición.
 
 Estos cambios reducen riesgos concretos; no equivalen a inmunidad frente a DDoS ni a una certificación de seguridad.
