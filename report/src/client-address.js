@@ -1,5 +1,53 @@
 import net from 'node:net';
 
+// Use one stable key for equivalent IPv6 spellings and IPv4-mapped addresses.
+// Header lists, scoped/link-local zone identifiers, ports and bracketed addresses
+// are not single client IP addresses and must not cross the proxy trust boundary.
+export function canonicalIp(value) {
+  if (typeof value !== 'string') return null;
+  const address = value.trim();
+  if (!address || address.includes('%')) return null;
+  const family = net.isIP(address);
+  if (family === 4) return address;
+  if (family !== 6) return null;
+
+  const normalized = new URL(`http://[${address}]/`).hostname.slice(1, -1);
+  const mapped = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(normalized);
+  if (!mapped) return normalized;
+  const high = Number.parseInt(mapped[1], 16);
+  const low = Number.parseInt(mapped[2], 16);
+  return [high >>> 8, high & 255, low >>> 8, low & 255].join('.');
+}
+
+// null means malformed configuration; [] means forwarding is not trusted.
+// A malformed entry invalidates the whole list instead of partially trusting it.
+export function parseTrustedProxyCidrs(value) {
+  if (value === undefined || value === '') return [];
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const ranges = [];
+  for (const entry of value.split(',')) {
+    const match = /^([^/]+)\/(0|[1-9][0-9]{0,2})$/.exec(entry.trim());
+    if (!match) return null;
+    const originalFamily = net.isIP(match[1]);
+    const address = canonicalIp(match[1]);
+    let prefix = Number(match[2]);
+    if (!address || !originalFamily || prefix > (originalFamily === 4 ? 32 : 128)) return null;
+    const family = net.isIP(address);
+    if (originalFamily === 6 && family === 4) {
+      if (prefix < 96) return null;
+      prefix -= 96;
+    }
+    ranges.push({ address, prefix, type: family === 4 ? 'ipv4' : 'ipv6' });
+  }
+  return ranges;
+}
+
+const blockListFromRanges = ranges => {
+  const list = new net.BlockList();
+  for (const { address, prefix, type } of ranges) list.addSubnet(address, prefix, type);
+  return list;
+};
+
 // Published at https://www.cloudflare.com/ips/ (checked 2026-09-30).
 const CLOUDFLARE_RANGES = [
   '173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22',
@@ -12,28 +60,32 @@ const CLOUDFLARE_RANGES = [
   '2c0f:f248::/32',
 ];
 
-const cloudflareAddresses = new net.BlockList();
-for (const cidr of CLOUDFLARE_RANGES) {
-  const [address, prefix] = cidr.split('/');
-  cloudflareAddresses.addSubnet(address, Number(prefix), net.isIP(address) === 4 ? 'ipv4' : 'ipv6');
-}
+const cloudflareAddresses = blockListFromRanges(parseTrustedProxyCidrs(CLOUDFLARE_RANGES.join(',')));
 
-const validIp = value => {
-  const address = String(value || '').trim();
-  return net.isIP(address) ? address : null;
-};
+let previousProxyConfiguration;
+let trustedProxyAddresses = new net.BlockList();
 
-export const clientAddress = request => {
-  const railwayHeader = request.headers['x-real-ip'];
-  const railwayAddress = validIp(String(Array.isArray(railwayHeader) ? railwayHeader[0] : railwayHeader || '')
-    .split(',')[0]);
-  const cloudflareHeader = request.headers['cf-connecting-ip'];
-  const cloudflareAddress = validIp(Array.isArray(cloudflareHeader) ? cloudflareHeader[0] : cloudflareHeader);
+export const clientAddress = (request, environment = process.env) => {
+  const socketAddress = canonicalIp(request?.socket?.remoteAddress);
+  if (!socketAddress) return 'unknown';
 
-  if (railwayAddress && cloudflareAddress &&
-      cloudflareAddresses.check(railwayAddress, net.isIP(railwayAddress) === 4 ? 'ipv4' : 'ipv6')) {
+  const configuration = environment?.TRUSTED_PROXY_CIDRS;
+  if (configuration !== previousProxyConfiguration) {
+    trustedProxyAddresses = blockListFromRanges(parseTrustedProxyCidrs(configuration) || []);
+    previousProxyConfiguration = configuration;
+  }
+  const socketType = net.isIP(socketAddress) === 4 ? 'ipv4' : 'ipv6';
+  if (!trustedProxyAddresses.check(socketAddress, socketType)) return socketAddress;
+
+  // The configured ingress must overwrite this header, never append to it.
+  const proxyAddress = canonicalIp(request.headers?.['x-real-ip']);
+  if (!proxyAddress) return socketAddress;
+  const cloudflareAddress = canonicalIp(request.headers?.['cf-connecting-ip']);
+
+  if (cloudflareAddress &&
+      cloudflareAddresses.check(proxyAddress, net.isIP(proxyAddress) === 4 ? 'ipv4' : 'ipv6')) {
     return cloudflareAddress;
   }
 
-  return railwayAddress || validIp(request.socket.remoteAddress) || 'unknown';
+  return proxyAddress;
 };

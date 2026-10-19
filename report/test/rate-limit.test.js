@@ -39,3 +39,16 @@ test('al saturar el registro no expulsa ni desbloquea una IP limitada', () => {
   now = 15 * 60 * 1_000;
   assert.deepEqual(check('203.0.113.3'), { allowed: true });
 });
+
+test('comparte el contador entre representaciones equivalentes de IPv6', () => {
+  const check = createReportRateLimiter({ clock: () => 0 });
+  const variants = ['2001:db8::1', '2001:0db8::1', '2001:db8:0::1', '2001:DB8::1', '2001:db8:0:0::1'];
+  for (const address of variants) assert.deepEqual(check(address), { allowed: true });
+  assert.deepEqual(check('2001:0db8:0000:0000:0000:0000:0000:0001'), { allowed: false, retryAfterSeconds: 900 });
+});
+
+test('comparte el contador entre IPv4 y su representación IPv4-mapped', () => {
+  const check = createReportRateLimiter({ clock: () => 0 });
+  for (let i = 0; i < 5; i++) assert.deepEqual(check(i % 2 ? '::ffff:203.0.113.1' : '203.0.113.1'), { allowed: true });
+  assert.deepEqual(check('::ffff:cb00:7101'), { allowed: false, retryAfterSeconds: 900 });
+});

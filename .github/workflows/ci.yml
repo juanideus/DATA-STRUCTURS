@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: validation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -19,13 +23,27 @@ jobs:
 
     steps:
       - name: Descargar repositorio
-        uses: actions/checkout@v4
+        # https://github.com/actions/checkout/releases/tag/v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
 
       - name: Configurar Node.js
-        uses: actions/setup-node@v4
+        # https://github.com/actions/setup-node/releases/tag/v7.1.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22.12.0
+          node-version-file: .nvmrc
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            report/package-lock.json
+
+      - name: Probar el detector de secretos
+        run: node --test scripts/secret-scanner.test.mjs
+
+      - name: Revisar secretos en archivos e historial Git
+        run: node scripts/audit-secrets.mjs
 
       - name: Instalar dependencias
         run: npm ci
@@ -42,8 +60,14 @@ jobs:
       - name: Probar seguridad de la API de reportes
         run: npm run test:report
 
+      - name: Probar recuperación y privacidad del cliente
+        run: npm run test:security-client
+
       - name: Compilar producción
         run: npm run build
+
+      - name: Revisar secretos en los archivos publicados
+        run: node scripts/audit-secrets.mjs --artifacts-only
 
       - name: Instalar Chromium
         run: npx playwright install --with-deps chromium

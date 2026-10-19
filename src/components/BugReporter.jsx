@@ -3,6 +3,7 @@ import { Bug, ClipboardCopy, X } from 'lucide-react';
 import { useDialogFocus } from '../accessibility/useDialogFocus.js';
 import { useLanguage } from '../i18n.jsx';
 import TurnstileWidget from './TurnstileWidget.jsx';
+import { reportPageUrl } from '../logic/reportPrivacy.js';
 
 const REPORT_API_URL = String(import.meta.env.VITE_REPORT_API_URL || '').replace(/\/+$/, '');
 const TURNSTILE_SITE_KEY = String(import.meta.env.VITE_TURNSTILE_SITE_KEY || '').trim();
@@ -64,12 +65,12 @@ export default function BugReporter({ section }) {
     name:'Your name', namePh:'E.g. Ana Torres', email:'Your email (optional)', emailPh:'So we can reply to you', summary:'Short summary', summaryPh:'E.g. The delete button does not respond',
     type:'What kind of problem is it?', typePh:'Select an option', types:['Something does not work','It looks incorrect','Problem in the Java code','Problem in the C++ code','Content is difficult to understand','Another problem'],
     happened:'Tell us what happened', happenedPh:'What did you do, what appeared, and what did you expect?', repeat:'How can we reproduce it?', repeatPh:'1. I opened the structure...\n2. I pressed the button...\n3. Then this happened...',
-    website:'Website', required:'Required', delivery:'The report will be sent directly to the DSA Lab team.', later:'Not now', copy:'Copy', sending:'Sending…', send:'Send report', review:'Review the marked fields before continuing.', fieldInvalid:'Check this field.', securityRequired:'Complete the security verification before sending.', securityError:'The security verification could not be completed. Reload it and try again.',
+    website:'Website', required:'Required', delivery:'The report will be sent directly to the DSA Lab team.', later:'Not now', copy:'Copy', sending:'Sending…', send:'Send report', review:'Review the marked fields before continuing.', fieldInvalid:'Check this field.', securityRequired:'Complete the security verification before sending.', securityError:'The security verification could not be completed. Close and reopen this form to try again. Your input will be kept.',
   } : {
     name:'Tu nombre', namePh:'Ej.: Ana Torres', email:'Tu correo (opcional)', emailPh:'Para poder responderte', summary:'Resumen corto', summaryPh:'Ej.: El botón eliminar no responde',
     type:'¿Qué tipo de problema es?', typePh:'Selecciona una opción', types:['Algo no funciona','Se ve incorrecto','Problema en el código Java','Problema en el código C++','Contenido difícil de entender','Otro problema'],
     happened:'Cuéntanos qué ocurrió', happenedPh:'¿Qué hiciste, qué apareció y qué esperabas que ocurriera?', repeat:'¿Cómo podemos repetirlo?', repeatPh:'1. Entré a la estructura...\n2. Presioné el botón...\n3. Entonces ocurrió...',
-    website:'Sitio web', required:'Obligatorio', delivery:'El reporte se enviará directamente al equipo de DSA Lab.', later:'Ahora no', copy:'Copiar', sending:'Enviando…', send:'Enviar reporte', review:'Revisa los campos marcados antes de continuar.', fieldInvalid:'Revisa este campo.', securityRequired:'Completa la verificación de seguridad antes de enviar.', securityError:'No se pudo completar la verificación de seguridad. Recárgala e inténtalo nuevamente.',
+    website:'Sitio web', required:'Obligatorio', delivery:'El reporte se enviará directamente al equipo de DSA Lab.', later:'Ahora no', copy:'Copiar', sending:'Enviando…', send:'Enviar reporte', review:'Revisa los campos marcados antes de continuar.', fieldInvalid:'Revisa este campo.', securityRequired:'Completa la verificación de seguridad antes de enviar.', securityError:'No se pudo completar la verificación de seguridad. Cierra y vuelve a abrir el formulario para reintentar. Tus datos se conservarán.',
   };
 
   useEffect(() => {
@@ -94,7 +95,7 @@ export default function BugReporter({ section }) {
     if (token) setTurnstileError('');
   }, []);
   const rejectTurnstile = useCallback(() => {
-    setTurnstileError(language === 'en' ? 'The security verification could not be completed. Reload it and try again.' : 'No se pudo completar la verificación de seguridad. Recárgala e inténtalo nuevamente.');
+    setTurnstileError(language === 'en' ? 'The security verification could not be completed. Close and reopen this form to try again. Your input will be kept.' : 'No se pudo completar la verificación de seguridad. Cierra y vuelve a abrir el formulario para reintentar. Tus datos se conservarán.');
   }, [language]);
   const applyFieldError = (field, fieldError) => {
     const nextErrors = { ...errors };
@@ -169,7 +170,7 @@ export default function BugReporter({ section }) {
       const response = await fetch(`${REPORT_API_URL}/api/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...report, section, pageUrl: window.location.href, userAgent: navigator.userAgent, turnstileToken }),
+        body: JSON.stringify({ ...report, section, pageUrl: reportPageUrl(window.location.href), userAgent: navigator.userAgent, turnstileToken }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {

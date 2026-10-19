@@ -5,6 +5,7 @@ import { allowedOrigins } from './origins.js';
 import { createReportRateLimiter } from './rate-limit.js';
 import { verifyTurnstile } from './turnstile.js';
 import { normalizeReport, validateReport } from './validation.js';
+import { assertProxyConfiguration } from './configuration.js';
 
 const PORT = Number(process.env.PORT || 10000);
 const MAX_BODY_SIZE = 16 * 1024;
@@ -99,7 +100,7 @@ export const server = http.createServer(async (request, response) => {
     sendJson(response, 403, { ok: false, message: 'Origen no autorizado.' });
     return;
   }
-  if (!String(request.headers['content-type'] || '').toLowerCase().includes('application/json')) {
+  if (String(request.headers['content-type'] || '').split(';')[0].trim().toLowerCase() !== 'application/json') {
     sendJson(response, 415, { ok: false, message: 'El contenido debe enviarse como JSON.' });
     return;
   }
@@ -156,11 +157,13 @@ export const server = http.createServer(async (request, response) => {
     sendJson(response, error.status && error.status < 500 ? error.status : 502, {
       ok: false,
       message: error.status && error.status < 500 ? error.message : 'No fue posible enviar el reporte. Inténtalo nuevamente.',
+      ...(error.status && error.status < 500 && error.errors ? { errors: error.errors } : {}),
     });
   }
 });
 
 if (process.env.NODE_ENV !== 'test') {
+  assertProxyConfiguration(process.env);
   server.requestTimeout = 15_000;
   server.headersTimeout = 10_000;
   server.keepAliveTimeout = 5_000;

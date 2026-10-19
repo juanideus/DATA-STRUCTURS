@@ -276,7 +276,7 @@ El proyecto no necesita base de datos ni servidor de aplicación. Después de co
 
 ## Requisitos
 
-- **Node.js:** `^20.19.0` o `>=22.12.0`, según el motor requerido por la versión instalada de Vite.
+- **Node.js:** `^22.23.3` o `^24.22.0` (líneas LTS); la versión recomendada está en `.nvmrc`.
 - **npm:** incluido normalmente con Node.js.
 - Un navegador moderno con soporte para ES Modules.
 - Git, únicamente si deseas clonar y contribuir al repositorio.
@@ -351,8 +351,11 @@ npm run preview
 | `npm run audit:cpp` | Compila con `g++ -std=c++17` cada ejemplo C++ habilitado |
 | `npm run audit:cpp-runtime` | Ejecuta escenarios C++ reales para validar punteros, memoria e invariantes estructurales |
 | `npm run audit:stress` | Prueba entradas extremas y secuencias largas de operaciones |
-| `npm run audit:dependencies` | Revisa vulnerabilidades de producción del frontend y de la API de reportes |
+| `npm run audit:dependencies` | Revisa vulnerabilidades del frontend, herramientas de desarrollo y API de reportes |
 | `npm run test:report` | Ejecuta validación, CORS, cabeceras, límites y pruebas anti-bot de la API |
+| `npm run test:security-client` | Comprueba recuperación de Turnstile y contratos de privacidad/configuración |
+| `npm run test:secrets` | Prueba el detector de secretos con fixtures sintéticos |
+| `npm run audit:secrets` | Busca secretos sin imprimir valores en código, archivos nuevos e historial |
 | `npm run test:e2e` | Ejecuta pruebas reales de navegador en escritorio y móvil |
 | `npm run check` | Ejecuta todas las auditorías Java/C++, estrés, SEO, compilación y pruebas E2E |
 
@@ -501,7 +504,7 @@ Además, Playwright verifica los recorridos críticos en Chromium de escritorio 
 | Comando de instalación | `npm ci` |
 | Comando de compilación | `npm run build` |
 | Directorio de salida | `dist` |
-| Versión recomendada de Node | `22.12.0`, registrada también en `.nvmrc` |
+| Versión recomendada de Node | `22.23.3` LTS, registrada también en `.nvmrc` |
 
 Las dependencias están fijadas a versiones exactas. Dependabot revisa actualizaciones semanalmente mediante pull requests y GitHub Actions ejecuta auditoría, build, revisión de vulnerabilidades y pruebas E2E antes de integrar cambios.
 

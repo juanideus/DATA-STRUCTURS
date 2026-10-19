@@ -6,6 +6,10 @@ import { allowedOrigins, OFFICIAL_FRONTEND_ORIGINS } from '../src/origins.js';
 import { normalizeTurnstileToken, verifyTurnstile } from '../src/turnstile.js';
 import { escapeHtml, normalizeReport, validateReport } from '../src/validation.js';
 
+// This HTTP fixture models a trusted ingress that overwrites X-Real-IP. Direct,
+// untrusted peers are covered separately in client-address.test.js.
+process.env.TRUSTED_PROXY_CIDRS = '127.0.0.1/32';
+
 const validInput = {
   name: 'Ana Torres',
   email: 'ana@example.com',
