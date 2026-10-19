@@ -9,7 +9,7 @@ Servicio independiente para recibir el formulario **Informar problema** de DSA L
 
 ## Desarrollo local
 
-Requiere Node.js 20 o superior.
+Requiere Node.js 22.23.3 LTS o una versión compatible de la línea 24 desde 24.22.0.
 
 ```bash
 cd report
@@ -45,9 +45,35 @@ ALLOWED_ORIGINS=https://www.dsalab.dev,https://dsalab.dev,https://data-structurs
 TURNSTILE_SECRET_KEY=clave-secreta-entregada-por-cloudflare
 TURNSTILE_HOSTNAMES=www.dsalab.dev,dsalab.dev,data-structurs.vercel.app
 NODE_ENV=production
+TRUSTED_PROXY_CIDRS=rangos-CIDR-confirmados-del-ingress
 ```
 
 No agregues `RESEND_API_KEY` ni `TURNSTILE_SECRET_KEY` al frontend, a una variable `VITE_*`, al repositorio ni al archivo `.env.example`. Los orígenes oficiales ya están autorizados en el servicio; `ALLOWED_ORIGINS` permite añadir otros sin reemplazarlos.
+
+### Requisito antes de desplegar: confianza en el proxy
+
+`TRUSTED_PROXY_CIDRS` no es la IP del visitante ni el listado de Cloudflare: debe
+contener exclusivamente los rangos del proxy que establece la conexión TCP hacia
+Node. Confirma esos rangos y la garantía de que Railway **sobrescribe** `X-Real-IP`
+antes de configurar la variable. No copies rangos privados genéricos ni autorices
+todo Internet. El placeholder de arriba no es un valor desplegable.
+
+Sin rangos configurados se usa la IP del socket y se ignoran las cabeceras de
+identidad. En producción con `RAILWAY_PROJECT_ID`, el proceso se niega a arrancar
+si falta esta configuración; un CIDR malformado también impide el arranque. Esto
+evita publicar una versión que acepte cabeceras arbitrarias o agrupe silenciosamente
+a todos los alumnos bajo la IP del ingress. Las pruebas locales usan loopback de
+forma explícita; no hay detección automática de proxies privados.
+
+Antes de activar una nueva versión, valida el contrato en un entorno de prueba:
+
+1. Dos clientes reales diferentes deben obtener cuotas distintas.
+2. Alterar `X-Real-IP`, `CF-Connecting-IP` o `X-Forwarded-For` desde el cliente no debe cambiar la identidad efectiva.
+3. Las representaciones equivalentes de IPv6 y IPv4-mapped deben compartir cuota.
+4. Comprueba los dominios personalizado y generado de Railway, si ambos siguen habilitados.
+
+No despliegues esta corrección sin completar ese paso. El repositorio no puede
+deducir los CIDRs reales ni modificar la configuración de Railway por sí solo.
 
 ### Protección anti-bot con Turnstile
 
@@ -104,13 +130,15 @@ Resend permite enviar desde cualquier dirección del dominio verificado, por lo 
 ## Protección incluida
 
 - CORS limitado a los orígenes configurados.
-- Validación y límites de caracteres.
+- Validación de raíz JSON y tipos de campo, además de límites de caracteres.
+- URL diagnóstica limitada a origen y ruta, sin credenciales, parámetros ni fragmento, también en el servidor.
 - Cuerpo máximo de 16 KB.
 - Escape del contenido HTML.
 - Honeypot contra envíos automatizados.
 - Cloudflare Turnstile con validación obligatoria en el servidor; sin secret key no se envían reportes.
 - Límite de cinco solicitudes por IP cada quince minutos y un presupuesto global de 120 solicitudes por minuto por instancia.
-- IP real entregada por Railway mediante `X-Real-IP`. Si esa IP pertenece a los rangos publicados por Cloudflare, se usa `CF-Connecting-IP` para distinguir a los usuarios; en conexiones directas se ignora esa cabecera y siempre se ignora `X-Forwarded-For`.
+- `X-Real-IP` solo se acepta si el socket pertenece a `TRUSTED_PROXY_CIDRS`. Si el hop acreditado pertenece a Cloudflare, se usa `CF-Connecting-IP`; en conexiones no confiables se ignoran ambas cabeceras y siempre se ignora `X-Forwarded-For`.
+- IP canonicalizada antes de usarla como clave: formatos IPv6 equivalentes e IPv4-mapped comparten contador.
 - Tope de direcciones rastreadas que rechaza nuevas IP al saturarse, sin expulsar y desbloquear IP previamente limitadas.
 - Respuestas sin detalles internos ni credenciales.
 - Solicitudes sin `Origin` rechazadas en producción.
@@ -118,6 +146,18 @@ Resend permite enviar desde cualquier dirección del dominio verificado, por lo 
 - HSTS y CSP restrictiva también en las respuestas JSON de la API.
 
 Los límites se guardan en memoria y protegen el trabajo de una instancia, pero no sustituyen una protección DDoS en el borde. Se reinician al desplegar y no se comparten entre réplicas; para un cupo común entre instancias se necesita Redis u otro almacén compartido. Durante un ataque distribuido, el presupuesto global puede rechazar reportes legítimos, por lo que conviene filtrar tráfico antes de Railway.
+
+Se conserva el límite global temprano: también protege el parseo de solicitudes
+inválidas y los recursos del proceso. No se ha movido detrás de Turnstile ni se ha
+añadido una exclusión que el cliente pueda elegir. Un ataque distribuido todavía
+puede agotar ese presupuesto; la corrección restante es de infraestructura:
+
+- Revisar en el borde reglas para `POST /api/report`, sin desafiar indiscriminadamente a todos los alumnos de una misma red universitaria.
+- Proteger todas las vías públicas hacia el servicio, incluido el dominio generado si permanece activo; una regla solo en el dominio Cloudflare no cubre automáticamente otras vías.
+- Observar 429, saturación y errores de validación antes de cambiar umbrales.
+- Mantener una sola réplica mientras se use memoria local. Si se necesitan cuotas entre réplicas o resistentes a reinicios, configurar primero un almacén compartido y su política de fallo.
+
+Estas acciones no se aplican automáticamente y no se afirma inmunidad frente a DDoS.
 
 ## Datos pendientes
 
@@ -129,3 +169,5 @@ Antes del despliegue solamente deben reemplazarse:
 4. La site key pública y la secret key de Turnstile.
 5. Los registros DNS exactos que entreguen Resend y Railway.
 6. Tras desplegar, verificar que `https://api.dsalab.dev/health` responda correctamente.
+7. Los CIDRs de ingress confirmados y el comportamiento de las cabeceras, antes de desplegar.
+8. El runtime LTS del servicio y la protección de borde de todas sus entradas públicas.

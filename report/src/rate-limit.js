@@ -1,3 +1,5 @@
+import { canonicalIp } from './client-address.js';
+
 const SECOND = 1_000;
 
 const retryAfterSeconds = (oldest, windowMs, now) =>
@@ -25,6 +27,7 @@ export function createReportRateLimiter({
   };
 
   return address => {
+    address = canonicalIp(address) || 'unknown';
     const now = clock();
     if (now - lastCleanup >= perAddressWindowMs) cleanup(now);
 

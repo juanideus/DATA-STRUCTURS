@@ -24,6 +24,15 @@ de la anterior, aunque su reproducción estuviera pausada.
 Los selectores conservan el popup nativo del sistema. Los diálogos conservan foco, Escape y
 restauración del foco mediante el hook compartido. Ningún acceso global tapa contenido.
 
+## Reportes y verificación de seguridad
+
+El reporte conserva solo origen y ruta de la página: no copia credenciales de URL,
+parámetros ni fragmentos a la API/correo. El servidor aplica la misma minimización.
+Los datos introducidos se conservan si falla la verificación. La descarga del widget
+tiene un tiempo máximo; después de un error se indica cerrar y reabrir el formulario
+para reintentar, sin exigir una recarga de toda la aplicación. Un error nunca omite
+Turnstile ni provoca el envío automático del reporte.
+
 ## Variante de árbol enhebrado de la asignatura
 
 Decisión del usuario, aclarada mediante el esquema de la asignatura: `root` es una cabecera

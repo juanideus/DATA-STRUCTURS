@@ -20,7 +20,39 @@ const cleanSingleLine = (value, maximum) => cleanText(value, maximum)
   .replace(/[\r\n\t]+/g, ' ')
   .replace(/\s{2,}/g, ' ');
 
+export function validateReportInput(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input) ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(input))) {
+    return { body: 'El formulario debe contener un objeto JSON.' };
+  }
+  const errors = {};
+  for (const field of [...Object.keys(LIMITS), 'website', 'turnstileToken']) {
+    if (Object.hasOwn(input, field) && typeof input[field] !== 'string') {
+      errors[field] = 'Este campo debe contener texto.';
+    }
+  }
+  return errors;
+}
+
+const privatePageUrl = value => {
+  const text = cleanSingleLine(value, LIMITS.pageUrl);
+  try {
+    const url = new URL(text);
+    // Preserve invalid protocols for validateReport to reject, never fetch them.
+    return ['http:', 'https:'].includes(url.protocol) ? `${url.origin}${url.pathname}` : text;
+  } catch {
+    return text;
+  }
+};
+
 export function normalizeReport(input = {}) {
+  const errors = validateReportInput(input);
+  if (Object.keys(errors).length) {
+    const error = new Error('El formulario contiene datos de un tipo no válido.');
+    error.status = errors.body ? 400 : 422;
+    error.errors = errors;
+    throw error;
+  }
   return {
     name: cleanSingleLine(input.name, LIMITS.name),
     email: cleanSingleLine(input.email, LIMITS.email).toLowerCase(),
@@ -29,7 +61,7 @@ export function normalizeReport(input = {}) {
     section: cleanSingleLine(input.section, LIMITS.section),
     description: cleanText(input.description, LIMITS.description),
     steps: cleanText(input.steps, LIMITS.steps),
-    pageUrl: cleanSingleLine(input.pageUrl, LIMITS.pageUrl),
+    pageUrl: privatePageUrl(input.pageUrl),
     userAgent: cleanSingleLine(input.userAgent, LIMITS.userAgent),
     website: cleanSingleLine(input.website, 200),
   };
