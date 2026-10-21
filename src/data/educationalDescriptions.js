@@ -347,7 +347,7 @@ export const educationalDescriptions = {
   ),
   'expression-tree': guide(
     'Un Árbol de Expresión representa operadores en nodos internos y operandos en las hojas.',
-    'Para evaluar se resuelven recursivamente los subárboles izquierdo y derecho y luego se aplica el operador del nodo. El recorrido determina la notación obtenida.',
+    'Esta demostración trabaja con enteros de 32 bits. Para evaluar se resuelven recursivamente los subárboles izquierdo y derecho y luego se aplica el operador del nodo. La división trunca hacia cero, como int en Java y C++. Para un negativo usa una resta, por ejemplo (0-7). Decimales, desbordamientos y división por cero se rechazan sin cambiar el árbol anterior.',
     'Construir desde una expresión|Evaluar en postorden|Generar notación prefija con preorden|Generar notación infija o postfija',
     'Hace visible la precedencia|Evaluación recursiva natural|Permite transformar expresiones|Base de compiladores',
     'Debe manejar operadores unarios y errores|La división por cero requiere control|Construir desde texto necesita análisis léxico|Los paréntesis deben interpretarse correctamente',

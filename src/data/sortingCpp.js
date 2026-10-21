@@ -20,7 +20,7 @@ function synchronizedSortSource(algorithmId) {
 
 const commonOperations = {
   'add-end': `bool addAtEnd(int value) {
-    if (size == CAPACITY) return false;
+    if (size >= CAPACITY) return false;
     values[size] = value;
     size++;
     return true;
@@ -148,12 +148,12 @@ const sortOperations = {
         if (values[i] < minimum) minimum = values[i];
         if (values[i] > maximum) maximum = values[i];
     }
-    long long offsetValue = minimum < 0 ? -static_cast<long long>(minimum) : 0;
-    long long maximumKey = static_cast<long long>(maximum) + offsetValue;
-    for (long long exponent = 1; maximumKey / exponent > 0;) {
-        countingByDigit(exponent, offsetValue);
-        if (exponent > maximumKey / 10) break;
-        exponent *= 10;
+    long long offset = minimum;
+    long long maxKey = static_cast<long long>(maximum) - offset;
+    for (long long exp = 1; maxKey / exp > 0;) {
+        countingByDigit(exp, offset);
+        if (exp > maxKey / 10) break;
+        exp *= 10;
     }
     return true;
 }`,
@@ -233,12 +233,12 @@ int partition(int low, int high) {
     int* output = new int[CAPACITY]{};
     int* count = new int[10]{};
     for (int i = 0; i < size; i++) {
-        long long key = static_cast<long long>(values[i]) + offset;
+        long long key = static_cast<long long>(values[i]) - offset;
         count[(key / exponent) % 10]++;
     }
     for (int digit = 1; digit < 10; digit++) count[digit] += count[digit - 1];
     for (int i = size - 1; i >= 0; i--) {
-        long long key = static_cast<long long>(values[i]) + offset;
+        long long key = static_cast<long long>(values[i]) - offset;
         int digit = static_cast<int>((key / exponent) % 10);
         output[--count[digit]] = values[i];
     }
@@ -287,7 +287,7 @@ export function getSortingCpp(algorithmId, actionId) {
   return `class RawArraySorter {
 public:
     static const int CAPACITY = 100;
-    static const int MAX_COUNT_RANGE = 100000;
+    static const int MAX_COUNT_RANGE = 4096;
     static const int MAX_ATTEMPTS = 10000;
     int* values;
     int* initialValues;

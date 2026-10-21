@@ -138,7 +138,7 @@ b ──────┘`, [], 'Modelo conceptual'),
       section('Enlaces en estructuras de datos', 'Un nodo guarda datos y uno o más enlaces. next conecta una lista, left y right conectan un árbol, y una colección de enlaces representa las aristas de un grafo. El enlace transporta la conexión; no contiene una copia completa del siguiente nodo.', `nodoA.next ───► nodoB
 
        raíz
-      /    \
+      /    \\
    left    right`, [], 'Modelo conceptual'),
       section('Ausencia de destino', 'Un enlace nulo representa que no existe destino. Antes de desreferenciarlo se valida. En una lista lineal suele marcar el final; en un árbol puede indicar que falta un hijo.', `actual ← cabeza
 mientras actual ≠ nulo

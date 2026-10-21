@@ -1,9 +1,9 @@
 const radixNeedles = {
   'radix-start': 'bool sort()',
   'radix-size-check': 'if (size < 2)',
-  'radix-offset': 'long long offsetValue',
-  'radix-maximum': 'long long maximumKey',
-  'radix-exp-loop': 'for (long long exponent',
+  'radix-offset': 'long long offset =',
+  'radix-maximum': 'long long maxKey =',
+  'radix-exp-loop': 'for (long long exp =',
   'radix-output-array': 'int* output =',
   'radix-pass': 'int* count =',
   'radix-digit': 'long long key =',
@@ -13,6 +13,15 @@ const radixNeedles = {
   'radix-decrement': 'output[--count[digit]]',
   'radix-write': 'values[i] = output[i];',
   'radix-complete': 'return true;',
+};
+
+const countingNeedles = {
+  'counting-start': 'bool sort()',
+  'counting-size-check': 'if (size < 2)',
+  'counting-range': 'long long rangeValue =',
+  'counting-range-check': 'if (rangeValue <= 0 || rangeValue > MAX_COUNT_RANGE)',
+  'counting-array': 'int* count = new int[range]{};',
+  'counting-complete': 'return true;',
 };
 
 const graphTraversalNeedles = {
@@ -92,6 +101,10 @@ export function cppCodeNeedle(algorithmId, actionId, frame) {
     return graphTraversalNeedles[actionId]?.[frame.codeNeedle] ?? null;
   }
   if (algorithmId === 'radix-sort') return radixNeedles[frame.sortPhase] ?? null;
+  if (algorithmId === 'counting-sort') {
+    if (frame.sortPhase === 'counting-complete' && frame.codeNeedle === 'if (size < 2) return true;') return frame.codeNeedle;
+    return countingNeedles[frame.sortPhase] ?? null;
+  }
   if (algorithmId !== 'polinomios') return null;
 
   const needle = frame.codeNeedle;

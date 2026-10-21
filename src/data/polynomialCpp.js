@@ -16,6 +16,7 @@ const operations = {
   'poly-remove-a': remove('A'),
   'poly-remove-b': remove('B'),
   'poly-add': `void sumPolynomials() {
+    validateSum(A, B);
     clearList(C);
     C = add(A, B);
 }`,
@@ -25,6 +26,7 @@ const operations = {
 };
 
 const insertTerm = `void insertTerm(Node*& head, int coefficient, int exponent) {
+    if (exponent < 0) throw std::invalid_argument("Exponent must be nonnegative");
     if (coefficient == 0) return;
     Node* current = head;
     Node* previous = nullptr;
@@ -33,6 +35,10 @@ const insertTerm = `void insertTerm(Node*& head, int coefficient, int exponent) 
         current = current->next;
     }
     if (current != nullptr && current->exponent == exponent) {
+        long long combined = static_cast<long long>(current->coefficient) + coefficient;
+        if (combined < -2147483648LL || combined > 2147483647LL) {
+            throw std::overflow_error("Coefficient exceeds the 32-bit range");
+        }
         current->coefficient += coefficient;
         if (current->coefficient == 0) removeTerm(head, exponent);
         return;
@@ -58,6 +64,7 @@ const removeTerm = `bool removeTerm(Node*& head, int exponent) {
 }`;
 
 const add = `Node* add(Node* first, Node* second) {
+    validateSum(first, second);
     Node dummy(0, 0);
     Node* end = &dummy;
     Node* p = first;
@@ -94,6 +101,20 @@ const add = `Node* add(Node* first, Node* second) {
     return dummy.next;
 }`;
 
+const validateSum = `void validateSum(const Node* first, const Node* second) const {
+    while (first != nullptr && second != nullptr) {
+        if (first->exponent == second->exponent) {
+            long long combined = static_cast<long long>(first->coefficient) + second->coefficient;
+            if (combined < -2147483648LL || combined > 2147483647LL) {
+                throw std::overflow_error("Coefficient exceeds the 32-bit range");
+            }
+            first = first->next;
+            second = second->next;
+        } else if (first->exponent > second->exponent) first = first->next;
+        else second = second->next;
+    }
+}`;
+
 const clearList = `void clearList(Node*& head) {
     while (head != nullptr) {
         Node* removed = head;
@@ -110,9 +131,11 @@ export function getPolynomialCpp(actionId) {
     : actionId.startsWith('poly-remove')
       ? [removeTerm, clearList]
       : actionId === 'poly-add'
-        ? [add, clearList]
+        ? [validateSum, add, clearList]
         : [clearList];
-  return `class LinkedPolynomial {
+  return `#include <stdexcept>
+
+class LinkedPolynomial {
 public:
     struct Node {
         int coefficient;

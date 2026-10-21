@@ -2,6 +2,7 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import '../visualizer.css';
 import { MapPin } from 'lucide-react';
 import { getGraphDesign } from '../data/graphDesigns.js';
+import { graphAnnotations } from '../logic/graphAnnotations.js';
 import { getThreadedTreeLinks, THREADED_HEADER, SPARSE_MATRIX_COLUMNS, SPARSE_MATRIX_ROWS } from '../logic/operationMetadata.js';
 import { DENSE_MATRIX_SIZE, normalizeDenseMatrixValues } from '../logic/denseMatrix.js';
 import { generalizedListToString } from '../logic/generalizedList.js';
@@ -36,8 +37,8 @@ function shortenEdge(from, to, startPadding = 22, endPadding = 22, width = 620, 
   };
 }
 
-function TreeEdge({ from, to, label = null, startPadding = 21, endPadding = 21, width = 620 }) {
-  const edge = shortenEdge(from, to, startPadding, endPadding, width, 300);
+function TreeEdge({ from, to, label = null, startPadding = 21, endPadding = 21, width = 620, height = 300 }) {
+  const edge = shortenEdge(from, to, startPadding, endPadding, width, height);
   const middleX = (edge.x1 + edge.x2) / 2;
   const middleY = (edge.y1 + edge.y2) / 2;
   return <g>
@@ -288,8 +289,12 @@ function SparseMatrixVisual({ algorithm }) {
     : baseCells;
   const rowStartX = 26;
   const rowHeaderWidth = 72;
-  const firstColumnX = 174;
-  const columnGap = 88;
+  const valueWidth = Math.max(27, ...cells.map(cell => String(cell.value).length * 7.3 + 12));
+  const nodeWidth = valueWidth + 29;
+  const halfNode = nodeWidth / 2;
+  const firstColumnX = Math.max(174, rowStartX + rowHeaderWidth + halfNode + 38);
+  const columnGap = Math.max(88, nodeWidth + 32);
+  const diagramWidth = Math.max(735, firstColumnX + (SPARSE_MATRIX_COLUMNS - 1) * columnGap + halfNode + 40);
   const firstRowY = 82;
   const rowGap = 46;
   const columnX = column => firstColumnX + column * columnGap;
@@ -344,9 +349,9 @@ function SparseMatrixVisual({ algorithm }) {
       segments.push(<line
         key={`row-${row}-${cellKey(cell)}`}
         className={`sparse-link row-link ${activeRow === row || visitedRowKeys.has(cellKey(cell)) ? 'active-link' : ''}`}
-        x1={columnX(cell.column) - 29}
+        x1={columnX(cell.column) - halfNode - 1}
         y1={y}
-        x2={columnX(next.column) + 29}
+        x2={columnX(next.column) + halfNode + 1}
         y2={y}
         markerEnd="url(#sparse-row-arrow)"
       />);
@@ -355,7 +360,7 @@ function SparseMatrixVisual({ algorithm }) {
     segments.push(<line
       key={`row-close-${row}`}
       className={`sparse-link row-link ${activeRow === row ? 'active-link' : ''}`}
-      x1={lastX - 29}
+      x1={lastX - halfNode - 1}
       y1={y}
       x2={rowStartX + rowHeaderWidth}
       y2={y}
@@ -380,7 +385,7 @@ function SparseMatrixVisual({ algorithm }) {
     segments.push(<path
       key={`column-launch-${column}`}
       className={`sparse-return column-return ${activeColumn === column ? 'active-link' : ''}`}
-      d={`M ${x + 18} 50 H ${x + 35} V ${firstY + 27} H ${x} V ${firstY + 18}`}
+      d={`M ${x + 18} 50 H ${x + halfNode + 7} V ${firstY + 27} H ${x} V ${firstY + 18}`}
       markerEnd="url(#sparse-column-arrow)"
     />);
     nodes.slice(0, -1).forEach((cell, index) => {
@@ -409,7 +414,7 @@ function SparseMatrixVisual({ algorithm }) {
   };
 
   return <div className="sparse-matrix-visual" tabIndex="0" role="img" aria-label={en ? 'Sparse matrix with AROW and ACOL headers. Scroll to inspect the complete diagram.' : 'Matriz poco poblada con cabeceras AROW y ACOL. Desplázate para ver el diagrama completo.'}>
-    <svg viewBox="0 0 735 330" aria-hidden="true">
+    <svg viewBox={`0 0 ${diagramWidth} 330`} style={{ width: diagramWidth, minWidth: diagramWidth }} aria-hidden="true">
       <defs>
         <marker id="sparse-row-arrow" viewBox="0 0 8 8" markerWidth="7" markerHeight="7" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z"/></marker>
         <marker id="sparse-column-arrow" viewBox="0 0 8 8" markerWidth="7" markerHeight="7" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z"/></marker>
@@ -417,7 +422,7 @@ function SparseMatrixVisual({ algorithm }) {
 
       <text className="sparse-axis-title row-title" x="24" y="23">{en ? 'ROW HEADERS' : 'CABECERAS DE FILA'}</text>
       <text className="sparse-axis-title column-title" x="172" y="12">{en ? 'COLUMN HEADERS' : 'CABECERAS DE COLUMNA'}</text>
-      <text className="sparse-axis-title dimension-title" x="710" y="12" textAnchor="end">
+      <text className="sparse-axis-title dimension-title" x={diagramWidth - 25} y="12" textAnchor="end">
         {en ? `HEIGHT ${SPARSE_MATRIX_ROWS} · WIDTH ${SPARSE_MATRIX_COLUMNS}` : `ALTO ${SPARSE_MATRIX_ROWS} · LARGO ${SPARSE_MATRIX_COLUMNS}`}
       </text>
 
@@ -460,18 +465,18 @@ function SparseMatrixVisual({ algorithm }) {
         return <g
           className={classes}
           key={key}
-          transform={`translate(${columnX(cell.column) - 28} ${rowY(cell.row) - 16})`}
+          transform={`translate(${columnX(cell.column) - halfNode} ${rowY(cell.row) - 16})`}
           data-cell-key={key}
           data-row={cell.row}
           data-column={cell.column}
           data-value={cell.value}
         >
-          <rect width="56" height="32" rx="6"/>
-          <line x1="27" y1="0" x2="27" y2="32"/>
-          <line x1="41" y1="0" x2="41" y2="32"/>
-          <text className="node-value" x="13.5" y="20" textAnchor="middle">{cell.value}</text>
-          <text x="34" y="20" textAnchor="middle">{cell.row}</text>
-          <text x="48.5" y="20" textAnchor="middle">{cell.column}</text>
+          <rect width={nodeWidth} height="32" rx="6"/>
+          <line x1={valueWidth} y1="0" x2={valueWidth} y2="32"/>
+          <line x1={valueWidth + 14} y1="0" x2={valueWidth + 14} y2="32"/>
+          <text className="node-value" x={valueWidth / 2} y="20" textAnchor="middle">{cell.value}</text>
+          <text x={valueWidth + 7} y="20" textAnchor="middle">{cell.row}</text>
+          <text x={valueWidth + 21.5} y="20" textAnchor="middle">{cell.column}</text>
         </g>;
       })}
 
@@ -534,11 +539,20 @@ function LinearVisual({ algorithm, step }) {
   const connectorVariant = doubleLinked ? 'double'
     : algorithm.id === 'deque' ? 'bidirectional'
       : ['linked','queue','skip'].includes(type) ? 'forward' : 'rail';
+  const queueState = algorithm.id === 'cola' ? algorithm.animationFrame?.queueState : null;
+  const frontIndex = queueState ? queueState.frontIndex : 0;
+  const rearIndex = queueState ? queueState.rearIndex : values.length - 1;
+  const queueLabels = index => [
+    ...(index === frontIndex ? [english ? 'FRONT' : 'FRENTE'] : []),
+    ...(index === rearIndex ? [english ? 'REAR' : 'FINAL'] : []),
+  ];
   const cellHint = index => {
     if (doubleLinked) return 'prev · next';
     if (linked) return index === values.length - 1 ? 'next: null' : 'next';
-    if (algorithm.id === 'cola') return values.length === 1 ? <>{english ? 'FRONT' : 'FRENTE'}<br/>{english ? 'REAR' : 'FINAL'}</>
-      : index === 0 ? (english ? 'FRONT' : 'FRENTE') : index === values.length - 1 ? (english ? 'REAR' : 'FINAL') : index;
+    if (algorithm.id === 'cola') {
+      const labels = queueLabels(index);
+      return labels.length === 2 ? <>{labels[0]}<br/>{labels[1]}</> : labels[0] ?? index;
+    }
     if (algorithm.id === 'deque') return values.length === 1 ? <>{english ? 'FRONT' : 'INICIO'}<br/>{english ? 'BACK' : 'FINAL'}</>
       : index === 0 ? (english ? 'FRONT' : 'INICIO') : index === values.length - 1 ? (english ? 'BACK' : 'FINAL') : index;
     if (type === 'union') return `i${index} · r${algorithm.unionRanks?.[index] ?? 0}`;
@@ -546,8 +560,8 @@ function LinearVisual({ algorithm, step }) {
   };
   return <div className={`linear-visual ${type}`} role="img" aria-label={`${algorithm.language === 'en' ? 'Visualization of' : 'Visualización de'} ${algorithm.name}`}>
     {values.map((value, index) => <div className="linear-unit" key={`${value}-${index}`}>
-      <div className={`data-cell ${index === 0 ? 'first-cell' : ''} ${index === values.length - 1 ? 'last-cell' : ''} ${index === step % values.length ? 'active' : ''}`} style={String(value).length > 4 ? { width: `${String(value).length * 11 + 20}px`, flexShrink: 0 } : undefined}>
-        <span>{value}</span><small className={values.length === 1 && ['cola', 'deque'].includes(algorithm.id) ? 'endpoint-pair' : undefined}>{cellHint(index)}</small>
+      <div className={`data-cell ${index === (algorithm.id === 'cola' ? frontIndex : 0) ? 'first-cell' : ''} ${index === (algorithm.id === 'cola' ? rearIndex : values.length - 1) ? 'last-cell' : ''} ${index === step % values.length ? 'active' : ''}`} style={String(value).length > 4 ? { width: `${String(value).length * 11 + 20}px`, flexShrink: 0 } : undefined}>
+        <span>{value}</span><small className={(algorithm.id === 'cola' ? queueLabels(index).length === 2 : values.length === 1 && algorithm.id === 'deque') ? 'endpoint-pair' : undefined}>{cellHint(index)}</small>
       </div>
       {index < values.length - 1 && <LinearConnector variant={connectorVariant}/>}
     </div>)}
@@ -651,6 +665,9 @@ function SortVisual({ algorithm, step }) {
   };
 
   const auxiliary = frame?.sortAuxValues;
+  const auxiliaryLabel = en
+    ? (frame?.sortAuxLabel ?? 'help').replace(/^dígito ×(\d+)$/, 'digit ×$1').replace(/^acumulado ×(\d+)$/, 'cumulative count ×$1')
+    : frame?.sortAuxLabel ?? 'help';
   return <div className={`sort-visual sort-${algorithm.id}-visual`} role="img" aria-label={`${en ? 'Real visualization of' : 'Visualización real de'} ${algorithm.name}`}>
     <div className="sort-phase-label">
       <span>{algorithm.name.toUpperCase()}</span>
@@ -684,7 +701,7 @@ function SortVisual({ algorithm, step }) {
       </div>
     </div>
     {Array.isArray(auxiliary) && <div className="sort-array-row auxiliary-row">
-      <em>{frame?.sortAuxLabel ?? 'help'}</em>
+      <em>{auxiliaryLabel}</em>
       <div className="sort-cells">
         {auxiliary.map((auxValue, index) => <div
           className={`sort-cell auxiliary ${index === frame?.sortWriteIndex ? 'writing' : ''}`}
@@ -938,6 +955,7 @@ function ThreadedTreeDiagram({ algorithm, step }) {
 }
 
 function NaryTreeDiagram({ algorithm, step }) {
+  const en = algorithm.language === 'en';
   const values = algorithm.values.slice(0, 10);
   const parents = algorithm.treeParents ?? initialNaryParents(algorithm.id, values);
   const positions = Array(values.length);
@@ -955,13 +973,14 @@ function NaryTreeDiagram({ algorithm, step }) {
   const placed = positions.map(position => [count === 1 ? 50 : 10 + position.rawX / (count - 1) * 80, 13 + position.depth / maxDepth * 67]);
   const edges = parents.flatMap((parent, index) => parent >= 0 ? [[parent, index]] : []);
   return <div className="tree-canvas nary-tree-canvas">
-    <span className="tree-kind-label">{algorithm.id==='arbol-nario'?'MÁXIMO 4 HIJOS POR NODO':'CANTIDAD LIBRE DE HIJOS'}</span>
+    <span className="tree-kind-label">{algorithm.id==='arbol-nario' ? (en ? 'UP TO 4 CHILDREN PER NODE' : 'MÁXIMO 4 HIJOS POR NODO') : (en ? 'UNBOUNDED CHILD COUNT' : 'CANTIDAD LIBRE DE HIJOS')}</span>
     <svg className="edge-layer" aria-hidden="true">{edges.map(([from,to])=><TreeEdge key={`${from}-${to}`} from={placed[from]} to={placed[to]}/>)}</svg>
-    {placed.map(([x,y],index)=><div className={`tree-node nary-node ${index===step%values.length?'active':''}`} data-parent-index={parents[index]} style={{left:`${x}%`,top:`${y}%`}} key={index}><span className="tree-value">{values[index]}</span><small className="tree-node-badge">{index===0?'ROOT':`HIJO DE ${values[parents[index]]}`}</small></div>)}
+    {placed.map(([x,y],index)=><div className={`tree-node nary-node ${index===step%values.length?'active':''}`} data-parent-index={parents[index]} style={{left:`${x}%`,top:`${y}%`}} key={index}><span className="tree-value">{values[index]}</span><small className="tree-node-badge">{index===0?'ROOT':`${en ? 'CHILD OF' : 'HIJO DE'} ${values[parents[index]]}`}</small></div>)}
   </div>;
 }
 
 function MultiwayTreeDiagram({ algorithm, step }) {
+  const en = algorithm.language === 'en';
   const values = algorithm.values.slice(0, 24);
   const structure = algorithm.multiwayTree ?? createMultiwayTree(algorithm.id, values).snapshot();
   const leaves = [];
@@ -999,7 +1018,7 @@ function MultiwayTreeDiagram({ algorithm, step }) {
   const promotedLeaf = leaves.find(leaf => leaf.keys.some(key => String(key) === String(promotedKey))) ?? activeLeaf;
   const activeMultiwayNode = ['search','promote','settled'].includes(frame?.treePhase) ? root : activeLeaf;
   return <div className={`btree-visual ${algorithm.id} ${leaves.length > 5 ? 'many-leaves' : ''}`}>
-    <span className="tree-kind-label">{algorithm.id==='bplus-tree'?'DATOS SOLO EN HOJAS':algorithm.id==='bstar-tree'?'MÁX. 5 CLAVES · REDISTRIBUCIÓN':'MÁX. 3 CLAVES · MEDIANA PROMOVIDA'}</span>
+    <span className="tree-kind-label">{algorithm.id==='bplus-tree' ? (en ? 'DATA IN LEAVES ONLY' : 'DATOS SOLO EN HOJAS') : algorithm.id==='bstar-tree' ? (en ? 'MAX. 5 KEYS · REDISTRIBUTION' : 'MÁX. 5 CLAVES · REDISTRIBUCIÓN') : (en ? 'MAX. 3 KEYS · PROMOTED MEDIAN' : 'MÁX. 3 CLAVES · MEDIANA PROMOVIDA')}</span>
     <svg className="btree-edges" aria-hidden="true">
       {allNodes.flatMap(parent => parent.children.map(child =>
         <TreeEdge key={`${parent.id}-${child.id}`} from={[parent.x,parent.y]} to={[child.x,child.y]} startPadding={34} endPadding={24} width={860}/>
@@ -1009,14 +1028,15 @@ function MultiwayTreeDiagram({ algorithm, step }) {
       className={`bnode multiway-node ${node===root?'root-bnode':''} ${node.leaf?'child-bnode leaf-bnode':'internal-bnode'} ${node===activeMultiwayNode?'active':''} ${frame?.treePhase==='split'&&node===promotedLeaf?'splitting':''} ${node===root&&frame?.treePhase==='settled'?'promoting':''}`}
       style={{left:`${node.x}%`,top:`${node.y}%`,width:`${nodeWidth}%`}}
       key={node.id}
-    ><small>{node===root?'ROOT':node.leaf?(algorithm.id==='bplus-tree'?'HOJA':'NODO HOJA'):'ÍNDICE'}</small>{node.keys.join(' | ')||'·'}</div>)}
+    ><small>{node===root?'ROOT':node.leaf?(en ? 'LEAF' : algorithm.id==='bplus-tree'?'HOJA':'NODO HOJA'):(en ? 'INDEX' : 'ÍNDICE')}</small>{node.keys.join(' | ')||'·'}</div>)}
     {algorithm.id==='bplus-tree' && leaves.length > 1 && <svg className="bplus-leaf-chain" style={{top:`${leaves[0].y}%`}}><defs><marker id="bplus-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z"/></marker></defs>{leaves.slice(0,-1).map((leaf,index)=><line key={leaf.id} x1={`${leaf.x + nodeWidth / 2}%`} y1="50%" x2={`${leaves[index+1].x - nodeWidth / 2}%`} y2="50%" markerEnd="url(#bplus-arrow)"/>)}</svg>}
-    {frame?.treePhase==='promote' && promotedKey !== null && promotedKey !== undefined && <span className="promoted-key" style={{left:`${promotedLeaf.x}%`,top:`${promotedLeaf.y}%`}}><small>SUBE</small>{promotedKey}</span>}
-    <div className="leaf-link">{algorithm.id==='bplus-tree'?'MÁX. 3 CLAVES POR HOJA · HOJAS ENLAZADAS →':algorithm.id==='bstar-tree'?'MÁX. 5 CLAVES · REDISTRIBUYE ANTES DE DIVIDIR':'MÁX. 3 CLAVES POR NODO · LA MEDIANA SALE DE LA HOJA'}</div>
+    {frame?.treePhase==='promote' && promotedKey !== null && promotedKey !== undefined && <span className="promoted-key" style={{left:`${promotedLeaf.x}%`,top:`${promotedLeaf.y}%`}}><small>{en ? 'PROMOTE' : 'SUBE'}</small>{promotedKey}</span>}
+    <div className="leaf-link">{algorithm.id==='bplus-tree' ? (en ? 'MAX. 3 KEYS PER LEAF · LINKED LEAVES →' : 'MÁX. 3 CLAVES POR HOJA · HOJAS ENLAZADAS →') : algorithm.id==='bstar-tree' ? (en ? 'MAX. 5 KEYS · REDISTRIBUTE BEFORE SPLITTING' : 'MÁX. 5 CLAVES · REDISTRIBUYE ANTES DE DIVIDIR') : (en ? 'MAX. 3 KEYS PER NODE · MEDIAN LEAVES THE LEAF' : 'MÁX. 3 CLAVES POR NODO · LA MEDIANA SALE DE LA HOJA')}</div>
   </div>;
 }
 
 function SegmentTreeDiagram({ algorithm, step }) {
+  const en = algorithm.language === 'en';
   const values = algorithm.values.map(value => Number(value) || 0);
   const minimumMode = algorithm.activeOperation === 'range-min';
   const nodes = [];
@@ -1040,21 +1060,34 @@ function SegmentTreeDiagram({ algorithm, step }) {
     }
   };
   if (values.length) visit(0, values.length - 1, 0);
-  return <div className="tree-canvas tree-segment-tree segment-tree-full" role="img" aria-label={`Segment Tree con ${minimumMode ? 'mínimos' : 'sumas'} por rango`}>
-    <span className="tree-kind-label">{minimumMode ? 'MÍNIMOS' : 'SUMAS'} POR RANGO · {values.length} ELEMENTOS</span>
-    <svg className="edge-layer" aria-hidden="true">{edges.map(([from, to]) => <TreeEdge key={`${from}-${to}`} from={[nodes[from].x, nodes[from].y]} to={[nodes[to].x, nodes[to].y]} startPadding={16} endPadding={16}/>)}</svg>
+  const nodeWidth = Math.max(46, ...nodes.map(node => String(minimumMode ? node.minimum : node.sum).length * 7.5 + 18));
+  const diagramWidth = Math.max(400, values.length * (nodeWidth + 14));
+  const activeRange = algorithm.animationFrame?.segmentRange;
+  return <div className="segment-tree-viewport" tabIndex="0" role="img" aria-label={en ? `Segment Tree with range ${minimumMode ? 'minimums' : 'sums'}. Scroll to inspect the complete tree.` : `Segment Tree con ${minimumMode ? 'mínimos' : 'sumas'} por rango. Desplázate para ver el árbol completo.`}>
+    <div className="segment-tree-caption">{en ? `RANGE ${minimumMode ? 'MINIMUMS' : 'SUMS'} · ${values.length} ELEMENTS` : `${minimumMode ? 'MÍNIMOS' : 'SUMAS'} POR RANGO · ${values.length} ELEMENTOS`}</div>
+    <div className="tree-canvas tree-segment-tree segment-tree-full" style={{ width: diagramWidth, minWidth: diagramWidth }}>
+    <svg className="edge-layer" aria-hidden="true">{edges.map(([from, to]) => {
+      const first = [nodes[from].x, nodes[from].y], second = [nodes[to].x, nodes[to].y];
+      const dx = Math.abs(second[0] - first[0]) * diagramWidth / 100;
+      const dy = Math.abs(second[1] - first[1]) * 280 / 100;
+      const length = Math.hypot(dx, dy);
+      const padding = Math.min(dx ? nodeWidth / 2 * length / dx : Infinity, dy ? 23 * length / dy : Infinity);
+      return <TreeEdge key={`${from}-${to}`} from={first} to={second} startPadding={padding} endPadding={padding} width={diagramWidth} height={280}/>;
+    })}</svg>
     {nodes.map(node => <div
-      className={`tree-node ${node.level === depth ? 'deep-node' : ''} ${node.left === step && node.right === step ? 'active' : ''}`}
+      className={`tree-node ${node.level === depth ? 'deep-node' : ''} ${(activeRange ? node.left === activeRange[0] && node.right === activeRange[1] : node.left === step && node.right === step) ? 'active' : ''}`}
       data-segment-range={`${node.left}-${node.right}`}
-      style={{ left: `${node.x}%`, top: `${node.y}%` }}
+      style={{ left: `${node.x}%`, top: `${node.y}%`, width: nodeWidth }}
       key={node.index}
     ><span className="tree-value">{minimumMode ? node.minimum : node.sum}</span><small className="tree-node-badge">[{node.left}..{node.right}]</small></div>)}
+    </div>
   </div>;
 }
 
 function MerkleTreeDiagram({ algorithm, step }) {
+  const en = algorithm.language === 'en';
   const levels = merkleLevels(algorithm.values);
-  if (!levels.length) return <div className="empty-visual"><strong>∅</strong><span>Árbol Merkle sin bloques</span></div>;
+  if (!levels.length) return <div className="empty-visual"><strong>∅</strong><span>{en ? 'Merkle Tree with no blocks' : 'Árbol Merkle sin bloques'}</span></div>;
   const leafCount = algorithm.values.length;
   const position = (node, level) => ({
     x: ((node.start + node.end + 1) / (2 * leafCount)) * 100,
@@ -1069,8 +1102,8 @@ function MerkleTreeDiagram({ algorithm, step }) {
       }
     });
   }
-  return <div className="tree-canvas tree-merkle-tree merkle-tree-full" role="img" aria-label={`Árbol Merkle, raíz ${formatMerkleHash(levels.at(-1)[0].hash)}`}>
-    <span className="tree-kind-label">RAÍZ REAL · {formatMerkleHash(levels.at(-1)[0].hash)}</span>
+  return <div className="tree-canvas tree-merkle-tree merkle-tree-full" role="img" aria-label={`${en ? 'Merkle Tree, root' : 'Árbol Merkle, raíz'} ${formatMerkleHash(levels.at(-1)[0].hash)}`}>
+    <span className="tree-kind-label">{en ? 'COMPUTED ROOT' : 'RAÍZ REAL'} · {formatMerkleHash(levels.at(-1)[0].hash)}</span>
     <svg className="edge-layer" aria-hidden="true">{edges.map(([from, to, key]) => <TreeEdge key={key} from={[from.x, from.y]} to={[to.x, to.y]} startPadding={16} endPadding={16}/>)}</svg>
     {levels.flatMap((nodes, level) => nodes.map((node, index) => {
       const { x, y } = position(node, level);
@@ -1087,6 +1120,7 @@ function MerkleTreeDiagram({ algorithm, step }) {
 }
 
 function FibonacciHeapDiagram({ algorithm, step }) {
+  const en = algorithm.language === 'en';
   const forest = algorithm.fibonacciForest ?? createFibonacciForest(algorithm.values).snapshot();
   const roots = forest.roots;
   const nodes = [];
@@ -1101,8 +1135,8 @@ function FibonacciHeapDiagram({ algorithm, step }) {
   };
   roots.forEach((root, index) => visit(root, 6 + rootWidth * (index + .5), 0));
   const minimum = roots.length ? Math.min(...roots.map(root => root.value)) : null;
-  return <div className="tree-canvas fibonacci-forest" role="img" aria-label={`Bosque Fibonacci; ${roots.length} raíces; mínimo ${minimum}`}>
-    <span className="tree-kind-label">RAÍCES CIRCULARES: {roots.length} · MIN: {minimum}</span>
+  return <div className="tree-canvas fibonacci-forest" role="img" aria-label={en ? `Fibonacci forest; ${roots.length} roots; minimum ${minimum}` : `Bosque Fibonacci; ${roots.length} raíces; mínimo ${minimum}`}>
+    <span className="tree-kind-label">{en ? 'CIRCULAR ROOT LIST' : 'RAÍCES CIRCULARES'}: {roots.length} · MIN: {minimum}</span>
     <svg className="edge-layer" aria-hidden="true">{edges.map(([from, to, id]) => <TreeEdge key={id} from={from} to={to}/>)}</svg>
     {nodes.map(({ node, position, depth }, index) => <div
       className={`tree-node fib-node ${depth === 0 && node.value === minimum ? 'minimum' : ''} ${index === step % nodes.length ? 'active' : ''}`}
@@ -1425,21 +1459,7 @@ function GraphVisual({ algorithm, step }) {
     (!directed && edge[0] === candidate[1] && edge[1] === candidate[0])
   );
   const labelsFor = indexes => indexes?.length ? indexes.map(index=>algorithm.values[index]).join(', ') : '∅';
-  const nodeMeta = value => {
-    if (!english || !value) return value;
-    return value
-      .replace('nivel ', 'level ')
-      .replace('prof. ', 'depth ')
-      .replace('grado ', 'degree ')
-      .replace('inicio', 'start')
-      .replace('candidato', 'candidate')
-      .replace('frontera', 'frontier')
-      .replace('fuera', 'outside')
-      .replace('entrada', 'input')
-      .replace('salida', 'output')
-      .replace('etapa ', 'stage ')
-      .replace('nuevo', 'new');
-  };
+  const annotations = graphAnnotations({ values: algorithm.values, edges, directed, state: graphState, language: algorithm.language });
   if (!algorithm.values.length) return <div className="empty-visual"><strong>∅</strong><span>{algorithm.language === 'en' ? 'Empty graph' : 'Grafo vacío'}</span></div>;
   return <div className={`graph-canvas graph-design-${algorithm.id} ${graphState ? 'pathfinding-canvas' : ''}`} role="img" aria-label={`${english ? 'Graph for' : 'Grafo de'} ${algorithm.name}: ${designCaption}`}>
   <div className="graph-design-title"><span>{designLabel}</span><small>{designCaption}</small></div>
@@ -1470,7 +1490,7 @@ function GraphVisual({ algorithm, step }) {
         ? `f=${graphState.scores[i]}`
         : `d=${graphState.distances[i]}`
       : null;
-    return <div className={`graph-node node-${i} ${i === 0 ? 'origin-node' : ''} ${isCurrent ? 'active' : ''} ${stateClass}`} style={{left:`${x}%`,top:`${y}%`}} key={i}><span>{algorithm.values[i]}</span><small>{metric ?? nodeMeta(design.nodeMeta?.[i]) ?? `v${i}`}</small></div>;
+    return <div className={`graph-node node-${i} ${i === annotations.origin ? 'origin-node' : ''} ${isCurrent ? 'active' : ''} ${stateClass}`} style={{left:`${x}%`,top:`${y}%`}} key={i}><span>{algorithm.values[i]}</span><small>{metric ?? annotations.labels[i] ?? `v${i}`}</small></div>;
   })}
   {isPathfindingState && <div className="pathfinding-status">
     <span><i className="open-dot"/>{english ? 'Open' : 'Abiertos'}: <b>{labelsFor(graphState.open)}</b></span>

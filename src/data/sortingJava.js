@@ -182,12 +182,14 @@ void swap(int first, int second) {
     values[first] = values[second];
     values[second] = temp;
 }`,
-  'counting-sort': `void countingSort() {
-    if (size < 2) return;
+  'counting-sort': `boolean countingSort() {
+    if (size < 2) return true;
 
     int min = findMinimum();
     int max = findMaximum();
-    int[] count = new int[max - min + 1];
+    long rangeValue = (long) max - min + 1;
+    if (rangeValue <= 0 || rangeValue > 4096) return false;
+    int[] count = new int[(int) rangeValue];
 
     for (int i = 0; i < size; i++) {
         count[values[i] - min]++;
@@ -201,7 +203,7 @@ void swap(int first, int second) {
             count[index]--;
         }
     }
-    return;
+    return true;
 }
 
 int findMinimum() {
@@ -292,6 +294,12 @@ void shuffle() {
 };
 
 export function getSortingJava(algorithmId, actionId) {
+  if (actionId === 'add-end' && sortingSources[algorithmId]) return `boolean addAtEnd(int value) {
+    if (size >= values.length) return false;
+    values[size] = value;
+    size++;
+    return true;
+}`;
   if (actionId !== 'sort') return null;
   return sortingSources[algorithmId] ?? null;
 }

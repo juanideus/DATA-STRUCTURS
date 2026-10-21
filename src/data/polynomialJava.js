@@ -23,6 +23,9 @@ const nodeAndFields = `class LinkedPolynomial {
     Node C = null;`;
 
 const insertHelper = `Node insertOrdered(Node head, int coefficient, int exponent) {
+        if (exponent < 0) {
+            throw new IllegalArgumentException("Exponent must be nonnegative");
+        }
         if (coefficient == 0) {
             return head;
         }
@@ -33,6 +36,10 @@ const insertHelper = `Node insertOrdered(Node head, int coefficient, int exponen
             current = current.next;
         }
         if (current != null && current.exponent == exponent) {
+            long combined = (long) current.coefficient + coefficient;
+            if (combined < Integer.MIN_VALUE || combined > Integer.MAX_VALUE) {
+                throw new IllegalArgumentException("Coefficient exceeds the 32-bit range");
+            }
             current.coefficient += coefficient;
             if (current.coefficient == 0) {
                 if (previous == null) {
@@ -77,6 +84,10 @@ const addHelper = `Node add(Node first, Node second) {
 
         while (p != null && q != null) {
             if (p.exponent == q.exponent) {
+                long combined = (long) p.coefficient + q.coefficient;
+                if (combined < Integer.MIN_VALUE || combined > Integer.MAX_VALUE) {
+                    throw new IllegalArgumentException("Coefficient exceeds the 32-bit range");
+                }
                 int coefficient = p.coefficient + q.coefficient;
                 if (coefficient != 0) {
                     end.next = new Node(coefficient, p.exponent);
