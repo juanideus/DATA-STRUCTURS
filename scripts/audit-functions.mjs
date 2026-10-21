@@ -26,6 +26,7 @@ import {
 } from '../src/logic/codeAnimation.js';
 import { DEFAULT_PATH_MAP, MAP_COLUMNS, MAP_ROWS, runGridPathfinding } from '../src/logic/pathfindingMap.js';
 import { cppCodeNeedle } from '../src/logic/cppCodeNeedles.js';
+import { hasValidFrameSourceReference } from './frame-source-contract.mjs';
 
 const edges = () => DEFAULT_GRAPH_EDGES.map(edge => [...edge]);
 const mojibake = /Ã|â€|â†|�/;
@@ -295,16 +296,8 @@ for (const algorithm of algorithms) {
       const javaFrames = result.frames?.filter(frame => !frame.codeLanguage || frame.codeLanguage === 'java');
       const usesCustomFrames = Boolean(javaFrames?.length);
       if (usesCustomFrames) {
-        const javaLineCount = java.split('\n').length;
-        assert.ok(javaFrames.every(frame => {
-          const hasValidLine = Number.isInteger(frame.codeLine)
-            && frame.codeLine >= 0
-            && frame.codeLine < javaLineCount;
-          const hasValidNeedle = typeof frame.codeNeedle === 'string'
-            && frame.codeNeedle.length > 0
-            && java.includes(frame.codeNeedle);
-          return hasValidLine || hasValidNeedle;
-        }), `${label}: un fotograma apunta fuera del código Java.`);
+        assert.ok(javaFrames.every(frame => hasValidFrameSourceReference(frame, java)),
+          `${label}: un fotograma debe referenciar código Java válido o declarar un resumen sin línea activa.`);
       }
       const frameFactory = operationGroup(algorithm) === 'list'
         ? createLinkedListSynchronizedFrames
@@ -675,9 +668,10 @@ const generalizedBuilt = run(generalizedList, 'glist-build', { value: '((a,b),((
 assert.equal(generalizedBuilt.ok, true, 'Lista generalizada: el ejemplo del PDF debe construirse.');
 assert.equal(generalizedBuilt.values[0].items.length, 2, 'Lista generalizada: la raíz debe tener longitud 2.');
 assert.equal(generalizedBuilt.values[0].items[0].kind, 'sublist', 'Lista generalizada: el primer elemento debe ser sublista.');
-assert.ok(generalizedBuilt.frames.some(frame => frame.variables.some(variable => variable.name === 'tag' && variable.value === 0)), 'Lista generalizada: falta mostrar tag 0.');
-assert.ok(generalizedBuilt.frames.some(frame => frame.variables.some(variable => variable.name === 'tag' && variable.value === 1)), 'Lista generalizada: falta mostrar tag 1.');
-assert.ok(generalizedBuilt.frames.some(frame => frame.variables.some(variable => variable.name === 'tag' && variable.value === 2)), 'Lista generalizada: falta mostrar tag 2.');
+assert.equal(generalizedBuilt.frames.length, 2, 'Lista generalizada: la construcción debe resumir estado anterior y resultado validado.');
+assert.ok(generalizedBuilt.frames.every(frame => frame.traceMode === 'summary' && frame.codeLine === null && frame.codeNeedle == null), 'Lista generalizada: el resumen no debe inventar instrucciones de creación.');
+assert.deepEqual(generalizedBuilt.frames[0].values, generalizedList.values, 'Lista generalizada: el resumen debe conservar la raíz previa mientras valida.');
+assert.deepEqual(generalizedBuilt.frames.at(-1).values, generalizedBuilt.values, 'Lista generalizada: el resumen final debe mostrar el resultado validado.');
 assert.match(run(generalizedList, 'glist-head', {}, generalizedBuilt.values).message, /Head\(A\) = \(a,b\)/, 'Lista generalizada: Head es incorrecto.');
 assert.match(run(generalizedList, 'glist-tail', {}, generalizedBuilt.values).message, /Tail\(A\) = \(\(\(c,d\),e\)\)/, 'Lista generalizada: Tail es incorrecto.');
 assert.match(run(generalizedList, 'glist-length', {}, generalizedBuilt.values).message, /Length\(A\) = 2/, 'Lista generalizada: length debe contar sólo el nivel 1.');
@@ -690,6 +684,10 @@ for (const invalidSource of ['', '(a,b', '(A,b)', '(a,,b)', '(((((a)))))']) {
   assert.equal(run(generalizedList, 'glist-build', { value: invalidSource }, generalizedBuilt.values).ok, false, `Lista generalizada: debe rechazar "${invalidSource}".`);
 }
 const generalizedJava = getBeginnerJava(generalizedList, 'glist-build');
+for (const [tag, value] of [['ATOM', 0], ['SUBLIST', 1], ['REFERENCE', 2]]) {
+  assert.match(generalizedJava, new RegExp(`static final int ${tag} = ${value};`), `Lista generalizada: falta definir el tag ${value}.`);
+  assert.match(generalizedJava, new RegExp(`node\\.tag = ${tag};`), `Lista generalizada: falta asignar el tag ${value} al nodo correcto.`);
+}
 assert.match(generalizedJava, /int tag;/, 'Lista generalizada: falta tag.');
 assert.match(generalizedJava, /Node dlink;/, 'Lista generalizada: falta dlink.');
 assert.match(generalizedJava, /int ref;/, 'Lista generalizada: falta ref.');

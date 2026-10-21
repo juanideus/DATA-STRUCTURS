@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { algorithms } from '../../src/data/algorithms.js';
 import { englishAlgorithmDescriptions } from '../../src/data/algorithmTranslations.js';
+import { foundationLessonsEnglishById } from '../../src/data/foundationLessonsEnglish.js';
 import { getOperationDefinition } from '../../src/logic/operations.js';
 import { createSectionTest } from '../../src/logic/sectionTests.js';
 
@@ -138,13 +139,25 @@ test('detecta inglés y traduce la guía completa cuando no existe una preferenc
 
 test('traduce todas las páginas de fundamentos al inglés', async ({ page }) => {
   const foundations = algorithms.filter(algorithm => algorithm.category === 'Fundamentos');
+  const coreSelectors = {
+    theory: '[data-data-structures-lesson]',
+    complexity: '[data-complexity-lesson]',
+    oop: '[data-oop-lesson]',
+  };
   for (const algorithm of foundations) {
     await page.goto(`/${algorithm.id}?lang=en`);
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-    await expect(page.locator('[data-foundation-lesson]')).toBeVisible();
-    await expect(page.locator('[data-foundation-lesson]')).toContainText('CENTRAL IDEA');
-    await expect(page.locator('[data-foundation-lesson]')).toContainText('IDEA TO REMEMBER');
-    await expect(page.locator('[data-foundation-lesson]')).not.toContainText('IDEA CENTRAL');
+    const lesson = page.locator(coreSelectors[algorithm.type] ?? `[data-foundation-lesson="${algorithm.id}"]`);
+    await expect(lesson).toBeVisible();
+    await expect(lesson.locator('.lesson-kicker').first()).toHaveText(/01 · (?:CENTRAL|CORE) IDEA/);
+    await expect(lesson).toContainText('IDEA TO REMEMBER');
+    await expect(lesson).not.toContainText('IDEA CENTRAL');
+    const translatedLesson = foundationLessonsEnglishById[algorithm.id];
+    if (translatedLesson) {
+      await expect(lesson.locator('.foundation-section-grid > article')).toHaveCount(translatedLesson.sections.length);
+    } else {
+      expect(await lesson.locator('article').count()).toBeGreaterThanOrEqual(10);
+    }
   }
 });
 
@@ -1949,7 +1962,9 @@ test('el árbol de expresión muestra división entera coherente con Java y C++'
   await expect(page.locator('.operation-message')).toContainText('Resultado del árbol de expresión: 3.', { timeout: 20_000 });
   await expect(page.locator('.code-panel pre')).toContainText('return left / right;');
   await page.getByRole('button', { name: 'C++', exact: true }).click();
-  await expect(page.locator('.code-panel pre')).toContainText('return left / right;');
+  await expect(page.locator('.code-panel pre')).toContainText('result = static_cast<long long>(left) / right;');
+  await expect(page.locator('.code-panel pre')).toContainText('if (result < INT_MIN || result > INT_MAX) throw std::overflow_error');
+  await expect(page.locator('.code-panel pre')).toContainText('return static_cast<int>(result);');
   await expect(page.locator('.code-panel pre')).toContainText('if (right == 0) throw std::domain_error');
 });
 
