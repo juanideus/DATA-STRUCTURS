@@ -1178,7 +1178,7 @@ function App() {
           return {
             ...frame,
             ...(attachTreeColors && {
-              treeColors: unchangedValues ? previousTreeColors : result.treeColors,
+              treeColors: frame.treeColors ?? (unchangedValues ? previousTreeColors : result.treeColors),
             }),
             ...(attachFibonacciForest && {
               fibonacciForest: frame.fibonacciForest ?? (unchangedValues ? previousFibonacciForest : result.fibonacciForest),
