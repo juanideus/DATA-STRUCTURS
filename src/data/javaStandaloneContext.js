@@ -20,6 +20,20 @@ const structureClassNames = {
 };
 
 const nodeDefinition = (contextId, source) => {
+  if (contextId === 'expression-tree') return `static class Node {
+        final boolean isNumber;
+        final int number;
+        final char operator;
+        Node left;
+        Node right;
+        Node(int number) {
+            this.isNumber = true; this.number = number; this.operator = 0;
+        }
+        Node(char operator, Node left, Node right) {
+            this.isNumber = false; this.number = 0; this.operator = operator;
+            this.left = left; this.right = right;
+        }
+    }`;
   if (contextId === 'arbol-general') return `static class Node {
         int value;
         List<Node> children = new ArrayList<>();
@@ -169,7 +183,13 @@ export function makeJavaStandalone(source, contextId, initialValues = []) {
         && !(name === 'CAPACITY' && ['quadtree', 'octree'].includes(contextId) && hasNode)) continue;
     if (name === 'size' && declaresField(source, 'int\\s+size')) continue;
     if (name === 'queens' && declaresField(source, 'int\\[\\]\\s+queens')) continue;
-    declarations.push(name === 'values' && contextId === 'deque'
+    declarations.push(['values', 'initialValues'].includes(name) && contextId.endsWith('-sort')
+      ? `int[] ${name} = new int[100];`
+      : name === 'tree' && contextId === 'segment-tree'
+        ? 'long[] tree = new long[512];'
+      : name === 'bit' && contextId === 'fenwick-tree'
+        ? 'long[] bit = new long[128];'
+      : name === 'values' && contextId === 'deque'
       ? 'int[] values = new int[100];'
       : name === 'MAX_KEYS' && contextId === 'bstar-tree'
       ? 'static final int MAX_KEYS = 5;'
@@ -188,7 +208,7 @@ export function makeJavaStandalone(source, contextId, initialValues = []) {
     declarations.push(`${className}() {
         values = new int[]{${initialValues.join(', ')}};
         size = values.length;
-        bit = new int[size + 1];
+        bit = new long[size + 1];
         for (int i = 0; i < size; i++) {
             int index = i + 1;
             while (index <= size) {

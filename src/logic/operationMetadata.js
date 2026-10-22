@@ -252,6 +252,9 @@ export function operationGroup(algorithm) {
 export function getOperationDefinition(algorithm) {
   const group = operationGroup(algorithm);
   const definition = definitions[group];
+  if (group === 'btree' && algorithm.id !== 'bplus-tree') {
+    return { ...definition, actions: definition.actions.map(item => item.id === 'range-view' ? { ...item, label: 'Recorrer claves' } : item) };
+  }
   if (['arbol-general', 'arbol-nario'].includes(algorithm.id)) {
     return { ...definition, fields: [field('value', 'Valor', 'number'), field('second', 'Valor del padre', 'number')] };
   }

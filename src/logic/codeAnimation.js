@@ -473,6 +473,11 @@ function createHashFindFrames({ algorithm, code, beforeValues, beforeEdges, fina
 }
 
 export function createCodeSynchronizedFrames({ algorithm, code, actionId, beforeValues, afterValues, beforeEdges, afterEdges, finalStep, finalMessage, succeeded = true, inputValues = {} }) {
+  // Pseudocode combines language variants and uses assignments that this
+  // syntax walker does not execute. Show honest states, not invented lines.
+  if (code.includes('←')) {
+    return createOperationSummaryFrames({ beforeValues, afterValues, beforeEdges, afterEdges, finalStep, finalMessage, succeeded });
+  }
   if (actionId === 'find' && succeeded) {
     const semantic = createHashFindFrames({ algorithm, code, beforeValues, beforeEdges, finalStep, finalMessage, inputValues });
     if (semantic?.length) return semantic;
@@ -603,6 +608,7 @@ function createOperationSummaryFrames({ beforeValues, afterValues, beforeEdges, 
 export function createLinkedListSynchronizedFrames({
   algorithm,
   code,
+  codeMode,
   actionId,
   beforeValues,
   afterValues,
@@ -613,6 +619,18 @@ export function createLinkedListSynchronizedFrames({
   succeeded = true,
   inputValues = {},
 }) {
+  // The linked-list walker matches executable Java/C++ syntax, not teaching
+  // pseudocode. Preserve honest before/after states and their logical sizes.
+  if (codeMode === 'pseudo' || code.includes('←')) {
+    return createOperationSummaryFrames({ beforeValues, afterValues, beforeEdges, afterEdges, finalStep, finalMessage, succeeded })
+      .map(frame => ({
+        ...frame,
+        variables: [
+          { name: 'head', value: readableVariableValue(frame.values[0] ?? null), role: 'value' },
+          { name: 'size', value: readableVariableValue(frame.values.length), role: 'size' },
+        ],
+      }));
+  }
   const sourceLines = code.split('\n');
   const operationMarker = sourceLines.findIndex(line => line.trim() === '// Start of the selected operation');
   const firstLine = operationMarker >= 0 ? operationMarker + 1 : 0;
@@ -645,9 +663,10 @@ export function createLinkedListSynchronizedFrames({
   const targetIndex = beforeValues.findIndex(value => String(value) === String(requestedValue));
   const frames = [];
 
+  let logicalSize = beforeValues.length;
   const frameVariables = ({ values, position, pointer = 'current', pointerValue, index = null, condition = null }) => [
     { name: 'head', value: readableVariableValue(values[0] ?? null), role: 'value' },
-    { name: 'size', value: readableVariableValue(values.length), role: 'size' },
+    { name: 'size', value: readableVariableValue(logicalSize), role: 'size' },
     ...(index === null ? [] : [{ name: 'i', value: readableVariableValue(index), role: 'index' }]),
     {
       name: pointer,
@@ -679,11 +698,13 @@ export function createLinkedListSynchronizedFrames({
     pointerValue,
   }) => {
     const safePosition = Math.max(0, Math.min(Math.max(0, values.length - 1), position));
+    const codeLine = pattern ? lineOf(pattern, occurrence) : methodLine;
+    if (/\bsize(?:\+\+|--);/.test(sourceLines[codeLine] ?? '')) logicalSize = afterValues.length;
     frames.push({
       values: copyVisualValues(values),
       edges: cloneEdges(completed ? afterEdges : beforeEdges),
       position: safePosition,
-      codeLine: pattern ? lineOf(pattern, occurrence) : methodLine,
+      codeLine,
       message,
       delayMs,
       completed,
@@ -1805,6 +1826,7 @@ function createRangeQueryFrames(args) {
       values: copyVisualValues(args.beforeValues), edges: cloneEdges(args.beforeEdges),
       position: Math.max(0, Math.min(values.length - 1, position)),
       codeLine, message, delayMs: 390,
+      segmentRange: extras.segmentRange,
       completed: extras.completed ?? false,
       variables: [
         { name: 'límite', value: limit, role: 'input' },
@@ -1815,41 +1837,42 @@ function createRangeQueryFrames(args) {
     });
   };
   if (args.algorithm.id === 'segment-tree') {
-    const declaration = lineOf(/int prefix(?:Sum|Minimum)\s*\(/);
+    const declaration = lineOf(/(?:int|long(?: long)?) prefix(?:Sum|Minimum)\s*\(/);
     const covered = lineOf(/if\s*\(right <= end\) return/);
     const disjoint = lineOf(/if\s*\(left > end\) return/);
     const middle = lineOf(/int middle =/);
     const combine = lineOf(args.actionId === 'prefix-sum' ? /return prefixSum\(/ : /return (?:first < second|Math\.min)/);
     if ([declaration, covered, disjoint, middle, combine].some(index => index < 0)) return null;
-    const neutral = args.actionId === 'prefix-sum' ? 0 : Infinity;
+    const neutral = args.actionId === 'prefix-sum' ? 0 : 2147483647;
     const visit = (left, right) => {
       const range = `[${left}..${right}]`;
-      push(declaration, left, `La llamada examina el rango ${range}.`, { range });
+      const segmentRange = [left, right];
+      push(declaration, left, `La llamada examina el rango ${range}.`, { range, segmentRange });
       const fullyCovered = right <= limit;
-      push(covered, left, fullyCovered ? `${range} está cubierto por el prefijo.` : `${range} necesita examinarse más.`, { range, condition: fullyCovered });
+      push(covered, left, fullyCovered ? `${range} está cubierto por el prefijo.` : `${range} necesita examinarse más.`, { range, segmentRange, condition: fullyCovered });
       if (fullyCovered) {
         const result = args.actionId === 'prefix-sum'
           ? values.slice(left, right + 1).reduce((sum, value) => sum + value, 0)
           : Math.min(...values.slice(left, right + 1));
-        push(covered, right, `La llamada retorna ${result} para ${range}.`, { range, result });
+        push(covered, right, `La llamada retorna ${result} para ${range}.`, { range, segmentRange, result });
         return result;
       }
       const outside = left > limit;
-      push(disjoint, left, outside ? `${range} queda fuera del prefijo.` : `${range} se divide para continuar.`, { range, condition: outside });
+      push(disjoint, left, outside ? `${range} queda fuera del prefijo.` : `${range} se divide para continuar.`, { range, segmentRange, condition: outside });
       if (outside) return neutral;
       const pivot = Math.floor((left + right) / 2);
-      push(middle, pivot, `Se divide ${range} en dos subrangos.`, { range });
+      push(middle, pivot, `Se divide ${range} en dos subrangos.`, { range, segmentRange });
       const first = visit(left, pivot);
       const second = visit(pivot + 1, right);
       const result = args.actionId === 'prefix-sum' ? first + second : Math.min(first, second);
-      push(combine, pivot, `Se combinan los retornos: ${result}.`, { range, result });
+      push(combine, pivot, `Se combinan los retornos: ${result}.`, { range, segmentRange, result });
       return result;
     };
     visit(0, values.length - 1);
   } else if (args.actionId === 'prefix-sum') {
-    const declaration = lineOf(/int prefixSum\s*\(/);
+    const declaration = lineOf(/(?:int|long(?: long)?) prefixSum\s*\(/);
     const increment = lineOf(/index\+\+;/);
-    const initialize = lineOf(/int sum = 0;/);
+    const initialize = lineOf(/(?:int|long(?: long)?) sum = 0;/);
     const condition = lineOf(/while\s*\(index > 0\)/);
     const accumulate = lineOf(/sum \+= bit\[index\]/);
     const advance = lineOf(/index -= index & -index/);

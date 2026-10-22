@@ -292,7 +292,64 @@ function threadedTreePseudocode(actionId, language) {
   }[actionId];
 }
 
+function implementationPseudocode(algorithm, actionId, language) {
+  const text = (es, en) => language === 'en' ? en : es;
+  if (algorithm.id === 'segment-tree') {
+    return {
+      'range-update': lines(text('validar index existente y value entero de 32 bits', 'validate an existing index and a 32-bit integer value'), text('descender al hijo cuyo intervalo contiene index', 'descend into the child interval containing index'), text('en la hoja: values[index] ← value; actualizar suma y mínimo', 'at the leaf: values[index] ← value; update its sum and minimum'), text('al regresar: sumar hijos en 64 bits y combinar sus mínimos', 'on return: add child sums in 64 bits and combine their minima')),
+      'prefix-sum': lines(text('validar end; consultar el intervalo inclusivo [0, end]', 'validate end; query the inclusive interval [0, end]'), text('si right ≤ end: devolver la suma de 64 bits del nodo', 'if right ≤ end: return the node 64-bit sum'), text('si left > end: devolver 0', 'if left > end: return 0'), text('consultar ambos hijos y sumar sus resultados en 64 bits', 'query both children and add their results in 64 bits')),
+      'range-min': lines(text('validar end; consultar el intervalo inclusivo [0, end]', 'validate end; query the inclusive interval [0, end]'), text('si right ≤ end: devolver el mínimo del nodo', 'if right ≤ end: return the node minimum'), text('si left > end: devolver 2147483647 como valor neutro', 'if left > end: return 2147483647 as the neutral value'), text('consultar ambos hijos y devolver el menor resultado', 'query both children and return the smaller result')),
+    }[actionId];
+  }
+  if (algorithm.id === 'fenwick-tree') {
+    return {
+      'range-update': lines(text('validar index; calcular updated ← values[index] + delta en 64 bits', 'validate index; compute updated ← values[index] + delta in 64 bits'), text('si updated no cabe en 32 bits: rechazar sin modificar datos', 'if updated does not fit in 32 bits: reject without changing data'), 'values[index] ← updated; index++', text('mientras index está dentro de bit:', 'while index is within bit:'), '  bit[index] ← bit[index] + delta', '  index ← index + (index & -index)'),
+      'prefix-sum': lines(text('validar el índice externo, que empieza en 0', 'validate the external, zero-based index'), 'index++; sum ← 0', text('mientras index > 0:', 'while index > 0:'), text('  sum ← sum + bit[index], usando 64 bits', '  sum ← sum + bit[index], using 64 bits'), '  index ← index - (index & -index)', text('devolver sum', 'return sum')),
+      'range-min': lines(text('validar end; minimum ← values[0]', 'validate end; minimum ← values[0]'), text('recorrer values[1..end] y conservar el menor valor', 'scan values[1..end] and retain the smallest value'), text('devolver minimum; esta consulta lineal no usa bit', 'return minimum; this linear query does not use bit')),
+    }[actionId];
+  }
+  if (algorithm.id === 'matriz') {
+    const validate = text('validar fila y columna entre 0 y 3', 'validate row and column from 0 through 3');
+    return {
+      'matrix-set': lines(validate, text('validar value como entero de 32 bits', 'validate value as a 32-bit integer'), 'values[row][column] ← value'),
+      'matrix-get': lines(validate, text('devolver values[row][column]', 'return values[row][column]')),
+      'matrix-row': lines(text('validar row entre 0 y 3', 'validate row from 0 through 3'), text('para column desde 0 hasta 3:', 'for column from 0 through 3:'), text('  visitar values[row][column]', '  visit values[row][column]')),
+      'matrix-column': lines(text('validar column entre 0 y 3', 'validate column from 0 through 3'), text('para row desde 0 hasta 3:', 'for row from 0 through 3:'), text('  visitar values[row][column]', '  visit values[row][column]')),
+      'matrix-transpose': lines(text('para row desde 0 hasta 3:', 'for row from 0 through 3:'), text('  para column desde row + 1 hasta 3:', '  for column from row + 1 through 3:'), text('    intercambiar values[row][column] con values[column][row]', '    swap values[row][column] with values[column][row]'), text('conservar la misma matriz; no repetir los pares bajo la diagonal', 'keep the same matrix; do not repeat pairs below the diagonal')),
+      'matrix-fill': lines(text('validar value como entero de 32 bits', 'validate value as a 32-bit integer'), text('para cada row y column de la matriz 4×4:', 'for every row and column in the 4×4 matrix:'), '  values[row][column] ← value'),
+      'matrix-clear': lines(text('para cada row y column de la matriz 4×4:', 'for every row and column in the 4×4 matrix:'), '  values[row][column] ← 0'),
+    }[actionId];
+  }
+  if (algorithm.id === 'fibonacci-heap') {
+    return {
+      'heap-add': lines(text('reservar un nodo independiente con value y grado 0', 'allocate an independent node with value and degree 0'), text('enlazarlo en la lista circular de raíces', 'link it into the circular root list'), text('si no hay mínimo o value es menor: actualizar minimum', 'if there is no minimum or value is smaller: update minimum'), 'size++'),
+      'heap-extract': lines(text('si minimum es null: indicar que el heap está vacío', 'if minimum is null: report an empty heap'), text('conservar el nodo mínimo y promover sus hijos a raíces', 'keep the minimum node and promote its children to roots'), text('desenlazar el mínimo de la lista circular de raíces', 'unlink the minimum from the circular root list'), text('mientras dos raíces tengan el mismo grado: enlazar la mayor bajo la menor', 'while two roots have equal degree: link the larger under the smaller'), text('reconstruir la lista de raíces y localizar el nuevo mínimo', 'rebuild the root list and locate the new minimum'), text('reducir size; Java devuelve el valor; C++ lo guarda en removedValue, libera el nodo y devuelve true', 'decrease size; Java returns the value; C++ stores it in removedValue, frees the node and returns true')),
+    }[actionId];
+  }
+  if (['btree', 'bstar-tree'].includes(algorithm.id) && actionId === 'range-view') {
+    return lines(text('recorrer cada nodo en inorden:', 'traverse each node in order:'), text('  para cada clave i: recorrer hijo i y después emitir clave i', '  for each key i: traverse child i, then emit key i'), text('  recorrer el último hijo', '  traverse the last child'), text('incluir claves internas y hojas; no usar enlaces de hojas de B+', 'include internal keys and leaves; do not use B+ leaf links'));
+  }
+  if (algorithm.id === 'suffix-tree' && actionId === 'word-find') {
+    return lines(text('comenzar en la raíz del trie de sufijos', 'start at the suffix trie root'), text('seguir una rama por cada carácter del patrón', 'follow one branch for every pattern character'), text('si falta una rama: el patrón no aparece', 'if a branch is missing: the pattern does not occur'), text('si se consumió el patrón: devolver true, aunque no termine un sufijo completo', 'if the pattern was consumed: return true, even if it does not end a complete suffix'));
+  }
+  if (['arbol-general', 'arbol-nario'].includes(algorithm.id) && actionId === 'tree-add') {
+    return lines(text('si el árbol está vacío: crear la raíz', 'if the tree is empty: create the root'), text('si no: buscar el padre indicado; sin padre indicado, usar la raíz', 'otherwise: find the selected parent; if omitted, use the root'), ...(algorithm.id === 'arbol-nario' ? [text('si el padre ya tiene 4 hijos: rechazar sin modificar el árbol', 'if the parent already has 4 children: reject without modifying the tree')] : []), text('crear el nodo y agregarlo al final de los hijos del padre', 'create the node and append it to the parent children'), text('no ordenar ni elegir la posición comparando valores', 'do not sort or choose the position by comparing values'));
+  }
+  if (algorithm.id === 'arbol-binario' && actionId === 'tree-add') {
+    return lines(text('si la raíz es null: crear la raíz', 'if root is null: create the root'), text('recorrer niveles desde la raíz, de izquierda a derecha', 'scan levels from the root, left to right'), text('encontrar el primer enlace de hijo libre e insertar allí', 'find the first free child link and insert there'), text('no elegir la rama comparando el valor: este árbol no es un BST', 'do not choose the branch by comparing values: this tree is not a BST'));
+  }
+  if (algorithm.id === 'lru-cache') {
+    return {
+      'cache-put': lines(text('buscar la clave; actualizar su valor o crear la entrada', 'find the key; update its value or create the entry'), text('desenlazar la entrada de su posición actual si existe', 'unlink an existing entry from its current position'), text('agregarla al final (tail), extremo más reciente', 'append it at the back (tail), the most recent end'), text('si excede capacidad 5: retirar head, la menos reciente', 'if capacity 5 is exceeded: remove head, the least recent entry')),
+      'cache-get': lines(text('buscar la clave; si no existe, indicar fallo', 'find the key; if absent, report failure'), text('desenlazar su entrada y moverla al final (tail)', 'unlink the entry and move it to the back (tail)'), text('devolver su valor, que también puede ser una cadena vacía', 'return its value, which may also be an empty string')),
+    }[actionId];
+  }
+  return null;
+}
+
 export function getOperationPseudocode(algorithm, actionId, language = 'es') {
+  const implementation = implementationPseudocode(algorithm, actionId, language);
+  if (implementation) return implementation;
   if (algorithm.id === 'arbol-enhebrado') {
     const source = threadedTreePseudocode(actionId, language);
     if (source) return source;

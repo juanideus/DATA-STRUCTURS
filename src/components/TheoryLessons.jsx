@@ -1,9 +1,10 @@
 import { lazy, Suspense } from 'react';
 import '../theory.css';
+import { localizeTheory } from './localizeTheory.jsx';
 
 const ComplexityGrowthChart = lazy(() => import('./ComplexityGrowthChart.jsx'));
 
-export function ComplexityLesson() {
+export function ComplexityLesson({ language = 'es' } = {}) {
   const orderRows = [
     ['O(1)', 'Constante', 'Acceder a una posición conocida', 'No cambia'],
     ['O(log n)', 'Logarítmica', 'Búsqueda binaria', 'Aumenta muy poco'],
@@ -14,7 +15,7 @@ export function ComplexityLesson() {
     ['O(n!)', 'Factorial', 'Probar todas las permutaciones', 'Crece más rápido que 2ⁿ'],
   ];
 
-  return <section className="complexity-lesson" data-complexity-lesson>
+  return localizeTheory(<section className="complexity-lesson" data-complexity-lesson>
     <article className="complexity-intro-card">
       <span className="lesson-kicker">01 · IDEA CENTRAL</span>
       <h2>¿Qué es la complejidad algorítmica?</h2>
@@ -40,7 +41,7 @@ export function ComplexityLesson() {
       </article>
       <article>
         <span className="lesson-kicker">03 · CASOS</span>
-        <h3>La misma entrada puede exigir trabajos distintos</h3>
+        <h3>Entradas del mismo tamaño pueden exigir trabajos distintos</h3>
         <div className="complexity-case-stack">
           <p><b>Mejor caso</b><span>La entrada más favorable requiere el mínimo trabajo.</span></p>
           <p><b>Caso promedio</b><span>Trabajo esperado bajo una distribución de entradas declarada.</span></p>
@@ -55,7 +56,7 @@ export function ComplexityLesson() {
         <h3>Qué ocurre cuando n aumenta</h3>
         <p>El gráfico compara siete órdenes de crecimiento. O(log n) aumenta lentamente, mientras que O(n!) termina creciendo más rápido que O(2ⁿ).</p>
       </div>
-      <Suspense fallback={null}><ComplexityGrowthChart language="es"/></Suspense>
+      <Suspense fallback={null}><ComplexityGrowthChart language={language}/></Suspense>
     </article>
 
     <article className="complexity-order-table-card">
@@ -122,10 +123,10 @@ export function ComplexityLesson() {
       <span className="lesson-kicker">IDEA PARA RECORDAR</span>
       <p>La pregunta no es solamente “¿funciona?”, sino <b>“¿seguirá funcionando bien cuando los datos crezcan?”</b>. La complejidad algorítmica permite responderla antes de ejecutar el programa.</p>
     </article>
-  </section>;
+  </section>, language);
 }
 
-export function DataStructuresLesson() {
+export function DataStructuresLesson({ language = 'es' } = {}) {
   const operations = [
     ['Acceso', 'Llegar a un dato conocido', 'Array mediante índice'],
     ['Búsqueda', 'Encontrar un dato que cumple una condición', 'Hash por clave o recorrido'],
@@ -141,7 +142,7 @@ export function DataStructuresLesson() {
     { name: 'Por clave', examples: 'Hash · Map · Set', text: 'Transforman una clave para ubicar datos rápidamente y comprobar pertenencia.' },
   ];
 
-  return <section className="complexity-lesson data-structures-lesson" data-data-structures-lesson>
+  return localizeTheory(<section className="complexity-lesson data-structures-lesson" data-data-structures-lesson>
     <article className="complexity-intro-card">
       <span className="lesson-kicker">01 · IDEA CENTRAL</span>
       <h2>¿Qué es una estructura de datos?</h2>
@@ -247,10 +248,10 @@ export function DataStructuresLesson() {
       <span className="lesson-kicker">IDEA PARA RECORDAR</span>
       <p>Los algoritmos indican <b>qué pasos realizar</b>; las estructuras de datos determinan <b>cómo se organiza la información</b> sobre la que trabajan. Ambas decisiones se necesitan para construir una solución correcta y eficiente.</p>
     </article>
-  </section>;
+  </section>, language);
 }
 
-export function OopLesson() {
+export function OopLesson({ language = 'es' } = {}) {
   const pillars = [
     ['Encapsulación', 'Protege el estado interno y permite modificarlo solamente mediante operaciones válidas.'],
     ['Abstracción', 'Muestra lo necesario para usar un objeto y oculta los detalles que no necesita conocer quien lo utiliza.'],
@@ -264,7 +265,7 @@ export function OopLesson() {
     ['sin modificador', 'Clases del mismo paquete', 'Colaboración interna dentro de un paquete Java.'],
   ];
 
-  return <section className="complexity-lesson oop-lesson" data-oop-lesson>
+  return localizeTheory(<section className="complexity-lesson oop-lesson" data-oop-lesson>
     <article className="complexity-intro-card oop-intro-card">
       <span className="lesson-kicker">01 · IDEA CENTRAL</span>
       <h2>¿Qué es la Programación Orientada a Objetos?</h2>
@@ -531,5 +532,5 @@ int ultimo = numeros.pop(); // 20`}</code></pre>
       <span className="lesson-kicker">IDEA PARA RECORDAR</span>
       <p>Un buen objeto <b>conoce su propio estado, protege sus reglas y ofrece operaciones claras</b>. La POO no busca crear la mayor cantidad de clases: busca que cada parte del programa tenga una responsabilidad entendible.</p>
     </article>
-  </section>;
+  </section>, language);
 }

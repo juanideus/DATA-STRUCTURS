@@ -80,7 +80,7 @@ function insertBStar(root, value, events) {
       const left = node(current.keys.slice(0, middle), current.children.slice(0, middle + 1));
       const right = node(current.keys.slice(middle + 1), current.children.slice(middle + 1));
       const promotedKey = current.keys[middle];
-      events.push({ type: 'split', promotedKey });
+      events.push({ type: 'split', promotedKey, strategy: 'root-split' });
       return node([promotedKey], [left, right]);
     }
     const [parent, index] = path.pop();
@@ -120,7 +120,7 @@ function insertBStar(root, value, events) {
     }
     parent.keys.splice(separatorIndex, 1, allKeys[firstSeparator], allKeys[secondSeparator]);
     parent.children.splice(separatorIndex, 2, left, middleNode, right);
-    events.push({ type: 'split', promotedKey: allKeys[firstSeparator] });
+    events.push({ type: 'split', promotedKey: allKeys[firstSeparator], strategy: 'two-to-three' });
     current = parent;
   }
   return root;

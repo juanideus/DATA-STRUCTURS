@@ -470,7 +470,7 @@ const segmentTree = {
     tree[node] = tree[node * 2] + tree[node * 2 + 1];
     minimumTree[node] = Math.min(minimumTree[node * 2], minimumTree[node * 2 + 1]);
 }`),
-  'prefix-sum': animated(`int prefixSum(int node, int left, int right, int end) {
+  'prefix-sum': animated(`long prefixSum(int node, int left, int right, int end) {
     if (right <= end) return tree[node];
     if (left > end) return 0;
     int middle = (left + right) / 2;
@@ -479,7 +479,7 @@ const segmentTree = {
 }`),
   'range-min': animated(`int prefixMinimum(int node, int left, int right, int end) {
     if (right <= end) return minimumTree[node];
-    if (left > end) return 999999;
+    if (left > end) return Integer.MAX_VALUE;
     int middle = (left + right) / 2;
     return Math.min(
         prefixMinimum(node * 2, left, middle, end),
@@ -491,17 +491,21 @@ const segmentTree = {
 const fenwickTree = {
   'range-update': animated(`void add(int index, int delta) {
     if (index < 0 || index >= values.length) throw new IllegalArgumentException("Index out of range");
-    values[index] += delta;
+    long updated = (long) values[index] + delta;
+    if (updated < Integer.MIN_VALUE || updated > Integer.MAX_VALUE) {
+        throw new ArithmeticException("Value outside the 32-bit integer range");
+    }
+    values[index] = (int) updated;
     index++;
     while (index < bit.length) {
         bit[index] += delta;
         index += index & -index;
     }
 }`),
-  'prefix-sum': animated(`int prefixSum(int index) {
+  'prefix-sum': animated(`long prefixSum(int index) {
     if (index < 0 || index >= values.length) throw new IllegalArgumentException("Index out of range");
     index++;
-    int sum = 0;
+    long sum = 0;
     while (index > 0) {
         sum += bit[index];
         index -= index & -index;
@@ -1644,40 +1648,56 @@ const expressionTree = {
     expression = expression.replace('×', '*').replace('−', '-');
     Stack<Node> nodes = new Stack<>();
     Stack<Character> operators = new Stack<>();
+    boolean expectingOperand = true;
 
     for (int i = 0; i < expression.length(); i++) {
         char token = expression.charAt(i);
-        if (token == ' ') continue;
-        if (Character.isDigit(token)) {
-            int number = 0;
+        if (Character.isWhitespace(token)) continue;
+        if (token >= '0' && token <= '9') {
+            if (!expectingOperand) throw new IllegalArgumentException("Missing operator");
+            long number = 0;
             while (i < expression.length()
-                    && Character.isDigit(expression.charAt(i))) {
+                    && expression.charAt(i) >= '0' && expression.charAt(i) <= '9') {
                 number = number * 10 + expression.charAt(i) - '0';
+                if (number > Integer.MAX_VALUE) throw new ArithmeticException("Integer literal outside the 32-bit range");
                 i++;
             }
             i--;
-            nodes.push(new Node(number));
+            nodes.push(new Node((int) number));
+            expectingOperand = false;
         } else if (token == 40) {
+            if (!expectingOperand) throw new IllegalArgumentException("Missing operator before parenthesis");
             operators.push(token);
         } else if (token == 41) {
-            while (operators.peek() != 40) applyTop(nodes, operators);
+            if (expectingOperand) throw new IllegalArgumentException("Missing operand");
+            while (!operators.isEmpty() && operators.peek() != 40) applyTop(nodes, operators);
+            if (operators.isEmpty()) throw new IllegalArgumentException("Unbalanced parentheses");
             operators.pop();
-        } else {
+            expectingOperand = false;
+        } else if (token == '+' || token == '-' || token == '*' || token == '/') {
+            if (expectingOperand) throw new IllegalArgumentException("Missing operand");
             while (!operators.isEmpty() && operators.peek() != 40
                     && precedence(operators.peek()) >= precedence(token)) {
                 applyTop(nodes, operators);
             }
             operators.push(token);
+            expectingOperand = true;
+        } else {
+            throw new IllegalArgumentException("Use integer operands and + - * / only");
         }
     }
-    while (!operators.isEmpty()) applyTop(nodes, operators);
+    if (expectingOperand) throw new IllegalArgumentException("Missing operand");
+    while (!operators.isEmpty()) {
+        if (operators.peek() == 40) throw new IllegalArgumentException("Unbalanced parentheses");
+        applyTop(nodes, operators);
+    }
+    if (nodes.size() != 1) throw new IllegalArgumentException("Invalid expression");
     return nodes.pop();
 }`, `void applyTop(Stack<Node> nodes, Stack<Character> operators) {
+    if (nodes.size() < 2) throw new IllegalArgumentException("Missing operand");
     Node right = nodes.pop();
     Node left = nodes.pop();
-    Node operator = new Node(operators.pop());
-    operator.left = left;
-    operator.right = right;
+    Node operator = new Node(operators.pop(), left, right);
     nodes.push(operator);
 }
 
@@ -1687,16 +1707,30 @@ int precedence(char operator) {
     return 0;
 }`),
   evaluate: animated(`int evaluate(Node node) {
+    if (node == null) throw new IllegalArgumentException("Incomplete expression tree");
     if (node.isNumber) return node.number;
     int left = evaluate(node.left);
     int right = evaluate(node.right);
-    if (node.operator == '+') return left + right;
-    if (node.operator == '-') return left - right;
-    if (node.operator == '*') return left * right;
-    return left / right;
+    if (node.operator == '+') return Math.addExact(left, right);
+    if (node.operator == '-') return Math.subtractExact(left, right);
+    if (node.operator == '*') return Math.multiplyExact(left, right);
+    if (node.operator != '/') throw new IllegalArgumentException("Unknown operator");
+    if (right == 0) throw new ArithmeticException("Division by zero");
+    if (left == Integer.MIN_VALUE && right == -1) throw new ArithmeticException("32-bit integer overflow");
+    return left / right; // Integer division truncates toward zero.
 }`),
-  preorder: binaryTraversals.preorder,
-  postorder: binaryTraversals.postorder,
+  preorder: animated(`void preorder(Node node) {
+    if (node == null) return;
+    System.out.println(node.isNumber ? String.valueOf(node.number) : String.valueOf(node.operator));
+    preorder(node.left);
+    preorder(node.right);
+}`),
+  postorder: animated(`void postorder(Node node) {
+    if (node == null) return;
+    postorder(node.left);
+    postorder(node.right);
+    System.out.println(node.isNumber ? String.valueOf(node.number) : String.valueOf(node.operator));
+}`),
 };
 
 const threadedNodeCode = `static class Node {

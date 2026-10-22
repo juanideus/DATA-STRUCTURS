@@ -580,25 +580,37 @@ const removePlainBstNode = (node, target) => {
 const expressionPrecedence = operator => ({ '+': 1, '-': 1, '*': 2, '/': 2 }[operator] ?? 0);
 
 const expressionTreeFromInfix = source => {
+  if (source.includes('.')) throw new Error('Esta lección usa enteros de 32 bits; no admite decimales. La división trunca hacia cero.');
+  if (!/^[0-9+*/()\s×−-]+$/.test(source)) return null;
   const tokens = source.replaceAll('×', '*').replaceAll('−', '-').match(/\d+|[()+\-*/]/g) ?? [];
   const output = [];
   const operators = [];
+  let expectingOperand = true;
   for (const token of tokens) {
     if (/^\d+$/.test(token)) {
+      if (!expectingOperand) return null;
+      if (Number(token) > 2147483647) throw new Error('Cada operando debe ser un entero entre 0 y 2147483647. Usa una resta para representar un valor negativo.');
       output.push(token);
+      expectingOperand = false;
     } else if (token === '(') {
+      if (!expectingOperand) return null;
       operators.push(token);
     } else if (token === ')') {
+      if (expectingOperand) return null;
       while (operators.length && operators.at(-1) !== '(') output.push(operators.pop());
       if (operators.pop() !== '(') return null;
+      expectingOperand = false;
     } else {
+      if (expectingOperand) return null;
       while (operators.length && operators.at(-1) !== '('
           && expressionPrecedence(operators.at(-1)) >= expressionPrecedence(token)) {
         output.push(operators.pop());
       }
       operators.push(token);
+      expectingOperand = true;
     }
   }
+  if (expectingOperand) return null;
   while (operators.length) {
     const operator = operators.pop();
     if (operator === '(') return null;
@@ -635,17 +647,27 @@ const expressionTreeFromInfix = source => {
 };
 
 const evaluateExpressionTree = (values, index = 0) => {
-  if (!occupiedTreeValue(values, index)) return null;
+  if (!occupiedTreeValue(values, index)) throw new Error('El árbol de expresión está incompleto.');
   const token = String(values[index]);
-  if (/^\d+$/.test(token)) return Number(token);
+  if (/^\d+$/.test(token)) {
+    const number = Number(token);
+    if (number > 2147483647) throw new Error('Un operando está fuera del rango de enteros de 32 bits.');
+    return number;
+  }
   const left = evaluateExpressionTree(values, index * 2 + 1);
   const right = evaluateExpressionTree(values, index * 2 + 2);
-  if (left === null || right === null) return null;
-  if (token === '+') return left + right;
-  if (token === '-' || token === '−') return left - right;
-  if (token === '*' || token === '×') return left * right;
-  if (token === '/') return right === 0 ? null : Math.trunc(left / right);
-  return null;
+  let result;
+  if (token === '+') result = left + right;
+  else if (token === '-' || token === '−') result = left - right;
+  else if (token === '*' || token === '×') result = left * right;
+  else if (token === '/') {
+    if (right === 0) throw new Error('No se puede dividir por cero. La estructura anterior se conservó.');
+    result = Math.trunc(left / right);
+  } else throw new Error('El árbol contiene un operador no admitido.');
+  if (!Number.isInteger(result) || result < -2147483648 || result > 2147483647) {
+    throw new Error('El resultado de una operación está fuera del rango de enteros de 32 bits. La estructura anterior se conservó.');
+  }
+  return result;
 };
 
 function occupiedTreeValue(values, index) {
@@ -686,6 +708,7 @@ function graphTraversalTrace({ algorithm, values, edges, start, depthFirst }) {
       delayMs,
       graphState: {
         mode,
+        start,
         current,
         order: [...order],
         frontier: [...frontier],
@@ -983,6 +1006,7 @@ function minimumSpanningTreeTrace({ algorithm, values, edges, start = 0 }) {
       delayMs,
       graphState: {
         mode,
+        start,
         current,
         visitedEdges: selectedEdges.map(edge => [edge[0], edge[1]]),
         relaxedEdge,
@@ -1823,10 +1847,10 @@ const solveQueensWithTrace = size => {
   const place = row => {
     if (!inspectedRows.has(row)) {
       inspectedRows.add(row);
-      record('boolean placeQueen(int row) {', `placeQueen entra por primera vez a la fila ${row + 1}.`, Math.min(row, size - 1), 0);
+      record('boolean placeQueen(int row) {', `placeQueen entra por primera vez con row = ${row}.`, row, 0);
       record('if (row == size) return true;', row === size
         ? 'row == size: todas las reinas fueron colocadas.'
-        : `row vale ${row}; todavía faltan filas por resolver.`, Math.min(row, size - 1), 0, [
+        : `row vale ${row}; todavía faltan filas por resolver.`, row, 0, [
         { name: 'condición', value: String(row === size), role: row === size ? 'true' : 'false' },
       ]);
     }
@@ -2002,7 +2026,7 @@ function executePolynomialOperation({ actionId, fields, values, edges }) {
   const parseInteger = raw => {
     if (raw === undefined || raw === null || String(raw).trim() === '') return null;
     const parsed = Number(raw);
-    return Number.isInteger(parsed) ? parsed : null;
+    return Number.isInteger(parsed) && parsed >= -2147483648 && parsed <= 2147483647 ? parsed : null;
   };
   const coefficient = parseInteger(fields.value);
   const exponent = parseInteger(fields.index);
@@ -2054,10 +2078,15 @@ function executePolynomialOperation({ actionId, fields, values, edges }) {
 
   if (['poly-insert-a', 'poly-insert-b'].includes(actionId)) {
     if (coefficient === null || exponent === null || exponent < 0) {
-      return finish(false, beforeValues, 'Ingresa un coeficiente entero y un exponente entero mayor o igual que 0.', []);
+      return finish(false, beforeValues, 'Ingresa un coeficiente entre -2147483648 y 2147483647 y un exponente entero entre 0 y 2147483647.', []);
     }
     const targetName = actionId.endsWith('a') ? 'A' : 'B';
     const source = targetName === 'A' ? A : B;
+    const existing = source.find(term => term.exponent === exponent);
+    const combined = (existing?.coefficient ?? 0) + coefficient;
+    if (combined < -2147483648 || combined > 2147483647) {
+      return finish(false, beforeValues, 'La suma de coeficientes excede el rango de 32 bits; los polinomios no cambiaron.', []);
+    }
     const wrapper = targetName === 'A' ? 'void insertInA(int coefficient, int exponent) {' : 'void insertInB(int coefficient, int exponent) {';
     const assignment = targetName === 'A'
       ? 'A = insertOrdered(A, coefficient, exponent);'
@@ -2208,6 +2237,17 @@ function executePolynomialOperation({ actionId, fields, values, edges }) {
   }
 
   if (actionId === 'poly-add') {
+    for (let first = 0, second = 0; first < A.length && second < B.length;) {
+      if (A[first].exponent === B[second].exponent) {
+        const sum = A[first].coefficient + B[second].coefficient;
+        if (sum < -2147483648 || sum > 2147483647) {
+          return finish(false, beforeValues, 'La suma de coeficientes excede el rango de 32 bits; A, B y C no cambiaron.', []);
+        }
+        first++;
+        second++;
+      } else if (A[first].exponent > B[second].exponent) first++;
+      else second++;
+    }
     const result = [];
     let p = 0;
     let q = 0;
@@ -2337,37 +2377,9 @@ function executeGeneralizedListOperation({ actionId, fields, values, edges }) {
     }
     const nextRoot = parsed.root;
     const frames = [
-      frame({ nextRoot, codeNeedle: 'Node build(String text) {', message: `Comienza el análisis de ${parsed.source}.`, phase: 'build' }),
-      frame({ nextRoot, codeNeedle: 'source = text;', message: 'source guarda la notación con paréntesis y comas.', phase: 'build', extras: [
-        { name: 'source', value: parsed.source, role: 'input' },
-      ] }),
-      frame({ nextRoot, codeNeedle: 'position = 0;', message: 'El lector comienza en el primer carácter.', phase: 'build' }),
-      frame({ nextRoot, codeNeedle: 'root = parseList();', message: 'parseList construirá el encabezamiento y sus elementos.', activePaths: ['root.header'], phase: 'build' }),
+      { ...frame({ message: `Resumen de construcción: se valida ${parsed.source} sin reemplazar todavía la lista anterior.`, phase: 'build' }), messageEn: `Construction overview: validate ${parsed.source} while preserving the previous list.`, traceMode: 'summary', codeLine: null },
+      { ...frame({ nextRoot, message: `Resumen de construcción: A = ${generalizedListToString(nextRoot)}. La nueva raíz se asigna únicamente después de validar todo el texto.`, activePaths: ['root.header'], phase: 'complete', completed: true }), messageEn: `Construction overview: A = ${generalizedListToString(nextRoot)}. Assign the new root only after all input is valid.`, traceMode: 'summary', codeLine: null },
     ];
-    parsed.events.forEach(event => {
-      frames.push(frame({
-        nextRoot,
-        codeNeedle: event.codeNeedle,
-        message: event.kind === 'encabezamiento'
-          ? 'Se crea un nodo tag 2 con contador de referencias igual a 1.'
-          : event.kind === 'átomo'
-            ? `Se crea un nodo tag 0 que almacena el átomo ${event.value}.`
-            : event.kind === 'sublista'
-              ? 'Se crea un nodo tag 1 cuyo dlink apunta a una sublista.'
-              : `${event.value} conecta el elemento dentro de su mismo nivel.`,
-        activePaths: [event.path],
-        phase: event.kind,
-        extras: [
-          { name: 'tag', value: event.kind === 'átomo' ? 0 : event.kind === 'sublista' ? 1 : event.kind === 'encabezamiento' ? 2 : 'link', role: 'value' },
-        ],
-      }));
-    });
-    frames.push(
-      frame({ nextRoot, codeNeedle: 'if (position != source.length()) {', message: 'No queda contenido inesperado después del último paréntesis.', phase: 'validate', extras: [
-        { name: 'condición', value: 'false', role: 'false' },
-      ] }),
-      frame({ nextRoot, codeNeedle: 'return root;', message: `A = ${generalizedListToString(nextRoot)} quedó construida.`, activePaths: ['root.header'], phase: 'complete', completed: true }),
-    );
     return finish(true, [nextRoot], `A = ${generalizedListToString(nextRoot)} quedó construida.`, frames);
   }
 
@@ -2545,7 +2557,7 @@ function executeDenseMatrixOperation({ actionId, fields, values, edges }) {
   const parseInteger = raw => {
     if (raw === undefined || raw === null || String(raw).trim() === '') return null;
     const parsed = Number(raw);
-    return Number.isInteger(parsed) ? parsed : null;
+    return Number.isInteger(parsed) && parsed >= -2147483648 && parsed <= 2147483647 ? parsed : null;
   };
   const row = parseInteger(fields.second);
   const column = parseInteger(fields.index);
@@ -2590,7 +2602,7 @@ function executeDenseMatrixOperation({ actionId, fields, values, edges }) {
 
   if (actionId === 'matrix-set') {
     if (!rowIsValid || !columnIsValid) return invalidPosition();
-    if (!valueIsValid) return finish(false, before, 'Ingresa un valor entero para guardar.', [], 0);
+    if (!valueIsValid) return finish(false, before, 'Ingresa un entero entre -2147483648 y 2147483647 para guardar.', [], 0);
     const after = [...before];
     const previous = after[positionOf()];
     after[positionOf()] = value;
@@ -2747,7 +2759,7 @@ function executeDenseMatrixOperation({ actionId, fields, values, edges }) {
 
   if (actionId === 'matrix-fill' || actionId === 'matrix-clear') {
     const fillValue = actionId === 'matrix-clear' ? 0 : value;
-    if (!Number.isInteger(fillValue)) return finish(false, before, 'Ingresa un valor entero para rellenar.', [], 0);
+    if (!Number.isInteger(fillValue)) return finish(false, before, 'Ingresa un entero entre -2147483648 y 2147483647 para rellenar.', [], 0);
     const working = [...before];
     const frames = actionId === 'matrix-clear'
       ? [
@@ -3098,7 +3110,7 @@ function executeSparseMatrixOperation({ actionId, fields, values, edges }) {
   }
 
   if (actionId === 'matrix-insert') {
-    if (!Number.isInteger(value)) return fail('El valor debe ser un número entero.', 'public void insert(int value, int row, int column)');
+    if (!Number.isInteger(value) || value < -2147483648 || value > 2147483647) return fail('Ingresa un entero entre -2147483648 y 2147483647.', 'public void insert(int value, int row, int column)');
     if (value === 0) {
       if (!existing) return done(before, `La posición (${row}, ${column}) ya representa cero.`, baseFrames, null);
       const after = before.filter(cell => sparseCellKey(cell) !== key);
@@ -4487,11 +4499,11 @@ function executeStackOperation({ actionId, fields, values, edges }) {
   return null;
 }
 
-function queueVariables(values, extras = []) {
+function queueVariables(state, extras = []) {
   return [
-    { name: 'front', value: values[0] ?? 'null', role: 'value' },
-    { name: 'rear', value: values.at(-1) ?? 'null', role: 'value' },
-    { name: 'size', value: values.length, role: 'size' },
+    { name: 'front', value: state.front ?? 'null', role: 'value' },
+    { name: 'rear', value: state.rear ?? 'null', role: 'value' },
+    { name: 'size', value: state.size, role: 'size' },
     ...extras,
   ];
 }
@@ -4499,9 +4511,21 @@ function queueVariables(values, extras = []) {
 function executeQueueOperation({ actionId, fields, values, edges }) {
   const before = [...values];
   const value = numericValue(fields.value ?? '', values);
-  const frame = (currentValues, codeNeedle, message, position = 0, extras = [], options = {}) => (
-    linearStructureFrame(currentValues, edges, codeNeedle, message, position, queueVariables(currentValues, extras), options)
-  );
+  const queueState = {
+    front: before[0] ?? null,
+    rear: before.at(-1) ?? null,
+    size: before.length,
+    frontIndex: before.length ? 0 : null,
+    rearIndex: before.length ? before.length - 1 : null,
+  };
+  const frame = (currentValues, codeNeedle, message, position = 0, extras = [], options = {}) => {
+    const { queueState: updates, ...renderOptions } = options;
+    if (updates) Object.assign(queueState, updates);
+    return {
+      ...linearStructureFrame(currentValues, edges, codeNeedle, message, position, queueVariables(queueState, extras), renderOptions),
+      queueState: { ...queueState },
+    };
+  };
   const finish = (ok, updated, message, frames, position = 0) => ({
     ok,
     values: updated,
@@ -4540,17 +4564,17 @@ function executeQueueOperation({ actionId, fields, values, edges }) {
     );
     if (wasEmpty) {
       frames.push(
-        frame(after, 'front = newNode;', `${value} se convierte en el frente de la cola.`, 0),
-        frame(after, 'rear = front;', `${value} también se convierte en el final.`, 0),
+        frame(after, 'front = newNode;', `${value} se convierte en el frente de la cola.`, 0, [], { queueState: { front: value, frontIndex: 0 } }),
+        frame(after, 'rear = front;', `${value} también se convierte en el final.`, 0, [], { queueState: { rear: value, rearIndex: 0 } }),
       );
     } else {
       frames.push(
         frame(after, 'rear.next = newNode;', `El antiguo final ${before.at(-1)} enlaza al nodo ${value}.`, before.length),
-        frame(after, 'rear = newNode;', `rear avanza y ahora apunta a ${value}.`, before.length),
+        frame(after, 'rear = newNode;', `rear avanza y ahora apunta a ${value}.`, before.length, [], { queueState: { rear: value, rearIndex: after.length - 1 } }),
       );
     }
     frames.push(
-      frame(after, 'size++;', `size aumenta de ${before.length} a ${after.length}.`, after.length - 1),
+      frame(after, 'size++;', `size aumenta de ${before.length} a ${after.length}.`, after.length - 1, [], { queueState: { size: after.length } }),
       frame(after, 'return true;', `Enqueue terminó: ${value} está al final de la cola.`, after.length - 1, [], { completed: true }),
     );
     return finish(true, after, `Enqueue: ${value} fue agregado al final de la cola.`, frames, after.length - 1);
@@ -4577,16 +4601,16 @@ function executeQueueOperation({ actionId, fields, values, edges }) {
       frame(before, 'int removed = front.value;', `${removed} se guarda en la variable removed.`, 0, [{ name: 'removed', value: removed, role: 'value' }]),
       frame(after, 'front = front.next;', after.length
         ? `front avanza al siguiente nodo, que contiene ${after[0]}.`
-        : 'front avanza a null porque no quedan nodos.', 0, [{ name: 'removed', value: removed, role: 'value' }]),
+        : 'front avanza a null porque no quedan nodos.', 0, [{ name: 'removed', value: removed, role: 'value' }], { queueState: { front: after[0] ?? null, frontIndex: after.length ? 0 : null, rearIndex: after.length ? after.length - 1 : null } }),
       frame(after, 'if (front == null) {', after.length === 0
         ? 'front es null: también se debe limpiar rear.'
         : 'front no es null: rear conserva el último nodo.', 0, [
         { name: 'condición', value: String(after.length === 0), role: after.length === 0 ? 'true' : 'false' },
       ]),
     );
-    if (!after.length) frames.push(frame(after, 'rear = null;', 'rear queda en null; la cola está completamente vacía.', 0));
+    if (!after.length) frames.push(frame(after, 'rear = null;', 'rear queda en null; la cola está completamente vacía.', 0, [], { queueState: { rear: null, rearIndex: null } }));
     frames.push(
-      frame(after, 'size--;', `size disminuye de ${before.length} a ${after.length}.`, 0, [{ name: 'removed', value: removed, role: 'value' }]),
+      frame(after, 'size--;', `size disminuye de ${before.length} a ${after.length}.`, 0, [{ name: 'removed', value: removed, role: 'value' }], { queueState: { size: after.length } }),
       frame(after, 'return removed;', `Dequeue devuelve ${removed}.`, 0, [{ name: 'removed', value: removed, role: 'value' }], { completed: true }),
     );
     return finish(true, after, `Dequeue: ${removed} fue retirado del frente.`, frames, 0);
@@ -4615,9 +4639,9 @@ function executeQueueOperation({ actionId, fields, values, edges }) {
   if (actionId === 'clear') {
     const frames = [
       frame(before, 'void clear() {', 'Vaciar desconectará las referencias principales de la cola.'),
-      frame([], 'front = null;', 'front deja de apuntar al primer nodo.', 0),
-      frame([], 'rear = null;', 'rear también queda en null.', 0),
-      frame([], 'size = 0;', 'size queda en 0 y la cola está vacía.', 0, [], { completed: true }),
+      frame([], 'front = null;', 'front deja de apuntar al primer nodo.', 0, [], { queueState: { front: null, frontIndex: null, rearIndex: null } }),
+      frame([], 'rear = null;', 'rear también queda en null.', 0, [], { queueState: { rear: null, rearIndex: null } }),
+      frame([], 'size = 0;', 'size queda en 0 y la cola está vacía.', 0, [], { queueState: { size: 0 }, completed: true }),
     ];
     return finish(true, [], 'La cola quedó completamente vacía.', frames, 0);
   }
@@ -4900,14 +4924,20 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
 
   switch (actionId) {
     case 'add-start': next.unshift(value); return done(next, `${value} fue agregado al inicio.`, 0);
-    case 'add-end': next.push(value); return done(next, `${value} fue agregado al final.`);
+    case 'add-end':
+      if (algorithm.type === 'sort' && next.length >= 100) return fail('El ordenamiento admite hasta 100 elementos. Elimina uno antes de insertar otro.');
+      next.push(value); return done(next, `${value} fue agregado al final.`);
     case 'add-index':
       if (index === null) return fail('El índice debe estar dentro del rango permitido.');
       next.splice(index, 0, value); return done(next, `${value} fue insertado en el índice ${index}.`, index);
     case 'set-index':
     case 'range-update': {
       if (value === null || index === null) return fail('Ingresa un índice existente y un valor válido.');
-      next[index] = actionId === 'range-update' && algorithm.id === 'fenwick-tree' ? Number(next[index]) + Number(value) : value;
+      const updated = actionId === 'range-update' && algorithm.id === 'fenwick-tree' ? Number(next[index]) + Number(value) : value;
+      if (algorithm.id === 'fenwick-tree' && (updated < -2147483648 || updated > 2147483647)) {
+        return fail('El valor actualizado debe permanecer entre -2147483648 y 2147483647. No se modificó el Fenwick Tree.');
+      }
+      next[index] = updated;
       return done(next, `Índice ${index} actualizado a ${next[index]}.`, index);
     }
     case 'remove-start': {
@@ -5043,7 +5073,16 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
               codeLine: 5,
               treePhase: 'split',
               promotedKey,
-              message: 'La hoja superó el máximo de 3 claves, por eso se divide en dos nodos.',
+              message: algorithm.id === 'bstar-tree'
+                ? insertion.events.some(event => event.strategy === 'two-to-three')
+                  ? 'Dos nodos B* completos se redistribuyen en tres; el máximo es de 5 claves por nodo.'
+                  : 'La raíz B* superó el máximo de 5 claves: se crea una raíz nueva con dos hijos.'
+                : 'La hoja superó el máximo de 3 claves, por eso se divide en dos nodos.',
+              messageEn: algorithm.id === 'bstar-tree'
+                ? insertion.events.some(event => event.strategy === 'two-to-three')
+                  ? 'Two full B* nodes are redistributed into three; each node holds at most 5 keys.'
+                  : 'The B* root exceeded 5 keys: create a new root with two children.'
+                : 'The leaf exceeded 3 keys and is split into two nodes.',
             },
             {
               values: [...next],
@@ -5279,7 +5318,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       const result = actionId === 'prefix-sum' ? slice.reduce((sum,item)=>sum+item,0) : Math.min(...slice);
       return done(next, `${actionId === 'prefix-sum' ? 'Suma' : 'Mínimo'} en [0, ${limit}] = ${result}.`, limit);
     }
-    case 'range-view': return done(next, `Recorrido ordenado de hojas: ${next.join(' → ')}.`, 0);
+    case 'range-view': return done(next, `Recorrido ordenado de ${algorithm.id === 'bplus-tree' ? 'hojas' : 'claves'}: ${next.join(' → ')}.`, 0);
     case 'merkle-root': {
       const root = merkleLevels(next).at(-1)?.[0];
       return done(next, root
@@ -5289,18 +5328,24 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     case 'set-expression': {
       const expression = String(fields.value ?? '').trim();
       if (!expression) return fail('Escribe una expresión, por ejemplo: 8+3*2.');
-      if (!/^[0-9+*/().\s×−-]+$/.test(expression)) return fail('Usa solamente números, paréntesis y operadores aritméticos.');
-      const treeValues = expressionTreeFromInfix(expression);
-      if (!treeValues) return fail('La expresión no es válida o está incompleta.');
-      return done(treeValues, `Árbol creado desde ${expression}; cada operador quedó sobre sus operandos.`, 0);
+      try {
+        const treeValues = expressionTreeFromInfix(expression);
+        if (!treeValues) return fail('La expresión no es válida o está incompleta. Usa enteros, paréntesis y operadores + - * /.');
+        return done(treeValues, `Árbol creado desde ${expression}; cada operador quedó sobre sus operandos.`, 0);
+      } catch (error) {
+        return fail(error.message);
+      }
     }
     case 'evaluate': {
       const expression = String(fields.value ?? '').trim();
-      const treeValues = expression ? expressionTreeFromInfix(expression) : next;
-      if (!treeValues) return fail('La expresión no es válida.');
-      const result = evaluateExpressionTree(treeValues);
-      if (!Number.isFinite(result)) return fail('La expresión no se puede evaluar.');
-      return done(treeValues, `Resultado del árbol de expresión: ${result}.`, 0);
+      try {
+        const treeValues = expression ? expressionTreeFromInfix(expression) : next;
+        if (!treeValues) return fail('La expresión no es válida. Usa enteros, paréntesis y operadores + - * /.');
+        const result = evaluateExpressionTree(treeValues);
+        return done(treeValues, `Resultado del árbol de expresión: ${result}.`, 0);
+      } catch (error) {
+        return fail(error.message);
+      }
     }
     case 'hash-put':
     case 'cache-put': {
@@ -5313,7 +5358,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       if (actionId === 'hash-put' && algorithm.id === 'hash-chaining' && found < 0 && next.length >= 24) {
         return fail('La demostración admite hasta 24 entradas distribuidas en sus cadenas.');
       }
-      const entry = fields.second ? `${key}:${fields.second}` : key;
+      const entry = actionId === 'cache-put' ? `${key}:${fields.second ?? ''}` : fields.second ? `${key}:${fields.second}` : key;
       if (found >= 0 && actionId === 'cache-put') next.splice(found, 1);
       else if (found >= 0) next[found] = entry;
       if (found < 0 || actionId === 'cache-put') next.push(entry);
@@ -5537,6 +5582,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       return done(next, `${algorithm.name}: se prueba una decisión; si no conduce a la solución, se deshace.`, (Date.now()/1000|0)%Math.max(1,next.length));
     }
     case 'union': {
+      if ([fields.value, fields.second].some(raw => String(raw ?? '').trim() === '')) return fail('Ingresa ambos elementos antes de unir sus conjuntos.');
       const first = Number(fields.value), second = Number(fields.second);
       if (![first,second].every(Number.isInteger) || first<0 || second<0 || first>=next.length || second>=next.length) return fail('Los elementos deben ser índices existentes.');
       const rootA = findRoot(next, first);
@@ -5555,6 +5601,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       return { ...done(next, `${first} y ${second} ahora pertenecen al conjunto con raíz ${newRoot}; se aplicó unión por rango.`, second), unionRanks: ranks };
     }
     case 'find-root': {
+      if (String(fields.value ?? '').trim() === '') return fail('Ingresa el elemento cuya raíz quieres encontrar.');
       const element = Number(fields.value);
       if (!Number.isInteger(element)||element<0||element>=next.length) return fail('Ingresa un elemento existente.');
       const root = findRoot(next, element);

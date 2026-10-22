@@ -535,7 +535,7 @@ function App() {
           ? cppCodeFactory?.(baseAlgorithm, activeOperation) ?? '// Cargando código C++…'
         : getOperationPseudocode(baseAlgorithm, activeOperation, language)
   ), [activeOperation, baseAlgorithm, codeMode, isTheoryPage, javaCodeFactory, cppCodeFactory, language]);
-  const displayedCode = useMemo(() => translateCodeText(sourceCode, language), [language, sourceCode]);
+  const displayedCode = useMemo(() => translateCodeText(sourceCode, language, codeMode), [codeMode, language, sourceCode]);
   const codeLines = useMemo(() => displayedCode.split('\n'), [displayedCode]);
   const highlightedCodeLine = activeCodeLine;
   const totalSteps = operationFrames.length || 1;
@@ -1048,19 +1048,24 @@ function App() {
     }
     if (codeMode === 'cpp' && result.ok && traceFrames?.length && baseAlgorithm.id === 'cola' && actionId === 'clear') {
       const template = traceFrames[0];
+      const clearFrame = (values, codeNeedle, message, completed = false, rearCleared = false, sizeCleared = false) => ({
+        ...template, values: [...values], codeNeedle, message, completed,
+        queueState: { front: values[0] ?? null, rear: rearCleared ? null : previousValues.at(-1) ?? null, size: sizeCleared ? 0 : previousValues.length, frontIndex: values.length ? 0 : null, rearIndex: !rearCleared && values.length ? values.length - 1 : null },
+        variables: [{ name: 'front', value: values[0] ?? 'nullptr', role: 'value' }, { name: 'rear', value: rearCleared ? 'nullptr' : previousValues.at(-1) ?? 'nullptr', role: 'value' }, { name: 'size', value: sizeCleared ? 0 : previousValues.length, role: 'size' }],
+      });
       traceFrames.splice(0, traceFrames.length, { ...template, codeNeedle: 'void clear() {', completed: false });
       for (let index = 0; index < previousValues.length; index++) {
         const beforeRemoval = previousValues.slice(index);
         const afterRemoval = previousValues.slice(index + 1);
-        const add = (codeNeedle, message, values) => traceFrames.push({ ...template, values: [...values], codeNeedle, message, completed: false, variables: [{ name: 'size', value: previousValues.length, role: 'size' }] });
+        const add = (codeNeedle, message, values) => traceFrames.push(clearFrame(values, codeNeedle, message));
         add('while (front != nullptr) {', `front apunta a ${beforeRemoval[0]}: el ciclo continúa.`, beforeRemoval);
         add('Node* removed = front;', `removed conserva el puntero al nodo ${beforeRemoval[0]}.`, beforeRemoval);
         add('front = front->next;', 'front avanza al siguiente nodo.', afterRemoval);
         add('delete removed;', 'Se libera el nodo retirado antes de continuar.', afterRemoval);
       }
-      traceFrames.push({ ...template, values: [], codeNeedle: 'while (front != nullptr) {', message: 'front es nullptr: termina el ciclo.', completed: false });
-      traceFrames.push({ ...template, values: [], codeNeedle: 'rear = nullptr;', message: 'rear queda en nullptr.', completed: false });
-      traceFrames.push({ ...template, values: [], codeNeedle: 'size = 0;', message: result.message, variables: [{ name: 'size', value: 0, role: 'size' }], completed: true });
+      traceFrames.push(clearFrame([], 'while (front != nullptr) {', 'front es nullptr: termina el ciclo.'));
+      traceFrames.push(clearFrame([], 'rear = nullptr;', 'rear queda en nullptr.', false, true));
+      traceFrames.push(clearFrame([], 'size = 0;', result.message, true, true, true));
     }
     if (codeMode === 'cpp' && result.ok && traceFrames?.length && actionId === 'bfs-run') {
       const visitedAllocationIndex = traceFrames.findIndex(frame => (
@@ -1114,6 +1119,7 @@ function App() {
       : synchronizedFrameFactory({
           algorithm: { ...baseAlgorithm, hashTable: previousHashTable },
           code: codeForAnimation,
+          codeMode,
           actionId,
           beforeValues: previousValues,
           afterValues: result.values,

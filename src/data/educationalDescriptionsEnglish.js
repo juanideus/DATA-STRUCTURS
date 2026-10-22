@@ -158,6 +158,12 @@ const specialDetails = {
 // These lessons need their own explanation: the generic family profile would
 // describe operations or performance that the code shown on the page does not use.
 const specificGuides = {
+  'expression-tree': {
+    definition: 'An Expression Tree stores operators in internal nodes and integer operands in leaves.',
+    how: 'This lesson uses signed 32-bit integers. Evaluation recursively computes the left and right subtrees, then applies the operator. Division truncates toward zero, as int division does in Java and C++. Write a negative number as a subtraction, such as (0-7). Decimals, overflow and division by zero are rejected without changing the previous tree.',
+    example: 'In (8+3)*2, the addition forms a subtree evaluated before multiplication. (0-7)/2 evaluates to -3.',
+    tip: 'Preorder gives prefix notation and postorder gives postfix notation. Every literal and arithmetic result must fit a signed 32-bit integer.',
+  },
   'arbol-enhebrado': {
     definition: 'A threaded binary tree uses links without real children as threads to the inorder predecessor or successor. In this implementation, a root header separate from the data nodes receives both outer threads: the minimum node’s left thread and the maximum node’s right thread.',
     how: 'Each node stores left, right, leftThread and rightThread: false identifies a real link and true a thread. The header has no tree key: root.left links the first data node, and root.right points to root with rightThread = false. When empty, root.left also points to root and leftThread = true. Internal threads point to inorder neighbors. A single data node has both threads pointing to the header, not to itself. Inorder begins at leftMost(root.left), follows successors, and ends at current == root without visiting the header. Removal can change root.left but never replaces or releases the header; C++ releases the removed node after repairing its neighboring links.',

@@ -7,6 +7,11 @@ import { useLanguage } from '../i18n.jsx';
 import { getEnglishEducationalDescription } from '../data/educationalDescriptionsEnglish.js';
 
 const englishExampleCopy = {
+  'segment-tree': { title: 'Combine a range sum', explanation: 'Use long for sums, skip disjoint segments and use fully covered nodes. node.sum is also long.' },
+  'fenwick-tree': { title: 'Query a prefix sum', explanation: 'bit and sum use long to avoid int overflow. i & -i moves the internal, one-based index backward.' },
+  'lru-cache': { title: 'Move an entry to the back', explanation: 'tail is the most recent end; head holds the entry evicted first.' },
+  'bloom-filter': { title: 'Set and inspect the same bits', explanation: 'Insertion and lookup use the same three seeds: 3, 7 and 11.' },
+  'counting-sort': { title: 'Rebuild from frequencies', explanation: 'Compute the range in long before allocating. This demonstration allows at most 4096 counting positions.' },
   'arbol-enhebrado': { title: 'Recognizing the header', explanation: 'root is the header, separate from data nodes. After visiting the largest node, its right thread returns current to root; traversal ends without printing the header.' },
   deque: {
     title: 'Insert at both ends',

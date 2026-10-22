@@ -2,17 +2,17 @@ const indent = source => source.split('\n').map(line => (line ? `    ${line}` : 
 
 const operations = {
   'glist-build': `Node* build(const std::string& text) {
-    releaseHeader(root);
-    root = nullptr;
     source = text;
     position = 0;
     valid = true;
-    root = parseList();
+    Node* candidate = parseList();
     skipSpaces();
     if (!valid || position != static_cast<int>(source.length())) {
-        releaseHeader(root);
-        root = nullptr;
+        releaseHeader(candidate);
+        return nullptr; // root still owns the previous valid list.
     }
+    releaseHeader(root);
+    root = candidate;
     return root;
 }`,
   'glist-head': `Node* head() const {

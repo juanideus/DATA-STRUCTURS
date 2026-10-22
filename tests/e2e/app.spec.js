@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { algorithms } from '../../src/data/algorithms.js';
 import { englishAlgorithmDescriptions } from '../../src/data/algorithmTranslations.js';
+import { foundationLessonsEnglishById } from '../../src/data/foundationLessonsEnglish.js';
 import { getOperationDefinition } from '../../src/logic/operations.js';
 import { createSectionTest } from '../../src/logic/sectionTests.js';
 
@@ -138,13 +139,25 @@ test('detecta inglés y traduce la guía completa cuando no existe una preferenc
 
 test('traduce todas las páginas de fundamentos al inglés', async ({ page }) => {
   const foundations = algorithms.filter(algorithm => algorithm.category === 'Fundamentos');
+  const coreSelectors = {
+    theory: '[data-data-structures-lesson]',
+    complexity: '[data-complexity-lesson]',
+    oop: '[data-oop-lesson]',
+  };
   for (const algorithm of foundations) {
     await page.goto(`/${algorithm.id}?lang=en`);
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-    await expect(page.locator('[data-foundation-lesson]')).toBeVisible();
-    await expect(page.locator('[data-foundation-lesson]')).toContainText('CENTRAL IDEA');
-    await expect(page.locator('[data-foundation-lesson]')).toContainText('IDEA TO REMEMBER');
-    await expect(page.locator('[data-foundation-lesson]')).not.toContainText('IDEA CENTRAL');
+    const lesson = page.locator(coreSelectors[algorithm.type] ?? `[data-foundation-lesson="${algorithm.id}"]`);
+    await expect(lesson).toBeVisible();
+    await expect(lesson.locator('.lesson-kicker').first()).toHaveText(/01 · (?:CENTRAL|CORE) IDEA/);
+    await expect(lesson).toContainText('IDEA TO REMEMBER');
+    await expect(lesson).not.toContainText('IDEA CENTRAL');
+    const translatedLesson = foundationLessonsEnglishById[algorithm.id];
+    if (translatedLesson) {
+      await expect(lesson.locator('.foundation-section-grid > article')).toHaveCount(translatedLesson.sections.length);
+    } else {
+      expect(await lesson.locator('article').count()).toBeGreaterThanOrEqual(10);
+    }
   }
 });
 
@@ -873,7 +886,7 @@ test('los otros ocho ordenamientos usan su lógica y animación propias', async 
     { id: 'insertion-sort', method: 'void insertionSort()', phase: 'Insertion Sort terminado', expected: [4, 6, 11, 18, 19, 23, 27] },
     { id: 'shell-sort', method: 'void shellSort()', phase: 'Shell Sort terminado', expected: [5, 8, 11, 17, 19, 26, 33, 42] },
     { id: 'heap-sort', method: 'void heapSort()', phase: 'Heap Sort terminado', expected: [4, 9, 12, 17, 21, 28, 31, 35] },
-    { id: 'counting-sort', method: 'void countingSort()', phase: 'Counting Sort terminado', expected: [-2, -2, 1, 1, 4, 4, 5, 7] },
+    { id: 'counting-sort', method: 'boolean countingSort()', phase: 'Counting Sort terminado', expected: [-2, -2, 1, 1, 4, 4, 5, 7] },
     { id: 'radix-sort', method: 'void radixSort()', phase: 'Radix Sort terminado', expected: [-90, 2, 24, 45, 66, 75, 170, 802] },
     { id: 'bogo-sort', method: 'void bogoSort()', phase: 'Bogo Sort terminado', expected: [1, 2, 3, 4] },
   ];
@@ -1323,7 +1336,7 @@ test('Counting y Radix C++ conservan los negativos mediante desplazamiento', asy
   test.skip(testInfo.project.name === 'mobile-chromium', 'La ejecución nativa también está cubierta por la auditoría C++.');
   const samples = [
     { id: 'counting-sort', required: ['int minimum = values[0]', 'values[i] - minimum', 'offset + minimum'] },
-    { id: 'radix-sort', required: ['minimum < 0', 'countingByDigit(exponent, offsetValue)', 'static_cast<long long>(values[i]) + offset'] },
+    { id: 'radix-sort', required: ['long long offset = minimum', 'countingByDigit(exp, offset)', 'static_cast<long long>(values[i]) - offset'] },
   ];
 
   for (const sample of samples) {
@@ -1346,7 +1359,7 @@ test('Radix C++ ilumina el ciclo de dígitos que realmente ejecuta', async ({ pa
   for (let step = 0; step < 20; step++) {
     const message = await page.locator('.operation-message p').textContent();
     if (message?.includes('exp = 1')) {
-      await expect(page.locator('.code-panel code.active')).toContainText('for (long long exponent = 1;');
+      await expect(page.locator('.code-panel code.active')).toContainText('for (long long exp = 1;');
       sawExponent = true;
       break;
     }
@@ -1949,7 +1962,9 @@ test('el árbol de expresión muestra división entera coherente con Java y C++'
   await expect(page.locator('.operation-message')).toContainText('Resultado del árbol de expresión: 3.', { timeout: 20_000 });
   await expect(page.locator('.code-panel pre')).toContainText('return left / right;');
   await page.getByRole('button', { name: 'C++', exact: true }).click();
-  await expect(page.locator('.code-panel pre')).toContainText('return left / right;');
+  await expect(page.locator('.code-panel pre')).toContainText('result = static_cast<long long>(left) / right;');
+  await expect(page.locator('.code-panel pre')).toContainText('if (result < INT_MIN || result > INT_MAX) throw std::overflow_error');
+  await expect(page.locator('.code-panel pre')).toContainText('return static_cast<int>(result);');
   await expect(page.locator('.code-panel pre')).toContainText('if (right == 0) throw std::domain_error');
 });
 

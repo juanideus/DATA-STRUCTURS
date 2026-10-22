@@ -39,6 +39,9 @@ function queensCpp(actionId) {
     ? queensSolve
     : actionId === 'reset'
       ? `void reset() {
+    delete[] queens;
+    size = 4;
+    queens = new int[size];
     resetValues();
 }`
       : null;

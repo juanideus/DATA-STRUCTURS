@@ -51,6 +51,12 @@ jobs:
       - name: Instalar dependencias de la API de reportes
         run: npm ci --prefix report
 
+      - name: Probar regresiones de coherencia
+        env:
+          DSA_TREE_JAVA: java
+          DSA_TREE_CXX: g++
+        run: node --test tests/regressions/*.test.mjs
+
       - name: Auditar catálogo
         run: npm run audit
 

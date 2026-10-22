@@ -179,7 +179,7 @@ const segmentOperations = {
     minimumTree[node] = minimumTree[node * 2] < minimumTree[node * 2 + 1]
         ? minimumTree[node * 2] : minimumTree[node * 2 + 1];
 }`,
-  'prefix-sum': `int prefixSum(int node, int left, int right, int end) const {
+  'prefix-sum': `long long prefixSum(int node, int left, int right, int end) const {
     if (right <= end) return tree[node];
     if (left > end) return 0;
     int middle = (left + right) / 2;
@@ -222,20 +222,22 @@ const segmentBuild = `void build(int node, int left, int right) {
 function segmentCpp(actionId) {
   const operation = segmentOperations[actionId];
   if (!operation) return null;
-  return `class SegmentTree {
+  return `#include <climits>
+
+class SegmentTree {
 public:
     static const int CAPACITY = 100;
-    static const int INF = 1000000000;
+    static const int INF = INT_MAX;
     int* values;
     int* initialValues;
-    int* tree;
+    long long* tree;
     int* minimumTree;
     int size = 0;
     int initialSize = 0;
 
     SegmentTree()
         : values(new int[CAPACITY]{}), initialValues(new int[CAPACITY]{}),
-          tree(new int[CAPACITY * 4]{}), minimumTree(new int[CAPACITY * 4]{}) {}
+          tree(new long long[CAPACITY * 4]{}), minimumTree(new int[CAPACITY * 4]{}) {}
     ~SegmentTree() {
         delete[] values;
         delete[] initialValues;
@@ -257,17 +259,21 @@ ${indent(segmentBuild)}` : ''}
 const fenwickOperations = {
   'range-update': `void add(int index, int delta) {
     if (index < 0 || index >= size) throw std::out_of_range("Index out of range");
-    values[index] += delta;
+    long long updated = static_cast<long long>(values[index]) + delta;
+    if (updated < INT_MIN || updated > INT_MAX) {
+        throw std::overflow_error("Value outside the 32-bit integer range");
+    }
+    values[index] = static_cast<int>(updated);
     index++;
     while (index <= size) {
         bit[index] += delta;
         index += index & -index;
     }
 }`,
-  'prefix-sum': `int prefixSum(int index) const {
+  'prefix-sum': `long long prefixSum(int index) const {
     if (index < 0 || index >= size) throw std::out_of_range("Index out of range");
     index++;
-    int sum = 0;
+    long long sum = 0;
     while (index > 0) {
         sum += bit[index];
         index -= index & -index;
@@ -299,20 +305,21 @@ const fenwickOperations = {
 function fenwickCpp(actionId) {
   const operation = fenwickOperations[actionId];
   if (!operation) return null;
-  return `#include <stdexcept>
+  return `#include <climits>
+#include <stdexcept>
 
 class FenwickTree {
 public:
     static const int CAPACITY = 100;
     int* values;
     int* initialValues;
-    int* bit;
+    long long* bit;
     int size = 0;
     int initialSize = 0;
 
     FenwickTree()
         : values(new int[CAPACITY]{}), initialValues(new int[CAPACITY]{}),
-          bit(new int[CAPACITY + 1]{}) {}
+          bit(new long long[CAPACITY + 1]{}) {}
     ~FenwickTree() {
         delete[] values;
         delete[] initialValues;

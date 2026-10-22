@@ -2,8 +2,6 @@ const indent = source => source.split('\n').map(line => (line ? `    ${line}` : 
 
 const expressionOperations = {
   'set-expression': `Node* buildExpressionTree(const std::string& expression) {
-    destroy(root);
-    root = nullptr;
     std::string normalized = expression;
     std::size_t position = 0;
     while ((position = normalized.find("×", position)) != std::string::npos) {
@@ -19,22 +17,40 @@ const expressionOperations = {
     char* operators = new char[CAPACITY]{};
     int nodeTop = 0;
     int operatorTop = 0;
+    bool expectingOperand = true;
 
     for (int i = 0; i < static_cast<int>(normalized.length()); i++) {
         char token = normalized[i];
-        if (token == ' ') continue;
+        if (std::isspace(static_cast<unsigned char>(token))) continue;
         if (token >= '0' && token <= '9') {
-            int number = 0;
+            if (!expectingOperand || nodeTop == CAPACITY) {
+                releaseStacks(nodes, nodeTop, operators);
+                return nullptr;
+            }
+            long long number = 0;
             while (i < static_cast<int>(normalized.length())
                     && normalized[i] >= '0' && normalized[i] <= '9') {
                 number = number * 10 + normalized[i] - '0';
+                if (number > INT_MAX) {
+                    releaseStacks(nodes, nodeTop, operators);
+                    return nullptr;
+                }
                 i++;
             }
             i--;
-            nodes[nodeTop++] = new Node(number);
+            nodes[nodeTop++] = new Node(static_cast<int>(number));
+            expectingOperand = false;
         } else if (token == '(') {
+            if (!expectingOperand || operatorTop == CAPACITY) {
+                releaseStacks(nodes, nodeTop, operators);
+                return nullptr;
+            }
             operators[operatorTop++] = token;
         } else if (token == ')') {
+            if (expectingOperand) {
+                releaseStacks(nodes, nodeTop, operators);
+                return nullptr;
+            }
             while (operatorTop > 0 && operators[operatorTop - 1] != '(') {
                 if (!applyTop(nodes, nodeTop, operators, operatorTop)) {
                     releaseStacks(nodes, nodeTop, operators);
@@ -46,7 +62,12 @@ const expressionOperations = {
                 return nullptr;
             }
             operatorTop--;
-        } else {
+            expectingOperand = false;
+        } else if (token == '+' || token == '-' || token == '*' || token == '/') {
+            if (expectingOperand || operatorTop == CAPACITY) {
+                releaseStacks(nodes, nodeTop, operators);
+                return nullptr;
+            }
             while (operatorTop > 0 && operators[operatorTop - 1] != '('
                     && precedence(operators[operatorTop - 1]) >= precedence(token)) {
                 if (!applyTop(nodes, nodeTop, operators, operatorTop)) {
@@ -55,10 +76,18 @@ const expressionOperations = {
                 }
             }
             operators[operatorTop++] = token;
+            expectingOperand = true;
+        } else {
+            releaseStacks(nodes, nodeTop, operators);
+            return nullptr;
         }
     }
+    if (expectingOperand) {
+        releaseStacks(nodes, nodeTop, operators);
+        return nullptr;
+    }
     while (operatorTop > 0) {
-        if (!applyTop(nodes, nodeTop, operators, operatorTop)) {
+        if (operators[operatorTop - 1] == '(' || !applyTop(nodes, nodeTop, operators, operatorTop)) {
             releaseStacks(nodes, nodeTop, operators);
             return nullptr;
         }
@@ -67,25 +96,32 @@ const expressionOperations = {
         releaseStacks(nodes, nodeTop, operators);
         return nullptr;
     }
-    root = nodes[0];
+    Node* candidate = nodes[0];
     delete[] nodes;
     delete[] operators;
+    destroy(root);
+    root = candidate;
     return root;
 }`,
   evaluate: `int evaluate(const Node* node) const {
-    if (node == nullptr) return 0;
+    if (node == nullptr) throw std::invalid_argument("Incomplete expression tree");
     if (node->isNumber) return node->number;
     int left = evaluate(node->left);
     int right = evaluate(node->right);
-    if (node->operation == '+') return left + right;
-    if (node->operation == '-') return left - right;
-    if (node->operation == '*') return left * right;
-    if (right == 0) throw std::domain_error("Division by zero");
-    return left / right;
+    long long result;
+    if (node->operation == '+') result = static_cast<long long>(left) + right;
+    else if (node->operation == '-') result = static_cast<long long>(left) - right;
+    else if (node->operation == '*') result = static_cast<long long>(left) * right;
+    else if (node->operation == '/') {
+        if (right == 0) throw std::domain_error("Division by zero");
+        result = static_cast<long long>(left) / right; // Truncates toward zero.
+    } else throw std::invalid_argument("Unknown operator");
+    if (result < INT_MIN || result > INT_MAX) throw std::overflow_error("32-bit integer overflow");
+    return static_cast<int>(result);
 }`,
   preorder: `void preorder(const Node* node) {
     if (node == nullptr) return;
-    lastVisited = node->isNumber ? node->number : node->operation;
+    lastVisited = node->isNumber ? std::to_string(node->number) : std::string(1, node->operation);
     preorder(node->left);
     preorder(node->right);
 }`,
@@ -93,7 +129,7 @@ const expressionOperations = {
     if (node == nullptr) return;
     postorder(node->left);
     postorder(node->right);
-    lastVisited = node->isNumber ? node->number : node->operation;
+    lastVisited = node->isNumber ? std::to_string(node->number) : std::string(1, node->operation);
 }`,
 };
 
@@ -120,7 +156,12 @@ void releaseStacks(Node** nodes, int nodeTop, char* operators) {
 function expressionCpp(actionId) {
   const operation = expressionOperations[actionId];
   if (!operation) return null;
-  return `${actionId === 'evaluate' ? '#include <stdexcept>\n\n' : ''}class ExpressionTree {
+  return `#include <cctype>
+#include <climits>
+#include <stdexcept>
+#include <string>
+
+class ExpressionTree {
 public:
     static const int CAPACITY = 128;
     struct Node {
@@ -135,7 +176,7 @@ public:
             : isNumber(false), number(0), operation(operation), left(left), right(right) {}
     };
     Node* root = nullptr;
-    int lastVisited = 0;
+    std::string lastVisited;
 
     ~ExpressionTree() { destroy(root); }
 

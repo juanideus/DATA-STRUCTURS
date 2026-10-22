@@ -122,11 +122,12 @@ const operations = {
   'glist-build': `Node build(String text) {
         source = text;
         position = 0;
-        root = parseList();
+        Node candidate = parseList();
         skipSpaces();
         if (position != source.length()) {
             throw new IllegalArgumentException("Contenido inesperado");
         }
+        root = candidate;
         return root;
     }`,
   'glist-head': `Node head() {

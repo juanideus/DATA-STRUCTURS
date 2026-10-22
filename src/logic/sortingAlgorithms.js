@@ -86,9 +86,9 @@ function createTrace(values, edges, algorithmId) {
       ...context, position: second, sortSwapPositions: [first, second], variables: { ...context.variables, first, second, temp },
     });
   };
-  const finish = message => {
+  const finish = (message, codeNeedle = 'return;') => {
     for (let i = 0; i < working.length; i++) fixed.add(i);
-    add('return;', message, `${algorithmId}-complete`, { completed: true, delayMs: 500 });
+    add(codeNeedle, message, `${algorithmId}-complete`, { completed: true, delayMs: 500 });
     return { ok: true, values: working, edges: stableEdges, message, step: 0, frames };
   };
   return { working, frames, fixed, add, swap, finish };
@@ -285,18 +285,22 @@ function heapSort(values, edges) {
 function countingSort(values, edges) {
   const trace = createTrace(values, edges, 'counting');
   const { working, add } = trace;
-  add('void countingSort() {', 'Counting Sort contará las frecuencias antes de reconstruir el arreglo.', 'counting-start');
-  add('if (size < 2) return;', working.length < 2 ? 'Hay menos de dos valores: el arreglo ya está ordenado.' : 'Hay al menos dos valores: comienza el conteo.', 'counting-size-check', { variables: { condición: working.length < 2 } });
-  if (working.length < 2) return trace.finish('Counting Sort terminó: no era necesario mover valores.');
+  add('boolean countingSort() {', 'Counting Sort contará las frecuencias antes de reconstruir el arreglo.', 'counting-start');
+  add('if (size < 2) return true;', working.length < 2 ? 'Hay menos de dos valores: el arreglo ya está ordenado.' : 'Hay al menos dos valores: comienza el conteo.', 'counting-size-check', { variables: { condición: working.length < 2 } });
+  if (working.length < 2) return trace.finish('Counting Sort terminó: no era necesario mover valores.', 'if (size < 2) return true;');
   const { minimum: min, maximum: max } = numericBounds(working);
   const range = max - min + 1;
-  if (!Number.isSafeInteger(range) || range > 4096) {
-    return { ok: false, message: 'Counting Sort necesita un rango entre mínimo y máximo de hasta 4096 posiciones para mantener segura esta demostración.' };
-  }
-  const count = new Array(range).fill(0);
   add('int min = findMinimum();', `El mínimo es ${min}. Se usará como desplazamiento.`, 'counting-min', { variables: { min, max } });
   add('int max = findMaximum();', `El máximo es ${max}; el rango contiene ${range} valores posibles.`, 'counting-max', { variables: { min, max, range } });
-  add('int[] count = new int[max - min + 1];', `Se crean ${range} contadores, uno para cada valor entre ${min} y ${max}.`, 'counting-array', { sortAuxValues: count, sortAuxLabel: 'count', variables: { min, max, range } });
+  add('long rangeValue = (long) max - min + 1;', `El rango se calcula sin desbordar un entero de 32 bits: ${range}.`, 'counting-range', { variables: { min, max, rangeValue: range } });
+  const invalidRange = !Number.isSafeInteger(range) || range <= 0 || range > 4096;
+  add('if (rangeValue <= 0 || rangeValue > 4096) return false;', invalidRange ? 'El rango excede las 4096 posiciones permitidas; se devuelve false sin modificar los datos.' : 'El rango está dentro de las 4096 posiciones permitidas.', 'counting-range-check', { variables: { rangeValue: range, condición: invalidRange } });
+  if (invalidRange) {
+    trace.frames.at(-1).completed = true;
+    return { ok: false, values: [...values], edges: edges.map(edge => [...edge]), message: 'Counting Sort necesita un rango entre mínimo y máximo de hasta 4096 posiciones para mantener segura esta demostración.', step: 0, frames: trace.frames };
+  }
+  const count = new Array(range).fill(0);
+  add('int[] count = new int[(int) rangeValue];', `Se crean ${range} contadores, uno para cada valor entre ${min} y ${max}.`, 'counting-array', { sortAuxValues: count, sortAuxLabel: 'count', variables: { min, max, range } });
   for (let i = 0; i < working.length; i++) {
     const index = numeric(working[i]) - min;
     add('for (int i = 0; i < size; i++) {', `i vale ${i}; se contará ${working[i]}.`, 'counting-count-loop', { position: i, sortComparePositions: [i], sortAuxValues: count, sortAuxLabel: 'count', variables: { i, index, value: working[i] } });
@@ -318,7 +322,7 @@ function countingSort(values, edges) {
     }
     add('while (count[index] > 0) {', `count[${index}] es 0: se avanza al siguiente valor.`, 'counting-frequency-check', { position: Math.min(write, Math.max(0, working.length - 1)), sortAuxValues: count, sortAuxLabel: 'count', variables: { index, position: write, count: 0, condición: false } });
   }
-  return trace.finish('Counting Sort terminó: los conteos reconstruyeron el arreglo de menor a mayor.');
+  return trace.finish('Counting Sort terminó: los conteos reconstruyeron el arreglo de menor a mayor.', 'return true;');
 }
 
 function radixSort(values, edges) {

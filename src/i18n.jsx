@@ -2,6 +2,7 @@ import { createContext, useContext, useMemo, useState } from 'react';
 import { englishAlgorithmDescriptions, englishAlgorithmNames } from './data/algorithmTranslations.js';
 import { translateComplexity } from './data/complexityTranslations.js';
 import { languageFromPath } from './seo.js';
+import { translateCoherenceMessage } from './data/coherenceMessagesEnglish.js';
 
 const LanguageContext = createContext(null);
 const LANGUAGE_KEY = 'dsa-language';
@@ -64,7 +65,7 @@ const operationLabels = {
   Insertar:'Insert',Eliminar:'Delete','Insertar nodo':'Insert node','Eliminar nodo':'Delete node',Preorden:'Preorder',Inorden:'Inorder',Postorden:'Postorder',
   'Inorden sin pila':'Inorder without stack','Insertar punto':'Insert point',Recorrer:'Traverse','Extraer raíz':'Extract root','Ver raíz':'View root',
   'Insertar palabra':'Insert word','Buscar palabra':'Search word','Eliminar palabra':'Delete word','Actualizar índice':'Update index','Suma prefijo':'Prefix sum',
-  'Mínimo prefijo':'Prefix minimum',Restablecer:'Reset','Insertar clave':'Insert key','Eliminar clave':'Delete key','Recorrer hojas':'Traverse leaves',
+  'Mínimo prefijo':'Prefix minimum',Restablecer:'Reset','Insertar clave':'Insert key','Eliminar clave':'Delete key','Recorrer hojas':'Traverse leaves','Recorrer claves':'Traverse keys',
   'Agregar bloque':'Add block','Quitar bloque':'Remove block','Calcular raíz':'Calculate root',Construir:'Build',Evaluar:'Evaluate',Prefija:'Prefix',Postfija:'Postfix',
   'Construir AST':'Build AST','Recorrer preorden':'Preorder traversal',Guardar:'Save','Buscar clave':'Search key','Agregar vértice':'Add vertex',
   'Eliminar vértice':'Remove vertex','Agregar arista':'Add edge','Eliminar arista':'Remove edge','Recorrer BFS':'Run BFS','Recorrer DFS':'Run DFS',
@@ -271,6 +272,8 @@ const linearTracePatterns = [
 /** Translates runtime teaching text (operation traces, questions and diagram captions). */
 export function translateLearningText(value, language) {
   if (language !== 'en' || typeof value !== 'string') return value;
+  const coherenceMessage = translateCoherenceMessage(value);
+  if (coherenceMessage !== null) return coherenceMessage;
   for (const [pattern, format] of linearTracePatterns) {
     const match = value.match(pattern);
     if (match) return format(match);
@@ -431,9 +434,9 @@ const codeReplacements = [
   ['nuevo', 'new'], ['nueva', 'new'], ['crear', 'create'], ['marcar', 'mark'], ['desmarcar', 'unmark'], ['intercambiar', 'swap'],
 ];
 
-/** Produces an English teaching-code view without changing line count or execution mapping. */
-export function translateCodeText(value, language) {
-  if (language !== 'en' || typeof value !== 'string') return value;
+/** Translate pseudocode only; executable source remains byte-for-byte intact. */
+export function translateCodeText(value, language, codeMode = 'java') {
+  if (codeMode !== 'pseudo' || language !== 'en' || typeof value !== 'string') return value;
   return codeReplacements.reduce((text, [from, to]) => {
     const capitalized = `${from.charAt(0).toUpperCase()}${from.slice(1)}`;
     const translatedCapitalized = `${to.charAt(0).toUpperCase()}${to.slice(1)}`;

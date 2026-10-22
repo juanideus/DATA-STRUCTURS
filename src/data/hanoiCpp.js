@@ -14,7 +14,7 @@ const operations = {
     hanoi(diskCount, source, sourceSize, target, targetSize, auxiliary, auxiliarySize);
 }`,
   reset: `void reset() {
-    setDisks(diskCount);
+    setDisks(5);
 }`,
 };
 
