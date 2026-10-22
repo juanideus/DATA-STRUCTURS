@@ -1,3 +1,5 @@
+import { getRedBlackPseudocode } from './redBlackPseudocode.js';
+
 const lines = (...items) => items.join('\n');
 
 const templates = {
@@ -348,6 +350,10 @@ function implementationPseudocode(algorithm, actionId, language) {
 }
 
 export function getOperationPseudocode(algorithm, actionId, language = 'es') {
+  if (algorithm.id === 'rojo-negro') {
+    const source = getRedBlackPseudocode(actionId, language);
+    if (source) return source;
+  }
   const implementation = implementationPseudocode(algorithm, actionId, language);
   if (implementation) return implementation;
   if (algorithm.id === 'arbol-enhebrado') {

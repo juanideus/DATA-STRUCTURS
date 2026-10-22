@@ -1,6 +1,8 @@
 import { copyVisualValues } from './visualValues.js';
 import { createOpenAddressingTable, javaStringHash } from './openAddressing.js';
 import { initialNaryParents, naryChildren } from './naryTree.js';
+import { createRedBlackCodeMapper } from './redBlackCodeMapping.js';
+import { getRedBlackPseudocodeLine } from '../data/redBlackPseudocode.js';
 export { copyVisualValues } from './visualValues.js';
 
 export function executableCodeLines(code) {
@@ -1969,7 +1971,18 @@ export function adaptFramesToCode(frames, code, keepOriginalLines) {
   // once for this operation instead of rescanning the source on every frame.
   const needleLineCache = new Map();
   const phaseLineCache = new Map();
+  const redBlackCodeLine = keepOriginalLines && frames.some(frame => frame.redBlackEvent)
+    ? createRedBlackCodeMapper(code)
+    : null;
   return frames.map((frame, index) => {
+    if (frame.redBlackEvent) {
+      const event = frame.redBlackEvent;
+      const actionId = { insert: 'tree-add', remove: 'remove-value', find: 'find' }[event.action] ?? event.action;
+      const codeLine = keepOriginalLines
+        ? redBlackCodeLine(event)
+        : getRedBlackPseudocodeLine(actionId, code.includes('función ') ? 'es' : 'en', event);
+      return { ...frame, codeLine, codeUnmapped: codeLine === null };
+    }
     if (frame.traceMode === 'summary') return { ...frame, codeLine: null };
     if (keepOriginalLines) {
       if (frame.codeNeedle && frame.codeOccurrence !== undefined) {
