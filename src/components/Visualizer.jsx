@@ -734,9 +734,38 @@ function treeHeight(values, index) {
   return 1 + Math.max(treeHeight(values,index*2+1),treeHeight(values,index*2+2));
 }
 
-function BinaryTreeDiagram({ algorithm, step, displayValues = algorithm.values.slice(0,15), badges = null, kindLabel = null }) {
-  const values = displayValues;
+function BinaryTreeDiagram({ algorithm, step, displayValues = null, badges = null, kindLabel = null }) {
+  const redBlack = algorithm.id === 'rojo-negro';
+  const values = displayValues ?? (redBlack ? algorithm.values : algorithm.values.slice(0,15));
   const frame = algorithm.animationFrame;
+  const nodeWidth = Math.max(43, ...values.filter(value => value !== undefined).map(value => String(value).length * 7.5 + 18));
+  const extendedRedBlack = redBlack && (frame?.redBlackLayout?.extended || values.length > 15 || nodeWidth > 63);
+  let positions = BINARY_POSITIONS;
+  let diagramStyle;
+  if (extendedRedBlack) {
+    const levels = frame?.redBlackLayout?.levels ?? Math.max(1, Math.ceil(Math.log2(values.length + 1)));
+    const orderedIndices = [];
+    const inorder = index => {
+      if (index >= values.length || values[index] === undefined) return;
+      inorder(index * 2 + 1);
+      orderedIndices.push(index);
+      inorder(index * 2 + 2);
+    };
+    inorder(0);
+    positions = [];
+    orderedIndices.forEach((index, rank) => {
+      positions[index] = [
+        orderedIndices.length <= 1 ? 50 : 7 + rank * 86 / (orderedIndices.length - 1),
+        levels <= 1 ? 35 : 12 + Math.floor(Math.log2(index + 1)) * 73 / (levels - 1),
+      ];
+    });
+    diagramStyle = {
+      width: Math.max(400, (frame?.redBlackLayout?.maxNodes ?? orderedIndices.length) * ((frame?.redBlackLayout?.nodeWidth ?? nodeWidth) + 24)),
+      height: Math.max(300, levels * 85),
+      '--red-black-node-width': `${frame?.redBlackLayout?.nodeWidth ?? nodeWidth}px`,
+    };
+  }
+  const treeEdges = positions.slice(1).map((_, index) => [Math.floor(index / 2), index + 1]);
   const orderedTree = ['bst','avl','rojo-negro','splay-tree'].includes(algorithm.id);
   const heapCandidates = new Set(frame?.heapCandidatePositions ?? []);
   const movingHeapNode = algorithm.id === 'heap'
@@ -745,11 +774,11 @@ function BinaryTreeDiagram({ algorithm, step, displayValues = algorithm.values.s
     && Number.isInteger(frame.heapTargetPosition)
     && BINARY_POSITIONS[frame.heapSourcePosition]
     && BINARY_POSITIONS[frame.heapTargetPosition];
-  return <div className={`tree-canvas tree-${algorithm.id}`}>
+  const diagram = <div className={`tree-canvas tree-${algorithm.id}`} style={diagramStyle}>
     {kindLabel && <span className="tree-kind-label">{kindLabel}</span>}
     <svg className="edge-layer" aria-hidden="true">
-      {BINARY_EDGES.filter(([from,to])=>to<values.length && values[from] !== undefined && values[to] !== undefined).map(([from,to]) =>
-        <TreeEdge key={`${from}-${to}`} from={BINARY_POSITIONS[from]} to={BINARY_POSITIONS[to]} label={orderedTree ? to===from*2+1?'L':'R' : null}/>
+      {treeEdges.filter(([from,to])=>to<values.length && values[from] !== undefined && values[to] !== undefined).map(([from,to]) =>
+        <TreeEdge key={`${from}-${to}`} from={positions[from]} to={positions[to]} label={orderedTree ? to===from*2+1?'L':'R' : null}/>
       )}
     </svg>
     {movingHeapNode && <div
@@ -765,7 +794,7 @@ function BinaryTreeDiagram({ algorithm, step, displayValues = algorithm.values.s
       {values[frame.heapSourcePosition]}
       <small>ÚLTIMO</small>
     </div>}
-    {BINARY_POSITIONS.map(([x,y],index) => {
+    {positions.map(([x,y],index) => {
       if (values[index] === undefined) return null;
       const redBlackClass = algorithm.id === 'rojo-negro'
         ? algorithm.treeColors?.[index] === 'red' ? 'red-node' : 'black-node'
@@ -783,7 +812,7 @@ function BinaryTreeDiagram({ algorithm, step, displayValues = algorithm.values.s
             : /^\d+$/.test(String(values[index]))
               ? 'ast-literal-node'
               : 'ast-identifier-node';
-      return <div key={index} data-tree-index={index} data-node-color={redBlackClass || undefined} className={`tree-node ${index>=7?'deep-node':''} ${index===step%values.length?'active':''} ${redBlackClass} ${heapSource?'heap-source':''} ${heapTarget?'heap-target':''} ${heapParent?'heap-parent':''} ${heapCandidate?'heap-candidate':''} ${algorithm.id==='expression-tree'&&['+','-','−','*','×','/'].includes(String(values[index]))?'operator-node':''} ${astNodeClass}`} style={{left:`${x}%`,top:`${y}%`}}>
+      return <div key={redBlack ? String(values[index]) : index} data-tree-index={index} data-node-color={redBlackClass || undefined} className={`tree-node ${index>=7?'deep-node':''} ${index===step%values.length?'active':''} ${redBlackClass} ${heapSource?'heap-source':''} ${heapTarget?'heap-target':''} ${heapParent?'heap-parent':''} ${heapCandidate?'heap-candidate':''} ${algorithm.id==='expression-tree'&&['+','-','−','*','×','/'].includes(String(values[index]))?'operator-node':''} ${astNodeClass}`} style={{left:`${x}%`,top:`${y}%`}}>
       <span className="tree-value">{algorithm.id === 'expression-tree' && values[index] === '*' ? '×'
         : algorithm.id === 'expression-tree' && values[index] === '-' ? '−' : values[index]}</span>
       {badges?.[index] && <small className="tree-node-badge">{badges[index]}</small>}
@@ -791,6 +820,7 @@ function BinaryTreeDiagram({ algorithm, step, displayValues = algorithm.values.s
       </div>;
     })}
   </div>;
+  return extendedRedBlack ? <div className="red-black-viewport">{diagram}</div> : diagram;
 }
 
 function ThreadedTreeDiagram({ algorithm, step }) {

@@ -112,6 +112,11 @@
 .tree-rojo-negro .tree-node.red-node{background:#c84a39;border-color:#8f2f23;color:#fff}
 .tree-rojo-negro .tree-node.black-node{background:#25302d;border-color:#111815;color:#fff}
 .tree-rojo-negro .tree-node.active{box-shadow:0 0 0 6px rgba(239,90,54,.2),0 9px 20px rgba(34,40,38,.28)}
+.tree-rojo-negro .tree-node{transition:background-color .2s,border-color .2s,box-shadow .2s}
+.tree-rojo-negro .tree-node.active{transform:translate(-50%,-50%)}
+.red-black-viewport{position:relative;z-index:1;width:calc(100% - 28px);overflow:auto;padding:28px 16px 34px}
+.red-black-viewport .tree-rojo-negro{max-width:none;flex:none}
+.red-black-viewport .tree-node{width:var(--red-black-node-width,43px);height:43px;font-size:12px}
 .tree-expression-tree .operator-node{border-radius:10px;background:var(--green);border-color:var(--green);color:#fff}
 .tree-ast .tree-node{width:72px;height:42px;border-radius:9px;font-size:10px}
 .tree-ast .tree-node.deep-node{width:64px;height:36px;font-size:9px}

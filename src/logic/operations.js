@@ -34,6 +34,7 @@ import { createMultiwayTree } from './multiwayTree.js';
 import { initialNaryParents, naryChildren, naryTraversal, removeNarySubtree } from './naryTree.js';
 import { executeEducationalSort } from './sortingAlgorithms.js';
 import { createRedBlackTree } from './redBlackTree.js';
+import { createRedBlackAnimationFrames } from './redBlackAnimation.js';
 import { formatMerkleHash, merkleLevels } from './merkle.js';
 import { createSpatialPartitionTree } from './spatialPartitionTree.js';
 import { createOpenAddressingTable } from './openAddressing.js';
@@ -4861,6 +4862,25 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       ? 'Ingresa un valor válido antes de ejecutar la operación.'
       : 'Ingresa un entero entre -2147483648 y 2147483647.');
   }
+  if (algorithm.id === 'rojo-negro' && ['tree-add', 'remove-value', 'find', 'preorder', 'inorder', 'postorder'].includes(actionId)) {
+    const traversal = ['preorder', 'inorder', 'postorder'].includes(actionId);
+    if (!traversal && value === null) return fail('Ingresa un entero entre -2147483648 y 2147483647.');
+    if (actionId === 'tree-add' && compactTreeValues(next).length >= 15) return fail('La demostración admite hasta 15 nodos visibles.');
+    const action = { 'tree-add': 'insert', 'remove-value': 'remove', find: 'find' }[actionId] ?? actionId;
+    const trace = createRedBlackTree(next, treeColors).trace(action, value);
+    if (trace.snapshot.hiddenNode) return fail('El resultado produciría una rama fuera del espacio visible.');
+    const frames = createRedBlackAnimationFrames(trace, edges);
+    const lastFrame = frames.at(-1);
+    return {
+      ok: trace.succeeded,
+      values: trace.snapshot.values,
+      treeColors: trace.snapshot.colors,
+      edges,
+      step: lastFrame.position,
+      message: lastFrame.message,
+      frames,
+    };
+  }
   if (group === 'deque' && ['add-start', 'add-end'].includes(actionId) && next.length >= 100) {
     return fail('El Deque admite hasta 100 elementos. Elimina uno antes de insertar otro.');
   }
@@ -5007,13 +5027,6 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
           if (removal.hiddenNode) return fail('La eliminación produciría una rama fuera del espacio visible.');
           return done(removal.values, `${value} fue eliminado usando su sucesor inorden cuando correspondía.`, Math.max(0, found));
         }
-        if (algorithm.id === 'rojo-negro') {
-          const model = createRedBlackTree(next, treeColors);
-          model.remove(value);
-          const removal = model.snapshot();
-          if (removal.hiddenNode) return fail('La eliminación produciría una rama fuera del espacio visible.');
-          return { ...done(removal.values, `${value} fue eliminado conservando las reglas rojo-negro.`, Math.max(0, found)), treeColors: removal.colors };
-        }
       }
       if (['arbol-general', 'arbol-nario'].includes(algorithm.id)) {
         if (found === 0) return fail('La raíz no tiene padre; usa Vaciar para quitar todo el árbol.');
@@ -5135,14 +5148,6 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
           const insertion = insertIntoSplay(next, value);
           if (insertion.hiddenNode) return fail('La inserción produciría una rama fuera del espacio visible.');
           return done(insertion.values, `Nodo ${value} insertado y llevado a la raíz mediante splay.`, 0);
-        }
-        if (algorithm.id === 'rojo-negro') {
-          const model = createRedBlackTree(next, treeColors);
-          model.insert(value);
-          const insertion = model.snapshot();
-          if (insertion.hiddenNode) return fail('La inserción produciría una rama fuera del espacio visible.');
-          const insertedAt = insertion.values.findIndex(item => Number(item) === Number(value));
-          return { ...done(insertion.values, `Nodo ${value} insertado mediante recoloreos y rotaciones rojo-negro.`, insertedAt), treeColors: insertion.colors };
         }
         const insertedValues = [...compactTreeValues(next), value];
         const rebuilt = buildBinarySearchTree(insertedValues);
