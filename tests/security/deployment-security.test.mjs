@@ -16,11 +16,15 @@ test('la CSP solo autoriza destinos concretos necesarios para reportes', () => {
 
 test('manifiestos y lockfiles mantienen el mismo contrato de Node LTS', () => {
   const version = read('.nvmrc').trim();
-  assert.match(version, /^22\.\d+\.\d+$/);
-  const root = JSON.parse(read('package.json')).engines.node;
+  assert.match(version, /^24\.\d+\.\d+$/);
+  const rootManifest = JSON.parse(read('package.json'));
+  const root = rootManifest.engines.node;
+  assert.equal(rootManifest.devEngines.runtime.version, version);
   assert.ok(root.includes(`^${version}`));
   assert.equal(JSON.parse(read('package-lock.json')).packages[''].engines.node, root);
-  assert.equal(JSON.parse(read('report/package.json')).engines.node, root);
+  const report = JSON.parse(read('report/package.json'));
+  assert.equal(report.engines.node, root);
+  assert.equal(report.devEngines.runtime.version, version);
   assert.equal(JSON.parse(read('report/package-lock.json')).packages[''].engines.node, root);
 });
 
@@ -31,6 +35,7 @@ test('CI fija acciones por SHA y no conserva las credenciales del checkout', () 
   for (const action of actions) assert.match(action[2], /^[a-f0-9]{40}$/);
   assert.match(workflow, /persist-credentials:\s*false/);
   assert.match(workflow, /node-version-file:\s*\.nvmrc/);
+  assert.match(workflow, /Verificar versión segura de Node\.js/);
   assert.match(workflow, /permissions:\s*\n\s+contents:\s*read/);
   assert.ok(!workflow.includes('pull_request_target'));
 });

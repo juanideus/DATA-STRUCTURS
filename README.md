@@ -276,7 +276,7 @@ El proyecto no necesita base de datos ni servidor de aplicación. Después de co
 
 ## Requisitos
 
-- **Node.js:** `^22.23.3` o `^24.22.0` (líneas LTS); la versión recomendada está en `.nvmrc`.
+- **Node.js:** `24.22.2` o una versión posterior de la línea 24; el runtime está fijado en `.nvmrc` y `devEngines`.
 - **npm:** incluido normalmente con Node.js.
 - Un navegador moderno con soporte para ES Modules.
 - Git, únicamente si deseas clonar y contribuir al repositorio.
@@ -504,7 +504,7 @@ Además, Playwright verifica los recorridos críticos en Chromium de escritorio 
 | Comando de instalación | `npm ci` |
 | Comando de compilación | `npm run build` |
 | Directorio de salida | `dist` |
-| Versión recomendada de Node | `22.23.3` LTS, registrada también en `.nvmrc` |
+| Versión recomendada de Node | `24.22.2` LTS, registrada también en `.nvmrc` |
 
 Las dependencias están fijadas a versiones exactas. Dependabot revisa actualizaciones semanalmente mediante pull requests y GitHub Actions ejecuta auditoría, build, revisión de vulnerabilidades y pruebas E2E antes de integrar cambios.
 

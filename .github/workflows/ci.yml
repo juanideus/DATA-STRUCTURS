@@ -39,6 +39,9 @@ jobs:
             package-lock.json
             report/package-lock.json
 
+      - name: Verificar versión segura de Node.js
+        run: node -e "const fs = require('node:fs'); const expected = fs.readFileSync('.nvmrc', 'utf8').trim(); if (process.versions.node !== expected) { console.error('Se esperaba Node.js ' + expected + ', pero se está usando ' + process.versions.node); process.exit(1); }"
+
       - name: Probar el detector de secretos
         run: node --test scripts/secret-scanner.test.mjs
 
