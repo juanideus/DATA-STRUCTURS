@@ -267,11 +267,18 @@ int findMaximum() {
     }
     return max;
 }`,
-  'bogo-sort': `void bogoSort() {
-    while (!isSorted()) {
-        shuffle();
+  'bogo-sort': `boolean bogoSort() {
+    if (size > 7) return false;
+    long[] state = {2166136261L};
+    for (int i = 0; i < size; i++) {
+        state[0] = (state[0] + (long) values[i] * (i + 3)) & 0xffffffffL;
     }
-    return;
+    int attempts = 0;
+    while (!isSorted() && attempts < 250000) {
+        shuffle(state);
+        attempts++;
+    }
+    return isSorted();
 }
 
 boolean isSorted() {
@@ -283,9 +290,10 @@ boolean isSorted() {
     return true;
 }
 
-void shuffle() {
+void shuffle(long[] state) {
     for (int i = size - 1; i > 0; i--) {
-        int other = (int) (Math.random() * (i + 1));
+        state[0] = (state[0] * 1664525L + 1013904223L) & 0xffffffffL;
+        int other = (int) ((state[0] * (i + 1)) >>> 32);
         int temp = values[i];
         values[i] = values[other];
         values[other] = temp;

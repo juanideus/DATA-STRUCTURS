@@ -1,4 +1,6 @@
 import { operationGroup } from '../logic/operationMetadata.js';
+import { seedLinearExample } from './linearExampleContext.js';
+import { seedCurrentExample } from './currentExampleContext.js';
 import { makeJavaStandalone } from './javaStandaloneContext.js';
 import { getAstJava } from './astJava.js';
 import { getDenseMatrixJava } from './denseMatrixJava.js';
@@ -458,11 +460,21 @@ const special = {
         }
     }
 }`,
-  'union-find:reset': `void resetSets(int amount) {
-    size = amount;
+  'union-find:reset': `void resetSets() {
+    int[] startingParents = {0, 0, 2, 2, 4, 4, 6, 6};
+    size = startingParents.length;
     for (int value = 0; value < size; value++) {
-        parent[value] = value;
+        parent[value] = startingParents[value];
         rank[value] = 0;
+    }
+    for (int value = 0; value < size; value++) {
+        int current = value;
+        int depth = 0;
+        while (parent[current] != current) {
+            current = parent[current];
+            depth++;
+        }
+        rank[current] = Math.max(rank[current], depth);
     }
 }`,
   'merge-sort:sort': `void sort() {
@@ -839,6 +851,7 @@ boolean isExit(int row, int column) {
     return minimum;
 }`,
   'math:calculate:factorial': `int factorial(int number) {
+    if (number < 0 || number > 10) throw new IllegalArgumentException("Use a number from 0 to 10");
     if (number <= 1) return 1;
     int smaller = factorial(number - 1);
     return number * smaller;
@@ -1337,7 +1350,7 @@ export function getBeginnerJava(algorithm, actionId) {
   const generalizedListSource = sparseMatrixSource || denseMatrixSource || polynomialSource ? null : algorithm.id === 'listas-generalizadas' ? getGeneralizedListJava(actionId) : null;
   const sortingSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource ? null : getSortingJava(algorithm.id, actionId);
   const fibonacciSource = algorithm.id === 'fibonacci-heap' ? getFibonacciHeapJava(actionId) : null;
-  const specializedSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || sortingSource ? null : getSpecializedJava(algorithm.id, actionId);
+  const specializedSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || sortingSource ? null : getSpecializedJava(algorithm.id, actionId, algorithm.values);
   const graphSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || sortingSource || specializedSource ? null : getGraphJava(algorithm.id, actionId);
   const astSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || graphSource ? null : algorithm.id === 'ast' ? getAstJava(actionId) : null;
   const linearSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || graphSource || astSource ? null : getLinearJava(algorithm.id, actionId);
@@ -1375,5 +1388,5 @@ export function getBeginnerJava(algorithm, actionId) {
     // Follow the visual steps.
 }`;
   }
-  return makeJavaStandalone(completeJavaSnippet(source, algorithm.id), algorithm.id, algorithm.values);
+  return seedCurrentExample(seedLinearExample(makeJavaStandalone(completeJavaSnippet(source, algorithm.id), algorithm.id, algorithm.values), algorithm), algorithm);
 }

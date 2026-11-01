@@ -10,8 +10,10 @@ const operations = {
     for (int i = 0; i < amount; i++) source[i] = amount - i;
     return true;
 }`,
-  'hanoi-solve': `void solve() {
+  'hanoi-solve': `bool solve() {
+    if (sourceSize != diskCount || auxiliarySize != 0 || targetSize != 0) return false;
     hanoi(diskCount, source, sourceSize, target, targetSize, auxiliary, auxiliarySize);
+    return true;
 }`,
   reset: `void reset() {
     setDisks(5);

@@ -57,12 +57,17 @@ export function recordChallengeAttempt(progress, algorithmId, correct, usedHint 
 }
 
 function nextUniqueValue(values, direction = 1) {
-  const numbers = numericValues(values);
+  const minimum = -2147483648;
+  const maximum = 2147483647;
+  const step = direction < 0 ? -1 : 1;
+  const numbers = numericValues(values).filter(value => Number.isInteger(value) && value >= minimum && value <= maximum);
   const occupied = new Set(numbers);
   let candidate = numbers.length
     ? (direction < 0 ? Math.min(...numbers) - 1 : Math.max(...numbers) + 1)
     : 10;
-  while (occupied.has(candidate)) candidate += direction < 0 ? -1 : 1;
+  const wrap = value => value > maximum ? minimum : value < minimum ? maximum : value;
+  candidate = wrap(candidate);
+  while (occupied.has(candidate)) candidate = wrap(candidate + step);
   return candidate;
 }
 

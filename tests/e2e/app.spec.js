@@ -888,7 +888,7 @@ test('los otros ocho ordenamientos usan su lógica y animación propias', async 
     { id: 'heap-sort', method: 'void heapSort()', phase: 'Heap Sort terminado', expected: [4, 9, 12, 17, 21, 28, 31, 35] },
     { id: 'counting-sort', method: 'boolean countingSort()', phase: 'Counting Sort terminado', expected: [-2, -2, 1, 1, 4, 4, 5, 7] },
     { id: 'radix-sort', method: 'void radixSort()', phase: 'Radix Sort terminado', expected: [-90, 2, 24, 45, 66, 75, 170, 802] },
-    { id: 'bogo-sort', method: 'void bogoSort()', phase: 'Bogo Sort terminado', expected: [1, 2, 3, 4] },
+    { id: 'bogo-sort', method: 'boolean bogoSort()', phase: 'Bogo Sort terminado', expected: [1, 2, 3, 4] },
   ];
 
   for (const sample of samples) {
@@ -940,7 +940,7 @@ test('Laberinto mueve el código entre isFree, isExit, recursión y backtracking
   expect([...visitedLines].some(line => line.includes('solveMaze(row + 1, column)'))).toBe(true);
   expect([...visitedLines].some(line => line.startsWith('path[row][column] = false'))).toBe(true);
   await expect(page.locator('.maze-grid > div').nth(35)).toHaveClass(/path/);
-  await expect(page.locator('.operation-message')).toContainText('laberinto quedó resuelto');
+  await expect(page.locator('.operation-message')).toContainText('Laberinto resuelto');
 });
 
 test('Sudoku recorre todas las líneas ejecutables del Java mostrado', async ({ page }, testInfo) => {
@@ -1304,7 +1304,7 @@ test('los reinicios especializados muestran el estado que realmente restauran', 
     { id: 'n-reinas', expected: 'resetQueens(int boardSize)' },
     { id: 'laberinto', expected: 'resetPath()' },
     { id: 'sudoku', expected: 'resetBoard(int[][] initialBoard)' },
-    { id: 'union-find', expected: 'resetSets(int amount)' },
+    { id: 'union-find', expected: 'void resetSets()' },
   ];
 
   for (const sample of samples) {
@@ -1335,8 +1335,8 @@ test('Segment Tree y Fenwick C++ reconstruyen sus índices al restablecer', asyn
 test('Counting y Radix C++ conservan los negativos mediante desplazamiento', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === 'mobile-chromium', 'La ejecución nativa también está cubierta por la auditoría C++.');
   const samples = [
-    { id: 'counting-sort', required: ['int minimum = values[0]', 'values[i] - minimum', 'offset + minimum'] },
-    { id: 'radix-sort', required: ['long long offset = minimum', 'countingByDigit(exp, offset)', 'static_cast<long long>(values[i]) - offset'] },
+    { id: 'counting-sort', required: ['int min = findMinimum()', 'count[values[i] - min]', 'values[position] = index + min'] },
+    { id: 'radix-sort', required: ['int minimum = values[0]', 'long long offset = minimum', 'countingByDigit(exp, offset)', 'static_cast<long long>(values[i]) - offset'] },
   ];
 
   for (const sample of samples) {
@@ -1984,8 +1984,13 @@ test('Sudoku y Hanoi C++ narran el mismo código y estado que muestran', async (
   await page.goto('/hanoi');
   await page.getByRole('button', { name: 'C++', exact: true }).click();
   await expect(page.locator('.code-panel pre')).toContainText('int diskCount = 5;');
+  await page.clock.pauseAt(new Date());
   await page.getByRole('button', { name: 'Resolver', exact: true }).click();
-  await expect(page.locator('.operation-message')).toContainText('hanoi(5, A, C, B)');
+  await expect(page.locator('.operation-message')).toContainText('La torre A contiene todos los discos');
+  await expect(page.locator('.code-panel code.active')).toContainText('if (sourceSize != diskCount');
+  await advanceAvailableStep(page);
+  await expect(page.locator('.operation-message')).toContainText('Llamada hanoi(5, A, C, B).');
+  await expect(page.locator('.hanoi-call-state strong')).toHaveText('hanoi(5, A, C, B)');
   await expect(page.locator('.code-panel code.active')).toContainText('void hanoi(int amount');
 });
 

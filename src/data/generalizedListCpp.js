@@ -179,6 +179,9 @@ public:
     int position = 0;
     bool valid = true;
 
+    GeneralizedList() = default;
+    GeneralizedList(const GeneralizedList&) = delete;
+    GeneralizedList& operator=(const GeneralizedList&) = delete;
     ~GeneralizedList() { releaseHeader(root); }
 
     // Start of the selected operation

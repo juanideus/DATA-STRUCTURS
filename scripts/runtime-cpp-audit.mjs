@@ -14,6 +14,7 @@ const cases = [
     main: `
 int main() {
     RawArray array;
+    array.size = 0;
     assert(array.capacity == RawArray::CAPACITY && array.size == 0);
     assert(!array.addAtIndex(5, -1));
     assert(!array.addAtIndex(5, 1));
@@ -43,6 +44,7 @@ int main() {
     main: `
 int main() {
     RawArray array;
+    array.size = 0;
     assert(array.capacity == 100);
     for (int value = 0; value <= 100; value++) assert(array.addAtStart(value));
     assert(array.size == 101 && array.capacity >= array.size);
@@ -57,6 +59,7 @@ int main() {
     main: `
 int main() {
     RawArray array;
+    array.size = 0;
     assert(array.capacity == 100);
     for (int value = 0; value <= 100; value++) assert(array.addAtEnd(value));
     assert(array.size == 101 && array.capacity >= array.size);
@@ -71,6 +74,7 @@ int main() {
     main: `
 int main() {
     RawArray array;
+    array.size = 0;
     assert(!array.removeAtIndex(0));
     array.size = 5;
     for (int index = 0; index < array.size; index++) array.values[index] = index + 1;
@@ -89,7 +93,9 @@ int main() {
     DenseMatrix empty(0);
     DenseMatrix negative(-3);
     assert(empty.size == 1 && negative.size == 1);
-    assert(empty.values[0][0] == 0 && negative.values[0][0] == 0);
+    assert(empty.values[0][0] == 3 && negative.values[0][0] == 3);
+    empty.values[0][0] = 0;
+    negative.values[0][0] = 0;
     assert(!empty.set(-1, 0, 7));
     assert(!empty.set(1, 0, 7));
     assert(!empty.set(0, 1, 7));
@@ -247,6 +253,12 @@ int main() {
     main: `
 int main() {
     OpenAddressingTable table;
+    for (int index = 0; index < table.CAPACITY; index++) {
+        table.states[index] = table.EMPTY;
+        table.keys[index].clear();
+        table.values[index].clear();
+    }
+    table.size = 0;
     assert(table.hash("aaaaaa") == 8);
     assert(table.put("a", "one"));
     assert(table.put("m", "two"));
@@ -309,6 +321,16 @@ int main() {
     main: `
 int main() {
     SeparateChainingTable table;
+    for (int index = 0; index < SeparateChainingTable::BUCKET_COUNT; index++) {
+        auto* current = table.buckets[index];
+        while (current != nullptr) {
+            auto* removed = current;
+            current = current->next;
+            delete removed;
+        }
+        table.buckets[index] = nullptr;
+    }
+    table.size = 0;
     table.put("a", "one");
     table.put("i", "two");
     table.put("q", "three");
@@ -492,6 +514,13 @@ int main() {
     main: `
 int main() {
     LinkedQueue queue;
+    while (queue.front != nullptr) {
+        auto* removed = queue.front;
+        queue.front = queue.front->next;
+        delete removed;
+    }
+    queue.rear = nullptr;
+    queue.size = 0;
     for (int value = 0; value < LinkedQueue::CAPACITY; value++) assert(queue.enqueue(value));
     assert(!queue.enqueue(99));
     assert(queue.size == LinkedQueue::CAPACITY && queue.front->value == 0 && queue.rear->value == 14);
@@ -508,6 +537,13 @@ int main() {
     main: `
 int main() {
     LinkedQueue queue;
+    while (queue.front != nullptr) {
+        auto* oldFront = queue.front;
+        queue.front = queue.front->next;
+        delete oldFront;
+    }
+    queue.rear = nullptr;
+    queue.size = 0;
     int removed = -1;
     assert(!queue.dequeue(removed));
     queue.front = new LinkedQueue::Node(7);
@@ -526,6 +562,18 @@ int main() {
     main: `
 int main() {
     CircularDoublyLinkedList list;
+    while (list.head != nullptr) {
+        auto* removed = list.head;
+        if (removed->next == removed) list.head = nullptr;
+        else {
+            auto* last = removed->prev;
+            list.head = removed->next;
+            last->next = list.head;
+            list.head->prev = last;
+        }
+        delete removed;
+        list.size--;
+    }
     list.addAtEnd(42);
     assert(list.size == 1 && list.head->next == list.head && list.head->prev == list.head);
     list.addAtEnd(9);
@@ -538,6 +586,18 @@ int main() {
     main: `
 int main() {
     CircularDoublyLinkedList list;
+    while (list.head != nullptr) {
+        auto* removed = list.head;
+        if (removed->next == removed) list.head = nullptr;
+        else {
+            auto* last = removed->prev;
+            list.head = removed->next;
+            last->next = list.head;
+            list.head->prev = last;
+        }
+        delete removed;
+        list.size--;
+    }
     assert(!list.removeFromEnd());
     auto* first = new CircularDoublyLinkedList::Node(4);
     auto* second = new CircularDoublyLinkedList::Node(7);
@@ -556,6 +616,7 @@ int main() {
     main: `
 int main() {
     MaxHeap heap;
+    heap.size = 0;
     int values[] = {4, 15, 9, 21, -3, 7, 21, 0};
     for (int value : values) assert(heap.insertHeap(value));
     assert(heap.size == 8 && heap.heap[0] == 21);
@@ -661,6 +722,14 @@ int main() {
     main: `
 int main() {
     BinaryTree tree;
+    auto destroy = [&](auto&& self, BinaryTree::Node* node) -> void {
+        if (node == nullptr) return;
+        self(self, node->left);
+        self(self, node->right);
+        delete node;
+    };
+    destroy(destroy, tree.root);
+    tree.root = nullptr;
     for (int value = 1; value <= 7; value++) tree.root = tree.insert(tree.root, value);
     assert(tree.root->value == 1);
     assert(tree.root->left->value == 2 && tree.root->right->value == 3);
@@ -1142,6 +1211,9 @@ int main() {
     main: `
 int main() {
     SparseMatrix matrix(3, 4);
+    for (int row = 0; row < matrix.height; row++) {
+        for (int column = 0; column < matrix.width; column++) matrix.remove(row, column);
+    }
     assert(matrix.AROW != nullptr && matrix.ACOL != nullptr);
     assert(matrix.height == 3 && matrix.width == 4);
     assert(matrix.AROW[0]->left == matrix.AROW[0]);
@@ -1160,6 +1232,9 @@ int main() {
     main: `
 int main() {
     SparseMatrix matrix(2, 3);
+    for (int row = 0; row < matrix.height; row++) {
+        for (int column = 0; column < matrix.width; column++) matrix.remove(row, column);
+    }
     assert(matrix.insert(0, 0, 1));
     assert(matrix.nonZeroCount == 0);
     assert(matrix.AROW[0]->left == matrix.AROW[0]);
@@ -1225,6 +1300,9 @@ int main() {
     main: `
 int main() {
     SparseMatrix matrix(3, 4);
+    for (int row = 0; row < matrix.height; row++) {
+        for (int column = 0; column < matrix.width; column++) matrix.remove(row, column);
+    }
     int expected[3][4]{};
     assert(!matrix.insert(9, -1, 0));
     assert(!matrix.insert(9, 3, 0));

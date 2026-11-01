@@ -284,7 +284,10 @@ function matrixEdgeAdd(profile) {
     if (from == -1 || to == -1 || from == to) {
         return false;
     }
-    if (${occupied}) {
+${profile.weighted ? `    if (weight >= NO_EDGE || weight <= -NO_EDGE) {
+        return false;
+    }
+` : ''}    if (${occupied}) {
         return false;
     }
 

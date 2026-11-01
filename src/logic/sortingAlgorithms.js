@@ -374,7 +374,7 @@ function bogoSort(values, edges) {
   if (working.length > 7) {
     return { ok: false, message: 'Bogo Sort real se limita a 7 valores: su tiempo esperado crece como n! y una entrada mayor puede bloquear el navegador.' };
   }
-  let seed = working.reduce((total, value, index) => (total + (numeric(value) || 0) * (index + 3)) >>> 0, 2166136261);
+  let seed = 2166136261;
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
     return seed / 4294967296;
@@ -393,11 +393,12 @@ function bogoSort(values, edges) {
     return true;
   };
   const shuffle = (show, attempt) => {
-    if (show) add('shuffle();', `Se ejecuta la mezcla aleatoria real número ${attempt}.`, 'bogo-shuffle', { sortAttempt: attempt, variables: { attempt } });
+    if (show) add('shuffle(state);', `Se ejecuta la mezcla pseudoaleatoria reproducible número ${attempt}.`, 'bogo-shuffle', { sortAttempt: attempt, variables: { attempt } });
     for (let i = working.length - 1; i > 0; i--) {
       if (show) add('for (int i = size - 1; i > 0; i--) {', `Fisher–Yates elegirá una posición entre 0 y ${i}.`, 'bogo-shuffle-loop', { position: i, sortAttempt: attempt, variables: { attempt, i } });
       const other = Math.floor(random() * (i + 1));
-      if (show) add('int other = (int) (Math.random() * (i + 1));', `La posición aleatoria elegida es ${other}.`, 'bogo-random-index', { position: i, sortComparePositions: [i, other], sortAttempt: attempt, variables: { attempt, i, other } });
+      if (show) add('state[0] = (state[0] * 1664525L + 1013904223L) & 0xffffffffL;', 'Se actualiza el estado del generador pseudoaleatorio.', 'bogo-random-state', { position: i, sortAttempt: attempt, variables: { attempt, i, state: seed } });
+      if (show) add('int other = (int) ((state[0] * (i + 1)) >>> 32);', `La posición aleatoria elegida es ${other}.`, 'bogo-random-index', { position: i, sortComparePositions: [i, other], sortAttempt: attempt, variables: { attempt, i, other } });
       const temp = working[i];
       if (show) add('int temp = values[i];', `temp guarda ${temp}.`, 'bogo-swap-save', { position: i, sortSwapPositions: [i, other], sortAttempt: attempt, variables: { attempt, i, other, temp } });
       working[i] = working[other];
@@ -406,8 +407,16 @@ function bogoSort(values, edges) {
       if (show) add('values[other] = temp;', `El índice ${other} recibe ${temp}.`, 'bogo-swap-complete', { position: other, sortSwapPositions: [i, other], sortAttempt: attempt, variables: { attempt, i, other, temp } });
     }
   };
-  add('void bogoSort() {', 'Bogo Sort comprobará si el arreglo ya está ordenado.', 'bogo-start', { sortAttempt: 0, variables: { attempt: 0 } });
+  add('boolean bogoSort() {', 'Bogo Sort comprobará si el arreglo ya está ordenado.', 'bogo-start', { sortAttempt: 0, variables: { attempt: 0 } });
+  add('if (size > 7) return false;', 'La entrada respeta el límite de siete valores.', 'bogo-size-check', { variables: { size: working.length } });
+  add('long[] state = {2166136261L};', 'Se inicializa la semilla de la mezcla reproducible.', 'bogo-seed', { variables: { state: seed } });
+  for (let i = 0; i < working.length; i++) {
+    add('for (int i = 0; i < size; i++) {', `Se incorpora el valor en el índice ${i} a la semilla.`, 'bogo-seed-loop', { position: i, variables: { i, state: seed } });
+    seed = (seed + (numeric(working[i]) || 0) * (i + 3)) >>> 0;
+    add('state[0] = (state[0] + (long) values[i] * (i + 3)) & 0xffffffffL;', `La semilla ahora es ${seed}.`, 'bogo-seed-update', { position: i, variables: { i, state: seed } });
+  }
   let attempt = 0;
+  add('int attempts = 0;', 'El contador de intentos comienza en cero.', 'bogo-attempt-init', { variables: { attempt: 0 } });
   const visibleAttempts = 8;
   const maximumAttempts = 250000;
   let omittedAttempts = 0;
@@ -415,23 +424,24 @@ function bogoSort(values, edges) {
   while (attempt < maximumAttempts) {
     const showCheck = attempt < visibleAttempts || isOrdered;
     if (showCheck) {
-      add('while (!isSorted()) {', isOrdered ? 'Se evalúa isSorted para confirmar que el arreglo ya está ordenado.' : `Se evalúa isSorted antes del intento ${attempt + 1}.`, 'bogo-check', { sortAttempt: attempt, variables: { attempt, condición: !isOrdered } });
+      add('while (!isSorted() && attempts < 250000) {', isOrdered ? 'Se evalúa isSorted para confirmar que el arreglo ya está ordenado.' : `Se evalúa isSorted antes del intento ${attempt + 1}.`, 'bogo-check', { sortAttempt: attempt, variables: { attempt, condición: !isOrdered } });
       showOrderCheck(attempt);
     }
     if (isOrdered) break;
     attempt++;
     const showShuffle = attempt <= visibleAttempts;
     shuffle(showShuffle, attempt);
+    if (showShuffle) add('attempts++;', `Se registra el intento ${attempt}.`, 'bogo-attempt', { sortAttempt: attempt, variables: { attempt } });
     if (!showShuffle) omittedAttempts++;
     isOrdered = valuesAreOrdered(working);
     if (!showShuffle && isOrdered) {
-      add('shuffle();', `La mezcla aleatoria real ${attempt} produjo el orden; se omitieron ${omittedAttempts} intentos intermedios para que la animación sea utilizable.`, 'bogo-shuffle', { sortAttempt: attempt, variables: { attempt }, delayMs: 600 });
+      add('shuffle(state);', `La mezcla pseudoaleatoria ${attempt} produjo el orden; se omitieron ${omittedAttempts} intentos intermedios para que la animación sea utilizable.`, 'bogo-shuffle', { sortAttempt: attempt, variables: { attempt }, delayMs: 600 });
     }
   }
   if (!isOrdered) {
     return { ok: false, message: `Bogo Sort realizó ${maximumAttempts} mezclas aleatorias reales sin encontrar el orden. Restablece o genera un ejemplo más pequeño para volver a intentarlo.` };
   }
-  return trace.finish(`Bogo Sort terminó después de ${attempt} mezcla${attempt === 1 ? '' : 's'} aleatoria${attempt === 1 ? '' : 's'} real${attempt === 1 ? '' : 'es'}.`);
+  return trace.finish(`Bogo Sort terminó después de ${attempt} mezcla${attempt === 1 ? '' : 's'} aleatoria${attempt === 1 ? '' : 's'} real${attempt === 1 ? '' : 'es'}.`, 'return isSorted();');
 }
 
 const SORT_EXECUTORS = {

@@ -70,6 +70,9 @@ public:
     };
     Node* root = new Node();
 
+    Trie() = default;
+    Trie(const Trie&) = delete;
+    Trie& operator=(const Trie&) = delete;
     ~Trie() { destroy(root); }
 
     // Start of the selected operation
@@ -88,6 +91,10 @@ private:
 
 const suffixOperations = {
   'set-word': `void buildSuffixTrie(const std::string& newText) {
+    if (newText.empty()) return;
+    for (char letter : newText) {
+        if (letter < 'A' || letter > 'Z') return;
+    }
     clearTree();
     text = newText;
     for (int start = 0; start < static_cast<int>(text.length()); start++) {
@@ -95,6 +102,10 @@ const suffixOperations = {
     }
 }`,
   'word-find': `bool contains(const std::string& pattern) const {
+    if (pattern.empty()) return false;
+    for (char letter : pattern) {
+        if (letter < 'A' || letter > 'Z') return false;
+    }
     Node* current = root;
     for (int i = 0; i < static_cast<int>(pattern.length()); i++) {
         int letter = pattern[i] - 'A';
@@ -103,9 +114,16 @@ const suffixOperations = {
     }
     return true;
 }`,
-  'remove-word': `void clearText() {
+  'remove-word': `bool removeWord(const std::string& word) {
+    if (word.empty()) return false;
+    std::size_t position = text.find(word);
+    if (position == std::string::npos) return false;
+    text.erase(position, word.length());
     clearTree();
-    text.clear();
+    for (int start = 0; start < static_cast<int>(text.length()); start++) {
+        insertSuffix(text, start);
+    }
+    return true;
 }`,
   clear: `void clear() {
     clearTree();
@@ -129,10 +147,14 @@ void clearTree() {
     root = new Node();
 }`;
 
-function suffixCpp(actionId) {
+function suffixCpp(actionId, initialValues) {
   const operation = suffixOperations[actionId];
   if (!operation) return null;
-  return `class SuffixTrie {
+  const startingText = Array.isArray(initialValues) && initialValues.every(value => typeof value === 'string' && /^[A-Z]$/.test(value))
+    ? initialValues.join('') : '';
+  return `#include <string>
+
+class SuffixTrie {
 public:
     static const int ALPHABET = 26;
     struct Node {
@@ -146,6 +168,11 @@ public:
     Node* root = new Node();
     std::string text;
 
+    SuffixTrie() : text(${JSON.stringify(startingText)}) {
+        for (int start = 0; start < static_cast<int>(text.length()); start++) insertSuffix(text, start);
+    }
+    SuffixTrie(const SuffixTrie&) = delete;
+    SuffixTrie& operator=(const SuffixTrie&) = delete;
     ~SuffixTrie() { destroy(root); }
 
     // Start of the selected operation
@@ -219,9 +246,11 @@ const segmentBuild = `void build(int node, int left, int right) {
         ? minimumTree[node * 2] : minimumTree[node * 2 + 1];
 }`;
 
-function segmentCpp(actionId) {
+function segmentCpp(actionId, initialValues = []) {
   const operation = segmentOperations[actionId];
   if (!operation) return null;
+  const initial = initialValues.slice(0, 100).filter(Number.isInteger);
+  const assignments = initial.map((value, index) => `        values[${index}] = initialValues[${index}] = ${value};`).join('\n');
   return `#include <climits>
 
 class SegmentTree {
@@ -237,7 +266,11 @@ public:
 
     SegmentTree()
         : values(new int[CAPACITY]{}), initialValues(new int[CAPACITY]{}),
-          tree(new long long[CAPACITY * 4]{}), minimumTree(new int[CAPACITY * 4]{}) {}
+          tree(new long long[CAPACITY * 4]{}), minimumTree(new int[CAPACITY * 4]{}) {
+${assignments}
+        size = initialSize = ${initial.length};
+        if (size > 0) build(1, 0, size - 1);
+    }
     ~SegmentTree() {
         delete[] values;
         delete[] initialValues;
@@ -250,9 +283,9 @@ public:
     // Start of the selected operation
 ${indent(operation)}
     // End of the selected operation
-${actionId === 'reset' ? `
+${`
     // Rebuild aggregates after restoring values
-${indent(segmentBuild)}` : ''}
+${indent(segmentBuild)}`}
 };`;
 }
 
@@ -302,9 +335,11 @@ const fenwickOperations = {
 }`,
 };
 
-function fenwickCpp(actionId) {
+function fenwickCpp(actionId, initialValues = []) {
   const operation = fenwickOperations[actionId];
   if (!operation) return null;
+  const seedValues = initialValues.length <= 100 && initialValues.every(Number.isInteger) ? initialValues : [];
+  const assignments = seedValues.map((value, index) => `        values[${index}] = initialValues[${index}] = ${value};`).join('\n');
   return `#include <climits>
 #include <stdexcept>
 
@@ -319,7 +354,13 @@ public:
 
     FenwickTree()
         : values(new int[CAPACITY]{}), initialValues(new int[CAPACITY]{}),
-          bit(new long long[CAPACITY + 1]{}) {}
+          bit(new long long[CAPACITY + 1]{}) {
+${assignments}
+        size = initialSize = ${seedValues.length};
+        for (int i = 0; i < size; i++) {
+            for (int index = i + 1; index <= size; index += index & -index) bit[index] += values[i];
+        }
+    }
     ~FenwickTree() {
         delete[] values;
         delete[] initialValues;
@@ -405,6 +446,7 @@ ${actionId === 'merkle-root' ? `\n    // Hash helpers used above\n${indent(merkl
 
 const kdOperations = {
   'tree-add': `Node* insert(Node* node, int value, int depth) {
+    if (value < 0 || value > 99) throw std::out_of_range("Point must be between 0 and 99");
     if (node == nullptr) return new Node(value);
     int axis = depth % DIMENSIONS;
     if (coordinate(value, axis) < coordinate(node->value, axis)) {
@@ -415,6 +457,7 @@ const kdOperations = {
     return node;
 }`,
   'remove-value': `Node* remove(Node* node, int target, int depth) {
+    if (target < 0 || target > 99) throw std::out_of_range("Point must be between 0 and 99");
     if (node == nullptr) return nullptr;
     int axis = depth % DIMENSIONS;
     if (node->value == target) {
@@ -439,6 +482,7 @@ const kdOperations = {
     return node;
 }`,
   find: `Node* search(Node* node, int target, int depth) const {
+    if (target < 0 || target > 99) throw std::out_of_range("Point must be between 0 and 99");
     if (node == nullptr || node->value == target) return node;
     int axis = depth % DIMENSIONS;
     if (coordinate(target, axis) < coordinate(node->value, axis)) return search(node->left, target, depth + 1);
@@ -471,7 +515,9 @@ Node* findMin(Node* node, int targetAxis, int depth) const {
 function kdCpp(actionId) {
   const operation = kdOperations[actionId];
   if (!operation) return null;
-  return `class KDTree {
+  return `#include <stdexcept>
+
+class KDTree {
 public:
     static const int DIMENSIONS = 2;
     struct Node {
@@ -483,6 +529,9 @@ public:
     Node* root = nullptr;
     int lastVisited = 0;
 
+    KDTree() = default;
+    KDTree(const KDTree&) = delete;
+    KDTree& operator=(const KDTree&) = delete;
     ~KDTree() { destroy(root); }
 
     // Start of the selected operation
@@ -502,11 +551,11 @@ private:
 };`;
 }
 
-export function getSpecialTreesCpp(algorithmId, actionId) {
+export function getSpecialTreesCpp(algorithmId, actionId, initialValues = []) {
   if (algorithmId === 'trie') return trieCpp(actionId);
-  if (algorithmId === 'suffix-tree') return suffixCpp(actionId);
-  if (algorithmId === 'segment-tree') return segmentCpp(actionId);
-  if (algorithmId === 'fenwick-tree') return fenwickCpp(actionId);
+  if (algorithmId === 'suffix-tree') return suffixCpp(actionId, initialValues);
+  if (algorithmId === 'segment-tree') return segmentCpp(actionId, initialValues);
+  if (algorithmId === 'fenwick-tree') return fenwickCpp(actionId, initialValues);
   if (algorithmId === 'merkle-tree') return merkleCpp(actionId);
   if (algorithmId === 'kd-tree') return kdCpp(actionId);
   return null;

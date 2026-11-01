@@ -92,6 +92,12 @@ export function createRecursionCallTrace({ kind, number, beforeValues, edges }) 
     ]);
 
     node.status = 'checking';
+    if (kind === 'factorial') {
+      snapshot(id, 'check-range', 'if (number < 0 || number > 10)', `Se comprueba que ${node.number} esté entre 0 y 10.`, [
+        { name: 'number', value: node.number, role: 'input' },
+        { name: 'fuera de rango', value: false, role: 'false' },
+      ]);
+    }
     snapshot(id, 'check-base', 'if (number <= 1)', `${node.number} ${node.number <= 1 ? 'sí' : 'no'} cumple el caso base number <= 1.`, [
       { name: 'number', value: node.number, role: 'input' },
       { name: 'number <= 1', value: node.number <= 1, role: node.number <= 1 ? 'true' : 'false' },

@@ -18,12 +18,8 @@ const unionOperations = {
     if (parent[value] != value) parent[value] = findRoot(parent[value]);
     return parent[value];
 }`,
-  reset: `void reset(int amount) {
-    size = amount < 0 ? 0 : amount > CAPACITY ? CAPACITY : amount;
-    for (int i = 0; i < size; i++) {
-        parent[i] = i;
-        rank[i] = 0;
-    }
+  reset: `void reset() {
+    loadInitialExample();
 }`,
 };
 
@@ -40,7 +36,9 @@ public:
     int* rank;
     int size = 0;
 
-    UnionFind() : parent(new int[CAPACITY]{}), rank(new int[CAPACITY]{}) {}
+    UnionFind() : parent(new int[CAPACITY]{}), rank(new int[CAPACITY]{}) {
+        loadInitialExample();
+    }
     UnionFind(const UnionFind&) = delete;
     UnionFind& operator=(const UnionFind&) = delete;
     ~UnionFind() {
@@ -52,6 +50,15 @@ public:
 ${indent(operation)}
     // End of the selected operation
 ${helper ? `\n    // Auxiliary method used above\n${indent(helper)}` : ''}
+
+private:
+    void loadInitialExample() {
+        size = 8;
+        for (int i = 0; i < size; i++) {
+            parent[i] = i - i % 2;
+            rank[i] = i % 2 == 0 ? 1 : 0;
+        }
+    }
 };`;
 }
 
@@ -75,21 +82,29 @@ const bloomOperations = {
 };
 
 const bloomHash = `int hash(const std::string& word, int seed) const {
+    if (word.empty()) throw std::invalid_argument("Word must not be empty");
+    for (unsigned char character : word) {
+        if (character < 32 || character > 126) throw std::invalid_argument("Use printable ASCII characters");
+    }
     return static_cast<int>((word.size() * seed + static_cast<unsigned char>(word[0])) % BIT_COUNT);
 }`;
 
-function bloomCpp(actionId) {
+function bloomCpp(actionId, initialValues) {
   const operation = bloomOperations[actionId];
   if (!operation) return null;
   const needsHash = actionId !== 'clear-bits';
-  return `class BloomFilter {
+  const bits = Array.from({ length: 12 }, (_, index) => Boolean(initialValues?.[index]) ? 'true' : 'false');
+  return `#include <stdexcept>
+#include <string>
+
+class BloomFilter {
 public:
     static const int BIT_COUNT = 12;
     static const int HASH_COUNT = 3;
     bool* bits;
     int* seeds;
 
-    BloomFilter() : bits(new bool[BIT_COUNT]{}), seeds(new int[HASH_COUNT]{3, 7, 11}) {}
+    BloomFilter() : bits(new bool[BIT_COUNT]{${bits.join(', ')}}), seeds(new int[HASH_COUNT]{3, 7, 11}) {}
     BloomFilter(const BloomFilter&) = delete;
     BloomFilter& operator=(const BloomFilter&) = delete;
     ~BloomFilter() {
@@ -197,7 +212,9 @@ void removeNode(Node* node) {
 function lruCpp(actionId) {
   const operation = lruOperations[actionId];
   if (!operation) return null;
-  return `class LRUCache {
+  return `#include <string>
+
+class LRUCache {
 public:
     static const int CAPACITY = 5;
     static const int BUCKETS = 11;
@@ -215,7 +232,9 @@ public:
     Node* tail = nullptr;
     int size = 0;
 
-    LRUCache() : table(new Node*[BUCKETS]{}) {}
+    LRUCache() : table(new Node*[BUCKETS]{}) {
+        addInitial("A"); addInitial("D"); addInitial("B"); addInitial("F"); addInitial("C");
+    }
     LRUCache(const LRUCache&) = delete;
     LRUCache& operator=(const LRUCache&) = delete;
     ~LRUCache() {
@@ -231,6 +250,13 @@ ${indent(operation)}
 ${indent(lruHelpers)}
 
 private:
+    void addInitial(const std::string& key) {
+        Node* node = new Node(key, key);
+        insertInTable(node);
+        addLast(node);
+        size++;
+    }
+
     void clearNodes() {
         Node* current = head;
         while (current != nullptr) {
@@ -246,9 +272,9 @@ private:
 };`;
 }
 
-export function getOtherCpp(algorithmId, actionId) {
+export function getOtherCpp(algorithmId, actionId, initialValues = []) {
   if (algorithmId === 'union-find') return unionFindCpp(actionId);
-  if (algorithmId === 'bloom-filter') return bloomCpp(actionId);
+  if (algorithmId === 'bloom-filter') return bloomCpp(actionId, initialValues);
   if (algorithmId === 'lru-cache') return lruCpp(actionId);
   return null;
 }

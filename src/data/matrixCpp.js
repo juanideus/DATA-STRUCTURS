@@ -42,11 +42,7 @@ const denseOperations = {
     }
 }`,
   'matrix-clear': `void clear() {
-    for (int row = 0; row < size; row++) {
-        for (int column = 0; column < size; column++) {
-            values[row][column] = 0;
-        }
-    }
+    fill(0);
 }`,
 };
 
@@ -58,6 +54,7 @@ export function getDenseMatrixCpp(actionId) {
   const operation = denseOperations[actionId];
   if (!operation) return null;
   const needsValidation = ['matrix-set', 'matrix-get'].includes(actionId);
+  const needsFillHelper = actionId === 'matrix-clear';
   return `class DenseMatrix {
 public:
     int size;
@@ -78,6 +75,7 @@ public:
 ${indent(operation)}
     // End of the selected operation
 ${needsValidation ? `\n    // Auxiliary method used above\n${indent(validPosition)}` : ''}
+${needsFillHelper ? `\n    // Helper used by clear\n${indent(denseOperations['matrix-fill'])}` : ''}
 };`;
 }
 

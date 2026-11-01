@@ -178,6 +178,9 @@ public:
     Node* root = nullptr;
     std::string lastVisited;
 
+    ExpressionTree() = default;
+    ExpressionTree(const ExpressionTree&) = delete;
+    ExpressionTree& operator=(const ExpressionTree&) = delete;
     ~ExpressionTree() { destroy(root); }
 
     // Start of the selected operation
@@ -339,6 +342,9 @@ public:
     int position = 0;
     bool valid = true;
 
+    AbstractSyntaxTree() = default;
+    AbstractSyntaxTree(const AbstractSyntaxTree&) = delete;
+    AbstractSyntaxTree& operator=(const AbstractSyntaxTree&) = delete;
     ~AbstractSyntaxTree() { destroy(root); }
 
     // Start of the selected operation

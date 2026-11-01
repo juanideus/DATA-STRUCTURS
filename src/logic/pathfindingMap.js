@@ -190,7 +190,7 @@ export function runGridPathfinding({ map = DEFAULT_PATH_MAP, mode = 'dijkstra' }
     for (const candidate of open) {
       const priority = distance[candidate]
         + (mode === 'astar' ? heuristic(candidate, cityMap.goal, cityMap.columns, minimumStepCost) : 0);
-      if (priority < bestPriority) {
+      if (priority < bestPriority || (priority === bestPriority && (current === null || candidate < current))) {
         bestPriority = priority;
         current = candidate;
       }

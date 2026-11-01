@@ -794,6 +794,8 @@ body{background:var(--paper)}
 .description-java-guide code>span.helper-method-label{margin-top:12px;padding-top:9px;padding-bottom:9px;border-top:1px solid rgba(255,255,255,.1);background:#172f2b;color:#f0ae99;font-weight:700}
 .educational-description .description-tip{margin-top:11px;padding:14px 16px;align-items:flex-start}
 .educational-description .description-tip p{max-width:none;color:#68574f;font-size:15px;line-height:1.68}
+html[data-dark-mode="true"] .educational-description .description-tip p{color:var(--ink)}
+html[data-dark-mode="true"] .educational-description .description-tip strong{color:#ffad92}
 .educational-description .description-tip strong{font-size:15px}
 
 @media(max-width:900px){

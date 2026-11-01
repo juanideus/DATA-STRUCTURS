@@ -2,7 +2,8 @@ const indent = source => source.split('\n').map(line => (line ? `    ${line}` : 
 
 const operations = {
   'tree-add': `bool insert(const Point& point) {
-    return insert(root, point);
+    if (contains(root, point)) return false;
+    return insert(root, point, 0);
 }`,
   'remove-value': `bool remove(const Point& point) {
     return remove(root, point);
@@ -90,6 +91,7 @@ function spatialCpp(actionId, dimensions) {
   return `class ${className} {
 public:
     static const int CAPACITY = 2;
+    static const int MAX_DEPTH = 8;
     static const int CHILDREN = ${childCount};
     struct Point {
         ${pointFields}
@@ -105,6 +107,9 @@ public:
     ${root}
     int visitedNodes = 0;
 
+    ${className}() = default;
+    ${className}(const ${className}&) = delete;
+    ${className}& operator=(const ${className}&) = delete;
     ~${className}() { destroy(root); }
 
     // Start of the selected operation
@@ -128,24 +133,25 @@ ${indent(indent(childIndex))}
 ${indent(indent(subdivide))}
     }
 
-    bool insert(Node* node, const Point& point) {
+    bool insert(Node* node, const Point& point, int depth) {
         if (!isInside(node, point)) return false;
         if (!node->divided && node->pointCount < CAPACITY) {
             node->points[node->pointCount++] = point;
             return true;
         }
         if (!node->divided) {
+            if (depth >= MAX_DEPTH) return false;
             Point* previous = new Point[CAPACITY];
             for (int i = 0; i < node->pointCount; i++) previous[i] = node->points[i];
             int previousCount = node->pointCount;
             node->pointCount = 0;
             subdivide(node);
             for (int i = 0; i < previousCount; i++) {
-                insert(node->children[childIndex(node, previous[i])], previous[i]);
+                insert(node->children[childIndex(node, previous[i])], previous[i], depth + 1);
             }
             delete[] previous;
         }
-        return insert(node->children[childIndex(node, point)], point);
+        return insert(node->children[childIndex(node, point)], point, depth + 1);
     }
 
     bool contains(const Node* node, const Point& point) const {

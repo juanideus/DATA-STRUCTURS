@@ -1,3 +1,5 @@
+import { hashExampleBuckets, hashExampleEntries, hashExampleSlots } from './hashExamples.js';
+
 const indent = source => source.split('\n').map(line => (line ? `    ${line}` : '')).join('\n');
 
 const openOperations = {
@@ -71,9 +73,15 @@ const stringHash = `int hash(const std::string& key) const {
     return index < 0 ? index + CAPACITY : index;
 }`;
 
-function openCpp(actionId) {
+function openCpp(actionId, initialValues) {
   const operation = openOperations[actionId];
   if (!operation) return null;
+  const slots = hashExampleSlots(initialValues);
+  const initialize = slots.flatMap((slot, index) => {
+    if (slot.state !== 'occupied') return [];
+    const { key, value } = hashExampleEntries([slot.entry])[0];
+    return [`        keys[${index}] = ${JSON.stringify(key)}; values[${index}] = ${JSON.stringify(value)}; states[${index}] = OCCUPIED;`];
+  });
   return `class OpenAddressingTable {
 public:
     static const int CAPACITY = 12;
@@ -87,7 +95,10 @@ public:
 
     OpenAddressingTable()
         : keys(new std::string[CAPACITY]), values(new std::string[CAPACITY]),
-          states(new unsigned char[CAPACITY]{}) {}
+          states(new unsigned char[CAPACITY]{}) {
+${initialize.join('\n')}
+        size = ${initialize.length};
+    }
     OpenAddressingTable(const OpenAddressingTable&) = delete;
     OpenAddressingTable& operator=(const OpenAddressingTable&) = delete;
     ~OpenAddressingTable() {
@@ -161,9 +172,12 @@ const chainingOperations = {
 }`,
 };
 
-function chainingCpp(actionId) {
+function chainingCpp(actionId, initialValues) {
   const operation = chainingOperations[actionId];
   if (!operation) return null;
+  const buckets = hashExampleBuckets(initialValues);
+  const initialize = buckets.flatMap((bucket, index) => [...bucket].reverse().map(({ key, value }) =>
+    `        buckets[${index}] = new Node(${JSON.stringify(key)}, ${JSON.stringify(value)}, buckets[${index}]);`));
   return `class SeparateChainingTable {
 public:
     static const int BUCKET_COUNT = 8;
@@ -177,7 +191,10 @@ public:
     Node** buckets;
     int size = 0;
 
-    SeparateChainingTable() : buckets(new Node*[BUCKET_COUNT]{}) {}
+    SeparateChainingTable() : buckets(new Node*[BUCKET_COUNT]{}) {
+${initialize.join('\n')}
+        size = ${initialize.length};
+    }
     SeparateChainingTable(const SeparateChainingTable&) = delete;
     SeparateChainingTable& operator=(const SeparateChainingTable&) = delete;
     ~SeparateChainingTable() {
@@ -211,8 +228,8 @@ private:
 };`;
 }
 
-export function getHashCpp(algorithmId, actionId) {
-  if (['hash-table', 'hash-open'].includes(algorithmId)) return openCpp(actionId);
-  if (algorithmId === 'hash-chaining') return chainingCpp(actionId);
+export function getHashCpp(algorithmId, actionId, initialValues = []) {
+  if (['hash-table', 'hash-open'].includes(algorithmId)) return openCpp(actionId, initialValues);
+  if (algorithmId === 'hash-chaining') return chainingCpp(actionId, initialValues);
   return null;
 }

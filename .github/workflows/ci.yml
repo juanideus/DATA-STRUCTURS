@@ -56,8 +56,8 @@ jobs:
 
       - name: Probar regresiones de coherencia
         env:
-          DSA_TREE_JAVA: java
-          DSA_TREE_CXX: g++
+          DSA_EXAMPLE_JAVA: javac
+          DSA_EXAMPLE_CXX: g++
         run: node --test tests/regressions/*.test.mjs
 
       - name: Auditar catálogo

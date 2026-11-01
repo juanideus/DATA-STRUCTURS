@@ -207,6 +207,9 @@ public:
     Node* root = new Node(true);
     int lastVisited = 0;
 
+    BTree() = default;
+    BTree(const BTree&) = delete;
+    BTree& operator=(const BTree&) = delete;
     ~BTree() { destroy(root); }
 
     // Start of the selected operation
@@ -480,6 +483,9 @@ public:
     Node* root = new Node(true);
     int lastVisited = 0;
 
+    BPlusTree() = default;
+    BPlusTree(const BPlusTree&) = delete;
+    BPlusTree& operator=(const BPlusTree&) = delete;
     ~BPlusTree() { destroy(root); }
 
     // Start of the selected operation
@@ -853,6 +859,9 @@ public:
     Node* root = new Node(true);
     int lastVisited = 0;
 
+    BStarTree() = default;
+    BStarTree(const BStarTree&) = delete;
+    BStarTree& operator=(const BStarTree&) = delete;
     ~BStarTree() { destroy(root); }
 
     // Start of the selected operation

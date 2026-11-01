@@ -244,6 +244,8 @@ public:
         root = nil;
     }
 
+    RedBlackTree(const RedBlackTree&) = delete;
+    RedBlackTree& operator=(const RedBlackTree&) = delete;
     ~RedBlackTree() {
         destroy(root);
         delete nil;

@@ -76,6 +76,13 @@ const removeHelper = `Node removeExponent(Node head, int exponent) {
         return head;
     }`;
 
+const containsExponent = `boolean containsExponent(Node head, int exponent) {
+        for (Node current = head; current != null; current = current.next) {
+            if (current.exponent == exponent) return true;
+        }
+        return false;
+    }`;
+
 const addHelper = `Node add(Node first, Node second) {
         Node dummy = new Node(0, 0);
         Node end = dummy;
@@ -121,17 +128,19 @@ const addHelper = `Node add(Node first, Node second) {
 const operations = {
   'poly-insert-a': `void insertInA(int coefficient, int exponent) {
         A = insertOrdered(A, coefficient, exponent);
-        C = null;
+        if (coefficient != 0) C = null;
     }`,
   'poly-insert-b': `void insertInB(int coefficient, int exponent) {
         B = insertOrdered(B, coefficient, exponent);
-        C = null;
+        if (coefficient != 0) C = null;
     }`,
   'poly-remove-a': `void removeFromA(int exponent) {
+        if (!containsExponent(A, exponent)) return;
         A = removeExponent(A, exponent);
         C = null;
     }`,
   'poly-remove-b': `void removeFromB(int exponent) {
+        if (!containsExponent(B, exponent)) return;
         B = removeExponent(B, exponent);
         C = null;
     }`,
@@ -146,8 +155,8 @@ const operations = {
 const helpers = {
   'poly-insert-a': insertHelper,
   'poly-insert-b': insertHelper,
-  'poly-remove-a': removeHelper,
-  'poly-remove-b': removeHelper,
+  'poly-remove-a': `${containsExponent}\n\n${removeHelper}`,
+  'poly-remove-b': `${containsExponent}\n\n${removeHelper}`,
   'poly-add': addHelper,
   'poly-clear-result': '',
 };

@@ -20,6 +20,10 @@ const structureClassNames = {
 };
 
 const nodeDefinition = (contextId, source) => {
+  if (contextId === 'suffix-tree') return `static class Node {
+        Node[] children = new Node[26];
+        boolean isSuffixEnd;
+    }`;
   if (contextId === 'expression-tree') return `static class Node {
         final boolean isNumber;
         final int number;
@@ -176,6 +180,8 @@ export function makeJavaStandalone(source, contextId, initialValues = []) {
     if (contextId === 'array') continue;
     if (name === 'parent' && !/\bparent\s*\[/.test(source)) continue;
     if (!bareWordUsed(source, name)
+        && !(contextId === 'suffix-tree' && name === 'text')
+        && !(contextId === 'segment-tree' && ['values', 'initialValues', 'size', 'initialSize', 'tree', 'minimumTree'].includes(name))
         && !(contextId === 'fenwick-tree' && ['values', 'bit', 'size'].includes(name))
         && !(contextId === 'heap' && ['heap', 'size'].includes(name))
         && !(name === 'N' && contextId === 'arbol-nario' && hasNode)
@@ -197,12 +203,52 @@ export function makeJavaStandalone(source, contextId, initialValues = []) {
         ? 'static final int CAPACITY = 2;'
         : declaration);
   }
-  if (bareWordUsed(source, 'root') && (hasNode || wordUsed(source, 'TrieNode'))) {
+  if ((bareWordUsed(source, 'root') || ['bst', 'splay-tree'].includes(contextId)) && (hasNode || wordUsed(source, 'TrieNode'))) {
     const initialRoot = contextId === 'trie' ? 'TrieNode root = new TrieNode();'
       : contextId === 'suffix-tree' ? 'Node root = new Node();'
         : ['btree', 'bplus-tree', 'bstar-tree'].includes(contextId) ? 'Node root = new Node(true);'
           : 'Node root;';
     declarations.push(initialRoot);
+  }
+  if (['bst', 'splay-tree'].includes(contextId) && Array.isArray(initialValues) && initialValues.every(Number.isInteger)) {
+    const assignments = initialValues.map((value, index) => {
+      const sides = [];
+      for (let position = index; position > 0; position = Math.floor((position - 1) / 2)) sides.unshift(position % 2 ? 'left' : 'right');
+      return `        root${sides.map(side => `.${side}`).join('')} = new Node(${value});`;
+    }).join('\n');
+    declarations.push(`${className}() {\n${assignments}\n    }`);
+  }
+  if (contextId === 'suffix-tree' && Array.isArray(initialValues) && initialValues.every(value => typeof value === 'string' && /^[A-Z]$/.test(value))) {
+    const startingText = JSON.stringify(initialValues.join(''));
+    declarations.push(`${className}() {
+        text = ${startingText};
+        for (int start = 0; start < text.length(); start++) {
+            Node current = root;
+            for (int i = start; i < text.length(); i++) {
+                int letter = text.charAt(i) - 'A';
+                if (current.children[letter] == null) current.children[letter] = new Node();
+                current = current.children[letter];
+            }
+            current.isSuffixEnd = true;
+        }
+    }`);
+  }
+  if (contextId === 'segment-tree' && Array.isArray(initialValues) && initialValues.every(Number.isInteger)) {
+    declarations.push(`${className}() {
+        int[] startingValues = new int[]{${initialValues.join(', ')}};
+        size = initialSize = startingValues.length;
+        System.arraycopy(startingValues, 0, values, 0, size);
+        System.arraycopy(startingValues, 0, initialValues, 0, size);
+        if (size > 0) buildInitialSegmentTree(1, 0, size - 1);
+    }
+    void buildInitialSegmentTree(int node, int left, int right) {
+        if (left == right) { tree[node] = values[left]; minimumTree[node] = values[left]; return; }
+        int middle = left + (right - left) / 2;
+        buildInitialSegmentTree(node * 2, left, middle);
+        buildInitialSegmentTree(node * 2 + 1, middle + 1, right);
+        tree[node] = tree[node * 2] + tree[node * 2 + 1];
+        minimumTree[node] = Math.min(minimumTree[node * 2], minimumTree[node * 2 + 1]);
+    }`);
   }
   if (contextId === 'fenwick-tree' && Array.isArray(initialValues) && initialValues.every(Number.isInteger)) {
     declarations.push(`${className}() {

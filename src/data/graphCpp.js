@@ -41,7 +41,7 @@ const unweightedOperations = {
   'edge-add-undirected': `bool addEdge(char fromName, char toName) {
     int from = findVertex(fromName);
     int to = findVertex(toName);
-    if (from == -1 || to == -1 || from == to) return false;
+    if (from == -1 || to == -1 || from == to || adjacency[from][to]) return false;
     adjacency[from][to] = true;
     adjacency[to][from] = true;
     return true;
@@ -49,7 +49,7 @@ const unweightedOperations = {
   'edge-add-directed': `bool addEdge(char fromName, char toName) {
     int from = findVertex(fromName);
     int to = findVertex(toName);
-    if (from == -1 || to == -1 || from == to) return false;
+    if (from == -1 || to == -1 || from == to || adjacency[from][to]) return false;
     adjacency[from][to] = true;
     return true;
 }`,

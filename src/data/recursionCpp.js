@@ -7,9 +7,10 @@ const calculate = {
     int right = fibonacci(number - 2);
     return left + right;
 }`,
-  factorial: `long long factorial(int number) {
+  factorial: `int factorial(int number) {
+    if (number < 0 || number > 10) throw std::invalid_argument("Use a number from 0 to 10");
     if (number <= 1) return 1;
-    long long smaller = factorial(number - 1);
+    int smaller = factorial(number - 1);
     return number * smaller;
 }`,
 };
@@ -24,8 +25,8 @@ export function getRecursionCpp(algorithmId, actionId) {
 }`
       : null;
   if (!operation) return null;
-  const resultType = algorithmId === 'factorial' ? 'long long' : 'int';
-  return `class RecursiveCalculation {
+  const resultType = 'int';
+  return `${algorithmId === 'factorial' && actionId === 'calculate' ? '#include <stdexcept>\n\n' : ''}class RecursiveCalculation {
 public:
     ${resultType} result = 0;
 

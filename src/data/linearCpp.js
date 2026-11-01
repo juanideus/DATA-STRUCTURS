@@ -247,6 +247,9 @@ public:
     Node* rear = nullptr;
     int size = 0;
 
+    LinkedQueue() = default;
+    LinkedQueue(const LinkedQueue&) = delete;
+    LinkedQueue& operator=(const LinkedQueue&) = delete;
     ~LinkedQueue() {
         clearNodes();
     }
