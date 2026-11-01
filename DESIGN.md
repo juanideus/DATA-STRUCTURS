@@ -70,6 +70,8 @@ de estados y explicaciones. No simular ejecución sin una operación preparada.
 Las trazas exactas resaltan líneas equivalentes. Sin correspondencia, no resaltar otra
 por aproximación. Los resúmenes de estados se etiquetan explícitamente.
 Completado significa último evento, no preparación de la operación.
+Los estados activos pueden cambiar color, borde y posición, pero el texto de nodos y llamadas
+conserva su escala durante la animación; las conexiones se calculan con el tamaño visible real.
 
 BugReporter es dueño de validación y envío. Sus selectores y el de velocidad son nativos:
 se acepta la geometría y el teclado del sistema operativo. Textareas crecen hasta un límite
