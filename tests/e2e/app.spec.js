@@ -802,6 +802,65 @@ test('la línea Java, las variables y la animación avanzan juntas en distintas 
   }
 });
 
+test('Array usa casillas contiguas y mantiene visible la posición insertada', async ({ page }, testInfo) => {
+  for (const width of [1280, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/array');
+
+    const visual = page.locator('.linear-visual.array');
+    await expect(visual.locator('.data-cell')).toHaveCount(6);
+    await expect(visual.locator('.linear-connector')).toHaveCount(0);
+    await expect(visual).toHaveAttribute('tabindex', '0');
+
+    await page.getByLabel('Valor').fill('99');
+    await page.getByLabel('Índice').fill('6');
+    await page.getByRole('button', { name: 'Agregar en índice', exact: true }).click();
+
+    const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+    if (await pause.isVisible()) await pause.click();
+    for (let frame = 0; frame < 50; frame++) await advanceAvailableStep(page);
+
+    await expect(page.locator('.operation-message')).toContainText('99 fue insertado en el índice 6.', { timeout: 15_000 });
+    await expect(visual.locator('.data-cell span')).toHaveText(['12', '7', '19', '4', '15', '9', '99']);
+    const indexFontSizes = await visual.locator('.data-cell small').evaluateAll(labels => (
+      [...new Set(labels.map(label => getComputedStyle(label).fontSize))]
+    ));
+    expect(indexFontSizes).toEqual(['10px']);
+
+    const lastCellVisibility = await visual.evaluate(container => {
+      const cell = container.querySelector('[data-array-index="6"]');
+      const containerRect = container.getBoundingClientRect();
+      const cellRect = cell.getBoundingClientRect();
+      const visibleLeft = containerRect.left + container.clientLeft;
+      const visibleRight = visibleLeft + container.clientWidth;
+      return {
+        scrollLeft: container.scrollLeft,
+        scrollWidth: container.scrollWidth,
+        clientWidth: container.clientWidth,
+        left: cellRect.left,
+        right: cellRect.right,
+        visibleLeft,
+        visibleRight,
+      };
+    });
+
+    expect(lastCellVisibility.left).toBeGreaterThanOrEqual(lastCellVisibility.visibleLeft - 1);
+    expect(lastCellVisibility.right).toBeLessThanOrEqual(lastCellVisibility.visibleRight + 1);
+    if (width === 320) {
+      expect(lastCellVisibility.scrollLeft).toBeGreaterThan(0);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.screenshot({ path: testInfo.outputPath('array-insertion-320.png') });
+      await visual.focus();
+      await visual.press('ArrowLeft');
+      await expect.poll(() => visual.evaluate(container => container.scrollLeft)).toBeLessThan(lastCellVisibility.scrollLeft);
+    } else {
+      expect(lastCellVisibility.scrollWidth).toBeLessThanOrEqual(lastCellVisibility.clientWidth);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.screenshot({ path: testInfo.outputPath('array-insertion-desktop.png') });
+    }
+  }
+});
+
 test('cambiar de lenguaje durante una operación conserva el resultado confirmado', async ({ page }) => {
   await page.goto('/array');
   await page.getByLabel('Valor').fill('99');

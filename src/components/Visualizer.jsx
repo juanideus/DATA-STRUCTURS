@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import '../visualizer.css';
 import { MapPin } from 'lucide-react';
 import { getGraphDesign } from '../data/graphDesigns.js';
@@ -521,6 +521,31 @@ function SkipListVisual({ algorithm, step }) {
 function LinearVisual({ algorithm, step }) {
   const { values, type } = algorithm;
   const english = algorithm.language === 'en';
+  const linearVisualRef = useRef(null);
+  const framePosition = algorithm.animationFrame?.position;
+  const activeIndex = type === 'array' && Number.isInteger(framePosition)
+    ? Math.max(0, Math.min(framePosition, values.length - 1))
+    : values.length ? step % values.length : -1;
+
+  useLayoutEffect(() => {
+    if (type !== 'array' || activeIndex < 0) return;
+
+    const container = linearVisualRef.current;
+    const activeCell = container?.querySelector(`[data-array-index="${activeIndex}"]`);
+    if (!container || !activeCell) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const cellRect = activeCell.getBoundingClientRect();
+    const visibleLeft = containerRect.left + container.clientLeft;
+    const visibleRight = visibleLeft + container.clientWidth;
+
+    if (cellRect.left < visibleLeft) {
+      container.scrollLeft -= visibleLeft - cellRect.left;
+    } else if (cellRect.right > visibleRight) {
+      container.scrollLeft += cellRect.right - visibleRight;
+    }
+  }, [activeIndex, type, values]);
+
   if (!values.length) return <div className="empty-visual"><strong>∅</strong><span>{algorithm.language === 'en' ? 'Empty structure' : 'Estructura vacía'}</span></div>;
   if (type === 'skip') return <SkipListVisual algorithm={algorithm} step={step}/>;
   if (type === 'stack') {
@@ -536,7 +561,8 @@ function LinearVisual({ algorithm, step }) {
   if (type === 'circular') return <CircularListVisual algorithm={algorithm} step={step}/>;
   const linked = type === 'linked';
   const doubleLinked = algorithm.id === 'lista-doble';
-  const connectorVariant = doubleLinked ? 'double'
+  const connectorVariant = type === 'array' ? null
+    : doubleLinked ? 'double'
     : algorithm.id === 'deque' ? 'bidirectional'
       : ['linked','queue','skip'].includes(type) ? 'forward' : 'rail';
   const queueState = algorithm.id === 'cola' ? algorithm.animationFrame?.queueState : null;
@@ -558,12 +584,26 @@ function LinearVisual({ algorithm, step }) {
     if (type === 'union') return `i${index} · r${algorithm.unionRanks?.[index] ?? 0}`;
     return index;
   };
-  return <div className={`linear-visual ${type}`} role="img" aria-label={`${algorithm.language === 'en' ? 'Visualization of' : 'Visualización de'} ${algorithm.name}`}>
+  const visualLabel = `${english ? 'Visualization of' : 'Visualización de'} ${algorithm.name}`;
+  const scrollHint = type === 'array'
+    ? `; ${english ? 'scroll horizontally if some positions are out of view' : 'desplaza horizontalmente si hay casillas fuera de vista'}`
+    : '';
+  return <div
+    ref={linearVisualRef}
+    className={`linear-visual ${type}`}
+    role="img"
+    aria-label={`${visualLabel}${scrollHint}`}
+    tabIndex={type === 'array' ? 0 : undefined}
+  >
     {values.map((value, index) => <div className="linear-unit" key={`${value}-${index}`}>
-      <div className={`data-cell ${index === (algorithm.id === 'cola' ? frontIndex : 0) ? 'first-cell' : ''} ${index === (algorithm.id === 'cola' ? rearIndex : values.length - 1) ? 'last-cell' : ''} ${index === step % values.length ? 'active' : ''}`} style={String(value).length > 4 ? { width: `${String(value).length * 11 + 20}px`, flexShrink: 0 } : undefined}>
+      <div
+        className={`data-cell ${index === (algorithm.id === 'cola' ? frontIndex : 0) ? 'first-cell' : ''} ${index === (algorithm.id === 'cola' ? rearIndex : values.length - 1) ? 'last-cell' : ''} ${index === activeIndex ? 'active' : ''}`}
+        data-array-index={type === 'array' ? index : undefined}
+        style={String(value).length > 4 ? { width: `${String(value).length * 11 + 20}px`, flexShrink: 0 } : undefined}
+      >
         <span>{value}</span><small className={(algorithm.id === 'cola' ? queueLabels(index).length === 2 : values.length === 1 && algorithm.id === 'deque') ? 'endpoint-pair' : undefined}>{cellHint(index)}</small>
       </div>
-      {index < values.length - 1 && <LinearConnector variant={connectorVariant}/>}
+      {index < values.length - 1 && connectorVariant && <LinearConnector variant={connectorVariant}/>}
     </div>)}
   </div>;
 }
