@@ -867,19 +867,18 @@ function ThreadedTreeDiagram({ algorithm, step }) {
   }));
   const edgeClearance = Math.max(0, ...nodes.map(node => {
     const [x] = position(node.id);
-    return (nodeWidth * 1.12 / 2 + 14) * 100 / Math.min(x, 100 - x);
+    return (nodeWidth / 2 + 14) * 100 / Math.min(x, 100 - x);
   }));
-  const minimumWidth = Math.ceil(Math.max(600, Math.max(nodeWidth * 1.12 + 24, 116) * 100 / closestGap, edgeClearance));
+  const minimumWidth = Math.ceil(Math.max(600, Math.max(nodeWidth + 24, 116) * 100 / closestGap, edgeClearance));
   const renderedWidth = canvasWidth ?? minimumWidth;
   const byId = new Map(nodes.map(node => [node.id, node]));
-  // Attach arrow tips to the actual node boundary, including long numbers and
-  // the active-node scale; percentage offsets would leave gaps on wide trees.
+  // Attach arrow tips to the fixed node boundary, including long numbers;
+  // percentage offsets would leave gaps on wide trees.
   const boundary = (id, towardX, towardY) => {
     const [x, y] = position(id);
     const node = byId.get(id);
-    const scale = id === step ? 1.12 : 1;
-    const radiusX = (node.header ? 68 : nodeWidth) * scale / 2 + 2;
-    const radiusY = (node.header ? 52 : 46) * scale / 2 + 2;
+    const radiusX = (node.header ? 68 : nodeWidth) / 2 + 2;
+    const radiusY = (node.header ? 52 : 46) / 2 + 2;
     const dx = (towardX - x) * renderedWidth / 100;
     const dy = (towardY - y) * 460 / 100;
     const factor = 1 / (Math.hypot(dx / radiusX, dy / radiusY) || 1);

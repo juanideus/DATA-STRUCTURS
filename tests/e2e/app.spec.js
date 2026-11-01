@@ -1994,6 +1994,46 @@ test('Sudoku y Hanoi C++ narran el mismo código y estado que muestran', async (
   await expect(page.locator('.code-panel code.active')).toContainText('void hanoi(int amount');
 });
 
+test('Hanoi conserva el tamaño del texto y cabe en móvil incluso con texto ampliado', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto('/hanoi');
+  await page.clock.pauseAt(new Date());
+  await page.getByRole('button', { name: 'Resolver', exact: true }).click();
+  await expect(page.locator('.hanoi-call-state strong')).toHaveText('hanoi(5, A, C, B)');
+
+  const textSizes = [];
+  for (let step = 0; step < 12; step++) {
+    textSizes.push(await page.locator('.hanoi-call-state strong').evaluate(element => getComputedStyle(element).fontSize));
+    await advanceAvailableStep(page);
+  }
+  expect(new Set(textSizes)).toEqual(new Set(['12px']));
+
+  await page.evaluate(() => localStorage.setItem('dsa-accessibility-preferences-v1', JSON.stringify({
+    fontScale: 'extra-large', highContrast: false, colorVision: false, reduceMotion: false, darkMode: false,
+  })));
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-font-scale', 'extra-large');
+  const bounds = await page.locator('.hanoi-call-state').evaluate(element => {
+    const { left, right } = element.getBoundingClientRect();
+    return { left, right, viewportWidth: window.innerWidth, documentWidth: document.documentElement.scrollWidth };
+  });
+  expect(bounds.left).toBeGreaterThanOrEqual(-1);
+  expect(bounds.right).toBeLessThanOrEqual(bounds.viewportWidth + 1);
+  expect(bounds.documentWidth).toBeLessThanOrEqual(bounds.viewportWidth + 1);
+
+  const description = page.locator('.educational-description');
+  await description.scrollIntoViewIfNeeded();
+  await expect(description.getByRole('heading', { level: 2 })).toBeVisible();
+  await expect.poll(async () => description.evaluate(element => element.getBoundingClientRect().height))
+    .toBeGreaterThan(2000);
+  const contentBounds = await description.evaluate(element => ({
+    sectionBottom: element.getBoundingClientRect().bottom,
+    bodyBottom: element.querySelector('.educational-description-body').getBoundingClientRect().bottom,
+  }));
+  expect(contentBounds.bodyBottom).toBeLessThanOrEqual(contentBounds.sectionBottom + 2);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(bounds.viewportWidth + 1);
+});
+
 test('N-Reinas y Laberinto C++ nombran la función que se ilumina', async ({ page }) => {
   for (const sample of [
     { id: 'n-reinas', action: 'Resolver', method: 'solveQueens(' },
