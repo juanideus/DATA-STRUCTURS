@@ -72,6 +72,9 @@ por aproximación. Los resúmenes de estados se etiquetan explícitamente.
 Completado significa último evento, no preparación de la operación.
 Los estados activos pueden cambiar color, borde y posición, pero el texto de nodos y llamadas
 conserva su escala durante la animación; las conexiones se calculan con el tamaño visible real.
+Los arrays muestran casillas contiguas e índices legibles; las conexiones se reservan para
+estructuras con enlaces. En pantallas estrechas, el desplazamiento sigue la posición activa
+dentro del diagrama sin mover el documento.
 
 BugReporter es dueño de validación y envío. Sus selectores y el de velocidad son nativos:
 se acepta la geometría y el teclado del sistema operativo. Textareas crecen hasta un límite

@@ -518,6 +518,9 @@
 .linear-visual::-webkit-scrollbar,.circular-scroll::-webkit-scrollbar{height:6px}
 .linear-visual::-webkit-scrollbar-thumb,.circular-scroll::-webkit-scrollbar-thumb{border-radius:10px;background:#a8b2ae}
 .linear-unit{flex:0 0 auto}
+.linear-visual.array{gap:2px}
+.linear-visual.array .data-cell small{font-size:10px;margin-top:4px}
+.linear-visual.array:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
 .sort-visual{
   position:relative;
   z-index:2;
