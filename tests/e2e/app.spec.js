@@ -1984,8 +1984,13 @@ test('Sudoku y Hanoi C++ narran el mismo código y estado que muestran', async (
   await page.goto('/hanoi');
   await page.getByRole('button', { name: 'C++', exact: true }).click();
   await expect(page.locator('.code-panel pre')).toContainText('int diskCount = 5;');
+  await page.clock.pauseAt(new Date());
   await page.getByRole('button', { name: 'Resolver', exact: true }).click();
-  await expect(page.locator('.operation-message')).toContainText('hanoi(5, A, C, B)');
+  await expect(page.locator('.operation-message')).toContainText('La torre A contiene todos los discos');
+  await expect(page.locator('.code-panel code.active')).toContainText('if (sourceSize != diskCount');
+  await advanceAvailableStep(page);
+  await expect(page.locator('.operation-message')).toContainText('Llamada hanoi(5, A, C, B).');
+  await expect(page.locator('.hanoi-call-state strong')).toHaveText('hanoi(5, A, C, B)');
   await expect(page.locator('.code-panel code.active')).toContainText('void hanoi(int amount');
 });
 
