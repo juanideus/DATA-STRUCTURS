@@ -296,7 +296,7 @@ const specificGuides = {
   },
   'hash-table': {
     definition: 'A Hash Table maps a key to an array position, then compares the original key to identify the correct entry.',
-    how: 'This lesson uses a fixed array of 12 slots with linear probing. When the hashed slot is occupied, insertion checks consecutive slots and wraps around. Lookup follows the same path; deletion leaves a tombstone so a displaced key remains reachable. Separate Chaining uses a different collision strategy.',
+    how: 'This introduction uses the same fixed array of 12 slots with linear probing explored in detail under Open Addressing. Lookup follows the same probes and deletion leaves a tombstone. This is one possible implementation; Separate Chaining uses a different collision strategy.',
     strengths: ['Expected constant-time exact lookup', 'Compact array-backed storage', 'Shows how a collision changes the search path'],
     limits: ['The displayed table has a fixed capacity and does not rehash', 'Linear probing can form clusters', 'Worst-case lookup is O(n)'],
     uses: ['Dictionaries', 'Frequency counters', 'Lookup tables'],

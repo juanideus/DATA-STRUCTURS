@@ -2,9 +2,10 @@ const indent = source => source.split('\n').map(line => (line ? `    ${line}` : 
 
 const insert = (listName) => `void insert${listName}(int coefficient, int exponent) {
     insertTerm(${listName}, coefficient, exponent);
-    clearList(C);
+    if (coefficient != 0) clearList(C);
 }`;
 const remove = (listName) => `bool remove${listName}(int exponent) {
+    if (!containsExponent(${listName}, exponent)) return false;
     bool removed = removeTerm(${listName}, exponent);
     if (removed) clearList(C);
     return removed;
@@ -123,13 +124,20 @@ const clearList = `void clearList(Node*& head) {
     }
 }`;
 
+const containsExponent = `bool containsExponent(const Node* head, int exponent) {
+    for (const Node* current = head; current != nullptr; current = current->next) {
+        if (current->exponent == exponent) return true;
+    }
+    return false;
+}`;
+
 export function getPolynomialCpp(actionId) {
   const operation = operations[actionId];
   if (!operation) return null;
   const helpers = actionId.startsWith('poly-insert')
     ? [insertTerm, removeTerm, clearList]
     : actionId.startsWith('poly-remove')
-      ? [removeTerm, clearList]
+      ? [containsExponent, removeTerm, clearList]
       : actionId === 'poly-add'
         ? [validateSum, add, clearList]
         : [clearList];
@@ -157,6 +165,9 @@ public:
         B->next = new Node(-3, 10);
         B->next->next = new Node(10, 6);
     }
+
+    LinkedPolynomial(const LinkedPolynomial&) = delete;
+    LinkedPolynomial& operator=(const LinkedPolynomial&) = delete;
 
     ~LinkedPolynomial() {
         clearList(A);

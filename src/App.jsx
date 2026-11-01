@@ -459,6 +459,8 @@ function App() {
     const stored = readPreference(STORAGE_KEYS.codeMode, 'java');
     return ['java', 'cpp', 'pseudo'].includes(stored) ? stored : 'java';
   });
+  const operationRequestRef = useRef(0);
+  const [codeContextAlgorithm, setCodeContextAlgorithm] = useState(null);
   const [copied, setCopied] = useState(false);
   const [fullCodeOpen, setFullCodeOpen] = useState(false);
   const codePanelRef = useRef(null);
@@ -530,11 +532,11 @@ function App() {
     isTheoryPage
       ? ''
       : codeMode === 'java'
-        ? javaCodeFactory?.(baseAlgorithm, activeOperation) ?? '// Cargando código Java…'
+        ? javaCodeFactory?.(codeContextAlgorithm ?? baseAlgorithm, activeOperation) ?? '// Cargando código Java…'
         : codeMode === 'cpp'
-          ? cppCodeFactory?.(baseAlgorithm, activeOperation) ?? '// Cargando código C++…'
-        : getOperationPseudocode(baseAlgorithm, activeOperation, language)
-  ), [activeOperation, baseAlgorithm, codeMode, isTheoryPage, javaCodeFactory, cppCodeFactory, language]);
+          ? cppCodeFactory?.(codeContextAlgorithm ?? baseAlgorithm, activeOperation) ?? '// Cargando código C++…'
+        : getOperationPseudocode(codeContextAlgorithm ?? baseAlgorithm, activeOperation, language)
+  ), [activeOperation, baseAlgorithm, codeContextAlgorithm, codeMode, isTheoryPage, javaCodeFactory, cppCodeFactory, language]);
   const displayedCode = useMemo(() => translateCodeText(sourceCode, language, codeMode), [codeMode, language, sourceCode]);
   const codeLines = useMemo(() => displayedCode.split('\n'), [displayedCode]);
   const highlightedCodeLine = activeCodeLine;
@@ -639,7 +641,10 @@ function App() {
     return () => { active = false; };
   }, [baseAlgorithm.id, codeMode, cppCodeFactory, isTheoryPage, language]);
   useEffect(() => {
-    if (codeMode === 'cpp' && !supportsCpp(baseAlgorithm.id)) setCodeMode('java');
+    if (codeMode === 'cpp' && !supportsCpp(baseAlgorithm.id)) {
+      operationRequestRef.current += 1;
+      setCodeMode('java');
+    }
   }, [baseAlgorithm.id, codeMode]);
   useEffect(() => {
     if (!sectionTestLockedUntil) return undefined;
@@ -667,6 +672,7 @@ function App() {
   useEffect(()=>{ window.scrollTo({ top: 0, behavior: 'auto' }); },[showWelcome, selectedId]);
   useEffect(()=>{ setFullCodeOpen(false); }, [selectedId, showWelcome]);
   useEffect(()=>{
+    operationRequestRef.current += 1;
     const finalFrame = operationFrames.at(-1);
     if (finalFrame) applyFrame(finalFrame, operationFrames.length - 1);
     setStep(0);
@@ -675,6 +681,9 @@ function App() {
     setOperationFrames([]);
     setActiveCodeLine(null);
   },[codeMode]);
+  useEffect(() => {
+    operationRequestRef.current += 1;
+  }, [language]);
   useEffect(()=>{
     if (!playing) return;
     if (step >= totalSteps - 1) { setPlaying(false); return; }
@@ -704,6 +713,8 @@ function App() {
     }
   },[activeCodeLine,step,displayedCode,playing,baseAlgorithm.id,fullCodeOpen]);
   const loadAlgorithm = useCallback(id => {
+    operationRequestRef.current += 1;
+    setCodeContextAlgorithm(null);
     const nextAlgorithm = algorithmsById.get(id) ?? algorithms[0];
     setSelectedId(nextAlgorithm.id);
     setDemoValues([...nextAlgorithm.values]);
@@ -749,6 +760,7 @@ function App() {
     if (updateHistory && algorithmIdFromLocation() !== id) updateRoute(id);
   }, [loadAlgorithm, registerTestViolation, updateRoute]);
   const openWelcome = useCallback((updateHistory = true) => {
+    operationRequestRef.current += 1;
     registerTestViolation('navigation');
     setShowWelcome(true);
     setPlaying(false);
@@ -791,6 +803,8 @@ function App() {
     };
   }, [openAlgorithm, openWelcome, registerTestViolation]);
   const resetDemo = () => {
+    operationRequestRef.current += 1;
+    setCodeContextAlgorithm({ ...baseAlgorithm, values: [...baseAlgorithm.values], edges: edgesForAlgorithm(baseAlgorithm) });
     setDemoValues([...baseAlgorithm.values]);
     setDemoTreeColors(redBlackColorsFor(baseAlgorithm, baseAlgorithm.values));
     setDemoFibonacciForest(fibonacciForestFor(baseAlgorithm, baseAlgorithm.values));
@@ -811,6 +825,8 @@ function App() {
     setPlaying(false);
   };
   const clearDemo = () => {
+    operationRequestRef.current += 1;
+    setCodeContextAlgorithm({ ...baseAlgorithm, values: createEmptyValues(baseAlgorithm), edges: [] });
     setDemoValues(createEmptyValues(baseAlgorithm));
     setDemoTreeColors(redBlackColorsFor(baseAlgorithm, []));
     setDemoFibonacciForest(fibonacciForestFor(baseAlgorithm, []));
@@ -830,7 +846,9 @@ function App() {
     setPlaying(false);
   };
   const createNewExample = () => {
+    operationRequestRef.current += 1;
     const nextValues = createRandomValues(baseAlgorithm);
+    setCodeContextAlgorithm({ ...baseAlgorithm, values: nextValues, edges: edgesForAlgorithm(baseAlgorithm, baseAlgorithm.category === 'Grafos') });
     setDemoValues(nextValues);
     setDemoTreeColors(redBlackColorsFor(baseAlgorithm, nextValues));
     setDemoFibonacciForest(fibonacciForestFor(baseAlgorithm, nextValues));
@@ -867,52 +885,25 @@ function App() {
     return module.getBeginnerCpp;
   };
   const copyCode = async () => {
+    const codeAlgorithm = codeContextAlgorithm ?? baseAlgorithm;
     const code = codeMode === 'java'
-      ? (await loadJavaCodeFactory())(baseAlgorithm, activeOperation)
+      ? (await loadJavaCodeFactory())(codeAlgorithm, activeOperation)
       : codeMode === 'cpp'
-        ? (await loadCppCodeFactory())(baseAlgorithm, activeOperation)
+        ? (await loadCppCodeFactory())(codeAlgorithm, activeOperation)
       : displayedCode;
     await navigator.clipboard.writeText(code);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1400);
   };
   const handleOperation = async (actionId, fields) => {
+    const requestId = ++operationRequestRef.current;
+    setPlaying(false);
     setActiveOperation(actionId);
     if (actionId === 'reset' && ['dijkstra','a-star'].includes(baseAlgorithm.id)) {
       setDemoPositions(DEFAULT_GRAPH_POSITIONS.map(position=>[...position]));
       setDemoMap(DEFAULT_PATH_MAP);
     } else if (actionId === 'reset' && usesNodeGraph(baseAlgorithm)) {
       setDemoPositions(positionsForAlgorithm(baseAlgorithm));
-    }
-    let codeForAnimation;
-    let executeOperation;
-    let adaptFramesToCode;
-    let createCodeSynchronizedFrames;
-    let createLinkedListSynchronizedFrames;
-    let createTreeSynchronizedFrames;
-    try {
-      const codePromise = codeMode === 'java'
-        ? loadJavaCodeFactory().then(factory => factory(baseAlgorithm, actionId))
-        : codeMode === 'cpp'
-          ? loadCppCodeFactory().then(factory => factory(baseAlgorithm, actionId))
-          : Promise.resolve(getOperationPseudocode(baseAlgorithm, actionId, language));
-      const [code, operationModule, animationModule] = await Promise.all([
-        codePromise,
-        import('./logic/operations.js'),
-        import('./logic/codeAnimation.js'),
-      ]);
-      codeForAnimation = code;
-      ({ executeOperation } = operationModule);
-      ({ adaptFramesToCode, createCodeSynchronizedFrames, createLinkedListSynchronizedFrames, createTreeSynchronizedFrames } = animationModule);
-    } catch {
-      setPlaying(false);
-      setOperationFrames([]);
-      setActiveCodeLine(null);
-      setOperationStatus('error');
-      setOperationMessage(language === 'en'
-        ? 'The operation could not be loaded. Reload the page and try again.'
-        : 'No se pudo cargar la operación. Recarga la página e inténtalo de nuevo.');
-      return;
     }
     const pendingFinalFrame = operationFrames.at(-1)?.failed ? null : operationFrames.at(-1);
     const previousValues = copyVisualValues(pendingFinalFrame?.values ?? demoValues);
@@ -924,8 +915,57 @@ function App() {
     const previousHashTable = pendingFinalFrame?.hashTable ?? demoHashTable;
     const previousUnionRanks = pendingFinalFrame?.unionRanks ?? demoUnionRanks;
     const previousEdges = (pendingFinalFrame?.edges ?? demoEdges).map(edge => [...edge]);
+    const codeAlgorithm = {
+      ...baseAlgorithm,
+      values: previousValues,
+      treeColors: previousTreeColors,
+      fibonacciForest: previousFibonacciForest,
+      multiwayTree: previousMultiwayTree,
+      treeParents: previousTreeParents,
+      spatialTree: previousSpatialTree,
+      hashTable: previousHashTable,
+      unionRanks: previousUnionRanks,
+      edges: previousEdges,
+      positions: demoPositions,
+      map: actionId === 'reset' ? DEFAULT_PATH_MAP : demoMap,
+    };
+    let codeForAnimation;
+    let executeOperation;
+    let adaptFramesToCode;
+    let createCodeSynchronizedFrames;
+    let createLinkedListSynchronizedFrames;
+    let createTreeSynchronizedFrames;
+    try {
+      const codePromise = codeMode === 'java'
+        ? loadJavaCodeFactory()
+        : codeMode === 'cpp'
+          ? loadCppCodeFactory()
+          : Promise.resolve(getOperationPseudocode(codeAlgorithm, actionId, language));
+      const [codeFactoryOrText, operationModule, animationModule] = await Promise.all([
+        codePromise,
+        import('./logic/operations.js'),
+        import('./logic/codeAnimation.js'),
+      ]);
+      if (requestId !== operationRequestRef.current) return;
+      codeForAnimation = typeof codeFactoryOrText === 'function'
+        ? codeFactoryOrText(codeAlgorithm, actionId)
+        : codeFactoryOrText;
+      setCodeContextAlgorithm(codeAlgorithm);
+      ({ executeOperation } = operationModule);
+      ({ adaptFramesToCode, createCodeSynchronizedFrames, createLinkedListSynchronizedFrames, createTreeSynchronizedFrames } = animationModule);
+    } catch {
+      if (requestId !== operationRequestRef.current) return;
+      setPlaying(false);
+      setOperationFrames([]);
+      setActiveCodeLine(null);
+      setOperationStatus('error');
+      setOperationMessage(language === 'en'
+        ? 'The operation could not be loaded. Reload the page and try again.'
+        : 'No se pudo cargar la operación. Recarga la página e inténtalo de nuevo.');
+      return;
+    }
     const result = executeOperation({
-      algorithm: { ...baseAlgorithm, positions: demoPositions, map: actionId === 'reset' ? DEFAULT_PATH_MAP : demoMap },
+      algorithm: codeAlgorithm,
       actionId,
       fields,
       values: previousValues,
@@ -1015,8 +1055,19 @@ function App() {
         }
         const outputParameter = ['cola', 'pila'].includes(baseAlgorithm.id)
           && ['return removed;', 'return front.value;', 'return values[top];'].includes(frame.codeNeedle);
+        const matrixOutputAllocation = baseAlgorithm.id === 'matriz'
+          && ['matrix-row', 'matrix-column'].includes(actionId)
+          && frame.codeNeedle === 'int[] result = new int[SIZE];';
+        const matrixOutputReturn = baseAlgorithm.id === 'matriz'
+          && ['matrix-row', 'matrix-column'].includes(actionId)
+          && frame.codeNeedle === 'return result;';
+        const matrixName = actionId === 'matrix-row' ? 'copyRow' : 'copyColumn';
         return { ...frame, codeNeedle, ...(outputParameter && {
           message: `${frame.message} En C++ el dato se entrega por referencia y el retorno booleano indica éxito.`,
+        }), ...(matrixOutputAllocation && {
+          message: `El método ${matrixName} recibe output[] como búfer; cada celda se copiará ahí.`,
+        }), ...(matrixOutputReturn && {
+          message: `La función devuelve true; output[] contiene [${frame.variables?.find(variable => variable.name === 'result')?.value ?? ''}].`,
         }) };
       }
       return frame;
@@ -1114,6 +1165,12 @@ function App() {
       });
       traceFrames.push(...cleanupFrames);
     }
+    if (codeMode === 'cpp' && baseAlgorithm.id === 'counting-sort' && result.ok && traceFrames?.length && previousValues.length >= 2) {
+      traceFrames.splice(traceFrames.length - 1, 0, {
+        ...traceFrames.at(-1), completed: false, codeNeedle: 'delete[] count;',
+        message: 'Se libera el arreglo dinámico de frecuencias.',
+      });
+    }
     let synchronizedFrames = traceFrames?.length
       ? adaptFramesToCode(traceFrames, codeForAnimation, codeMode !== 'pseudo')
       : synchronizedFrameFactory({
@@ -1184,7 +1241,7 @@ function App() {
               fibonacciForest: frame.fibonacciForest ?? (unchangedValues ? previousFibonacciForest : result.fibonacciForest),
             }),
             ...(attachMultiwayTree && {
-              multiwayTree: unchangedValues ? previousMultiwayTree : result.multiwayTree,
+              multiwayTree: frame.multiwayTree ?? (unchangedValues ? previousMultiwayTree : result.multiwayTree),
             }),
             ...(attachTreeParents && {
               treeParents: unchangedValues ? previousTreeParents : result.treeParents,
@@ -1220,6 +1277,7 @@ function App() {
     setPlaying(frames.length > 1);
   };
   const goToStep = requestedStep => {
+    operationRequestRef.current += 1;
     const nextStep = Math.max(0, Math.min(totalSteps - 1, requestedStep));
     if (operationFrames.length) applyFrame(operationFrames[nextStep], nextStep);
     else setStep(nextStep);
@@ -1239,12 +1297,12 @@ function App() {
     setShowOpeningIntro(false);
   };
   const toggleChallengeMode = () => {
+    operationRequestRef.current += 1;
     const willOpen = !challengeMode;
     setPlaying(false);
     if (willOpen && operationFrames.length) {
       const finalFrame = operationFrames.at(-1);
-      setDemoValues(copyVisualValues(finalFrame.values));
-      if (finalFrame.edges) setDemoEdges(finalFrame.edges.map(edge => [...edge]));
+      applyFrame(finalFrame, operationFrames.length - 1);
       setOperationFrames([]);
       setActiveCodeLine(null);
       setStep(0);
@@ -1300,7 +1358,7 @@ function App() {
           <div className="visual-statusbar"><div className={`step-badge ${currentAnimationFrame?.iteration != null ? 'loop-step' : ''}`}>{!currentAnimationFrame ? t('currentState') : currentAnimationFrame?.loopExit ? <>{t('loopEnd')}</> : currentAnimationFrame?.iteration != null ? <>{t('iteration')} <b>{Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)}/{currentAnimationFrame.totalIterations}</b></> : <>{t('step')} <b>{String(step+1).padStart(2,'0')}</b></>}</div>{currentAnimationFrame?.traceMode === 'summary' && <span>{language === 'en' ? 'State overview · no line-by-line trace' : 'Resumen de estados · sin traza línea por línea'}</span>}{currentAnimationFrame?.codeUnmapped && <span>{language === 'en' ? 'No exact code-line mapping for this step' : 'Este paso no tiene una línea equivalente exacta'}</span>}</div>
           <div className="canvas-grid" data-visualizer={algorithm.id}><Suspense fallback={<div className="description-loading" aria-label={t('loadingDescription')}><span/></div>}><MemoizedVisualizer algorithm={visualAlgorithm} step={operationFrames.length ? currentAnimationFrame?.position ?? 0 : 0}/></Suspense></div>
           {challengeMode
-            ? <Suspense fallback={<section className="challenge-panel" aria-label="Cargando desafío"/>}><ChallengePanel algorithm={algorithm} values={demoValues} playing={playing} scenarioKey={challengeScenarioKey} onVerify={handleOperation}/></Suspense>
+            ? <Suspense fallback={<section className="challenge-panel" aria-label="Cargando desafío"/>}><ChallengePanel algorithm={algorithm} values={operationFrames.at(-1)?.failed ? demoValues : operationFrames.at(-1)?.values ?? demoValues} playing={playing} scenarioKey={challengeScenarioKey} onVerify={handleOperation}/></Suspense>
             : <OperationsPanel algorithm={baseAlgorithm} message={language === 'en' ? currentAnimationFrame?.messageEn ?? (operationMessageTranslation?.source === operationMessage ? operationMessageTranslation.english : operationMessage) : operationMessage} status={operationStatus === 'success' && currentAnimationFrame && step < totalSteps - 1 ? 'running' : operationStatus} activeOperation={activeOperation} onAction={handleOperation}/>}
           <div className="player"><button disabled={!operationFrames.length || step === 0} onClick={()=>goToStep(step-1)} aria-label={t('previous')}><ArrowLeft size={17}/></button><button className="play" disabled={!operationFrames.length} onClick={togglePlayback} aria-label={playing?t('pause'):t('play')} title={!operationFrames.length ? (language === 'en' ? 'Run an operation to enable playback' : 'Ejecuta una operación para habilitar la reproducción') : undefined}>{playing?<Pause size={18}/>:<Play size={18}/>}<span>{playing?t('pause'):t('play')}</span></button><button disabled={!operationFrames.length || step >= totalSteps - 1} onClick={()=>goToStep(step+1)} aria-label={t('next')}><ArrowRight size={17}/></button><div className="timeline"><span style={{width:`${operationFrames.length ? ((step+1)/totalSteps)*100 : 0}%`}}/></div><label><span>{t('speed')}</span><select aria-label={t('speed')} value={speed} onChange={e=>setSpeed(Number(e.target.value))}><option value="0.5">0.5×</option><option value="1">1×</option><option value="2">2×</option></select><ChevronDown size={13}/></label></div>
         </article>

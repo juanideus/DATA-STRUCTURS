@@ -305,8 +305,9 @@ const splayInsert = animated(`Node insert(Node root, int value) {
     return newRoot;
 }`, splayHelpers);
 
-const splayFind = animated(`Node search(Node root, int target) {
-    return splay(root, target);
+const splayFind = animated(`Node search(int target) {
+    root = splay(root, target);
+    return root != null && root.value == target ? root : null;
 }`, splayHelpers);
 
 const splayRemove = animated(`Node remove(Node root, int target) {
@@ -420,6 +421,10 @@ const naryTree = {
 
 const suffixTree = {
   'set-word': animated(`void buildSuffixTrie(String newText) {
+    if (newText == null || newText.isEmpty()) return;
+    for (int i = 0; i < newText.length(); i++) {
+        if (newText.charAt(i) < 'A' || newText.charAt(i) > 'Z') return;
+    }
     text = newText;
     root = new Node();
     for (int start = 0; start < text.length(); start++) {
@@ -437,6 +442,10 @@ const suffixTree = {
     current.isSuffixEnd = true;
 }`),
   'word-find': animated(`boolean contains(String pattern) {
+    if (pattern == null || pattern.isEmpty()) return false;
+    for (int i = 0; i < pattern.length(); i++) {
+        if (pattern.charAt(i) < 'A' || pattern.charAt(i) > 'Z') return false;
+    }
     Node current = root;
     for (int i = 0; i < pattern.length(); i++) {
         int letter = pattern.charAt(i) - 'A';
@@ -445,9 +454,22 @@ const suffixTree = {
     }
     return true;
 }`),
-  'remove-word': animated(`void clearText() {
-    text = "";
+  'remove-word': animated(`boolean removeWord(String word) {
+    if (word == null || word.isEmpty()) return false;
+    int position = text.indexOf(word);
+    if (position < 0) return false;
+    text = text.substring(0, position) + text.substring(position + word.length());
     root = new Node();
+    for (int start = 0; start < text.length(); start++) insertSuffix(text.substring(start));
+    return true;
+}`, `void insertSuffix(String suffix) {
+    Node current = root;
+    for (int i = 0; i < suffix.length(); i++) {
+        int letter = suffix.charAt(i) - 'A';
+        if (current.children[letter] == null) current.children[letter] = new Node();
+        current = current.children[letter];
+    }
+    current.isSuffixEnd = true;
 }`),
   clear: animated(`void clear() {
     text = "";
@@ -1416,6 +1438,7 @@ void refreshSeparators(Node node) {
 
 const kdTree = {
   'tree-add': animated(`Node insert(Node node, int value, int depth) {
+    if (value < 0 || value > 99) throw new IllegalArgumentException("Point must be between 0 and 99");
     if (node == null) return new Node(value);
     int axis = depth % DIMENSIONS;
     if (coordinate(value, axis) < coordinate(node.value, axis)) {
@@ -1428,6 +1451,7 @@ const kdTree = {
     return axis == 0 ? point / 10 : point % 10;
 }`),
   find: animated(`Node search(Node node, int target, int depth) {
+    if (target < 0 || target > 99) throw new IllegalArgumentException("Point must be between 0 and 99");
     if (node == null || node.value == target) return node;
     int axis = depth % DIMENSIONS;
     if (coordinate(target, axis) < coordinate(node.value, axis)) {
@@ -1438,6 +1462,7 @@ const kdTree = {
     return axis == 0 ? point / 10 : point % 10;
 }`),
   'remove-value': animated(`Node remove(Node node, int target, int depth) {
+    if (target < 0 || target > 99) throw new IllegalArgumentException("Point must be between 0 and 99");
     if (node == null) return null;
     int axis = depth % DIMENSIONS;
 
@@ -1503,6 +1528,14 @@ const spatialTree = dimension => {
     : `boolean samePoint(Point first, Point second) {
     return first.x == second.x && first.y == second.y;
 }`;
+  const containsPoint = `boolean contains(Node node, Point point) {
+    if (node == null || !isInside(node, point)) return false;
+    for (int i = 0; i < node.pointCount; i++) {
+        if (samePoint(node.points[i], point)) return true;
+    }
+    if (!node.isDivided) return false;
+    return contains(node.children[childIndex(node, point)], point);
+}`;
   const childIndex = isOctree
     ? `int childIndex(Node node, Point point) {
     int index = 0;
@@ -1545,25 +1578,31 @@ const spatialTree = dimension => {
   const sharedHelpers = `${inside}\n\n${childIndex}`;
 
   return {
-    'tree-add': animated(`void insert(Node node, Point point) {
-    if (!isInside(node, point)) return;
+    'tree-add': animated(`boolean insert(Node node, Point point) {
+    if (contains(node, point)) return false;
+    return insert(node, point, 0);
+}
+
+boolean insert(Node node, Point point, int depth) {
+    if (node == null || !isInside(node, point)) return false;
     if (node.pointCount < CAPACITY && !node.isDivided) {
         node.points[node.pointCount] = point;
         node.pointCount++;
-        return;
+        return true;
     }
     if (!node.isDivided) {
+        if (depth >= 8) return false;
         Point[] previous = java.util.Arrays.copyOf(node.points, node.pointCount);
         int previousCount = node.pointCount;
         node.pointCount = 0;
         subdivide(node);
         for (int i = 0; i < previousCount; i++) {
             Point oldPoint = previous[i];
-            insert(node.children[childIndex(node, oldPoint)], oldPoint);
+            insert(node.children[childIndex(node, oldPoint)], oldPoint, depth + 1);
         }
     }
-    insert(node.children[childIndex(node, point)], point);
-}`, `${sharedHelpers}\n\n${subdivide}`),
+    return insert(node.children[childIndex(node, point)], point, depth + 1);
+}`, `${sharedHelpers}\n\n${samePoint}\n\n${containsPoint}\n\n${subdivide}`),
     find: animated(`boolean contains(Node node, Point point) {
     if (!isInside(node, point)) return false;
     for (int i = 0; i < node.pointCount; i++) {

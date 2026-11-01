@@ -104,6 +104,9 @@ public:
     int size = 0;
     unsigned int seed = 123456789u;
 
+    SkipList() = default;
+    SkipList(const SkipList&) = delete;
+    SkipList& operator=(const SkipList&) = delete;
     ~SkipList() {
         clearNodes();
         delete head;

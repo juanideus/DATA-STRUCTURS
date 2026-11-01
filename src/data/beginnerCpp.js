@@ -11,6 +11,8 @@ import { getBacktrackingCpp } from './backtrackingCpp.js';
 import { getHanoiCpp } from './hanoiCpp.js';
 import { getPolynomialCpp } from './polynomialCpp.js';
 import { getTreeCpp } from './treeCpp.js';
+import { seedLinearExample } from './linearExampleContext.js';
+import { seedCurrentExample } from './currentExampleContext.js';
 import { getSkipListCpp } from './advancedLinearCpp.js';
 import { getMoreTreesCpp } from './moreTreesCpp.js';
 import { getSpecialTreesCpp } from './specialTreesCpp.js';
@@ -26,21 +28,21 @@ import { getMultiwayTreesCpp } from './multiwayTreesCpp.js';
 export function getBeginnerCpp(algorithm, actionId) {
   const source = getLinearCpp(algorithm.id, actionId)
     ?? getLinkedListCpp(algorithm.id, actionId)
-    ?? getSortingCpp(algorithm.id, actionId)
+    ?? getSortingCpp(algorithm.id, actionId, algorithm.values)
     ?? getHeapCpp(algorithm.id, actionId)
     ?? getRecursionCpp(algorithm.id, actionId)
     ?? getGraphCpp(algorithm.id, actionId)
     ?? (algorithm.id === 'matriz' ? getDenseMatrixCpp(actionId) : null)
     ?? (algorithm.id === 'matriz-dispersa' ? getSparseMatrixCpp(actionId) : null)
-    ?? getHashCpp(algorithm.id, actionId)
-    ?? getOtherCpp(algorithm.id, actionId)
+    ?? getHashCpp(algorithm.id, actionId, algorithm.values)
+    ?? getOtherCpp(algorithm.id, actionId, algorithm.values)
     ?? getBacktrackingCpp(algorithm.id, actionId)
     ?? (algorithm.id === 'hanoi' ? getHanoiCpp(actionId) : null)
     ?? (algorithm.id === 'polinomios' ? getPolynomialCpp(actionId) : null)
-    ?? getTreeCpp(algorithm.id, actionId)
+    ?? getTreeCpp(algorithm.id, actionId, algorithm.values)
     ?? (algorithm.id === 'skip-list' ? getSkipListCpp(actionId) : null)
-    ?? getMoreTreesCpp(algorithm.id, actionId)
-    ?? getSpecialTreesCpp(algorithm.id, actionId)
+    ?? getMoreTreesCpp(algorithm.id, actionId, algorithm.values)
+    ?? getSpecialTreesCpp(algorithm.id, actionId, algorithm.values)
     ?? (algorithm.id === 'arbol-enhebrado' ? getThreadedTreeCpp(actionId) : null)
     ?? getPathfindingCpp(algorithm.id, actionId)
     ?? getSpatialTreesCpp(algorithm.id, actionId)
@@ -53,5 +55,5 @@ export function getBeginnerCpp(algorithm, actionId) {
   if (!source) {
     throw new Error(`No existe código C++ para ${algorithm.id}/${actionId}.`);
   }
-  return source;
+  return seedCurrentExample(seedLinearExample(source, algorithm, true), algorithm, true);
 }

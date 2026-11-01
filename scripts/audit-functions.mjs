@@ -179,7 +179,7 @@ const specializedResetExpectations = new Map([
   ['n-reinas', 'resetQueens(int boardSize)'],
   ['laberinto', 'resetPath()'],
   ['sudoku', 'resetBoard(int[][] initialBoard)'],
-  ['union-find', 'resetSets(int amount)'],
+  ['union-find', 'void resetSets()'],
 ]);
 for (const [algorithmId, expected] of specializedResetExpectations) {
   const resetCode = getBeginnerJava(algorithms.find(item => item.id === algorithmId), 'reset');
@@ -1670,13 +1670,25 @@ for (const algorithmId of ['dijkstra', 'a-star']) {
 
 const hanoi = algorithms.find(item => item.id === 'hanoi');
 const hanoiResult = run(hanoi, 'hanoi-solve');
-const hanoiMoves = hanoiResult.frames.filter(frame => frame.hanoiState?.phase === 'move');
+const hanoiJavaFrames = hanoiResult.frames.filter(frame => frame.codeLanguage === 'java');
+const hanoiCppFrames = hanoiResult.frames.filter(frame => frame.codeLanguage === 'cpp');
+const hanoiMoves = hanoiJavaFrames.filter(frame => frame.hanoiState?.phase === 'move');
 assert.equal(hanoiMoves.length, 31, 'Hanoi: 5 discos deben producir exactamente 31 movimientos.');
-assert.equal(hanoiResult.frames.length, 188, 'Hanoi: la traza debe incluir llamadas, casos base y movimientos recursivos.');
-assert.deepEqual([...new Set(hanoiResult.frames.map(frame => frame.codeLine))].sort(), [0, 1, 2, 3, 4], 'Hanoi: el código debe recorrer todas las líneas del método recursivo.');
-assert.ok(hanoiResult.frames.every(frame => frame.variables?.some(variable => variable.name === 'profundidad')), 'Hanoi: cada paso debe mostrar la profundidad recursiva.');
+assert.equal(hanoiJavaFrames.length, 188, 'Hanoi: la proyección Java debe incluir llamadas, casos base y movimientos recursivos.');
+assert.equal(hanoiCppFrames.length, 190, 'Hanoi: la proyección C++ debe incluir guardia, traza recursiva y retorno final.');
+assert.equal(hanoiCppFrames.filter(frame => frame.hanoiState?.phase === 'move').length, 31, 'Hanoi: C++ debe mostrar los mismos 31 movimientos.');
+assert.deepEqual([...new Set(hanoiJavaFrames.map(frame => frame.codeLine))].sort(), [0, 1, 2, 3, 4], 'Hanoi: Java debe recorrer todas las líneas del método recursivo.');
+assert.ok(hanoiJavaFrames.every(frame => frame.variables?.some(variable => variable.name === 'profundidad')), 'Hanoi: cada paso Java debe mostrar la profundidad recursiva.');
 assert.equal(hanoiMoves.at(-1)?.hanoiState?.moveCount, 31, 'Hanoi: el contador visual debe terminar en 31 movimientos.');
 assert.ok(hanoiResult.values.every(disk => disk.rod === 2), 'Hanoi: todos los discos deben terminar en la torre C.');
+const hanoiCppSource = getBeginnerCpp(hanoi, 'hanoi-solve');
+const adaptedHanoiCppFrames = adaptFramesToCode(hanoiCppFrames, hanoiCppSource, true);
+const hanoiCppLines = hanoiCppSource.split('\n');
+const cppLine = needle => hanoiCppLines.findIndex(line => line.trim() === needle);
+assert.ok(adaptedHanoiCppFrames.every(frame => Number.isInteger(frame.codeLine)), 'Hanoi: cada paso C++ debe mapearse a una línea real.');
+assert.ok(adaptedHanoiCppFrames.filter(frame => frame.hanoiState?.phase === 'move' && frame.codeNeedle !== 'return true;')
+  .every(frame => hanoiCppLines[frame.codeLine]?.trim() === 'to[toSize++] = from[--fromSize];'), 'Hanoi: cada movimiento debe resaltar la mutación de las torres en C++.');
+assert.equal(adaptedHanoiCppFrames.find(frame => frame.codeNeedle === 'return true;')?.codeLine, cppLine('return true;'), 'Hanoi: la finalización C++ debe resaltar el retorno de solve.');
 
 const visualGraphIds = ['grafo', 'grafo-dirigido', 'dfs', 'bfs', 'prim', 'kruskal'];
 assert.equal(new Set(visualGraphIds.map(id => JSON.stringify(graphPositionsFor(id)))).size, visualGraphIds.length, 'Grafos: cada tema debe tener una distribución visual distinta.');
@@ -1877,8 +1889,8 @@ for (const algorithmId of sortingAlgorithmIds) {
     assert.ok(new Set(outputSnapshots).size > 1, 'Radix Sort: output debe crecer de forma progresiva en la animación.');
   }
   if (algorithmId === 'bogo-sort') {
-    assert.match(java, /while \(!isSorted\(\)\)/, 'Bogo Sort: debe repetir mientras el arreglo no esté ordenado.');
-    assert.match(java, /Math\.random\(\)/, 'Bogo Sort: shuffle debe elegir posiciones aleatorias reales.');
+    assert.match(java, /while \(!isSorted\(\) && attempts < 250000\)/, 'Bogo Sort: debe repetir mientras no esté ordenado y respetar el límite de intentos.');
+    assert.match(java, /state\[0\] = \(state\[0\] \* 1664525L \+ 1013904223L\) & 0xffffffffL;/, 'Bogo Sort: shuffle debe usar el generador pseudoaleatorio reproducible compartido con la simulación.');
     assert.ok(trace.some(frame => frame.sortPhase === 'bogo-random-index'), 'Bogo Sort: la animación no muestra Fisher–Yates.');
     assert.ok(!trace.some(frame => frame.sortPhase === 'bogo-lucky'), 'Bogo Sort: se detectó un resultado forzado en la animación.');
   }

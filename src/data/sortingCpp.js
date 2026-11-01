@@ -116,24 +116,22 @@ const sortOperations = {
   'counting-sort': `bool sort() {
     if (size < 2) return true;
 
-    int minimum = values[0];
-    int maximum = values[0];
-    for (int i = 1; i < size; i++) {
-        if (values[i] < minimum) minimum = values[i];
-        if (values[i] > maximum) maximum = values[i];
-    }
-    long long rangeValue = static_cast<long long>(maximum) - minimum + 1;
+    int min = findMinimum();
+    int max = findMaximum();
+    long long rangeValue = static_cast<long long>(max) - min + 1;
     if (rangeValue <= 0 || rangeValue > MAX_COUNT_RANGE) return false;
     int range = static_cast<int>(rangeValue);
     int* count = new int[range]{};
-    for (int i = 0; i < size; i++) count[values[i] - minimum]++;
+    for (int i = 0; i < size; i++) {
+        count[values[i] - min]++;
+    }
 
-    int index = 0;
-    for (int offset = 0; offset < range; offset++) {
-        while (count[offset] > 0) {
-            values[index] = offset + minimum;
-            index++;
-            count[offset]--;
+    int position = 0;
+    for (int index = 0; index < range; index++) {
+        while (count[index] > 0) {
+            values[position] = index + min;
+            position++;
+            count[index]--;
         }
     }
     delete[] count;
@@ -158,9 +156,14 @@ const sortOperations = {
     return true;
 }`,
   'bogo-sort': `bool sort() {
+    if (size > 7) return false;
+    unsigned int state = 2166136261u;
+    for (int i = 0; i < size; i++) {
+        state += static_cast<unsigned int>(values[i]) * static_cast<unsigned int>(i + 3);
+    }
     int attempts = 0;
     while (!isSorted() && attempts < MAX_ATTEMPTS) {
-        shuffle();
+        shuffle(state);
         attempts++;
     }
     return isSorted();
@@ -168,6 +171,15 @@ const sortOperations = {
 };
 
 const helpers = {
+  bogoShuffle: `void shuffle(unsigned int& state) {
+    for (int i = size - 1; i > 0; i--) {
+        state = state * 1664525u + 1013904223u;
+        int other = static_cast<int>((static_cast<unsigned long long>(state) * (i + 1)) >> 32);
+        int temp = values[i];
+        values[i] = values[other];
+        values[other] = temp;
+    }
+}`,
   swap: `void swapValues(int left, int right) {
     int temporary = values[left];
     values[left] = values[right];
@@ -257,16 +269,17 @@ int partition(int low, int high) {
 function dependencies(algorithmId, actionId) {
   if (actionId === 'shuffle') return [helpers.random, helpers.swap];
   if (actionId !== 'sort') return [];
+  if (algorithmId === 'counting-sort') return ['int findMinimum() { int result = values[0]; for (int i = 1; i < size; i++) if (values[i] < result) result = values[i]; return result; }', 'int findMaximum() { int result = values[0]; for (int i = 1; i < size; i++) if (values[i] > result) result = values[i]; return result; }'];
   if (['bubble-sort', 'selection-sort'].includes(algorithmId)) return [helpers.swap];
   if (algorithmId === 'merge-sort') return [helpers.merge];
   if (algorithmId === 'quick-sort') return [helpers.quick, helpers.swap];
   if (algorithmId === 'heap-sort') return [helpers.heap, helpers.swap];
   if (algorithmId === 'radix-sort') return [helpers.radix];
-  if (algorithmId === 'bogo-sort') return [commonOperations.shuffle, helpers.sorted, helpers.random, helpers.swap];
+  if (algorithmId === 'bogo-sort') return [helpers.bogoShuffle, helpers.sorted];
   return [];
 }
 
-export function getSortingCpp(algorithmId, actionId) {
+export function getSortingCpp(algorithmId, actionId, initialValues = []) {
   const sortingIds = new Set([
     'bubble-sort',
     'selection-sort',
@@ -284,11 +297,13 @@ export function getSortingCpp(algorithmId, actionId) {
   const operation = actionId === 'sort' ? synchronizedSource ?? sortOperations[algorithmId] : commonOperations[actionId];
   if (!operation) return null;
   const extra = synchronizedSource ? [] : dependencies(algorithmId, actionId);
+  const seedValues = initialValues.length <= 100 && initialValues.every(Number.isInteger) ? initialValues : [];
+  const assignments = seedValues.map((value, index) => `        values[${index}] = initialValues[${index}] = ${value};`).join('\n');
   return `class RawArraySorter {
 public:
     static const int CAPACITY = 100;
     static const int MAX_COUNT_RANGE = 4096;
-    static const int MAX_ATTEMPTS = 10000;
+    static const int MAX_ATTEMPTS = 250000;
     int* values;
     int* initialValues;
     int size = 0;
@@ -296,7 +311,10 @@ public:
     unsigned int seed = 123456789u;
 
     RawArraySorter()
-        : values(new int[CAPACITY]{}), initialValues(new int[CAPACITY]{}) {}
+        : values(new int[CAPACITY]{}), initialValues(new int[CAPACITY]{}) {
+${assignments}
+        size = initialSize = ${seedValues.length};
+    }
     RawArraySorter(const RawArraySorter&) = delete;
     RawArraySorter& operator=(const RawArraySorter&) = delete;
     ~RawArraySorter() {

@@ -3,6 +3,25 @@ import { createOpenAddressingTable, javaStringHash } from './openAddressing.js';
 import { initialNaryParents, naryChildren } from './naryTree.js';
 import { createRedBlackCodeMapper } from './redBlackCodeMapping.js';
 import { getRedBlackPseudocodeLine } from '../data/redBlackPseudocode.js';
+
+function rotateVisibleSubtree(values, pivotIndex, left) {
+  const build = index => values[index] === null || values[index] === undefined ? null
+    : { value: values[index], left: build(index * 2 + 1), right: build(index * 2 + 2) };
+  const root = { node: build(0) };
+  const path = [];
+  for (let index = pivotIndex; index > 0; index = Math.floor((index - 1) / 2)) path.unshift(index % 2 ? 'left' : 'right');
+  let owner = root, key = 'node';
+  for (const side of path) { owner = owner[key]; key = side; }
+  const pivot = owner[key], promoted = pivot[left ? 'right' : 'left'];
+  if (!promoted) return copyVisualValues(values);
+  pivot[left ? 'right' : 'left'] = promoted[left ? 'left' : 'right'];
+  promoted[left ? 'left' : 'right'] = pivot;
+  owner[key] = promoted;
+  const result = [];
+  const write = (node, index) => { if (!node) return; result[index] = node.value; write(node.left,index*2+1); write(node.right,index*2+2); };
+  write(root.node,0);
+  return result;
+}
 export { copyVisualValues } from './visualValues.js';
 
 export function executableCodeLines(code) {
@@ -116,8 +135,8 @@ export function estimateLoopIterations({ actionId, beforeValues, afterValues, fi
   if (lengthBasedArray && ['remove-start', 'remove-end', 'remove-index'].includes(actionId)) return afterValues.length;
   if (actionId === 'add-start') return beforeLength;
   if (actionId === 'add-index') return Math.max(1, beforeLength - target);
-  if (['remove-start','dequeue'].includes(actionId)) return Math.max(1, afterValues.length);
-  if (actionId === 'remove-index') return Math.max(1, afterValues.length - target);
+  if (['remove-start','dequeue'].includes(actionId)) return afterValues.length;
+  if (actionId === 'remove-index') return Math.max(0, afterValues.length - target);
   if (['find','remove-value','cache-get','word-find'].includes(actionId)) return failedSearch ? beforeLength : Math.min(beforeLength, target + 1);
   if (['prefix-sum','range-min'].includes(actionId)) return Math.min(beforeLength, target + 1);
   if (['heap-add','heap-extract'].includes(actionId)) return Math.max(1, Math.ceil(Math.log2(afterLength + 1)));
@@ -317,7 +336,7 @@ function createLiveVariables({ actionId, line, beforeValues, workingValues, fina
   const requestedValue = inputValues.value ?? inputValues.word ?? inputValues.key;
   const sizeGrows = /\bsize\s*(?:\+\+|\+=)/.test(line.text);
   const sizeShrinks = /\bsize\s*(?:--|-=)/.test(line.text);
-  const visibleSize = beforeValues.length + (sizeGrows ? 1 : sizeShrinks ? -1 : 0);
+  const visibleSize = line.visibleSize ?? beforeValues.length + (sizeGrows ? 1 : sizeShrinks ? -1 : 0);
   const variables = [];
 
   if (index !== null) variables.push({ name: 'i', value: readableVariableValue(index), role: 'index' });
@@ -374,6 +393,13 @@ function synchronizeKnownBranches(sequence, { algorithm, actionId, inputValues =
         return [{ ...line, conditionResult: !succeeded }];
       }
       if (succeeded && /throw new IllegalStateException\("Deque is (?:full|empty)"\)/.test(text)) return [];
+      return [line];
+    });
+  }
+  if (algorithm?.id === 'array' && ['set-index', 'remove-start', 'remove-end'].includes(actionId)) {
+    return sequence.flatMap(line => {
+      if (succeeded && /return (?:false|values);/.test(line.text)) return [];
+      if (/if \((?:n == 0|index < 0)/.test(line.text)) return [{ ...line, conditionResult: !succeeded }];
       return [line];
     });
   }
@@ -443,13 +469,15 @@ function createHashFindFrames({ algorithm, code, beforeValues, beforeEdges, fina
     frames.push({
       values: copyVisualValues(beforeValues), edges: cloneEdges(beforeEdges),
       position: algorithm.id === 'hash-chaining' ? Math.max(0, Number(finalStep) || 0) : probePosition, codeLine, message,
+      hashProbePosition: algorithm.id === 'hash-chaining' ? null : probePosition,
+      hashActiveKey: comparison,
       completed, delayMs: 420,
       variables: [
         { name: 'clave', value: key, role: 'input' },
         { name: 'casilla', value: probePosition, role: 'index' },
         ...(comparison === null ? [] : [
           { name: 'clave actual', value: comparison, role: 'value' },
-          { name: 'condición', value: comparison === key ? 'true' : 'false', role: comparison === key ? 'true' : 'false' },
+          { name: 'condición', value: codeLine === loopLine || comparison === key ? 'true' : 'false', role: codeLine === loopLine || comparison === key ? 'true' : 'false' },
         ]),
       ],
     });
@@ -466,7 +494,7 @@ function createHashFindFrames({ algorithm, code, beforeValues, beforeEdges, fina
     push(loopLine, `Se revisa la casilla o el nodo que contiene ${candidate}.`, candidate);
     push(matchLine, candidate === key ? `${candidate} coincide con la clave buscada.` : `${candidate} no coincide; la búsqueda continúa.`, candidate);
     if (candidate !== key) {
-      probePosition = (probePosition + 1) % capacity;
+      if (algorithm.id !== 'hash-chaining') probePosition = (probePosition + 1) % capacity;
       push(advanceLine, 'Se avanza a la siguiente posición o nexo.', candidate);
     }
   }
@@ -520,7 +548,7 @@ export function createCodeSynchronizedFrames({ algorithm, code, actionId, before
       : estimateLoopIterations({ actionId, beforeValues, afterValues, finalStep, finalMessage, lengthBasedArray });
   // Keep every shift within Deque's 100-slot limit. RawArray can grow further,
   // so compact only its middle steps while retaining the final assignments.
-  const traceOptions = isDeque ? { allowZeroIterations: true, maximumFrames: 240 }
+  const traceOptions = isDeque || lengthBasedArray || (isRawArrayCpp && ['remove-start','remove-index'].includes(actionId)) ? { allowZeroIterations: true, maximumFrames: 240 }
     : rawArrayInsertion ? { allowZeroIterations: true, maximumFrames: 240, preserveTail: true }
       : undefined;
   const sequence = synchronizeKnownBranches(buildCodeExecutionTrace(code, iterationCount, traceOptions), {
@@ -534,10 +562,16 @@ export function createCodeSynchronizedFrames({ algorithm, code, actionId, before
   let workingEdges = cloneEdges(beforeEdges);
   const mutationPattern = stateMutationPattern(actionId);
   let appliedFinalState = false;
+  let liveSize = beforeValues.length;
   const frames = sequence.map(line => {
     for (const mutationLine of line.skippedLines ?? [line]) {
       applyVisibleMutation({ actionId, line: mutationLine, workingValues, beforeValues, afterValues, finalStep, lengthBasedArray });
     }
+    if (!lengthBasedArray && /\bsize\s*(?:\+\+|--)/.test(line.text)) {
+      liveSize += /size\s*\+\+/.test(line.text) ? 1 : -1;
+      workingValues.length = Math.max(0, liveSize);
+    }
+    line = { ...line, visibleSize: liveSize };
     const insertsAtDequeFront = isDeque && actionId === 'add-start' && /values\[0\]\s*=\s*value/.test(line.text);
     if (insertsAtDequeFront) workingValues[0] = afterValues[0];
     const insertsInRawArray = rawArrayInsertion && ['add-start', 'add-index'].includes(actionId)
@@ -636,14 +670,15 @@ export function createLinkedListSynchronizedFrames({
   const sourceLines = code.split('\n');
   const operationMarker = sourceLines.findIndex(line => line.trim() === '// Start of the selected operation');
   const firstLine = operationMarker >= 0 ? operationMarker + 1 : 0;
+  const operationEnd = sourceLines.findIndex((line, index) => index > firstLine && line.trim() === '// End of the selected operation');
   const lineOf = (pattern, occurrence = 0) => {
     let seen = 0;
-    for (let index = firstLine; index < sourceLines.length; index++) {
+    for (let index = firstLine; index < (operationEnd < 0 ? sourceLines.length : operationEnd); index++) {
       if (!pattern.test(normalizeCodeForMatching(sourceLines[index].trim()))) continue;
       if (seen === occurrence) return index;
       seen++;
     }
-    return firstLine;
+    return null;
   };
   const methodPatterns = {
     'add-start': /void addAtStart\(/,
@@ -662,7 +697,15 @@ export function createLinkedListSynchronizedFrames({
     ? null
     : Number(inputValues.index);
   const requestedValue = inputValues.value;
-  const targetIndex = beforeValues.findIndex(value => String(value) === String(requestedValue));
+  const numericList = beforeValues.every(value => typeof value === 'number');
+  const parsedRequestedValue = numericList && String(requestedValue ?? '').trim() !== ''
+    ? Number(requestedValue)
+    : requestedValue;
+  const targetIndex = beforeValues.findIndex(value => (
+    numericList && Number.isInteger(parsedRequestedValue)
+      ? Number(value) === parsedRequestedValue
+      : String(value) === String(parsedRequestedValue)
+  ));
   const frames = [];
 
   let logicalSize = beforeValues.length;
@@ -707,6 +750,7 @@ export function createLinkedListSynchronizedFrames({
       edges: cloneEdges(completed ? afterEdges : beforeEdges),
       position: safePosition,
       codeLine,
+      codeUnmapped: codeLine === null,
       message,
       delayMs,
       completed,
@@ -760,6 +804,7 @@ export function createLinkedListSynchronizedFrames({
         delayMs: 230,
       });
       if (returnsBoolean) {
+        const sizeLine = frames.at(-1).codeLine;
         addFrame({
           pattern: /return true;/,
           message,
@@ -768,6 +813,16 @@ export function createLinkedListSynchronizedFrames({
           completed: true,
           delayMs: 240,
         });
+        if (codeMode === 'cpp' && circular && actionId === 'add-index') {
+          // Non-delegated insertion returns after its own size increment,
+          // not from an earlier (false) boundary-index branch.
+          const returnLine = sizeLine === null ? -1 : sourceLines.findIndex((line, index) => (
+            index >= sizeLine && index < (operationEnd < 0 ? sourceLines.length : operationEnd)
+            && /\breturn true;/.test(line)
+          ));
+          frames.at(-1).codeLine = returnLine >= 0 ? returnLine : null;
+          frames.at(-1).codeUnmapped = returnLine < 0;
+        }
       }
     }
   };
@@ -815,6 +870,37 @@ export function createLinkedListSynchronizedFrames({
     conditionFrame(validation, !valid, valid ? 'El índice pertenece al rango permitido.' : finalMessage, 0, 'head');
     if (!valid) {
       addFrame({ pattern: /return false;/, message: finalMessage, condition: true, completed: true, delayMs: 260 });
+      return frames;
+    }
+  }
+
+  // C++ index methods can delegate and return before their local traversal.
+  // Represent the helper honestly as a state summary, not as unreachable
+  // instructions from the remainder of the caller.
+  if (codeMode === 'cpp' && succeeded && ['add-index', 'remove-index'].includes(actionId)) {
+    const helper = actionId === 'remove-index' && requestedIndex === 0
+      ? 'removeFromStart'
+      : actionId === 'add-index' && requestedIndex === 0 ? 'addAtStart'
+        : actionId === 'add-index' && requestedIndex === beforeValues.length ? 'addAtEnd' : null;
+    const callPattern = helper ? new RegExp(`\\b${helper}\\((?:value)?\\);`) : null;
+    const callLine = callPattern ? lineOf(callPattern) : null;
+    if (callLine !== null) {
+      conditionFrame(/if \(index == 0\)/, requestedIndex === 0, 'Comprueba si el índice corresponde a la cabeza.', 0, 'head');
+      if (helper === 'addAtEnd') conditionFrame(/if \(index == size\)/, true, 'El índice corresponde al final.', 0, 'head');
+      addFrame({ pattern: callPattern, message: `Se llama a ${helper}; el resto de esta rama no recorre la lista.`, pointer: 'head' });
+      logicalSize = afterValues.length;
+      frames.push({
+        values: copyVisualValues(afterValues), edges: cloneEdges(afterEdges), position: Math.max(0, Number(finalStep) || 0),
+        codeLine: null, traceMode: 'summary', completed: false, delayMs: 320,
+        message: `${helper} actualiza la estructura. Resumen del auxiliar, sin traza línea por línea.`,
+        variables: frameVariables({ values: afterValues, position: 0, pointer: 'head' }),
+      });
+      const inlineReturn = /\breturn\b/.test(sourceLines[callLine]);
+      const returnLine = inlineReturn ? callLine : sourceLines.findIndex((line, index) => index > callLine
+        && index < (operationEnd < 0 ? sourceLines.length : operationEnd) && line.trim() === 'return true;');
+      addFrame({ message: finalMessage, values: afterValues, pointer: 'head', completed: true });
+      frames.at(-1).codeLine = returnLine >= 0 ? returnLine : null;
+      frames.at(-1).codeUnmapped = returnLine < 0;
       return frames;
     }
   }
@@ -990,7 +1076,7 @@ export function createLinkedListSynchronizedFrames({
       if (doubly) {
         addFrame({ pattern: /head = head\.next;/, message: 'head avanza al nodo siguiente.', position: 0, values: afterValues, pointer: 'head' });
         const hasNewHead = afterValues.length > 0;
-        conditionFrame(/if \(head != null\)/, hasNewHead, 'Comprueba si quedó una nueva cabeza.', 0, 'head');
+        conditionFrame(/if \(head != null\)/, hasNewHead, 'Comprueba si quedó una nueva cabeza.', 0, 'head', null, afterValues);
         if (hasNewHead) complete(/head\.prev = null;/, finalMessage, 0);
         else finishSuccessfulOperation(finalMessage, 0);
       } else {
@@ -1106,7 +1192,7 @@ export function createLinkedListSynchronizedFrames({
         addFrame({ pattern: /current\.prev\.next = current\.next;/, message: 'El nodo anterior salta al nodo eliminado.', position: Math.max(0, index - 1), values: afterValues, pointer: 'current.prev' });
       }
       const hasFollowingNode = index < beforeValues.length - 1;
-      conditionFrame(/if \(current\.next != null\)/, hasFollowingNode, 'Comprueba si existe un nodo siguiente que deba actualizar prev.', index, 'current', index);
+      conditionFrame(/if \(current\.next != null\)/, hasFollowingNode, 'Comprueba si existe un nodo siguiente que deba actualizar prev.', index, 'current', index, afterValues, 0, beforeValues[index]);
       if (hasFollowingNode) complete(/current\.next\.prev = current\.prev;/, finalMessage, Math.min(index, Math.max(0, afterValues.length - 1)));
       else finishSuccessfulOperation(finalMessage, Math.max(0, afterValues.length - 1));
     }
@@ -1138,6 +1224,37 @@ export function createLinkedListSynchronizedFrames({
       conditionFrame(/if \(head == null\)/, false, 'La lista contiene al menos un nodo.', 0, 'head');
 
       if (!isFind && !doubly) {
+        if (codeMode === 'cpp') {
+          addFrame({ pattern: /Node current = head;/, message: 'current comienza en head.', pointer: 'current' });
+          addFrame({ pattern: /Node previous = null;/, message: 'previous comienza en nullptr.', pointer: 'previous', pointerValue: null });
+          for (let index = 0; index <= lastVisited; index++) {
+            addFrame({ pattern: /do \{/, message: `El ciclo visita el nodo ${beforeValues[index]}.`, position: index, index });
+            const matches = index === targetIndex;
+            conditionFrame(/if \(current\.value == target\)/, matches, 'Compara el nodo actual con el objetivo.', index, 'current', index);
+            if (matches) {
+              conditionFrame(/if \(current == head\)/, index === 0, 'Comprueba si se elimina la cabeza.', index, 'current', index);
+              if (index === 0) {
+                logicalSize = afterValues.length;
+                addFrame({ pattern: /if \(current == head\)/, message: finalMessage, values: afterValues, pointerValue: 'liberado', completed: true });
+              } else {
+                addFrame({ pattern: /previous\.next = current\.next;/, message: 'Se desenlaza el nodo actual.', values: afterValues, position: index - 1, pointerValue: beforeValues[index] });
+                addFrame({ pattern: /delete current;/, message: 'Se libera el nodo retirado.', values: afterValues, position: index - 1, pointerValue: 'liberado' });
+                const returnedAt = frames.length;
+                finishSuccessfulOperation();
+                for (const event of frames.slice(returnedAt)) {
+                  event.variables = event.variables.map(variable => variable.name === 'current' ? { ...variable, value: 'liberado' } : variable);
+                }
+              }
+              return frames;
+            }
+            addFrame({ pattern: /previous = current;/, message: 'previous conserva el nodo visitado.', position: index, pointer: 'previous', index });
+            const next = (index + 1) % beforeValues.length;
+            addFrame({ pattern: /current = current\.next;/, message: 'current avanza al siguiente nodo.', position: next, index: next });
+            conditionFrame(/while \(current != head\)/, next !== 0, 'Comprueba si el ciclo volvió a head.', next, 'current', next);
+          }
+          complete(/^return false;/, finalMessage, lastVisited);
+          return frames;
+        }
         const headMatches = targetIndex === 0;
         conditionFrame(/if \(head\.value == target\)/, headMatches, `Compara la cabeza ${beforeValues[0]} con ${requestedValue}.`, 0, 'head', 0);
         if (headMatches) {
@@ -1161,12 +1278,12 @@ export function createLinkedListSynchronizedFrames({
 
         addFrame({ pattern: /Node previous = head;/, message: 'previous comienza en head, índice 0.', position: 0, pointer: 'previous', index: 0 });
         addFrame({ pattern: /Node current = head\.next;/, message: 'current comienza en el índice 1.', position: Math.min(1, beforeValues.length - 1), pointer: 'current', index: 1 });
-        const circularSimpleStart = 1;
+        const circularSimpleStart = beforeValues.length === 1 ? 0 : 1;
         const circularSimpleEnd = targetIndex >= 1 ? targetIndex : beforeValues.length - 1;
         for (let index = circularSimpleStart; index <= circularSimpleEnd; index++) {
           addFrame({ pattern: /do \{/, message: `El ciclo procesa el índice ${index}.`, position: index, pointer: 'current', index });
           const matches = index === targetIndex;
-          conditionFrame(/if \(current\.value == target\)/, matches, `Compara ${beforeValues[index]} con ${requestedValue}.`, index, 'current', index);
+          conditionFrame(/if \(current\.value == target\)/, matches, `Compara ${beforeValues[index % beforeValues.length]} con ${requestedValue}.`, index, 'current', index);
           if (matches) {
             complete(/previous\.next = current\.next;/, finalMessage, Math.max(0, index - 1));
             return frames;
@@ -1182,7 +1299,7 @@ export function createLinkedListSynchronizedFrames({
           });
           conditionFrame(/while \(current != head\)/, !returnsToHead, returnsToHead ? 'El recorrido volvió a head y termina.' : 'El recorrido todavía no volvió a head.', returnsToHead ? 0 : index + 1, 'current', index + 1);
         }
-        complete(/return false;/, finalMessage, Math.max(0, beforeValues.length - 1));
+        complete(/^\s*return false;/, finalMessage, Math.max(0, beforeValues.length - 1));
         return frames;
       }
 
@@ -1581,7 +1698,7 @@ function createSemanticOrderedTreeFrames(args) {
       if (goesLeft) {
         pushFrame(leftCallLine, position, 'Se realiza la llamada recursiva con el hijo izquierdo.', { depth });
       } else {
-        pushFrame(rightLine, position, `${target} es mayor que ${before[position]}: continúa por la derecha.`, { depth });
+        pushFrame(rightLine, position, args.algorithm.id === 'kd-tree' ? `La coordenada ${axis === 0 ? 'X' : 'Y'} del objetivo es mayor o igual: continúa por la derecha.` : `${target} es mayor que ${before[position]}: continúa por la derecha.`, { depth });
       }
     }
     if (frames.length) frames.at(-1).message = args.finalMessage;
@@ -1665,7 +1782,6 @@ function createSemanticOrderedTreeFrames(args) {
     if (frames.length) {
       frames.at(-1).values = copyVisualValues(after);
       frames.at(-1).edges = cloneEdges(args.afterEdges);
-      frames.at(-1).position = Math.max(0, Number(args.finalStep) || 0);
       frames.at(-1).message = args.finalMessage;
       frames.at(-1).completed = true;
     }
@@ -1723,9 +1839,16 @@ function createSemanticOrderedTreeFrames(args) {
           : rotationType === 'LR'
             ? ['rotateLeft', 'rotateRight']
             : ['rotateRight', 'rotateLeft'];
-      for (const helperName of helperNames) {
+      for (const [helperIndex, helperName] of helperNames.entries()) {
         for (const helperLine of methodSourceLines(range, new RegExp(`^\\s*Node ${helperName}\\s*\\(`))) {
-          pushFrame(helperLine, position, `${helperName} reajusta referencias y alturas sin perder nodos.`, {
+          if (/return newRoot;/.test(args.code.split('\n')[helperLine] ?? '')) {
+            const pivot = helperNames.length === 2 && helperIndex === 0
+              ? position * 2 + (rotationType === 'LR' ? 1 : 2) : position;
+            visibleValues = rotateVisibleSubtree(visibleValues, pivot, helperName === 'rotateLeft');
+          }
+          const helperPosition = helperNames.length === 2 && helperIndex === 0
+            ? position * 2 + (rotationType === 'LR' ? 1 : 2) : position;
+          pushFrame(helperLine, helperPosition, `${helperName} reajusta referencias y alturas sin perder nodos.`, {
             depth,
             balance,
             delayMs: 330,
@@ -1734,6 +1857,7 @@ function createSemanticOrderedTreeFrames(args) {
       }
       visibleValues = after;
       rotationApplied = true;
+      continue;
     }
     pushFrame(returnLine, Math.max(0, rotationApplied && finalPosition >= 0 ? finalPosition : position), `La llamada devuelve la raíz equilibrada de este subárbol.`, {
       depth,
@@ -1746,7 +1870,6 @@ function createSemanticOrderedTreeFrames(args) {
   if (frames.length) {
     frames.at(-1).values = copyVisualValues(after);
     frames.at(-1).edges = cloneEdges(args.afterEdges);
-    frames.at(-1).position = Math.max(0, Number(args.finalStep) || 0);
     frames.at(-1).message = args.finalMessage;
     frames.at(-1).completed = true;
   }
@@ -1757,7 +1880,10 @@ function createUnorderedTreeFindFrames(args) {
   if (args.actionId !== 'find' || !args.succeeded
       || !['arbol-general', 'arbol-nario', 'arbol-binario'].includes(args.algorithm?.id)) return null;
   const lines = args.code.split('\n');
-  const lineOf = pattern => lines.findIndex(line => pattern.test(normalizeCodeForMatching(line)));
+  const methodStart = lines.findIndex(line => /\bNode\*?\s+find\s*\(/.test(normalizeCodeForMatching(line)));
+  if (methodStart < 0) return null;
+  const methodEnd = blockEnd(lines.map(text => ({ text })), methodStart, lines.length - 1);
+  const lineOf = pattern => lines.findIndex((line, index) => index >= methodStart && index <= methodEnd && pattern.test(normalizeCodeForMatching(line)));
   const declaration = lineOf(/\bNode\*?\s+find\s*\(/);
   const comparison = lineOf(/if\s*\(.*(?:node|current)\.value == target/);
   const loop = lineOf(/(?:while\s*\(!pending\.isEmpty|for\s*\(.*(?:children|childCount))/);
@@ -1805,9 +1931,11 @@ function createUnorderedTreeFindFrames(args) {
   };
   push(declaration, visits[0], 'Comienza la búsqueda del nodo.');
   for (const position of visits) {
-    push(loop, position, `Se visita el nodo ${values[position]}.`);
+    const breadthFirst = args.algorithm.id === 'arbol-binario' && args.code.includes('Queue<');
+    if (breadthFirst) push(loop, position, `Se visita el nodo ${values[position]}.`);
     const matches = String(values[position]) === target;
     push(comparison, position, matches ? args.finalMessage : `${values[position]} no coincide; continúa el recorrido.`, matches, matches);
+    if (!matches && !breadthFirst) push(loop, position, 'La comparación fue falsa; se examinan los hijos.');
   }
   return frames;
 }
@@ -1987,7 +2115,16 @@ export function adaptFramesToCode(frames, code, keepOriginalLines) {
     if (keepOriginalLines) {
       if (frame.codeNeedle && frame.codeOccurrence !== undefined) {
         const needle = normalizedSyntax(frame.codeNeedle);
-        const matches = selectedUsefulLines.filter(line => normalizedSyntax(line.text).includes(needle));
+        let scopedLines = selectedUsefulLines;
+        if (frame.codeMethod) {
+          if (!/^[A-Za-z_]\w*$/.test(frame.codeMethod)) return { ...frame, codeLine: null, codeUnmapped: true };
+          const declaration = new RegExp(`^\\w+\\s+${frame.codeMethod}\\s*\\(`);
+          const start = sourceLines.findIndex(line => declaration.test(normalizedSyntax(line)));
+          if (start < 0) return { ...frame, codeLine: null, codeUnmapped: true };
+          const end = blockEnd(sourceLines.map(text => ({ text })), start, sourceLines.length - 1);
+          scopedLines = usefulLines.filter(line => line.index >= start && line.index <= end);
+        }
+        const matches = scopedLines.filter(line => normalizedSyntax(line.text).includes(needle));
         const matched = matches[frame.codeOccurrence];
         return { ...frame, codeLine: matched?.index ?? null, codeUnmapped: !matched };
       }

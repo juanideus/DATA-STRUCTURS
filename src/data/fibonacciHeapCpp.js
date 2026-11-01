@@ -150,6 +150,9 @@ public:
     Node* minimum = nullptr;
     int nodeCount = 0;
 
+    FibonacciHeap() = default;
+    FibonacciHeap(const FibonacciHeap&) = delete;
+    FibonacciHeap& operator=(const FibonacciHeap&) = delete;
     ~FibonacciHeap() { destroyCircular(minimum); }
 
     // Start of the selected operation

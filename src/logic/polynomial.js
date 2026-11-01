@@ -7,9 +7,9 @@ export const DEFAULT_POLYNOMIAL_VALUES = [
   { polynomial: 'B', coefficient: 10, exponent: 6 },
 ];
 
-export function polynomialTerms(values, polynomial) {
+export function polynomialTerms(values, polynomial, keepZero = false) {
   return values
-    .filter(term => term.polynomial === polynomial && Number(term.coefficient) !== 0)
+    .filter(term => term.polynomial === polynomial && (keepZero || Number(term.coefficient) !== 0))
     .map(term => ({
       polynomial,
       coefficient: Number(term.coefficient),

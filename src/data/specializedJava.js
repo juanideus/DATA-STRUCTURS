@@ -1,3 +1,5 @@
+import { hashExampleBuckets, hashExampleEntries, hashExampleSlots } from './hashExamples.js';
+
 const indent = source => source.split('\n').map(line => `    ${line}`).join('\n');
 
 const wrap = (name, fields, operation, helpers = '') => `class ${name} {
@@ -93,11 +95,20 @@ int size = 0;`;
   return operations[actionId] ? wrap('SkipList', fields, operations[actionId], helpers) : null;
 }
 
-function openHashJava(actionId) {
+function openHashJava(actionId, initialValues) {
+  const initialize = hashExampleSlots(initialValues).flatMap((slot, index) => {
+    if (slot.state !== 'occupied') return [];
+    const { key, value } = hashExampleEntries([slot.entry])[0];
+    return [`    keys[${index}] = ${JSON.stringify(key)}; values[${index}] = ${JSON.stringify(value)}; states[${index}] = 1;`];
+  });
   const fields = `String[] keys = new String[12];
 String[] values = new String[12];
 byte[] states = new byte[12]; // 0: vacía, 1: ocupada, 2: eliminada
 int size = 0;
+OpenAddressingTable() {
+${initialize.join('\n')}
+    size = ${initialize.length};
+}
 int hash(String key) { return Math.floorMod(key.hashCode(), keys.length); }`;
   const operations = {
     'hash-put': `void put(String key, String value) {
@@ -158,7 +169,9 @@ int hash(String key) { return Math.floorMod(key.hashCode(), keys.length); }`;
   return operations[actionId] ? wrap('OpenAddressingTable', fields, operations[actionId]) : null;
 }
 
-function chainingJava(actionId) {
+function chainingJava(actionId, initialValues) {
+  const initialize = hashExampleBuckets(initialValues).flatMap((bucket, index) => [...bucket].reverse().map(({ key, value }) =>
+    `    buckets[${index}] = new Node(${JSON.stringify(key)}, ${JSON.stringify(value)}, buckets[${index}]);`));
   const fields = `static class Node {
     String key;
     String value;
@@ -171,6 +184,10 @@ function chainingJava(actionId) {
 }
 Node[] buckets = new Node[8];
 int size = 0;
+SeparateChainingTable() {
+${initialize.join('\n')}
+    size = ${initialize.length};
+}
 int hash(String key) { return Math.floorMod(key.hashCode(), buckets.length); }`;
   const operations = {
     'hash-put': `void put(String key, String value) {
@@ -232,7 +249,14 @@ function lruJava(actionId) {
 java.util.HashMap<String, Node> cache = new java.util.HashMap<>();
 Node head;
 Node tail;
-int capacity = 5;`;
+int capacity = 5;
+LRUCache() {
+    for (String key : new String[]{"A", "D", "B", "F", "C"}) {
+        Node node = new Node(key, key);
+        cache.put(key, node);
+        addLast(node);
+    }
+}`;
   const helpers = `void remove(Node node) {
     if (node.prev != null) node.prev.next = node.next;
     else head = node.next;
@@ -287,10 +311,15 @@ void markRecent(Node node) {
   return operations[actionId] ? wrap('LRUCache', fields, operations[actionId], helpers) : null;
 }
 
-function bloomJava(actionId) {
-  const fields = `boolean[] bits = new boolean[12];
+function bloomJava(actionId, initialValues) {
+  const bits = Array.from({ length: 12 }, (_, index) => Boolean(initialValues?.[index]));
+  const fields = `boolean[] bits = new boolean[]{${bits.join(', ')}};
 int[] seeds = {3, 7, 11};
 int hash(String word, int seed) {
+    if (word == null || word.isEmpty()) throw new IllegalArgumentException("Word must not be empty");
+    for (int i = 0; i < word.length(); i++) {
+        if (word.charAt(i) < 32 || word.charAt(i) > 126) throw new IllegalArgumentException("Use printable ASCII characters");
+    }
     return (word.length() * seed + word.charAt(0)) % bits.length;
 }`;
   const operations = {
@@ -316,11 +345,11 @@ int hash(String word, int seed) {
   return operations[actionId] ? wrap('BloomFilter', fields, operations[actionId]) : null;
 }
 
-export function getSpecializedJava(algorithmId, actionId) {
+export function getSpecializedJava(algorithmId, actionId, initialValues = []) {
   if (algorithmId === 'skip-list') return skipListJava(actionId);
-  if (algorithmId === 'hash-chaining') return chainingJava(actionId);
-  if (['hash-table', 'hash-open'].includes(algorithmId)) return openHashJava(actionId);
+  if (algorithmId === 'hash-chaining') return chainingJava(actionId, initialValues);
+  if (['hash-table', 'hash-open'].includes(algorithmId)) return openHashJava(actionId, initialValues);
   if (algorithmId === 'lru-cache') return lruJava(actionId);
-  if (algorithmId === 'bloom-filter') return bloomJava(actionId);
+  if (algorithmId === 'bloom-filter') return bloomJava(actionId, initialValues);
   return null;
 }

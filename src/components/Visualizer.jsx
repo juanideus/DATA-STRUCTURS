@@ -157,7 +157,7 @@ function PolynomialVisual({ algorithm }) {
   return <div className="polynomial-visual" role="img" aria-label="Polinomios A, B y C representados mediante listas enlazadas">
     <div className="polynomial-node-schema"><span>COEF</span><span>EXP</span><span>LINK</span></div>
     {rows.map(polynomial => {
-      const terms = polynomialTerms(algorithm.values, polynomial);
+      const terms = polynomialTerms(algorithm.values, polynomial, state.phase === 'group');
       return <div className={`polynomial-row polynomial-${polynomial.toLowerCase()}`} key={polynomial}>
         <div className="polynomial-name">
           <strong>{polynomial}</strong>
@@ -1010,6 +1010,14 @@ function NaryTreeDiagram({ algorithm, step }) {
 }
 
 function MultiwayTreeDiagram({ algorithm, step }) {
+  const scrollRef = useRef(null);
+  useEffect(() => {
+    const host = scrollRef.current;
+    const active = host?.querySelector('.multiway-node.active');
+    if (!active) return;
+    const box = active.getBoundingClientRect(), viewport = host.getBoundingClientRect();
+    host.scrollLeft += (box.left + box.right - viewport.left - viewport.right) / 2;
+  }, [algorithm.animationFrame, algorithm.multiwayTree]);
   const en = algorithm.language === 'en';
   const values = algorithm.values.slice(0, 24);
   const structure = algorithm.multiwayTree ?? createMultiwayTree(algorithm.id, values).snapshot();
@@ -1026,7 +1034,9 @@ function MultiwayTreeDiagram({ algorithm, step }) {
     return current;
   };
   const root = collect(structure.root, 0, 'root');
-  const nodeWidth = Math.max(7, Math.min(20, 84 / Math.max(1, leaves.length)));
+  const widestNode = Math.max(90, ...levels.flat().map(node => node.keys.join(' | ').length * 9 + 36));
+  const diagramWidth = Math.max(440, leaves.length * (widestNode + 28));
+  const nodeWidth = widestNode * 100 / diagramWidth;
   const edgePadding = nodeWidth / 2 + 2;
   leaves.forEach((leaf, index) => {
     leaf.x = leaves.length === 1 ? 50 : edgePadding + (index / (leaves.length - 1)) * (100 - edgePadding * 2);
@@ -1046,8 +1056,9 @@ function MultiwayTreeDiagram({ algorithm, step }) {
   const activeKey = values[step % values.length];
   const activeLeaf = leaves.find(leaf => leaf.keys.includes(activeKey)) ?? root;
   const promotedLeaf = leaves.find(leaf => leaf.keys.some(key => String(key) === String(promotedKey))) ?? activeLeaf;
-  const activeMultiwayNode = ['search','promote','settled'].includes(frame?.treePhase) ? root : activeLeaf;
-  return <div className={`btree-visual ${algorithm.id} ${leaves.length > 5 ? 'many-leaves' : ''}`}>
+  const promotedParent = allNodes.find(node => !node.leaf && node.keys.includes(promotedKey));
+  const activeMultiwayNode = frame?.treePhase === 'promote' ? promotedParent ?? root : ['search','settled'].includes(frame?.treePhase) ? root : activeLeaf;
+  return <div ref={scrollRef} style={{width:'100%',maxWidth:'100%',overflowX:'auto'}}><div className={`btree-visual ${algorithm.id} ${leaves.length > 5 ? 'many-leaves' : ''}`} style={{minWidth:diagramWidth,marginInline:'auto'}}>
     <span className="tree-kind-label">{algorithm.id==='bplus-tree' ? (en ? 'DATA IN LEAVES ONLY' : 'DATOS SOLO EN HOJAS') : algorithm.id==='bstar-tree' ? (en ? 'MAX. 5 KEYS · REDISTRIBUTION' : 'MÁX. 5 CLAVES · REDISTRIBUCIÓN') : (en ? 'MAX. 3 KEYS · PROMOTED MEDIAN' : 'MÁX. 3 CLAVES · MEDIANA PROMOVIDA')}</span>
     <svg className="btree-edges" aria-hidden="true">
       {allNodes.flatMap(parent => parent.children.map(child =>
@@ -1060,9 +1071,9 @@ function MultiwayTreeDiagram({ algorithm, step }) {
       key={node.id}
     ><small>{node===root?'ROOT':node.leaf?(en ? 'LEAF' : algorithm.id==='bplus-tree'?'HOJA':'NODO HOJA'):(en ? 'INDEX' : 'ÍNDICE')}</small>{node.keys.join(' | ')||'·'}</div>)}
     {algorithm.id==='bplus-tree' && leaves.length > 1 && <svg className="bplus-leaf-chain" style={{top:`${leaves[0].y}%`}}><defs><marker id="bplus-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z"/></marker></defs>{leaves.slice(0,-1).map((leaf,index)=><line key={leaf.id} x1={`${leaf.x + nodeWidth / 2}%`} y1="50%" x2={`${leaves[index+1].x - nodeWidth / 2}%`} y2="50%" markerEnd="url(#bplus-arrow)"/>)}</svg>}
-    {frame?.treePhase==='promote' && promotedKey !== null && promotedKey !== undefined && <span className="promoted-key" style={{left:`${promotedLeaf.x}%`,top:`${promotedLeaf.y}%`}}><small>{en ? 'PROMOTE' : 'SUBE'}</small>{promotedKey}</span>}
+    {frame?.treePhase==='promote' && promotedKey !== null && promotedKey !== undefined && <span className="promoted-key" style={{left:`${(promotedParent ?? root).x}%`,top:`${(promotedParent ?? root).y}%`,animation:'none',transform:'translate(-50%,-120%)'}}><small>{en ? 'PROMOTE' : 'SUBE'}</small>{promotedKey}</span>}
     <div className="leaf-link">{algorithm.id==='bplus-tree' ? (en ? 'MAX. 3 KEYS PER LEAF · LINKED LEAVES →' : 'MÁX. 3 CLAVES POR HOJA · HOJAS ENLAZADAS →') : algorithm.id==='bstar-tree' ? (en ? 'MAX. 5 KEYS · REDISTRIBUTE BEFORE SPLITTING' : 'MÁX. 5 CLAVES · REDISTRIBUYE ANTES DE DIVIDIR') : (en ? 'MAX. 3 KEYS PER NODE · MEDIAN LEAVES THE LEAF' : 'MÁX. 3 CLAVES POR NODO · LA MEDIANA SALE DE LA HOJA')}</div>
-  </div>;
+  </div></div>;
 }
 
 function SegmentTreeDiagram({ algorithm, step }) {
@@ -1559,7 +1570,10 @@ function FenwickVisual({ algorithm, step }) {
 function TrieTreeVisual({ algorithm, step }) {
   const words = algorithm.values.map(value=>String(value).trim().toUpperCase()).filter(Boolean);
   const trieState = algorithm.animationFrame?.trieState;
-  const partialWord = trieState && !trieState.marked ? trieState.word.slice(0, trieState.revealed) : '';
+  const activePrefix = trieState?.word?.slice(0, trieState.revealed) ?? '';
+  const partialWord = trieState?.mode === 'insert'
+    ? trieState.word.slice(0, trieState.createdThrough ?? 0)
+    : '';
   const treeWords = partialWord && !words.includes(partialWord) ? [...words, partialWord] : words;
   const nodes = [{ id:0, letter:'∅', prefix:'', depth:0, parent:null, children:new Map(), endings:[] }];
 
@@ -1575,7 +1589,9 @@ function TrieTreeVisual({ algorithm, step }) {
       }
       current = nodes[current].children.get(letter);
     });
-    if (word !== partialWord || trieState?.marked) nodes[current].endings.push(word);
+    if (words.includes(word) || (trieState?.mode === 'insert' && word === trieState.word && trieState.marked)) {
+      nodes[current].endings.push(word);
+    }
   });
 
   let leafPosition = 0;
@@ -1606,7 +1622,7 @@ function TrieTreeVisual({ algorithm, step }) {
         return <line key={`edge-${node.id}`} x1={`${parent.x}%`} y1={`${parent.y}%`} x2={`${node.x}%`} y2={`${node.y}%`}/>;
       })}
     </svg>
-    {nodes.map(node => <div className={`trie-tree-node ${node.id===0?'root':''} ${node.endings.length?'terminal':''} ${node.endings.includes(activeWord) || (partialWord && partialWord.startsWith(node.prefix))?'active':''}`} style={{left:`${node.x}%`,top:`${node.y}%`}} key={node.id}>
+    {nodes.map(node => <div className={`trie-tree-node ${node.id===0?'root':''} ${node.endings.length?'terminal':''} ${node.endings.includes(activeWord) || (activePrefix && activePrefix.startsWith(node.prefix))?'active':''}`} style={{left:`${node.x}%`,top:`${node.y}%`}} key={node.id}>
       <strong>{node.letter}</strong>
       {node.endings.length > 0 && <small>FIN · {node.endings.join(', ')}</small>}
     </div>)}
@@ -1628,6 +1644,9 @@ function HashTableVisual({ algorithm, step }) {
   const english = algorithm.language === 'en';
   const entries = algorithm.values.filter(value => value !== undefined && value !== null && String(value) !== '');
   const activeEntry = entries[Math.max(0, Math.min(entries.length - 1, step))];
+  const frame = algorithm.animationFrame;
+  const hasHashKey = Object.prototype.hasOwnProperty.call(frame ?? {}, 'hashActiveKey');
+  const activeHashKey = frame?.hashActiveKey;
 
   if (algorithm.id === 'hash-chaining') {
     const buckets = Array.from({ length: 8 }, () => []);
@@ -1639,7 +1658,7 @@ function HashTableVisual({ algorithm, step }) {
       {buckets.map((bucket, index) => <div className="chain-row" key={index}>
         <span className="chain-index">{index.toString().padStart(2, '0')}</span>
         <span className="chain-head">bucket[{index}]</span>
-        {bucket.length === 0 ? <span className="chain-null">null</span> : bucket.map((entry, entryIndex) => <span className={`chain-node ${entry === activeEntry ? 'active' : ''}`} key={`${entry}-${entryIndex}`}>
+        {bucket.length === 0 ? <span className="chain-null">null</span> : bucket.map((entry, entryIndex) => <span className={`chain-node ${(hasHashKey ? activeHashKey !== null && hashKey(entry) === activeHashKey : entry === activeEntry) ? 'active' : ''}`} key={`${entry}-${entryIndex}`}>
           {entryIndex > 0 && <i aria-hidden="true">→</i>}<strong>{String(entry)}</strong>
         </span>)}
         {bucket.length > 0 && <span className="chain-null">→ null</span>}
@@ -1649,7 +1668,7 @@ function HashTableVisual({ algorithm, step }) {
 
   const slots = algorithm.hashTable ?? createOpenAddressingTable(entries).snapshot();
   return <div className="hash-visual" aria-label={english ? 'Hash table with open addressing' : 'Tabla hash con direccionamiento abierto'}>
-    {slots.map((slot, index) => <div className={`hash-slot ${slot.entry === activeEntry && slot.state === 'occupied' ? 'active' : ''} ${slot.state === 'deleted' ? 'deleted' : ''}`} key={index}>
+    {slots.map((slot, index) => <div className={`hash-slot ${(frame?.hashProbePosition != null ? index === frame.hashProbePosition : slot.entry === activeEntry && slot.state === 'occupied') ? 'active' : ''} ${slot.state === 'deleted' ? 'deleted' : ''}`} key={index}>
       <small>{index.toString().padStart(2, '0')}</small><strong>{slot.state === 'deleted' ? (english ? 'DELETED' : 'BORRADA') : slot.entry ?? '∅'}</strong>
     </div>)}
   </div>;

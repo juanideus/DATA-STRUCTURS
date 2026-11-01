@@ -15,7 +15,7 @@ function insertB(root, value, events) {
     full.children = full.children.slice(0, 2);
     parent.keys.splice(index, 0, median);
     parent.children.splice(index + 1, 0, right);
-    events.push({ type: 'split', promotedKey: median });
+    events.push({ type: 'split', promotedKey: median, root: structuredClone(root) });
   };
   if (root.keys.length === 3) {
     root = node([], [root]);
@@ -31,7 +31,7 @@ function insertB(root, value, events) {
     current = current.children[index];
   }
   current.keys.splice(childIndex(current, value), 0, value);
-  events.push({ type: 'insert', value });
+  events.push({ type: 'insert', value, root: structuredClone(root) });
   return root;
 }
 
@@ -44,23 +44,35 @@ function insertBPlus(root, value, events) {
     current = current.children[index];
   }
   current.keys.splice(childIndex(current, value), 0, value);
-  events.push({ type: 'insert', value });
+  events.push({ type: 'insert', value, root: structuredClone(root) });
   if (current.keys.length <= 3) return root;
   const rightLeaf = node(current.keys.splice(2));
   let right = rightLeaf;
   let promoted = right.keys[0];
-  events.push({ type: 'split', promotedKey: promoted });
   while (true) {
-    if (!path.length) return node([promoted], [current, right]);
+    if (!path.length) {
+      const splitRoot = node([], [current, right]);
+      events.push({ type: 'split', promotedKey: promoted, root: structuredClone(splitRoot) });
+      root = node([promoted], [current, right]);
+      events.push({ type: 'promote', promotedKey: promoted, root: structuredClone(root) });
+      return root;
+    }
     const [parent, index] = path.pop();
+    const splitRoot = structuredClone(root);
+    let splitParent = splitRoot;
+    for (const [, childIndex] of path) splitParent = splitParent.children[childIndex];
+    splitParent.children.splice(index + 1, 0, structuredClone(right));
+    events.push({ type: 'split', promotedKey: promoted, root: splitRoot });
     parent.keys.splice(index, 0, promoted);
     parent.children.splice(index + 1, 0, right);
-    if (parent.keys.length <= 3) return root;
+    if (parent.keys.length <= 3) {
+      events.push({ type: 'promote', promotedKey: promoted, root: structuredClone(root) });
+      return root;
+    }
     promoted = parent.keys[2];
     right = node(parent.keys.splice(3), parent.children.splice(3));
     parent.keys.splice(2, 1);
     current = parent;
-    events.push({ type: 'split', promotedKey: promoted });
   }
 }
 
@@ -73,15 +85,16 @@ function insertBStar(root, value, events) {
     current = current.children[index];
   }
   current.keys.splice(childIndex(current, value), 0, value);
-  events.push({ type: 'insert', value });
+  events.push({ type: 'insert', value, root: structuredClone(root) });
   while (current.keys.length > 5) {
     if (!path.length) {
       const middle = Math.floor(current.keys.length / 2);
       const left = node(current.keys.slice(0, middle), current.children.slice(0, middle + 1));
       const right = node(current.keys.slice(middle + 1), current.children.slice(middle + 1));
       const promotedKey = current.keys[middle];
-      events.push({ type: 'split', promotedKey, strategy: 'root-split' });
-      return node([promotedKey], [left, right]);
+      root = node([promotedKey], [left, right]);
+      events.push({ type: 'split', promotedKey, strategy: 'root-split', root: structuredClone(root) });
+      return root;
     }
     const [parent, index] = path.pop();
     const rightSibling = parent.children[index + 1];
@@ -102,7 +115,7 @@ function insertBStar(root, value, events) {
         left.children = allChildren.slice(0, leftCount + 1);
         right.children = allChildren.slice(leftCount + 1);
       }
-      events.push({ type: 'redistribute', promotedKey: parent.keys[separatorIndex] });
+      events.push({ type: 'redistribute', promotedKey: parent.keys[separatorIndex], root: structuredClone(root) });
       return root;
     }
     const distributable = allKeys.length - 2;
@@ -120,7 +133,7 @@ function insertBStar(root, value, events) {
     }
     parent.keys.splice(separatorIndex, 1, allKeys[firstSeparator], allKeys[secondSeparator]);
     parent.children.splice(separatorIndex, 2, left, middleNode, right);
-    events.push({ type: 'split', promotedKey: allKeys[firstSeparator], strategy: 'two-to-three' });
+    events.push({ type: 'split', promotedKey: allKeys[firstSeparator], strategy: 'two-to-three', root: structuredClone(root) });
     current = parent;
   }
   return root;
@@ -327,7 +340,11 @@ export function createMultiwayTree(id, values = [], previous = null) {
       : id === 'bplus-tree' ? insertBPlus(root, number, events)
         : insertBStar(root, number, events);
     order.push(number);
-    return { tree: snapshot(), events };
+    const tree = snapshot();
+    const eventSnapshots = events.map(event => event.root
+      ? { ...event, tree: { root: event.root, order: [...order] } }
+      : event);
+    return { tree, events: eventSnapshots };
   };
   const snapshot = () => ({ root: structuredClone(root), order: [...order] });
   if (!previous) values.forEach(insert);

@@ -55,18 +55,37 @@ const visit = `void visit(int value) {
 }`;
 
 function generalTreeCpp(algorithmId, actionId) {
-  const operation = generalOperations[actionId];
+  const isNary = algorithmId === 'arbol-nario';
+  const operation = actionId === 'tree-add' && !isNary
+    ? `bool addChild(Node* parent, int value) {
+    if (parent == nullptr) return false;
+    if (parent->childCount == parent->capacity) parent->growChildren();
+    parent->children[parent->childCount] = new Node(value);
+    parent->childCount++;
+    return true;
+}`
+    : generalOperations[actionId];
   if (!operation) return null;
   const className = algorithmId === 'arbol-nario' ? 'NaryTree' : 'GeneralTree';
   return `class ${className} {
 public:
-    static const int MAX_CHILDREN = ${algorithmId === 'arbol-nario' ? '4' : '16'};
+    static const int MAX_CHILDREN = 4;
     struct Node {
         int value;
         Node** children;
         int childCount;
+${isNary ? '' : '        int capacity;\n'}
         explicit Node(int value)
-            : value(value), children(new Node*[MAX_CHILDREN]{}), childCount(0) {}
+            : value(value), children(new Node*[MAX_CHILDREN]{}), childCount(0)${isNary ? '' : ', capacity(MAX_CHILDREN)'} {}
+${isNary ? '' : `        void growChildren() {
+            int newCapacity = capacity * 2;
+            Node** expanded = new Node*[newCapacity]{};
+            for (int i = 0; i < childCount; i++) expanded[i] = children[i];
+            delete[] children;
+            children = expanded;
+            capacity = newCapacity;
+        }
+`}
         ~Node() { delete[] children; }
         Node(const Node&) = delete;
         Node& operator=(const Node&) = delete;
@@ -74,6 +93,9 @@ public:
     Node* root = nullptr;
     int lastVisited = 0;
 
+    ${className}() = default;
+    ${className}(const ${className}&) = delete;
+    ${className}& operator=(const ${className}&) = delete;
     ~${className}() { destroy(root); }
 
     // Start of the selected operation
@@ -168,9 +190,17 @@ Node* splay(Node* node, int target) {
     return node->right == nullptr ? node : rotateLeft(node);
 }`;
 
-function splayCpp(actionId) {
+function splayCpp(actionId, initialValues = []) {
   const operation = splayOperations[actionId];
   if (!operation) return null;
+  const initialAssignments = initialValues.flatMap((value, index) => {
+    if (!Number.isInteger(value)) return [];
+    const sides = [];
+    for (let position = index; position > 0; position = Math.floor((position - 1) / 2)) {
+      sides.unshift(position % 2 ? 'left' : 'right');
+    }
+    return [`        root${sides.map(side => `->${side}`).join('')} = new Node(${value});`];
+  }).join('\n');
   return `class SplayTree {
 public:
     struct Node {
@@ -182,6 +212,11 @@ public:
     Node* root = nullptr;
     int lastVisited = 0;
 
+    SplayTree() {
+${initialAssignments}
+    }
+    SplayTree(const SplayTree&) = delete;
+    SplayTree& operator=(const SplayTree&) = delete;
     ~SplayTree() { destroy(root); }
 
     // Start of the selected operation
@@ -203,8 +238,8 @@ private:
 };`;
 }
 
-export function getMoreTreesCpp(algorithmId, actionId) {
+export function getMoreTreesCpp(algorithmId, actionId, initialValues = []) {
   if (['arbol-general', 'arbol-nario'].includes(algorithmId)) return generalTreeCpp(algorithmId, actionId);
-  if (algorithmId === 'splay-tree') return splayCpp(actionId);
+  if (algorithmId === 'splay-tree') return splayCpp(actionId, initialValues);
   return null;
 }

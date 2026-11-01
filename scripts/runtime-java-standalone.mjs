@@ -38,7 +38,8 @@ const samples = [
         lab.addAtEnd(7);
         if (lab.size != 2 || lab.values[0] != 4 || lab.values[1] != 7)
             throw new AssertionError("deque back insertion");`],
-  ['deque', 'remove-start', `lab.values[0] = 99;
+  ['deque', 'remove-start', `lab.size = 0;
+        lab.values[0] = 99;
         int[] before = lab.values.clone();
         boolean rejected = false;
         try { lab.removeFromStart(); }
@@ -50,7 +51,8 @@ const samples = [
         int removed = lab.removeFromStart();
         if (removed != 2 || lab.size != 2 || lab.values[0] != 3 || lab.values[1] != 4)
             throw new AssertionError("deque front removal");`],
-  ['deque', 'remove-end', `lab.values[0] = 99;
+  ['deque', 'remove-end', `lab.size = 0;
+        lab.values[0] = 99;
         int[] before = lab.values.clone();
         boolean rejected = false;
         try { lab.removeFromEnd(); }

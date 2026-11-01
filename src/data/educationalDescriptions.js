@@ -368,7 +368,7 @@ export const educationalDescriptions = {
 
   'hash-table': guide(
     'Una Hash Table guarda pares clave-valor y usa una función hash para convertir cada clave en un índice.',
-    'La función hash distribuye las claves entre casillas. Dos claves pueden llegar a la misma posición: esta demostración utiliza un arreglo de 12 casillas y sondeo lineal para encontrar otra libre. Buscar repite ese recorrido y eliminar deja una marca especial para que no se pierdan claves desplazadas. Separate Chaining, en cambio, guarda una lista por casilla.',
+    'Esta sección introduce la tabla hash usando el mismo arreglo de 12 casillas y sondeo lineal que se estudia en detalle en Open Addressing. Buscar repite el sondeo y eliminar deja una marca para no perder claves desplazadas. Es una implementación posible, no la única: Separate Chaining guarda una lista por casilla.',
     'put inserta o actualiza una clave|Get busca su valor siguiendo el sondeo|remove deja una marca de borrado|Comprobar la casilla calculada y las colisiones',
     'Acceso promedio O(1)|Muy eficiente para búsquedas exactas|Claves de distintos tipos|Base de mapas y conjuntos',
     'No mantiene orden natural|El peor caso puede ser O(n)|Depende de una función hash adecuada|La tabla de esta lección tiene capacidad fija y no hace rehash',

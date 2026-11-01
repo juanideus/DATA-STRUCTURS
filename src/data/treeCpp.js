@@ -224,7 +224,18 @@ bool removeNode(Node*& node, Node* target) {
     return removeNode(node->left, target) || removeNode(node->right, target);
 }`;
 
-function wrapTree(className, selected, helpers, avl = false) {
+function wrapTree(className, selected, helpers, avl = false, initialValues = []) {
+  const initialHeight = index => Number.isInteger(initialValues[index])
+    ? 1 + Math.max(initialHeight(index * 2 + 1), initialHeight(index * 2 + 2)) : 0;
+  const initialAssignments = initialValues.flatMap((value, index) => {
+    if (!Number.isInteger(value)) return [];
+    const sides = [];
+    for (let position = index; position > 0; position = Math.floor((position - 1) / 2)) {
+      sides.unshift(position % 2 ? 'left' : 'right');
+    }
+    const target = `root${sides.map(side => `->${side}`).join('')}`;
+    return [`        ${target} = new Node(${value});`, `        ${target}->height = ${initialHeight(index)};`];
+  }).join('\n');
   return `class ${className} {
 public:
     struct Node {
@@ -237,6 +248,11 @@ public:
     Node* root = nullptr;
     int lastVisited = 0;
 
+    ${className}() {
+${initialAssignments}
+    }
+    ${className}(const ${className}&) = delete;
+    ${className}& operator=(const ${className}&) = delete;
     ~${className}() { destroy(root); }
 
     // Start of the selected operation
@@ -256,13 +272,13 @@ private:
 };`;
 }
 
-export function getTreeCpp(algorithmId, actionId) {
+export function getTreeCpp(algorithmId, actionId, initialValues = []) {
   if (algorithmId === 'bst') {
     const selected = bstMethods[actionId];
     if (!selected) return null;
     const helpers = [visit];
     if (actionId === 'remove-value') helpers.unshift(bstSmallest);
-    return wrapTree('BinarySearchTree', selected, helpers);
+    return wrapTree('BinarySearchTree', selected, helpers, false, initialValues);
   }
   if (algorithmId === 'avl') {
     const selected = actionId === 'tree-add'
@@ -273,7 +289,7 @@ export function getTreeCpp(algorithmId, actionId) {
     if (!selected) return null;
     const helpers = [avlHelpers, visit];
     if (actionId === 'remove-value') helpers.unshift(bstSmallest);
-    return wrapTree('AVLTree', selected, helpers, true);
+    return wrapTree('AVLTree', selected, helpers, true, initialValues);
   }
   if (algorithmId === 'arbol-binario') {
     const selected = binaryMethods[actionId];
@@ -281,7 +297,7 @@ export function getTreeCpp(algorithmId, actionId) {
     const helpers = [visit];
     if (actionId === 'tree-add') helpers.unshift(binaryMethods.find, binaryHelpers);
     if (actionId === 'remove-value') helpers.unshift(binaryMethods.find, binaryHelpers);
-    return wrapTree('BinaryTree', selected, helpers);
+    return wrapTree('BinaryTree', selected, helpers, false, initialValues);
   }
   return null;
 }

@@ -152,9 +152,8 @@ int main() {
 
 const fenwickCppMain = `
 int main() {
-    FenwickTree t; t.size = 8;
-    int input[] = {3,2,5,1,7,4,6,2};
-    for (int i = 0; i < 8; i++) t.add(i,input[i]);
+    FenwickTree t;
+    assert(t.size == 8 && t.prefixSum(7) == 30);
     t.add(0,2147483644);
     assert(t.prefixSum(7) == 2147483674LL);
     long long before = t.prefixSum(7);
@@ -170,7 +169,7 @@ function run(command, args) {
   return result.stdout;
 }
 
-test('Generated Java: one expression node model, high minima, long sums and atomic guards', { skip: !process.env.DSA_TREE_JAVA }, () => {
+test('Generated Java: one expression node model, high minima, long sums and atomic guards', { skip: !process.env.DSA_EXAMPLE_JAVA }, () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'dsa-tree-java-'));
   for (const [id, name, firstAction, extraActions, main] of [
     ['expression-tree', 'ExpressionTree', 'set-expression', ['evaluate', 'preorder', 'postorder'], expressionJavaMain],
@@ -182,11 +181,12 @@ test('Generated Java: one expression node model, high minima, long sums and atom
     const source = `${base.slice(0, base.lastIndexOf('}'))}\n${extra}\n${main}\n}`;
     const file = path.join(directory, `${name}.java`);
     writeFileSync(file, source);
-    assert.match(run(process.env.DSA_TREE_JAVA, [file]), /tree-contract-ok/);
+    run(process.env.DSA_EXAMPLE_JAVA, [file]);
+    assert.match(run('java', ['-cp', directory, name]), /tree-contract-ok/);
   }
 });
 
-test('Generated C++: checked expressions and dynamic wide range aggregates', { skip: !process.env.DSA_TREE_CXX }, () => {
+test('Generated C++: checked expressions and dynamic wide range aggregates', { skip: !process.env.DSA_EXAMPLE_CXX }, () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'dsa-tree-cpp-'));
   for (const [id, firstAction, extraActions, main] of [
     ['expression-tree', 'set-expression', ['evaluate', 'preorder', 'postorder'], expressionCppMain],
@@ -200,7 +200,7 @@ test('Generated C++: checked expressions and dynamic wide range aggregates', { s
     const file = path.join(directory, `${id}.cpp`);
     const executable = path.join(directory, `${id}${process.platform === 'win32' ? '.exe' : ''}`);
     writeFileSync(file, source);
-    run(process.env.DSA_TREE_CXX, ['-std=c++17', '-Wall', '-Wextra', file, '-o', executable]);
+    run(process.env.DSA_EXAMPLE_CXX, ['-std=c++17', '-Wall', '-Wextra', file, '-o', executable]);
     assert.match(run(executable, []), /tree-contract-ok/);
   }
 });

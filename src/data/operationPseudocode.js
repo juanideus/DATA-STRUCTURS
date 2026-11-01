@@ -331,6 +331,16 @@ function implementationPseudocode(algorithm, actionId, language) {
   if (['btree', 'bstar-tree'].includes(algorithm.id) && actionId === 'range-view') {
     return lines(text('recorrer cada nodo en inorden:', 'traverse each node in order:'), text('  para cada clave i: recorrer hijo i y después emitir clave i', '  for each key i: traverse child i, then emit key i'), text('  recorrer el último hijo', '  traverse the last child'), text('incluir claves internas y hojas; no usar enlaces de hojas de B+', 'include internal keys and leaves; do not use B+ leaf links'));
   }
+  if (algorithm.id === 'suffix-tree' && actionId === 'remove-word') {
+    return lines(
+      text('validar que el patrón no esté vacío', 'validate that the pattern is not empty'),
+      text('buscar la primera aparición del patrón en el texto', 'find the first occurrence of the pattern in the text'),
+      text('si no existe: devolver false sin modificar el trie', 'if absent: return false without changing the trie'),
+      text('eliminar esa primera aparición del texto', 'remove that first occurrence from the text'),
+      text('reconstruir el trie insertando todos los sufijos del texto restante', 'rebuild the trie by inserting every suffix of the remaining text'),
+      text('devolver true', 'return true'),
+    );
+  }
   if (algorithm.id === 'suffix-tree' && actionId === 'word-find') {
     return lines(text('comenzar en la raíz del trie de sufijos', 'start at the suffix trie root'), text('seguir una rama por cada carácter del patrón', 'follow one branch for every pattern character'), text('si falta una rama: el patrón no aparece', 'if a branch is missing: the pattern does not occur'), text('si se consumió el patrón: devolver true, aunque no termine un sufijo completo', 'if the pattern was consumed: return true, even if it does not end a complete suffix'));
   }

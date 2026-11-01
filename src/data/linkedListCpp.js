@@ -484,6 +484,9 @@ ${doubly ? '        Node* prev;\n' : ''}
     Node* head = nullptr;
     int size = 0;
 
+    ${className}() = default;
+    ${className}(const ${className}&) = delete;
+    ${className}& operator=(const ${className}&) = delete;
     ~${className}() {
         clearNodes();
     }
