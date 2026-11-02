@@ -11,6 +11,18 @@ async function advanceAvailableStep(page) {
   if (await next.isEnabled()) await next.click();
 }
 
+async function completePreparedOperation(page, observeStep = null) {
+  const next = page.getByRole('button', { name: 'Siguiente', exact: true });
+  await expect(next).toBeEnabled();
+  const pause = page.getByRole('button', { name: 'Pausar', exact: true });
+  if (await pause.isVisible()) await pause.click();
+  for (let step = 0; step < 300 && await next.isEnabled(); step++) {
+    if (observeStep) await observeStep();
+    await next.click();
+  }
+  await expect(next).toBeDisabled();
+}
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem('dsa-language', 'es');
@@ -582,6 +594,7 @@ test('el AST construye la asignación, anima su Java completo y recorre en preor
 
 test('la matriz densa sincroniza índices, recorridos y transposición con Java', async ({ page }) => {
   await page.goto('/matriz');
+  await page.clock.pauseAt(new Date());
   await expect(page.getByRole('heading', { name: 'Matriz', level: 1 })).toBeVisible();
   await expect(page.locator('.dense-matrix-cell')).toHaveCount(16);
   await expect(page.locator('.code-panel pre')).toContainText('int[][] values');
@@ -591,19 +604,12 @@ test('la matriz densa sincroniza índices, recorridos y transposición con Java'
   await page.getByRole('spinbutton', { name: 'Columna', exact: true }).fill('2');
   await page.getByRole('spinbutton', { name: 'Valor', exact: true }).fill('42');
   await page.getByRole('button', { name: 'Guardar valor', exact: true }).click();
-  const pause = page.getByRole('button', { name: 'Pausar', exact: true });
-  if (await pause.isVisible()) await pause.click();
-  for (let index = 0; index < 8; index++) {
-    await advanceAvailableStep(page);
-  }
+  await completePreparedOperation(page);
   await expect(page.locator('[data-matrix-row="1"][data-matrix-column="2"]')).toContainText('42');
   await expect(page.locator('.operation-message')).toContainText('Celda (1, 2) actualizada');
 
   await page.getByRole('button', { name: 'Transponer', exact: true }).click();
-  if (await pause.isVisible()) await pause.click();
-  for (let index = 0; index < 35; index++) {
-    await advanceAvailableStep(page);
-  }
+  await completePreparedOperation(page);
   await expect(page.locator('[data-matrix-row="0"][data-matrix-column="1"]')).toContainText('5');
   await expect(page.locator('[data-matrix-row="2"][data-matrix-column="1"]')).toContainText('42');
   await expect(page.locator('.operation-message')).toContainText('matriz transpuesta');
@@ -618,6 +624,7 @@ test('la matriz densa sincroniza índices, recorridos y transposición con Java'
 
 test('los polinomios suman A y B avanzando p y q sobre nodos COEF EXP LINK', async ({ page }) => {
   await page.goto('/polinomios');
+  await page.clock.pauseAt(new Date());
   await expect(page.getByRole('heading', { name: 'Polinomios con listas', level: 1 })).toBeVisible();
   await expect(page.locator('[data-polynomial="A"]')).toHaveCount(3);
   await expect(page.locator('[data-polynomial="B"]')).toHaveCount(3);
@@ -627,13 +634,10 @@ test('los polinomios suman A y B avanzando p y q sobre nodos COEF EXP LINK', asy
   await expect(page.locator('.code-panel pre')).toContainText('Node next');
 
   await page.getByRole('button', { name: 'Sumar A + B', exact: true }).click();
-  const pause = page.getByRole('button', { name: 'Pausar', exact: true });
-  if (await pause.isVisible()) await pause.click();
   const visitedLines = new Set();
-  for (let index = 0; index < 38; index++) {
+  await completePreparedOperation(page, async () => {
     visitedLines.add((await page.locator('.code-panel code.active').textContent())?.trim());
-    await advanceAvailableStep(page);
-  }
+  });
   expect(visitedLines.size).toBeGreaterThan(8);
   await expect(page.locator('[data-polynomial="C"]')).toHaveCount(5);
   await expect(page.locator('.polynomial-c .polynomial-expression')).toContainText('11x^14 − 3x^10 + 2x^8 + 10x^6 + 1');
@@ -642,10 +646,7 @@ test('los polinomios suman A y B avanzando p y q sobre nodos COEF EXP LINK', asy
   await page.getByRole('spinbutton', { name: 'Coeficiente', exact: true }).fill('-2');
   await page.getByRole('spinbutton', { name: 'Exponente', exact: true }).fill('8');
   await page.getByRole('button', { name: 'Insertar / agrupar en A', exact: true }).click();
-  if (await pause.isVisible()) await pause.click();
-  for (let index = 0; index < 14; index++) {
-    await advanceAvailableStep(page);
-  }
+  await completePreparedOperation(page);
   await expect(page.locator('[data-polynomial="A"][data-exponent="8"]')).toHaveCount(0);
   await expect(page.locator('[data-polynomial="C"]')).toHaveCount(0);
 });
@@ -667,6 +668,7 @@ test('el C++ de polinomios parte del ejemplo visible y limpia C al cambiar A', a
 
 test('la lista generalizada distingue tag, dlink, link y referencias compartidas', async ({ page }) => {
   await page.goto('/listas-generalizadas');
+  await page.clock.pauseAt(new Date());
   await expect(page.getByRole('heading', { name: 'Listas generalizadas', level: 1 })).toBeVisible();
   await expect(page.locator('.code-panel pre')).toContainText('int tag');
   await expect(page.locator('.code-panel pre')).toContainText('Node dlink');
@@ -675,29 +677,22 @@ test('la lista generalizada distingue tag, dlink, link y referencias compartidas
 
   await page.getByRole('textbox', { name: 'Lista generalizada', exact: true }).fill('((a,b),((c,d),e))');
   await page.getByRole('button', { name: 'Construir lista', exact: true }).click();
-  const pause = page.getByRole('button', { name: 'Pausar', exact: true });
-  if (await pause.isVisible()) await pause.click();
-  for (let index = 0; index < 34; index++) {
-    await advanceAvailableStep(page);
-  }
+  await completePreparedOperation(page);
   await expect(page.locator('.generalized-node.tag-0')).toHaveCount(5);
   await expect(page.locator('.generalized-node.tag-1')).toHaveCount(3);
   await expect(page.locator('.generalized-node.tag-2')).toHaveCount(4);
   await expect(page.locator('.generalized-edge.dlink')).toHaveCount(3);
 
   await page.getByRole('button', { name: 'Obtener Head', exact: true }).click();
-  if (await pause.isVisible()) await pause.click();
-  for (let index = 0; index < 5; index++) await advanceAvailableStep(page);
+  await completePreparedOperation(page);
   await expect(page.locator('.operation-message')).toContainText('Head(A) = (a,b)');
 
   await page.getByRole('button', { name: 'Calcular profundidad', exact: true }).click();
-  if (await pause.isVisible()) await pause.click();
-  for (let index = 0; index < 60; index++) await advanceAvailableStep(page);
+  await completePreparedOperation(page);
   await expect(page.locator('.operation-message')).toContainText('Depth(A) = 3');
 
   await page.getByRole('button', { name: 'Compartir raíz', exact: true }).click();
-  if (await pause.isVisible()) await pause.click();
-  for (let index = 0; index < 5; index++) await advanceAvailableStep(page);
+  await completePreparedOperation(page);
   await expect(page.locator('[data-generalized-path="root.header"]')).toContainText('2');
   await expect(page.locator('.generalized-aliases')).toContainText('R2');
 });
@@ -2392,8 +2387,9 @@ test('el modo oscuro cambia las superficies y se puede desactivar', async ({ pag
 });
 
 test('ofrece navegación por teclado para saltar al contenido principal', async ({ page }) => {
-  await page.keyboard.press('Tab');
   const skipLink = page.getByRole('link', { name: 'Saltar al contenido principal' });
+  await expect(skipLink).toBeAttached();
+  await page.keyboard.press('Tab');
   await expect(skipLink).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.locator('#main-content')).toBeFocused();
