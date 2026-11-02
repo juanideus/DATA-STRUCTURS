@@ -518,33 +518,49 @@ function SkipListVisual({ algorithm, step }) {
   </div>;
 }
 
+function useActiveDiagramItem(selector, items) {
+  const containerRef = useRef(null);
+  useLayoutEffect(() => {
+    if (!selector) return;
+    const container = containerRef.current;
+    const activeCell = container?.querySelector(selector);
+    if (!container || !activeCell) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const scaleX = containerRect.width / container.offsetWidth || 1;
+    const scaleY = containerRect.height / container.offsetHeight || 1;
+    const itemRect = activeCell.getBoundingClientRect();
+    const labelRect = activeCell.querySelector('small')?.getBoundingClientRect() ?? itemRect;
+    const cellRect = {
+      left: Math.min(itemRect.left, labelRect.left), right: Math.max(itemRect.right, labelRect.right),
+      top: Math.min(itemRect.top, labelRect.top), bottom: Math.max(itemRect.bottom, labelRect.bottom),
+    };
+    const visibleLeft = containerRect.left + container.clientLeft * scaleX;
+    const visibleRight = visibleLeft + container.clientWidth * scaleX;
+
+    if (cellRect.left < visibleLeft) {
+      container.scrollLeft -= (visibleLeft - cellRect.left) / scaleX;
+    } else if (cellRect.right > visibleRight) {
+      container.scrollLeft += (cellRect.right - visibleRight) / scaleX;
+    }
+    if (['auto', 'scroll'].includes(getComputedStyle(container).overflowY)) {
+      const visibleTop = containerRect.top + container.clientTop * scaleY;
+      const visibleBottom = visibleTop + container.clientHeight * scaleY;
+      if (cellRect.top < visibleTop) container.scrollTop -= (visibleTop - cellRect.top) / scaleY;
+      else if (cellRect.bottom > visibleBottom) container.scrollTop += (cellRect.bottom - visibleBottom) / scaleY;
+    }
+  }, [selector, items]);
+  return containerRef;
+}
+
 function LinearVisual({ algorithm, step }) {
   const { values, type } = algorithm;
   const english = algorithm.language === 'en';
-  const linearVisualRef = useRef(null);
   const framePosition = algorithm.animationFrame?.position;
   const activeIndex = type === 'array' && Number.isInteger(framePosition)
     ? Math.max(0, Math.min(framePosition, values.length - 1))
     : values.length ? step % values.length : -1;
-
-  useLayoutEffect(() => {
-    if (type !== 'array' || activeIndex < 0) return;
-
-    const container = linearVisualRef.current;
-    const activeCell = container?.querySelector(`[data-array-index="${activeIndex}"]`);
-    if (!container || !activeCell) return;
-
-    const containerRect = container.getBoundingClientRect();
-    const cellRect = activeCell.getBoundingClientRect();
-    const visibleLeft = containerRect.left + container.clientLeft;
-    const visibleRight = visibleLeft + container.clientWidth;
-
-    if (cellRect.left < visibleLeft) {
-      container.scrollLeft -= visibleLeft - cellRect.left;
-    } else if (cellRect.right > visibleRight) {
-      container.scrollLeft += cellRect.right - visibleRight;
-    }
-  }, [activeIndex, type, values]);
+  const linearVisualRef = useActiveDiagramItem(type === 'array' ? `[data-array-index="${activeIndex}"]` : null, values);
 
   if (!values.length) return <div className="empty-visual"><strong>∅</strong><span>{algorithm.language === 'en' ? 'Empty structure' : 'Estructura vacía'}</span></div>;
   if (type === 'skip') return <SkipListVisual algorithm={algorithm} step={step}/>;
@@ -1486,13 +1502,14 @@ function PathMapVisual({ algorithm }) {
         <path d="M -5 -8 L 9 0 L -5 8 L -1 0 Z"/>
       </g>}
 
-      <g className="path-map-marker start-marker" transform={`translate(${startPoint.x} ${startPoint.y})`}>
-        <circle r="10"/><circle r="3"/><text x="15" y="4">{en ? 'START' : 'INICIO'}</text>
-      </g>
-      <g className="path-map-marker goal-marker" transform={`translate(${goalPoint.x} ${goalPoint.y})`}>
-        <circle r="10"/><path d="M-3 -5 L5 -2 L-3 1 Z M-3 -5 V6"/><text x={goalPoint.x > 820 ? -15 : 15} y="4" textAnchor={goalPoint.x > 820 ? 'end' : 'start'}>{en ? 'GOAL' : 'META'}</text>
-      </g>
     </svg>
+
+    <div className="path-map-marker start-marker" style={{ left: `${startPoint.x / CITY_MAP_WIDTH * 100}%`, top: `${startPoint.y / CITY_MAP_HEIGHT * 100}%` }}>
+      <i/><span>{en ? 'START' : 'INICIO'}</span>
+    </div>
+    <div className={`path-map-marker goal-marker ${goalPoint.x > 820 ? 'label-left' : ''}`} style={{ left: `${goalPoint.x / CITY_MAP_WIDTH * 100}%`, top: `${goalPoint.y / CITY_MAP_HEIGHT * 100}%` }}>
+      <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 10V2l6 2-6 2"/></svg><span>{en ? 'GOAL' : 'META'}</span>
+    </div>
 
     <div className="path-map-legend">
       <span><i className="legend-start"/>{en ? 'Start' : 'Inicio'}</span>
@@ -1526,7 +1543,7 @@ function GraphVisual({ algorithm, step }) {
     ? (englishDesignCopy[algorithm.id] ?? [design.label, design.caption])
     : [design.label, design.caption];
   // Reserve the top band for the localized caption, even for y=0 vertices.
-  const nodes = (algorithm.positions ?? design.positions).slice(0,algorithm.values.length).map(([x, y]) => [x, 24 + y * 0.65]);
+  const nodes = (algorithm.positions ?? design.positions).slice(0,algorithm.values.length).map(([x, y]) => [12 + x * 0.76, 24 + y * 0.65]);
   const edges = (algorithm.edges ?? design.edges).filter(([from,to])=>from<algorithm.values.length&&to<algorithm.values.length);
   const directed = algorithm.type === 'digraph';
   const arrowMarker = `graph-arrow-${algorithm.id}`;
@@ -1540,8 +1557,22 @@ function GraphVisual({ algorithm, step }) {
   );
   const labelsFor = indexes => indexes?.length ? indexes.map(index=>algorithm.values[index]).join(', ') : '∅';
   const annotations = graphAnnotations({ values: algorithm.values, edges, directed, state: graphState, language: algorithm.language });
+  const canvasRef = useRef(null);
+  const [canvasSize, setCanvasSize] = useState({ width: 620, height: 310, nodeSizes: [] });
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const measure = () => setCanvasSize({
+      width: canvas.clientWidth, height: canvas.clientHeight,
+      nodeSizes: [...canvas.querySelectorAll('.graph-node')].map(node => [node.offsetWidth, node.offsetHeight]),
+    });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [algorithm.id, algorithm.values.length, annotations.origin]);
   if (!algorithm.values.length) return <div className="empty-visual"><strong>∅</strong><span>{algorithm.language === 'en' ? 'Empty graph' : 'Grafo vacío'}</span></div>;
-  return <div className={`graph-canvas graph-design-${algorithm.id} ${graphState ? 'pathfinding-canvas' : ''}`} role="img" aria-label={`${english ? 'Graph for' : 'Grafo de'} ${algorithm.name}: ${designCaption}`}>
+  return <div ref={canvasRef} className={`graph-canvas graph-design-${algorithm.id} ${graphState ? 'pathfinding-canvas' : ''}`} role="img" aria-label={`${english ? 'Graph for' : 'Grafo de'} ${algorithm.name}: ${designCaption}`}>
   <div className="graph-design-title"><span>{designLabel}</span><small>{designCaption}</small></div>
   <div className="graph-design-motif" aria-hidden="true"><i/><i/><i/></div>
   <svg className="edge-layer" aria-hidden="true">
@@ -1553,7 +1584,16 @@ function GraphVisual({ algorithm, step }) {
       const className = graphState?.pathEdges?.some(candidate=>edgeMatches(edge,candidate)) ? 'path-edge'
         : edgeMatches(edge,graphState?.relaxedEdge) ? 'relaxed-edge'
           : graphState?.visitedEdges?.some(candidate=>edgeMatches(edge,candidate)) || (!graphState && i <= step % edges.length) ? 'visited-edge' : '';
-      const points = shortenEdge(nodes[a], nodes[b], 23, directed ? 31 : 23);
+      const dx = (nodes[b][0] - nodes[a][0]) * canvasSize.width / 100;
+      const dy = (nodes[b][1] - nodes[a][1]) * canvasSize.height / 100;
+      const distance = Math.hypot(dx, dy) || 1;
+      const padding = index => {
+        const [width, height] = canvasSize.nodeSizes[index] ?? [52, 52];
+        return (directed
+          ? Math.min(width / 2 / Math.abs(dx / distance), height / 2 / Math.abs(dy / distance))
+          : 1 / Math.hypot(dx / distance / (width / 2), dy / distance / (height / 2))) + 3;
+      };
+      const points = shortenEdge(nodes[a], nodes[b], padding(a), padding(b), canvasSize.width, canvasSize.height);
       const markerTone = className === 'visited-edge' ? 'visited' : className === 'relaxed-edge' ? 'relaxed' : className === 'path-edge' ? 'path' : 'default';
       return <g key={i}><line className={`${className} edge-${i}`.trim()} x1={`${points.x1}%`} y1={`${points.y1}%`} x2={`${points.x2}%`} y2={`${points.y2}%`} markerEnd={directed ? `url(#${arrowMarker}-${markerTone})` : undefined}/>{algorithm.type === 'weighted' && <text className="graph-weight" x={`${(nodes[a][0]+nodes[b][0])/2}%`} y={`${(nodes[a][1]+nodes[b][1])/2}%`}>{w}</text>}</g>;
     })}
@@ -1592,6 +1632,9 @@ function GraphVisual({ algorithm, step }) {
 
 function FenwickVisual({ algorithm, step }) {
   const values = algorithm.values.slice(0,8).map(Number);
+  const activeIndex = values.length ? step % values.length : -1;
+  const scrollRef = useActiveDiagramItem(`[data-bit-index="${activeIndex + 1}"]`, algorithm.values);
+  const english = algorithm.language === 'en';
   const minimumMode = algorithm.activeOperation === 'range-min';
   const aggregates = values.map((_, index) => {
     const bitIndex = index + 1;
@@ -1600,13 +1643,15 @@ function FenwickVisual({ algorithm, step }) {
   });
   const displayed = minimumMode ? values : aggregates;
   const maximum = Math.max(...displayed.map(Math.abs),1);
-  return <div className="fenwick-visual"><span className="tree-kind-label">{minimumMode ? 'MÍNIMO · ESCANEO DE A' : 'BIT · CADA ÍNDICE GUARDA UN RANGO'}</span><div className="fenwick-bars">{values.map((value,index)=>{
+  const columnWidth = Math.max(66, ...displayed.map(value => String(value).length * 8 + 18), ...values.map((value, index) => `i=${index + 1} · ${minimumMode ? `BIT=${aggregates[index]}` : `A=${value}`}`.length * 6 + 8));
+  return <div className="fenwick-visual"><span className="tree-kind-label">{minimumMode ? (english ? 'MINIMUM · SCAN A' : 'MÍNIMO · ESCANEO DE A') : (english ? 'BIT · EACH INDEX STORES A RANGE' : 'BIT · CADA ÍNDICE GUARDA UN RANGO')}</span><div className="fenwick-scroll" ref={scrollRef} tabIndex="0" role="img" aria-label={english ? 'Fenwick tree. Scroll horizontally to inspect every index.' : 'Árbol Fenwick. Desplázate horizontalmente para ver todos los índices.'}><div className="fenwick-bars" style={{ '--fenwick-column-width': `${columnWidth}px` }}>{values.map((value,index)=>{
     const bitIndex=index+1, start=bitIndex-(bitIndex&-bitIndex)+1;
-    return <div className={`fenwick-column ${index===step%values.length?'active':''}`} data-bit-index={bitIndex} key={index}><div className="fenwick-bar" style={{height:`${38+Math.abs(displayed[index])/maximum*80}px`}}><strong>{displayed[index]}</strong><small>{minimumMode ? `A[${index}]` : `[${start}..${bitIndex}]`}</small></div><span>i={bitIndex} · {minimumMode ? `BIT=${aggregates[index]}` : `A=${value}`}</span></div>;
-  })}</div></div>;
+    return <div className={`fenwick-column ${index===activeIndex?'active':''}`} data-bit-index={bitIndex} key={index}><div className="fenwick-bar" style={{height:`${38+Math.abs(displayed[index])/maximum*80}px`}}><strong>{displayed[index]}</strong><small>{minimumMode ? `A[${index}]` : `[${start}..${bitIndex}]`}</small></div><span>i={bitIndex} · {minimumMode ? `BIT=${aggregates[index]}` : `A=${value}`}</span></div>;
+  })}</div></div></div>;
 }
 
 function TrieTreeVisual({ algorithm, step }) {
+  const english = algorithm.language === 'en';
   const words = algorithm.values.map(value=>String(value).trim().toUpperCase()).filter(Boolean);
   const trieState = algorithm.animationFrame?.trieState;
   const activePrefix = trieState?.word?.slice(0, trieState.revealed) ?? '';
@@ -1647,25 +1692,35 @@ function TrieTreeVisual({ algorithm, step }) {
   placeNode(0);
   const leafCount = Math.max(1, leafPosition);
   const maximumDepth = Math.max(1, ...nodes.map(node=>node.depth));
+  const labelWidth = Math.max(0, ...nodes.map(node => node.endings.join(', ').length * 6 + 48), (trieState?.word.length ?? 0) * 6 + 48);
+  const diagramWidth = Math.max(320, (leafCount - 1) * (labelWidth + 60) + labelWidth + 76);
+  const diagramHeight = Math.max(310, (maximumDepth + 1) * 58 + 24);
+  const plotWidth = diagramWidth - labelWidth - 76;
   nodes.forEach(node => {
-    node.x = leafCount === 1 ? 50 : 12 + (node.rawX / (leafCount - 1)) * 76;
-    node.y = 9 + (node.depth / maximumDepth) * 76;
+    node.x = 32 + (leafCount === 1 ? plotWidth / 2 : node.rawX / (leafCount - 1) * plotWidth);
+    node.y = 30 + node.depth * 58;
   });
   const activeWord = words.length ? words[step % words.length] : '';
+  const focusPrefix = trieState
+    ? nodes.filter(node => activePrefix.startsWith(node.prefix)).sort((a, b) => b.depth - a.depth)[0]?.prefix ?? ''
+    : activeWord;
+  const scrollRef = useActiveDiagramItem(algorithm.animationFrame ? `[data-trie-prefix="${focusPrefix}"]` : null, algorithm.values);
 
-  return <div className="trie-tree-canvas">
-    <span className="tree-kind-label">PREFIJOS COMPARTIDOS</span>
+  return <div className="trie-tree-visual">
+    <span className="tree-kind-label">{english ? 'SHARED PREFIXES' : 'PREFIJOS COMPARTIDOS'}</span>
+    <div className="trie-tree-scroll" ref={scrollRef} tabIndex="0" role="img" aria-label={english ? 'Prefix tree. Scroll to inspect every word ending.' : 'Árbol de prefijos. Desplázate para ver todos los finales de palabra.'}><div className="trie-tree-canvas" style={{ width: `${diagramWidth}px`, height: `${diagramHeight}px` }}>
     <svg className="trie-edge-layer" aria-hidden="true">
       {nodes.slice(1).map(node => {
         const parent = nodes[node.parent];
-        return <line key={`edge-${node.id}`} x1={`${parent.x}%`} y1={`${parent.y}%`} x2={`${node.x}%`} y2={`${node.y}%`}/>;
+        return <line key={`edge-${node.id}`} x1={parent.x} y1={parent.y} x2={node.x} y2={node.y}/>;
       })}
     </svg>
-    {nodes.map(node => <div className={`trie-tree-node ${node.id===0?'root':''} ${node.endings.length?'terminal':''} ${node.endings.includes(activeWord) || (activePrefix && activePrefix.startsWith(node.prefix))?'active':''}`} style={{left:`${node.x}%`,top:`${node.y}%`}} key={node.id}>
+    {nodes.map(node => <div data-trie-prefix={node.prefix} className={`trie-tree-node ${node.id===0?'root':''} ${node.endings.length?'terminal':''} ${(trieState ? node.prefix === focusPrefix : node.endings.includes(activeWord))?'active':''}`} style={{left:`${node.x}px`,top:`${node.y}px`}} key={node.id}>
       <strong>{node.letter}</strong>
-      {node.endings.length > 0 && <small>FIN · {node.endings.join(', ')}</small>}
+      {node.endings.length > 0 && <small>{english ? 'END' : 'FIN'} · {node.endings.join(', ')}</small>}
     </div>)}
-    <div className="trie-legend"><i/> FIN indica el último nodo de una palabra</div>
+    </div></div>
+    <div className="trie-legend"><i/><span>{english ? 'END marks a word ending. Scroll to inspect every branch.' : 'FIN marca el final de una palabra. Desplázate para ver todas las ramas.'}</span></div>
   </div>;
 }
 
