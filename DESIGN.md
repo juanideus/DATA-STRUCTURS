@@ -75,6 +75,10 @@ conserva su escala durante la animación; las conexiones se calculan con el tama
 Los arrays muestran casillas contiguas e índices legibles; las conexiones se reservan para
 estructuras con enlaces. En pantallas estrechas, el desplazamiento sigue la posición activa
 dentro del diagrama sin mover el documento.
+Fenwick y los árboles de prefijos conservan tamaños legibles con desplazamiento propio;
+las etiquetas terminales tienen espacio reservado. Las aristas de grafos comparten
+coordenadas con los nodos y se recortan según su tamaño real. Inicio/meta del mapa
+mantienen tamaño de texto y marcador aunque cambie la relación de aspecto.
 
 BugReporter es dueño de validación y envío. Sus selectores y el de velocidad son nativos:
 se acepta la geometría y el teclado del sistema operativo. Textareas crecen hasta un límite
