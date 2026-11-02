@@ -467,7 +467,7 @@ function App() {
   const fullCodePreRef = useRef(null);
   const fullCodeDialogRef = useDialogFocus({ open: fullCodeOpen, onClose: () => setFullCodeOpen(false) });
   const sourceAlgorithm = algorithmsById.get(selectedId) ?? algorithms[0];
-  const baseAlgorithm = useMemo(() => localizeAlgorithm(sourceAlgorithm, language), [sourceAlgorithm, language]);
+  const baseAlgorithm = useMemo(() => ({ ...localizeAlgorithm(sourceAlgorithm, language), initialValues: sourceAlgorithm.values }), [sourceAlgorithm, language]);
   const [activeOperation, setActiveOperation] = useState(() => getOperationDefinition(startingAlgorithm).actions[0]?.id ?? null);
   const [operationFrames, setOperationFrames] = useState([]);
   const [activeCodeLine, setActiveCodeLine] = useState(null);
@@ -826,8 +826,9 @@ function App() {
   };
   const clearDemo = () => {
     operationRequestRef.current += 1;
-    setCodeContextAlgorithm({ ...baseAlgorithm, values: createEmptyValues(baseAlgorithm), edges: [] });
-    setDemoValues(createEmptyValues(baseAlgorithm));
+    const nextValues = createEmptyValues(baseAlgorithm);
+    setCodeContextAlgorithm({ ...baseAlgorithm, values: nextValues, edges: [], map: demoMap });
+    setDemoValues(nextValues);
     setDemoTreeColors(redBlackColorsFor(baseAlgorithm, []));
     setDemoFibonacciForest(fibonacciForestFor(baseAlgorithm, []));
     setDemoMultiwayTree(multiwayTreeFor(baseAlgorithm, []));
@@ -839,7 +840,7 @@ function App() {
     setDemoPositions(positionsForAlgorithm(baseAlgorithm));
     setOperationFrames([]);
     setActiveCodeLine(null);
-    setOperationMessage(t('dataClearedMessage'));
+    setOperationMessage(t(['dijkstra', 'a-star'].includes(baseAlgorithm.id) ? 'searchClearedMessage' : 'dataClearedMessage'));
     setOperationStatus('idle');
     setChallengeScenarioKey(current => current + 1);
     setStep(0);
@@ -848,7 +849,10 @@ function App() {
   const createNewExample = () => {
     operationRequestRef.current += 1;
     const nextValues = createRandomValues(baseAlgorithm);
-    setCodeContextAlgorithm({ ...baseAlgorithm, values: nextValues, edges: edgesForAlgorithm(baseAlgorithm, baseAlgorithm.category === 'Grafos') });
+    const nextEdges = edgesForAlgorithm(baseAlgorithm, baseAlgorithm.category === 'Grafos');
+    const nextPositions = positionsForAlgorithm(baseAlgorithm, usesNodeGraph(baseAlgorithm));
+    const nextMap = ['dijkstra', 'a-star'].includes(baseAlgorithm.id) ? createRandomPathMap(demoMap) : DEFAULT_PATH_MAP;
+    setCodeContextAlgorithm({ ...baseAlgorithm, values: nextValues, edges: nextEdges, positions: nextPositions, map: nextMap });
     setDemoValues(nextValues);
     setDemoTreeColors(redBlackColorsFor(baseAlgorithm, nextValues));
     setDemoFibonacciForest(fibonacciForestFor(baseAlgorithm, nextValues));
@@ -857,11 +861,9 @@ function App() {
     setDemoSpatialTree(spatialTreeFor(baseAlgorithm, nextValues));
     setDemoHashTable(hashTableFor(baseAlgorithm, nextValues));
     setDemoUnionRanks(unionRanksFor(baseAlgorithm, nextValues));
-    setDemoEdges(edgesForAlgorithm(baseAlgorithm, baseAlgorithm.category === 'Grafos'));
-    setDemoPositions(positionsForAlgorithm(baseAlgorithm, usesNodeGraph(baseAlgorithm)));
-    setDemoMap(['dijkstra','a-star'].includes(baseAlgorithm.id)
-      ? createRandomPathMap(demoMap)
-      : DEFAULT_PATH_MAP);
+    setDemoEdges(nextEdges);
+    setDemoPositions(nextPositions);
+    setDemoMap(nextMap);
     setOperationFrames([]);
     setActiveCodeLine(null);
     setOperationMessage(['dijkstra','a-star'].includes(baseAlgorithm.id)
@@ -1274,7 +1276,7 @@ function App() {
     setOperationStatus(result.ok === false ? 'error' : 'success');
     setActiveCodeLine(firstFrame.codeLine ?? null);
     setStep(0);
-    setPlaying(frames.length > 1);
+    setPlaying(actionId !== 'step-solution' && frames.length > 1);
   };
   const goToStep = requestedStep => {
     operationRequestRef.current += 1;
@@ -1354,7 +1356,7 @@ function App() {
       : <>
       <section className={`lab-grid ${['dijkstra', 'a-star'].includes(baseAlgorithm.id) ? 'pathfinding-grid' : ''}`}>
         <article className="panel visual-panel" data-tour="visualizer">
-          <div className="panel-head"><div><span className="panel-index">01</span><h2>{t('visualization')}</h2></div><div className="panel-head-actions">{operationDefinition.actions.length > 0 && <button className={`challenge-toggle ${challengeMode ? 'active' : ''}`} onClick={toggleChallengeMode} title={challengeMode ? t('exit') : t('challengeMode')} aria-label={challengeMode ? t('exit') : t('challengeMode')} aria-pressed={challengeMode}><Brain size={15}/>{challengeMode ? t('exit') : t('challenge')}</button>}<button onClick={createNewExample} title={t('generateData')}><Shuffle size={15}/> {t('newExample')}</button><button className="clear-demo-button" onClick={clearDemo} title={t('clearCurrentData')}><Eraser size={15}/> {t('clearData')}</button><button onClick={resetDemo} title={t('originalData')}><RotateCcw size={15}/> {t('reset')}</button></div></div>
+          <div className="panel-head"><div><span className="panel-index">01</span><h2>{t('visualization')}</h2></div><div className="panel-head-actions">{operationDefinition.actions.length > 0 && <button className={`challenge-toggle ${challengeMode ? 'active' : ''}`} onClick={toggleChallengeMode} title={challengeMode ? t('exit') : t('challengeMode')} aria-label={challengeMode ? t('exit') : t('challengeMode')} aria-pressed={challengeMode}><Brain size={15}/>{challengeMode ? t('exit') : t('challenge')}</button>}<button onClick={createNewExample} title={t('generateData')}><Shuffle size={15}/> {t('newExample')}</button><button className="clear-demo-button" onClick={clearDemo} title={t(['dijkstra', 'a-star'].includes(baseAlgorithm.id) ? 'clearSearch' : 'clearCurrentData')}><Eraser size={15}/> {t(['dijkstra', 'a-star'].includes(baseAlgorithm.id) ? 'clearSearch' : 'clearData')}</button><button onClick={resetDemo} title={t('originalData')}><RotateCcw size={15}/> {t('reset')}</button></div></div>
           <div className="visual-statusbar"><div className={`step-badge ${currentAnimationFrame?.iteration != null ? 'loop-step' : ''}`}>{!currentAnimationFrame ? t('currentState') : currentAnimationFrame?.loopExit ? <>{t('loopEnd')}</> : currentAnimationFrame?.iteration != null ? <>{t('iteration')} <b>{Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)}/{currentAnimationFrame.totalIterations}</b></> : <>{t('step')} <b>{String(step+1).padStart(2,'0')}</b></>}</div>{currentAnimationFrame?.traceMode === 'summary' && <span>{language === 'en' ? 'State overview · no line-by-line trace' : 'Resumen de estados · sin traza línea por línea'}</span>}{currentAnimationFrame?.codeUnmapped && <span>{language === 'en' ? 'No exact code-line mapping for this step' : 'Este paso no tiene una línea equivalente exacta'}</span>}</div>
           <div className="canvas-grid" data-visualizer={algorithm.id}><Suspense fallback={<div className="description-loading" aria-label={t('loadingDescription')}><span/></div>}><MemoizedVisualizer algorithm={visualAlgorithm} step={operationFrames.length ? currentAnimationFrame?.position ?? 0 : 0}/></Suspense></div>
           {challengeMode

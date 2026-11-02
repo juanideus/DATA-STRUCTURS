@@ -95,8 +95,10 @@ int size = 0;`;
   return operations[actionId] ? wrap('SkipList', fields, operations[actionId], helpers) : null;
 }
 
-function openHashJava(actionId, initialValues) {
-  const initialize = hashExampleSlots(initialValues).flatMap((slot, index) => {
+function openHashJava(actionId, initialValues, previousSlots) {
+  const slots = hashExampleSlots(initialValues, previousSlots);
+  const initialize = slots.flatMap((slot, index) => {
+    if (slot.state === 'deleted') return [`    states[${index}] = 2;`];
     if (slot.state !== 'occupied') return [];
     const { key, value } = hashExampleEntries([slot.entry])[0];
     return [`    keys[${index}] = ${JSON.stringify(key)}; values[${index}] = ${JSON.stringify(value)}; states[${index}] = 1;`];
@@ -107,7 +109,7 @@ byte[] states = new byte[12]; // 0: vacía, 1: ocupada, 2: eliminada
 int size = 0;
 OpenAddressingTable() {
 ${initialize.join('\n')}
-    size = ${initialize.length};
+    size = ${slots.filter(slot => slot.state === 'occupied').length};
 }
 int hash(String key) { return Math.floorMod(key.hashCode(), keys.length); }`;
   const operations = {
@@ -345,10 +347,10 @@ int hash(String word, int seed) {
   return operations[actionId] ? wrap('BloomFilter', fields, operations[actionId]) : null;
 }
 
-export function getSpecializedJava(algorithmId, actionId, initialValues = []) {
+export function getSpecializedJava(algorithmId, actionId, initialValues = [], previousSlots = null) {
   if (algorithmId === 'skip-list') return skipListJava(actionId);
   if (algorithmId === 'hash-chaining') return chainingJava(actionId, initialValues);
-  if (['hash-table', 'hash-open'].includes(algorithmId)) return openHashJava(actionId, initialValues);
+  if (['hash-table', 'hash-open'].includes(algorithmId)) return openHashJava(actionId, initialValues, previousSlots);
   if (algorithmId === 'lru-cache') return lruJava(actionId);
   if (algorithmId === 'bloom-filter') return bloomJava(actionId, initialValues);
   return null;

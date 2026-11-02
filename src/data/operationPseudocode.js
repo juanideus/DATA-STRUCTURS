@@ -331,6 +331,15 @@ function implementationPseudocode(algorithm, actionId, language) {
   if (['btree', 'bstar-tree'].includes(algorithm.id) && actionId === 'range-view') {
     return lines(text('recorrer cada nodo en inorden:', 'traverse each node in order:'), text('  para cada clave i: recorrer hijo i y después emitir clave i', '  for each key i: traverse child i, then emit key i'), text('  recorrer el último hijo', '  traverse the last child'), text('incluir claves internas y hojas; no usar enlaces de hojas de B+', 'include internal keys and leaves; do not use B+ leaf links'));
   }
+  if (algorithm.id === 'suffix-tree' && actionId === 'set-word') {
+    return lines(
+      text('validar que newText no esté vacío y contenga solo letras de A a Z', 'validate that newText is not empty and contains only letters A through Z'),
+      text('reemplazar text por newText; descartar el trie anterior y crear una raíz vacía', 'replace text with newText; discard the previous trie and create an empty root'),
+      text('para start desde 0 hasta longitud de text - 1:', 'for start from 0 through text length - 1:'),
+      text('  insertar el sufijo text[start..fin] recorriendo sus caracteres desde la raíz', '  insert suffix text[start..end] by following its characters from the root'),
+      text('  crear cada hijo que falte y marcar el final de ese sufijo', '  create each missing child and mark the end of that suffix'),
+    );
+  }
   if (algorithm.id === 'suffix-tree' && actionId === 'remove-word') {
     return lines(
       text('validar que el patrón no esté vacío', 'validate that the pattern is not empty'),

@@ -12,8 +12,8 @@ export function hashExampleEntries(values = []) {
   });
 }
 
-export function hashExampleSlots(values = []) {
-  return createOpenAddressingTable(hashExampleEntries(values).map(item => item.entry)).snapshot();
+export function hashExampleSlots(values = [], previousSlots = null) {
+  return createOpenAddressingTable(hashExampleEntries(values).map(item => item.entry), previousSlots).snapshot();
 }
 
 export function hashExampleBuckets(values = []) {

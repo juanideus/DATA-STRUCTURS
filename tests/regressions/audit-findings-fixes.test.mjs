@@ -259,7 +259,7 @@ test('generated Hanoi, spatial, and dense-clear snippets compile and enforce the
   };
   try {
     compileAndRun('hanoi', `#include <cassert>\n${getBeginnerCpp(getAlgorithm('hanoi'), 'hanoi-solve')}\nint main() { TowersOfHanoi towers(3); assert(towers.solve()); assert(!towers.solve()); }`);
-    compileAndRun('quadtree', `#include <cassert>\n${getBeginnerCpp(getAlgorithm('quadtree'), 'tree-add')}\nint main() { QuadTree tree; QuadTree::Point point{-55, -45}; assert(tree.insert(point)); assert(!tree.insert(point)); }`);
+    compileAndRun('quadtree', `#include <cassert>\n${getBeginnerCpp(getAlgorithm('quadtree'), 'tree-add')}\nint main() { QuadTree tree; QuadTree::Point existing{-55, -45}; assert(!tree.insert(existing)); QuadTree::Point point{-54, -44}; assert(tree.insert(point)); assert(!tree.insert(point)); }`);
     compileAndRun('matrix-clear', `#include <cassert>\n${getBeginnerCpp(getAlgorithm('matriz'), 'matrix-clear')}\nint main() { DenseMatrix matrix(2); matrix.values[1][1] = 9; matrix.clear(); assert(matrix.values[1][1] == 0); }`);
     compileJava('QuadTree', getBeginnerJava(getAlgorithm('quadtree'), 'tree-add'));
     compileJava('Octree', getBeginnerJava(getAlgorithm('octree'), 'tree-add'));

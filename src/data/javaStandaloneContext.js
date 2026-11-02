@@ -71,17 +71,17 @@ const nodeDefinition = (contextId, source) => {
         int x, y, z;
     }
     static class Node {
-        int minX, maxX, minY, maxY, minZ, maxZ;
+        double minX, maxX, minY, maxY, minZ, maxZ;
         int pointCount;
         boolean isDivided;
         Point[] points = new Point[CAPACITY];
         Node[] children = new Node[8];
         Node() {}
-        Node(int minX, int maxX, int minY, int maxY) {
+        Node(double minX, double maxX, double minY, double maxY) {
             this.minX = minX; this.maxX = maxX;
             this.minY = minY; this.maxY = maxY;
         }
-        Node(int minX, int maxX, int minY, int maxY, int minZ, int maxZ) {
+        Node(double minX, double maxX, double minY, double maxY, double minZ, double maxZ) {
             this(minX, maxX, minY, maxY);
             this.minZ = minZ; this.maxZ = maxZ;
         }
@@ -203,18 +203,21 @@ export function makeJavaStandalone(source, contextId, initialValues = []) {
         ? 'static final int CAPACITY = 2;'
         : declaration);
   }
-  if ((bareWordUsed(source, 'root') || ['bst', 'splay-tree'].includes(contextId)) && (hasNode || wordUsed(source, 'TrieNode'))) {
+  if ((bareWordUsed(source, 'root') || ['bst', 'splay-tree', 'avl', 'arbol-binario', 'arbol-general', 'arbol-nario', 'btree', 'bstar-tree'].includes(contextId)) && (hasNode || wordUsed(source, 'TrieNode'))) {
     const initialRoot = contextId === 'trie' ? 'TrieNode root = new TrieNode();'
       : contextId === 'suffix-tree' ? 'Node root = new Node();'
         : ['btree', 'bplus-tree', 'bstar-tree'].includes(contextId) ? 'Node root = new Node(true);'
           : 'Node root;';
     declarations.push(initialRoot);
   }
-  if (['bst', 'splay-tree'].includes(contextId) && Array.isArray(initialValues) && initialValues.every(Number.isInteger)) {
-    const assignments = initialValues.map((value, index) => {
+  if (['bst', 'splay-tree', 'avl', 'arbol-binario'].includes(contextId) && Array.isArray(initialValues)) {
+    const height = index => Number.isInteger(initialValues[index]) ? 1 + Math.max(height(index * 2 + 1), height(index * 2 + 2)) : 0;
+    const assignments = initialValues.flatMap((value, index) => {
+      if (!Number.isInteger(value)) return [];
       const sides = [];
       for (let position = index; position > 0; position = Math.floor((position - 1) / 2)) sides.unshift(position % 2 ? 'left' : 'right');
-      return `        root${sides.map(side => `.${side}`).join('')} = new Node(${value});`;
+      const target = `root${sides.map(side => `.${side}`).join('')}`;
+      return [`        ${target} = new Node(${value});`, ...(contextId === 'avl' && /\.height\b/.test(source) ? [`        ${target}.height = ${height(index)};`] : [])];
     }).join('\n');
     declarations.push(`${className}() {\n${assignments}\n    }`);
   }

@@ -330,7 +330,11 @@ const basic = {
     return left + right;
 }`,
   'hanoi-set': `void createDisks(int amount) {
+    if (amount < 1 || amount > 7) return;
     diskCount = amount;
+    java.util.Arrays.fill(source, 0);
+    java.util.Arrays.fill(target, 0);
+    java.util.Arrays.fill(help, 0);
     for (int i = 0; i < amount; i++) {
         source[i] = amount - i;
     }
@@ -414,6 +418,24 @@ const basic = {
 
 const special = {
   ...linkedListJava,
+  'segment-tree:reset': `void reset() {
+    size = initialSize;
+    for (int i = 0; i < size; i++) values[i] = initialValues[i];
+    if (size > 0) buildInitialSegmentTree(1, 0, size - 1);
+}`,
+  'fenwick-tree:reset': `void reset() {
+    size = initialSize;
+    values = new int[size];
+    bit = new long[size + 1];
+    for (int i = 0; i < size; i++) {
+        values[i] = initialValues[i];
+        int index = i + 1;
+        while (index <= size) {
+            bit[index] += values[i];
+            index += index & -index;
+        }
+    }
+}`,
   'dijkstra:reset': `void resetSearch(int[] map, int[] initialMap,
                  int[] distance, int[] previous, boolean[] visited) {
     for (int i = 0; i < distance.length; i++) {
@@ -450,7 +472,9 @@ const special = {
 }`,
   'laberinto:reset': `void resetPath() {
     for (int row = 0; row < 6; row++) {
-        for (int column = 0; column < 6; column++) path[row][column] = false;
+        for (int column = 0; column < 6; column++) {
+            path[row][column] = false;
+        }
     }
 }`,
   'sudoku:reset': `void resetBoard(int[][] initialBoard) {
@@ -1350,7 +1374,7 @@ export function getBeginnerJava(algorithm, actionId) {
   const generalizedListSource = sparseMatrixSource || denseMatrixSource || polynomialSource ? null : algorithm.id === 'listas-generalizadas' ? getGeneralizedListJava(actionId) : null;
   const sortingSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource ? null : getSortingJava(algorithm.id, actionId);
   const fibonacciSource = algorithm.id === 'fibonacci-heap' ? getFibonacciHeapJava(actionId) : null;
-  const specializedSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || sortingSource ? null : getSpecializedJava(algorithm.id, actionId, algorithm.values);
+  const specializedSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || sortingSource ? null : getSpecializedJava(algorithm.id, actionId, algorithm.values, algorithm.hashTable);
   const graphSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || sortingSource || specializedSource ? null : getGraphJava(algorithm.id, actionId);
   const astSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || graphSource ? null : algorithm.id === 'ast' ? getAstJava(actionId) : null;
   const linearSource = sparseMatrixSource || denseMatrixSource || polynomialSource || generalizedListSource || graphSource || astSource ? null : getLinearJava(algorithm.id, actionId);
@@ -1379,6 +1403,10 @@ export function getBeginnerJava(algorithm, actionId) {
     source = treeSource;
   } else if (algorithm.id === 'array') {
     source = arrayJava[actionId] ?? basic[actionId];
+  } else if (algorithm.id === 'trie' && actionId === 'clear') {
+    source = `void clear() {
+    root = new TrieNode();
+}`;
   } else if (algorithm.id === 'factorial' && actionId === 'calculate') {
     source = special['math:calculate:factorial'];
   } else if (algorithm.id === 'sudoku' && actionId === 'step-solution') {

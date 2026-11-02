@@ -1,5 +1,20 @@
+import { seedGraphExample } from './graphExampleContext.js';
+import { seedTreeExample } from './treeExampleContext.js';
+import { seedAdvancedLinearExample } from './advancedLinearExampleContext.js';
+import { seedBacktrackingExample } from './backtrackingExampleContext.js';
+import { seedGeneralizedListExample } from './generalizedListExampleContext.js';
+import { seedSpecialTreeExample } from './specialTreeExampleContext.js';
+import { seedResetExample } from './resetExampleContext.js';
+
 // Initialize standalone examples from the operation's immutable input snapshot.
 export function seedCurrentExample(source, algorithm, cpp = false) {
+  source = seedGraphExample(source, algorithm, cpp);
+  source = seedTreeExample(source, algorithm, cpp);
+  source = seedAdvancedLinearExample(source, algorithm, cpp);
+  source = seedBacktrackingExample(source, algorithm, cpp);
+  source = seedGeneralizedListExample(source, algorithm, cpp);
+  source = seedSpecialTreeExample(source, algorithm, cpp);
+  source = seedResetExample(source, algorithm, cpp);
   const values = algorithm.values ?? [];
   if (algorithm.id === 'heap' && cpp) {
     return source.replace('MaxHeap() : heap(new int[CAPACITY]{}) {}', `MaxHeap() : heap(new int[CAPACITY]{}) {\n${values.map((value, index) => `        heap[${index}] = ${value};`).join('\n')}\n        size = ${values.length};\n    }`);

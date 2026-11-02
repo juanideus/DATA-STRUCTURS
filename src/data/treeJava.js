@@ -323,6 +323,11 @@ const splayRemove = animated(`Node remove(Node root, int target) {
 
 const generalTree = {
   'tree-add': animated(`void addChild(Node parent, int value) {
+    if (root == null) {
+        root = new Node(value);
+        return;
+    }
+    if (parent == null) return;
     Node child = new Node(value);
     parent.children.add(child);
 }`),
@@ -335,6 +340,7 @@ const generalTree = {
     return null;
 }`),
   'remove-value': animated(`boolean remove(Node parent, int target) {
+    if (parent == null || (parent == root && parent.value == target)) return false;
     for (int i = 0; i < parent.children.size(); i++) {
         Node child = parent.children.get(i);
         if (child.value == target) {
@@ -367,6 +373,11 @@ const generalTree = {
 
 const naryTree = {
   'tree-add': animated(`boolean addChild(Node parent, int value) {
+    if (root == null) {
+        root = new Node(value);
+        return true;
+    }
+    if (parent == null) return false;
     if (parent.childCount == N) return false;
     parent.children[parent.childCount] = new Node(value);
     parent.childCount++;
@@ -381,6 +392,7 @@ const naryTree = {
     return null;
 }`),
   'remove-value': animated(`boolean remove(Node parent, int target) {
+    if (parent == null || (parent == root && parent.value == target)) return false;
     for (int i = 0; i < parent.childCount; i++) {
         Node child = parent.children[i];
         if (child.value == target) {
@@ -1552,23 +1564,23 @@ const spatialTree = dimension => {
 }`;
   const subdivide = isOctree
     ? `void subdivide(Node node) {
-    int middleX = (node.minX + node.maxX) / 2;
-    int middleY = (node.minY + node.maxY) / 2;
-    int middleZ = (node.minZ + node.maxZ) / 2;
+    double middleX = (node.minX + node.maxX) / 2;
+    double middleY = (node.minY + node.maxY) / 2;
+    double middleZ = (node.minZ + node.maxZ) / 2;
     for (int index = 0; index < 8; index++) {
-        int minX = (index & 1) == 0 ? node.minX : middleX;
-        int maxX = (index & 1) == 0 ? middleX : node.maxX;
-        int minY = (index & 2) == 0 ? node.minY : middleY;
-        int maxY = (index & 2) == 0 ? middleY : node.maxY;
-        int minZ = (index & 4) == 0 ? node.minZ : middleZ;
-        int maxZ = (index & 4) == 0 ? middleZ : node.maxZ;
+        double minX = (index & 1) == 0 ? node.minX : middleX;
+        double maxX = (index & 1) == 0 ? middleX : node.maxX;
+        double minY = (index & 2) == 0 ? node.minY : middleY;
+        double maxY = (index & 2) == 0 ? middleY : node.maxY;
+        double minZ = (index & 4) == 0 ? node.minZ : middleZ;
+        double maxZ = (index & 4) == 0 ? middleZ : node.maxZ;
         node.children[index] = new Node(minX, maxX, minY, maxY, minZ, maxZ);
     }
     node.isDivided = true;
 }`
     : `void subdivide(Node node) {
-    int middleX = (node.minX + node.maxX) / 2;
-    int middleY = (node.minY + node.maxY) / 2;
+    double middleX = (node.minX + node.maxX) / 2;
+    double middleY = (node.minY + node.maxY) / 2;
     node.children[0] = new Node(node.minX, middleX, node.minY, middleY);
     node.children[1] = new Node(middleX, node.maxX, node.minY, middleY);
     node.children[2] = new Node(node.minX, middleX, middleY, node.maxY);

@@ -39,7 +39,7 @@ const profiles = {
 
 const commonOperations = {
   'vertex-add': `boolean addVertex(String name) {
-    if (name == null || name.trim().length() == 0) {
+    if (name == null || !name.trim().toUpperCase().matches("[A-Z]")) {
         return false;
     }
     if (vertexCount == MAX_VERTICES) {
