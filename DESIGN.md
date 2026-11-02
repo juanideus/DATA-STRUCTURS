@@ -70,6 +70,11 @@ de estados y explicaciones. No simular ejecución sin una operación preparada.
 Las trazas exactas resaltan líneas equivalentes. Sin correspondencia, no resaltar otra
 por aproximación. Los resúmenes de estados se etiquetan explícitamente.
 Completado significa último evento, no preparación de la operación.
+«Ejecutar paso a paso» prepara la traza pausada; Siguiente avanza un evento.
+Botones, mensajes y ejemplos ejecutables describen la misma operación y parten del mismo
+estado de entrada, incluidos enlaces, casillas borradas y datos generados al azar.
+Restablecer recupera el ejemplo inicial y reconstruye sus auxiliares. En Dijkstra/A*,
+«Limpiar búsqueda» conserva el mapa actual y «Restablecer» recupera el mapa inicial.
 Los estados activos pueden cambiar color, borde y posición, pero el texto de nodos y llamadas
 conserva su escala durante la animación; las conexiones se calculan con el tamaño visible real.
 Los arrays muestran casillas contiguas e índices legibles; las conexiones se reservan para

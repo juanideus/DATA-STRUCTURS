@@ -34,7 +34,7 @@ export function getBeginnerCpp(algorithm, actionId) {
     ?? getGraphCpp(algorithm.id, actionId)
     ?? (algorithm.id === 'matriz' ? getDenseMatrixCpp(actionId) : null)
     ?? (algorithm.id === 'matriz-dispersa' ? getSparseMatrixCpp(actionId) : null)
-    ?? getHashCpp(algorithm.id, actionId, algorithm.values)
+    ?? getHashCpp(algorithm.id, actionId, algorithm.values, algorithm.hashTable)
     ?? getOtherCpp(algorithm.id, actionId, algorithm.values)
     ?? getBacktrackingCpp(algorithm.id, actionId)
     ?? (algorithm.id === 'hanoi' ? getHanoiCpp(actionId) : null)

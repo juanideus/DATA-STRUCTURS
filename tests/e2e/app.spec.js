@@ -286,7 +286,7 @@ test('ninguna sección deja controles principales en español al activar inglés
     await page.goto(`/${algorithm.id}?lang=en`);
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     if (!['theory', 'complexity', 'oop', 'foundation'].includes(algorithm.type)) {
-      await expect(page.locator('.clear-demo-button')).toHaveAccessibleName('Clear');
+      await expect(page.locator('.clear-demo-button')).toHaveAccessibleName(['dijkstra', 'a-star'].includes(algorithm.id) ? 'Clear search' : 'Clear');
       await expect(page.locator('.clear-demo-button')).toBeVisible();
     }
     const visibleText = await page.locator('body').innerText();
@@ -956,6 +956,7 @@ test('los otros ocho ordenamientos usan su lógica y animación propias', async 
     if (await pause.isVisible()) await pause.click();
     const visitedLines = new Set();
     let completed = false;
+    const next = page.getByRole('button', { name: 'Siguiente', exact: true });
     for (let frame = 0; frame < 420; frame++) {
       const phase = (await page.locator('.sort-phase-label strong').textContent())?.trim();
       const line = (await page.locator('.code-panel code.active').textContent())?.trim();
@@ -964,7 +965,7 @@ test('los otros ocho ordenamientos usan su lógica y animación propias', async 
         completed = true;
         break;
       }
-      await advanceAvailableStep(page);
+      if (await next.isEnabled()) await next.press('Enter');
     }
 
     expect(completed, `${sample.id}: no alcanzó su fase final`).toBe(true);

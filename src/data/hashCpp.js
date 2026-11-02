@@ -73,11 +73,12 @@ const stringHash = `int hash(const std::string& key) const {
     return index < 0 ? index + CAPACITY : index;
 }`;
 
-function openCpp(actionId, initialValues) {
+function openCpp(actionId, initialValues, previousSlots) {
   const operation = openOperations[actionId];
   if (!operation) return null;
-  const slots = hashExampleSlots(initialValues);
+  const slots = hashExampleSlots(initialValues, previousSlots);
   const initialize = slots.flatMap((slot, index) => {
+    if (slot.state === 'deleted') return [`        states[${index}] = DELETED;`];
     if (slot.state !== 'occupied') return [];
     const { key, value } = hashExampleEntries([slot.entry])[0];
     return [`        keys[${index}] = ${JSON.stringify(key)}; values[${index}] = ${JSON.stringify(value)}; states[${index}] = OCCUPIED;`];
@@ -97,7 +98,7 @@ public:
         : keys(new std::string[CAPACITY]), values(new std::string[CAPACITY]),
           states(new unsigned char[CAPACITY]{}) {
 ${initialize.join('\n')}
-        size = ${initialize.length};
+        size = ${slots.filter(slot => slot.state === 'occupied').length};
     }
     OpenAddressingTable(const OpenAddressingTable&) = delete;
     OpenAddressingTable& operator=(const OpenAddressingTable&) = delete;
@@ -228,8 +229,8 @@ private:
 };`;
 }
 
-export function getHashCpp(algorithmId, actionId, initialValues = []) {
-  if (['hash-table', 'hash-open'].includes(algorithmId)) return openCpp(actionId, initialValues);
+export function getHashCpp(algorithmId, actionId, initialValues = [], previousSlots = null) {
+  if (['hash-table', 'hash-open'].includes(algorithmId)) return openCpp(actionId, initialValues, previousSlots);
   if (algorithmId === 'hash-chaining') return chainingCpp(actionId, initialValues);
   return null;
 }

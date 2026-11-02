@@ -132,7 +132,7 @@ const definitions = {
   },
   maze: {
     fields: [],
-    actions: [action('solve', 'Resolver recursivamente'), action('step-solution', 'Siguiente paso'), action('reset', 'Restablecer')],
+    actions: [action('solve', 'Resolver recursivamente'), action('step-solution', 'Ejecutar paso a paso'), action('reset', 'Restablecer')],
   },
   sudoku: {
     fields: [],
@@ -252,6 +252,14 @@ export function operationGroup(algorithm) {
 export function getOperationDefinition(algorithm) {
   const group = operationGroup(algorithm);
   const definition = definitions[group];
+  if (algorithm.id === 'suffix-tree') {
+    const labels = { 'set-word': 'Reconstruir desde texto', 'word-find': 'Buscar patrón', 'remove-word': 'Eliminar patrón' };
+    return {
+      ...definition,
+      fields: [field('value', 'Texto / patrón')],
+      actions: definition.actions.map(item => labels[item.id] ? { ...item, label: labels[item.id] } : item),
+    };
+  }
   if (group === 'btree' && algorithm.id !== 'bplus-tree') {
     return { ...definition, actions: definition.actions.map(item => item.id === 'range-view' ? { ...item, label: 'Recorrer claves' } : item) };
   }

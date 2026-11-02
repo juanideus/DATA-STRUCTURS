@@ -29,6 +29,7 @@ const exactMessages = new Map([
 ]);
 
 const sentencePatterns = [
+  [/^Trie de sufijos reconstruido desde el texto ([A-Z]+)\.$/, ([, text]) => `Suffix trie rebuilt from text ${text}.`],
   [/^(-?\d+) fue agregado al (inicio|final)\.$/, ([, value, end]) => `${value} was added at the ${end === 'inicio' ? 'start' : 'end'}.`],
   [/^(-?\d+) fue insertado en el índice (\d+)\.$/, ([, value, index]) => `${value} was inserted at index ${index}.`],
   [/^(-?\d+) fue eliminado del inicio\.$/, ([, value]) => `${value} was removed from the start.`],

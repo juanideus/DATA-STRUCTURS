@@ -4981,7 +4981,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
     const model = createOpenAddressingTable(next, hashTable);
     const found = next.findIndex(entry => entryKey(entry) === key);
     if (actionId === 'hash-put') {
-      const entry = fields.second ? `${key}:${fields.second}` : key;
+      const entry = `${key}:${fields.second ?? ''}`;
       const slot = model.put(entry);
       if (slot < 0) return fail('La tabla hash está llena. Elimina una clave antes de insertar otra.');
       if (found >= 0) next[found] = entry;
@@ -5313,7 +5313,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
         frames.push({ values: [...next], edges, position: word.length - 1, codeNeedle: 'current.isWord = true;', message: `El último nodo se marca como FIN de ${word}.`, trieState: { word, revealed: word.length, createdThrough: word.length, mode: 'insert', marked: true }, variables: [{ name: 'current.isWord', value: true, role: 'true' }], completed: true });
         return { ...done(next, `La palabra ${word} fue insertada en el Trie.`, next.length - 1), frames };
       }
-      return done([...word], `La palabra ${word} fue insertada en el Trie.`, word.length - 1);
+      return done([...word], `Trie de sufijos reconstruido desde el texto ${word}.`, word.length - 1);
     }
     case 'word-find': {
       const word = String(fields.value ?? '').trim().toUpperCase();
@@ -5418,7 +5418,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       if (actionId === 'hash-put' && algorithm.id === 'hash-chaining' && found < 0 && next.length >= 24) {
         return fail('La demostración admite hasta 24 entradas distribuidas en sus cadenas.');
       }
-      const entry = actionId === 'cache-put' ? `${key}:${fields.second ?? ''}` : fields.second ? `${key}:${fields.second}` : key;
+      const entry = `${key}:${fields.second ?? ''}`;
       if (found >= 0 && actionId === 'cache-put') next.splice(found, 1);
       else if (found >= 0) next[found] = entry;
       if (found < 0 || actionId === 'cache-put') next.push(entry);
@@ -5527,7 +5527,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
         addFrame('for (int i = size - 1; i > 0; i--) {', `Fisher–Yates procesa el índice ${i}.`, i, [
           { name: 'i', value: i, role: 'index' },
         ]);
-        const other = i === 1 ? 0 : Math.floor(Math.random() * (i + 1));
+        const other = Math.floor(Math.random() * (i + 1));
         addFrame('int other = (int) (Math.random() * (i + 1));', `Se elige el índice ${other} entre 0 y ${i}.`, other, [
           { name: 'i', value: i, role: 'index' },
           { name: 'other', value: other, role: 'index' },
@@ -5705,6 +5705,7 @@ export function executeOperation({ algorithm, actionId, fields, values, edges, i
       if (algorithm.id === 'laberinto') {
         const mazeResult = solveMazeWithTrace(next.map(cell => cell === 1 ? 1 : 0));
         if (mazeResult.limited) return fail('Se alcanzó el límite de pasos de la visualización; no se determinó si existe una solución. Prueba otro laberinto.');
+        if (!mazeResult.solved) return fail('El laberinto no tiene una ruta válida hasta la salida.');
         return {
           ...done(mazeResult.values, 'Ejecución paso a paso del laberinto.', 0),
           frames: mazeResult.frames,

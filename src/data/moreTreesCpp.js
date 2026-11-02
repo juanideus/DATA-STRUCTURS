@@ -2,6 +2,10 @@ const indent = source => source.split('\n').map(line => (line ? `    ${line}` : 
 
 const generalOperations = {
   'tree-add': `bool addChild(Node* parent, int value) {
+    if (root == nullptr) {
+        root = new Node(value);
+        return true;
+    }
     if (parent == nullptr || parent->childCount == MAX_CHILDREN) return false;
     parent->children[parent->childCount] = new Node(value);
     parent->childCount++;
@@ -9,6 +13,7 @@ const generalOperations = {
 }`,
   'remove-value': `Node* remove(Node* node, int target) {
     if (node == nullptr) return nullptr;
+    if (node == root && node->value == target) return node;
     if (node->value == target) {
         destroy(node);
         return nullptr;
@@ -58,6 +63,10 @@ function generalTreeCpp(algorithmId, actionId) {
   const isNary = algorithmId === 'arbol-nario';
   const operation = actionId === 'tree-add' && !isNary
     ? `bool addChild(Node* parent, int value) {
+    if (root == nullptr) {
+        root = new Node(value);
+        return true;
+    }
     if (parent == nullptr) return false;
     if (parent->childCount == parent->capacity) parent->growChildren();
     parent->children[parent->childCount] = new Node(value);

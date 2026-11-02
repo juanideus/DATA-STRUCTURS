@@ -7,6 +7,10 @@ import { getBeginnerCpp } from '../src/data/beginnerCpp.js';
 const workspace = path.resolve('.tmp-cpp-runtime');
 const failures = [];
 const algorithm = id => algorithms.find(item => item.id === id);
+// These scenarios build their own pointer/edge fixtures. Start from the same
+// empty snapshot a user gets after clearing, rather than mixing in catalog data.
+// current-example-actions.test.mjs separately executes populated snapshots.
+const emptyFixtureIds = new Set(['grafo', 'grafo-dirigido', 'prim', 'kruskal', 'arbol-enhebrado', 'rojo-negro', 'fibonacci-heap', 'btree', 'bplus-tree', 'bstar-tree']);
 
 const cases = [
   {
@@ -1398,7 +1402,8 @@ await mkdir(workspace, { recursive: true });
 try {
   for (let index = 0; index < cases.length; index++) {
     const testCase = cases[index];
-    const source = getBeginnerCpp(algorithm(testCase.id), testCase.action);
+    const context = algorithm(testCase.id);
+    const source = getBeginnerCpp(emptyFixtureIds.has(testCase.id) ? { ...context, values: [], edges: [] } : context, testCase.action);
     const sourcePath = path.join(workspace, `case-${index}.cpp`);
     const executablePath = path.join(workspace, `case-${index}.exe`);
     await writeFile(sourcePath, `#include <cassert>\n#include <cstddef>\n#include <string>\n\n${source}\n\n${testCase.main}\n`, 'utf8');
