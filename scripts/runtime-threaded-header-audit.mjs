@@ -122,8 +122,6 @@ for (let mask = 0; mask < 1 << 15; mask++) {
 console.log(`SIMULATION_OK checks=${simulationChecks}`);
 
 const selected = source => source.split('// Start of the selected operation')[1].split('// End of the selected operation')[0].trim();
-const javaBase = getBeginnerJava(algorithm, 'remove-value');
-const cppBase = getBeginnerCpp(algorithm, 'remove-value');
 const javaExtra = ['tree-add', 'find', 'inorder'].map(action => selected(getBeginnerJava(algorithm, action))).join('\n');
 const cppExtra = ['tree-add', 'find', 'inorder'].map(action => selected(getBeginnerCpp(algorithm, action))).join('\n');
 const javaHarness = `
@@ -202,7 +200,8 @@ void verify(ThreadedBinaryTree& t, const std::set<int>& expected) {
 int main() {
     int input[] = {1,2,3,4,5,6,7};
     do { { ThreadedBinaryTree t; std::set<int> expected;
-        for (int v : input) { assert(t.insert(v)); expected.insert(v); verify(t, expected); assert(!t.insert(v)); }
+        verify(t, expected);
+        for (int v : input) { bool inserted = expected.insert(v).second; assert(t.insert(v) == inserted); verify(t, expected); assert(!t.insert(v)); }
         for (int i = 0; i < 7; i++) { int v = input[(i + 3) % 7]; assert(t.remove(v)); expected.erase(v); verify(t, expected); }
         assert(!t.remove(100));
     } assert(allocated == released); } while (std::next_permutation(input, input + 7));
@@ -221,17 +220,27 @@ const command = (name, args) => {
   if (result.stdout) process.stdout.write(result.stdout);
 };
 try {
-  const java = javaBase.slice(0, javaBase.lastIndexOf('}')) + javaExtra + '\n' + javaHarness + '\n}';
-  await writeFile(path.join(folder, 'ThreadedBinaryTree.java'), java);
-  command('javac', ['-encoding', 'UTF-8', 'ThreadedBinaryTree.java']);
-  command('java', ['-ea', '-cp', folder, 'ThreadedBinaryTree']);
-  const cpp = cppBase.replace('int lastVisited = 0;', 'int lastVisited = 0; std::vector<int> trace;')
-    .replace('lastVisited = value;', 'lastVisited = value; trace.push_back(value);')
-    .replace('rightThread(true) {}', 'rightThread(true) { ++allocated; }\n        ~Node() { ++released; }')
-    .replace('// End of the selected operation', cppExtra + '\n// End of the selected operation');
-  await writeFile(path.join(folder, 'audit.cpp'), '#include <algorithm>\n#include <cassert>\n#include <climits>\n#include <iostream>\n#include <random>\n#include <set>\n#include <vector>\nlong long allocated = 0, released = 0;\n' + cpp + cppHarness);
-  command('g++', ['-std=c++17', '-O1', '-Wall', '-Wextra', '-Werror', 'audit.cpp', '-o', 'audit.exe']);
-  command(path.join(folder, 'audit.exe'), []);
+  // Native constructors now reproduce the visible input. Exercise both a
+  // cleared structure and the populated catalog instead of assuming emptiness.
+  for (const values of [[], algorithm.values]) {
+    const snapshot = { ...algorithm, values };
+    const javaBase = getBeginnerJava(snapshot, 'remove-value');
+    const cppBase = getBeginnerCpp(snapshot, 'remove-value');
+    const javaChecks = javaHarness.replaceAll('new java.util.TreeSet<>()', `new java.util.TreeSet<>(java.util.List.of(${values.join(', ')}))`);
+    const cppChecks = cppHarness.replaceAll('std::set<int> expected;', `std::set<int> expected{${values.join(', ')}};`);
+    const java = javaBase.slice(0, javaBase.lastIndexOf('}')) + javaExtra + '\n' + javaChecks + '\n}';
+    await writeFile(path.join(folder, 'ThreadedBinaryTree.java'), java);
+    command('javac', ['-encoding', 'UTF-8', 'ThreadedBinaryTree.java']);
+    command('java', ['-ea', '-cp', folder, 'ThreadedBinaryTree']);
+    const cpp = cppBase.replace('int lastVisited = 0;', 'int lastVisited = 0; std::vector<int> trace;')
+      .replace('lastVisited = value;', 'lastVisited = value; trace.push_back(value);')
+      .replace('rightThread(true) {}', 'rightThread(true) { ++allocated; }\n        ~Node() { ++released; }')
+      .replace('// End of the selected operation', cppExtra + '\n// End of the selected operation');
+    await writeFile(path.join(folder, 'audit.cpp'), '#include <algorithm>\n#include <cassert>\n#include <climits>\n#include <iostream>\n#include <random>\n#include <set>\n#include <vector>\nlong long allocated = 0, released = 0;\n' + cpp + cppChecks);
+    const sanitizers = process.platform === 'linux' ? ['-fsanitize=address,undefined', '-fno-omit-frame-pointer'] : [];
+    command('g++', ['-std=c++17', '-O1', '-g', '-Wall', '-Wextra', '-Werror', ...sanitizers, 'audit.cpp', '-o', 'audit.exe']);
+    command(path.join(folder, 'audit.exe'), []);
+  }
 } finally {
   assert.equal(path.dirname(path.resolve(folder)), path.resolve(tmpdir()));
   assert.ok(path.basename(folder).startsWith('dsa-threaded-header-'));
