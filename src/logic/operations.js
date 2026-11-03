@@ -22,7 +22,6 @@ import {
   parseGeneralizedList,
 } from './generalizedList.js';
 import {
-  addPolynomials,
   combinePolynomialValues,
   formatPolynomial,
   insertPolynomialTerm,

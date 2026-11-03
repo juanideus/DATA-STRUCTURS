@@ -1,37 +1,37 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, BookOpen, Boxes, Brain, ChevronDown, CircleHelp, ClipboardCopy, Gauge,
-  Eraser, MapPin, Maximize2, Menu, PanelLeftOpen, Pause, Play, RotateCcw, Shuffle, Sparkles, X,
+  Eraser, Maximize2, Menu, PanelLeftOpen, Pause, Play, RotateCcw, Shuffle, Sparkles, X,
 } from 'lucide-react';
 import { algorithmIndexes, algorithms, algorithmsById, categoryLabels } from './data/algorithms.js';
 import { supportsCpp } from './data/cppCatalog.js';
-import { getGraphDesign, graphEdgesFor, graphPositionsFor } from './data/graphDesigns.js';
+import { graphEdgesFor, graphPositionsFor } from './data/graphDesigns.js';
 import OperationsPanel from './components/OperationsPanel.jsx';
 import VariablesPanel from './components/VariablesPanel.jsx';
 import AccessibilityPanel from './components/AccessibilityPanel.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import BugReporter from './components/BugReporter.jsx';
+import CodeListing from './components/CodeListing.jsx';
 import { useDialogFocus } from './accessibility/useDialogFocus.js';
+import { algorithmIdFromLocation, resolveLegacyAlgorithmId } from './logic/algorithmRoute.js';
+import { readPreference, STORAGE_KEYS, writePreference } from './logic/preferences.js';
 import { copyVisualValues } from './logic/visualValues.js';
-import { DEFAULT_GRAPH_EDGES, DEFAULT_GRAPH_POSITIONS, getOperationDefinition, getThreadedTreeLinks, initialUnionRanks, operationGroup, SPARSE_MATRIX_COLUMNS, SPARSE_MATRIX_ROWS } from './logic/operationMetadata.js';
+import { DEFAULT_GRAPH_EDGES, DEFAULT_GRAPH_POSITIONS, getOperationDefinition, initialUnionRanks, operationGroup, SPARSE_MATRIX_COLUMNS, SPARSE_MATRIX_ROWS } from './logic/operationMetadata.js';
 import { getOperationPseudocode } from './data/operationPseudocode.js';
 import { AST_EXAMPLES, astValuesFromSource } from './logic/ast.js';
-import { DENSE_MATRIX_SIZE, normalizeDenseMatrixValues } from './logic/denseMatrix.js';
-import { GENERALIZED_LIST_EXAMPLES, generalizedListToString, generalizedListValuesFromSource } from './logic/generalizedList.js';
+import { DENSE_MATRIX_SIZE } from './logic/denseMatrix.js';
+import { GENERALIZED_LIST_EXAMPLES, generalizedListValuesFromSource } from './logic/generalizedList.js';
 import { createRandomPathMap, DEFAULT_PATH_MAP } from './logic/pathfindingMap.js';
-import { formatPolynomial, polynomialTerms } from './logic/polynomial.js';
-import { buildRecursionCallTree } from './logic/recursionTrace.js';
 import { cppCodeNeedle } from './logic/cppCodeNeedles.js';
 import { createRedBlackTree } from './logic/redBlackTree.js';
 import { createFibonacciForest } from './logic/fibonacciHeap.js';
 import { createMultiwayTree } from './logic/multiwayTree.js';
-import { initialNaryParents, naryChildren } from './logic/naryTree.js';
+import { initialNaryParents } from './logic/naryTree.js';
 import { createSpatialPartitionTree } from './logic/spatialPartitionTree.js';
 import { createOpenAddressingTable } from './logic/openAddressing.js';
-import { formatMerkleHash, merkleLevels } from './logic/merkle.js';
 import { getSectionTestLockedUntil } from './logic/sectionTests.js';
 import { categoryDescriptions, categoryNames, localizeAlgorithm, translateCodeText, translateLearningText, translateOperationLabel, useLanguage } from './i18n.jsx';
-import { algorithmIdFromPath, pageSeo, seoPath, seoUrl, SOCIAL_IMAGE_URL, structuredData } from './seo.js';
+import { pageSeo, seoPath, seoUrl, SOCIAL_IMAGE_URL, structuredData } from './seo.js';
 
 const MemoizedVisualizer = lazy(() => import('./components/Visualizer.jsx'));
 const EducationalDescription = lazy(() => import('./components/EducationalDescription.jsx'));
@@ -53,13 +53,6 @@ const SUDOKU_START = [
 
 const NORMAL_FRAME_DELAY = 800;
 
-function CodeListing({ lines, activeLine }) {
-  return lines.map((line, index) => {
-    const isHelperLabel = line.trim().startsWith('// Método auxiliar utilizado arriba:') || line.trim().startsWith('// Helper method used above:');
-    return <code className={`${index === activeLine ? 'active' : ''} ${isHelperLabel ? 'helper-method-label' : ''}`.trim()} key={index}><i>{String(index + 1).padStart(2, '0')}</i>{line || ' '}</code>;
-  });
-}
-
 const redBlackColorsFor = (algorithm, values) => algorithm.id === 'rojo-negro'
   ? createRedBlackTree(values).snapshot().colors
   : null;
@@ -78,56 +71,10 @@ const hashTableFor = (algorithm, values) => ['hash-table', 'hash-open'].includes
 const unionRanksFor = (algorithm, values) => algorithm.id === 'union-find'
   ? initialUnionRanks(values)
   : null;
-const STORAGE_KEYS = {
-  introSeen: 'dsa-intro-seen',
-  selectedAlgorithm: 'dsa-selected-algorithm',
-  speed: 'dsa-playback-speed',
-  codeMode: 'dsa-code-mode',
-};
-
-const readPreference = (key, fallback) => {
-  if (typeof window === 'undefined') return fallback;
-  try {
-    return window.localStorage.getItem(key) ?? fallback;
-  } catch {
-    return fallback;
-  }
-};
-
-const writePreference = (key, value) => {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(key, value);
-  } catch {
-    // La aplicación continúa sin persistencia si el navegador bloquea el almacenamiento.
-  }
-};
-
-const legacyAlgorithmIds = new Map([
-  ['memoria-referencias', 'punteros-referencias'],
-  ['punteros-referencias-java', 'punteros-referencias'],
-]);
-
-const algorithmIdFromLocation = () => {
-  if (typeof window === 'undefined') return null;
-  try {
-    const pathCandidate = algorithmIdFromPath(window.location.pathname);
-    const resolvedPath = legacyAlgorithmIds.get(pathCandidate) ?? pathCandidate;
-    if (algorithmsById.has(resolvedPath)) return resolvedPath;
-
-    // Compatibilidad temporal con enlaces antiguos como /#/avl.
-    const candidate = decodeURIComponent(window.location.hash.replace(/^#\/?/, '').trim());
-    const resolvedHash = legacyAlgorithmIds.get(candidate) ?? candidate;
-    return algorithmsById.has(resolvedHash) ? resolvedHash : null;
-  } catch {
-    return null;
-  }
-};
-
 const initialAlgorithmId = () => {
   const routed = algorithmIdFromLocation();
   const stored = readPreference(STORAGE_KEYS.selectedAlgorithm, 'array');
-  const resolvedStored = legacyAlgorithmIds.get(stored) ?? stored;
+  const resolvedStored = resolveLegacyAlgorithmId(stored);
   return routed ?? (algorithmsById.has(resolvedStored) ? resolvedStored : 'array');
 };
 

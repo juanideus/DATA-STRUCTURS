@@ -22,6 +22,8 @@
 - [Características principales](#características-principales)
 - [Catálogo de contenidos](#catálogo-de-contenidos)
 - [Cómo funciona la experiencia](#cómo-funciona-la-experiencia)
+- [Manual del sistema](#manual-del-sistema)
+- [Navegación y preferencias](#navegación-y-preferencias)
 - [Tecnologías](#tecnologías)
 - [Requisitos](#requisitos)
 - [Instalación](#instalación)
@@ -65,8 +67,8 @@ DSA Lab fue creado para:
 ### Laboratorio visual interactivo
 
 - Visualizaciones específicas para arrays, listas, árboles, heaps, grafos, hashing y otros temas.
-- Controles para insertar, eliminar, buscar, actualizar, recorrer y restablecer datos.
-- Botones **Nuevo ejemplo** y **Restablecer** en cada tema.
+- Controles para insertar, eliminar, buscar, actualizar, recorrer y restablecer datos en los laboratorios prácticos que admiten esas acciones.
+- Botones **Nuevo ejemplo**, **Vaciar** y **Restablecer** cuando el tema ofrece esas acciones.
 - Reproductor con pasos anterior/siguiente, pausa y reproducción automática.
 - Velocidades de reproducción `0.5×`, `1×` y `2×`.
 - Mensajes que explican qué está ocurriendo durante la operación.
@@ -77,7 +79,7 @@ DSA Lab fue creado para:
 
 ### Código sincronizado
 
-- Panel sincronizado de Java, C++ y pseudocódigo. C++ utiliza almacenamiento dinámico, punteros crudos y liberación explícita de memoria.
+- Panel sincronizado de Java y pseudocódigo; C++ aparece en los temas que lo admiten y utiliza almacenamiento dinámico, punteros crudos y liberación explícita de memoria.
 - Pseudocódigo disponible como formato alternativo.
 - Resaltado de la línea que corresponde al paso actual de la animación.
 - Ejemplos deliberadamente sencillos, con variables, ciclos, condiciones, arreglos y métodos pequeños.
@@ -94,7 +96,7 @@ DSA Lab fue creado para:
 
 ### Contenido educativo
 
-Cada tema incluye una guía con:
+Cada tema de laboratorio práctico incluye una guía con:
 
 - Definición de la estructura o algoritmo.
 - Explicación de su funcionamiento interno.
@@ -106,6 +108,8 @@ Cada tema incluye una guía con:
 - Complejidad temporal o espacial principal.
 - Ejemplo básico en Java.
 - Una idea importante para recordar.
+
+Los temas de Fundamentos tienen lecciones teóricas y no muestran el código de una operación interactiva.
 
 ### Visualizaciones especiales
 
@@ -260,6 +264,12 @@ La versión actual contiene **86 temas**, agrupados en nueve categorías.
 8. **Experimenta.** Genera un nuevo ejemplo o restablece el estado original.
 9. **Lee la guía.** Debajo del laboratorio encontrarás la descripción completa y un ejemplo Java.
 
+## Manual del sistema
+
+Consulta el [Manual del sistema de DSA Lab](./docs/manual-del-sistema.md) para instrucciones de navegación, operaciones, animaciones y código, desafíos, accesibilidad, arquitectura, desarrollo y solución de problemas.
+
+El [índice de documentación](./docs/README.md) reúne las guías actuales y los registros históricos de auditoría.
+
 ## Tecnologías
 
 | Tecnología | Uso en el proyecto |
@@ -376,7 +386,14 @@ DSA/
 ├── vite.config.js                     # Configuración de React y compilación
 ├── vercel.json                        # Despliegue y cabeceras en Vercel
 ├── netlify.toml                       # Despliegue y cabeceras en Netlify
-├── tests/e2e/                         # Flujos críticos en navegador
+├── docs/
+│   ├── README.md                      # Índice de guías y registros de auditoría
+│   ├── manual-del-sistema.md          # Uso, arquitectura y desarrollo
+│   ├── security-checks.md             # CI y detector de secretos
+│   └── auditoria-*.md                 # Historial de auditorías y correcciones
+├── report/
+│   ├── src/                           # API independiente para reportes
+│   └── test/                          # Pruebas del servicio de reportes
 ├── .github/
 │   ├── workflows/ci.yml               # Validación automática
 │   └── dependabot.yml                 # Actualizaciones controladas
@@ -388,38 +405,43 @@ DSA/
 │   ├── stress-audit.mjs                # Entradas límite y operaciones encadenadas
 │   └── run-e2e.mjs                    # Build, servidor temporal y pruebas de navegador
 ├── src/
-│   ├── App.jsx                        # Aplicación, navegación y visualizadores
+│   ├── App.jsx                        # Coordinación de la sesión y composición de la página
 │   ├── main.jsx                       # Punto de entrada de React
 │   ├── styles.css                     # Estilos, animaciones y responsive design
 │   ├── assets/
 │   │   └── favicon-dsa.svg            # Favicon de DSA Lab
 │   ├── components/
 │   │   ├── AppErrorBoundary.jsx       # Recuperación ante errores inesperados
+│   │   ├── CodeListing.jsx            # Código numerado y resaltado
 │   │   ├── EducationalDescription.jsx # Guía educativa de cada tema
 │   │   ├── OperationsPanel.jsx        # Campos y botones de operaciones
 │   │   └── VariablesPanel.jsx         # Variables de la ejecución en tiempo real
+│   ├── accessibility/                 # Preferencias y accesibilidad de diálogos
 │   ├── data/
 │   │   ├── algorithms.js              # Catálogo de 86 temas
-│   │   ├── astJava.js                 # Parser AST y operaciones completas en Java
-│   │   ├── denseMatrixJava.js         # Operaciones de matriz densa en Java
+│   │   ├── astJava.js                 # Código educativo del parser AST
+│   │   ├── denseMatrixJava.js         # Código educativo de matriz densa
 │   │   ├── beginnerJava.js            # Código Java por operación
 │   │   ├── educationalDescriptions.js # Contenido educativo detallado
-│   │   ├── generalizedListJava.js      # Lista generalizada completa en Java
-│   │   ├── graphDesigns.js             # Topologías visuales de los grafos
-│   │   ├── linkedListJava.js           # Listas enlazadas completas en Java
-│   │   ├── polynomialJava.js           # Polinomios enlazados completos en Java
+│   │   ├── generalizedListJava.js     # Código educativo de listas generalizadas
+│   │   ├── graphDesigns.js            # Topologías visuales de los grafos
+│   │   ├── linkedListJava.js          # Código educativo de listas enlazadas
+│   │   ├── polynomialJava.js          # Código educativo de polinomios
 │   │   ├── guideJavaExamples.js        # Ejemplos Java de las guías
 │   │   ├── treeJava.js                 # Operaciones completas de árboles en Java
-│   │   ├── sparseMatrixJava.js         # Matriz circular AROW/ACOL completa en Java
-│   │   └── sortingJava.js              # Implementaciones completas de ordenamientos en Java
+│   │   ├── sparseMatrixJava.js        # Código de matriz circular AROW/ACOL
+│   │   └── sortingJava.js             # Implementaciones de ordenamientos
 │   ├── logic/
+│   │   ├── algorithmRoute.js           # Resolución de rutas y enlaces antiguos
+│   │   ├── preferences.js              # Persistencia segura de preferencias
+│   │   ├── operationMetadata.js        # Acciones, campos y grupos por estructura
+│   │   ├── operations.js               # Motor de operaciones de los laboratorios
 │   │   ├── codeAnimation.js            # Sincronización entre código y animaciones
 │   │   ├── ast.js                      # Parser y disposición visual del AST
 │   │   ├── complexity.js               # Órdenes y valores para los gráficos teóricos
 │   │   ├── denseMatrix.js              # Dimensión, índices y transposición de matriz
-│   │   ├── generalizedList.js           # Parser y modelo de listas generalizadas
-│   │   ├── operations.js               # Implementación de las acciones interactivas
-│   │   ├── polynomial.js                # Modelo y operaciones de polinomios
+│   │   ├── generalizedList.js          # Parser y modelo de listas generalizadas
+│   │   ├── polynomial.js               # Modelo y operaciones de polinomios
 │   │   ├── pathfindingMap.js           # Mapas para Dijkstra y A*
 │   │   └── sortingAlgorithms.js        # Trazas reales de los diez ordenamientos
 ├── .gitignore                         # Archivos excluidos del repositorio
@@ -432,9 +454,12 @@ DSA/
 - `src/data/algorithms.js` define la identidad, categoría, complejidad, descripción, pseudocódigo y valores iniciales de cada tema.
 - `src/logic/operations.js` recibe una acción del usuario y devuelve valores, aristas, mensajes y cuadros de animación.
 - `src/data/beginnerJava.js` y `src/data/beginnerCpp.js` entregan el código que corresponde a cada operación.
-- `src/App.jsx` coordina el estado general y selecciona el visualizador apropiado.
+- `src/App.jsx` coordina navegación y estado de sesión; `src/components/Visualizer.jsx` selecciona el dibujo apropiado.
+- `src/logic/algorithmRoute.js` conserva la compatibilidad de rutas antiguas y `src/logic/preferences.js` centraliza el acceso seguro a preferencias locales.
+- `src/components/CodeListing.jsx` reutiliza el mismo renderizado de líneas en los paneles de código compacto y completo.
 - `src/components/OperationsPanel.jsx` construye los controles según el tipo de estructura.
 - `src/components/EducationalDescription.jsx` presenta la documentación extendida.
+- `docs/README.md` separa las guías vigentes de los registros históricos de auditoría.
 - `scripts/audit-functions.mjs` verifica que el catálogo y las operaciones mantengan contratos válidos.
 - `scripts/audit-challenges.mjs` genera preguntas y verifica sus resultados con el mismo motor de operaciones utilizado por la interfaz.
 - `scripts/compile-java-audit.mjs` envuelve y compila cada fragmento educativo con `javac`.
@@ -560,7 +585,7 @@ Los correos salen como `DSA Lab <reportes@dsalab.dev>` después de verificar `ds
 
 ## Navegación y preferencias
 
-Cada tema dispone de un enlace compartible basado en hash, compatible con alojamiento estático:
+Cada tema dispone de una ruta compartible, compatible con alojamiento estático:
 
 ```text
 https://tu-dominio.cl/array
@@ -572,11 +597,13 @@ El navegador conserva localmente:
 
 - Último tema visitado.
 - Velocidad de reproducción.
-- Formato Java, C++ nativo o pseudocódigo en los 66 laboratorios prácticos.
+- Formato Java, C++ cuando está disponible o pseudocódigo.
 - Estado del menú lateral.
 - Confirmación de que la introducción ya fue mostrada.
+- Idioma y preferencias de accesibilidad.
+- Progreso de desafíos e historial y bloqueos de pruebas de aprendizaje.
 
-La aplicación no almacena información personal ni envía estas preferencias a un servidor.
+La aplicación conserva estos datos de uso en el navegador y no los envía a su servidor. Los datos de contacto opcionales de un reporte se envían por separado al servicio descrito en [Reporte de errores](#reporte-de-errores).
 
 ## Accesibilidad y diseño adaptable
 
@@ -657,7 +684,7 @@ Posibles mejoras futuras:
 - Permitir que el usuario escriba conjuntos de datos completos.
 - Incorporar niveles de dificultad al modo desafío disponible en todos los laboratorios prácticos.
 - Crear un panel general de progreso y temas dominados.
-- Añadir pruebas unitarias y pruebas visuales automatizadas.
+- Ampliar la cobertura de pruebas unitarias y pruebas visuales automatizadas.
 - Mejorar la navegación por teclado y lectores de pantalla.
 - Permitir exportar ejemplos y secuencias de ejecución.
 - Ampliar los árboles multicamino a más niveles visuales.
