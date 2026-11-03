@@ -63,6 +63,9 @@ jobs:
       - name: Auditar catálogo
         run: npm run audit
 
+      - name: Verificar hilos, cabecera y memoria del árbol enhebrado
+        run: npm run audit:threaded-header
+
       - name: Revisar vulnerabilidades
         run: npm run audit:dependencies
 
