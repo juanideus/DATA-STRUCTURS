@@ -44,6 +44,10 @@ function renderNavigation(algorithm, language) {
   }).join('')}</ul></nav>`;
 }
 
+function renderSkeleton() {
+  return `<div class="seo-skeleton" aria-hidden="true"><div class="seo-skeleton-layout"><aside class="seo-skeleton-sidebar"><span class="seo-skeleton-mark"></span><span class="seo-skeleton-line short"></span><span class="seo-skeleton-line"></span><span class="seo-skeleton-line"></span><span class="seo-skeleton-line medium"></span></aside><div class="seo-skeleton-content"><div class="seo-skeleton-top"><span class="seo-skeleton-line short"></span><span class="seo-skeleton-line tiny"></span></div><div class="seo-skeleton-hero"><span class="seo-skeleton-line tiny"></span><span class="seo-skeleton-line title"></span><span class="seo-skeleton-line medium"></span></div><div class="seo-skeleton-cards"><span></span><span></span><span></span></div></div></div></div>`;
+}
+
 function renderFallback(algorithm, language) {
   const seo = pageSeo(algorithm, language);
   if (!algorithm) {
@@ -57,14 +61,14 @@ function renderFallback(algorithm, language) {
         return `<li><a href="${seoPath(item.id, language)}">${escapeHtml(localized.name)}</a></li>`;
       }).join('')}</ul></section>`;
     }).join('');
-    return `<main class="seo-prerendered"><header><p>DSA Lab</p><h1>${escapeHtml(seo.title)}</h1><p>${escapeHtml(seo.description)}</p></header><div class="seo-topic-index">${categoryLists}</div></main>`;
+    return `<main class="seo-prerendered">${renderSkeleton()}<header><p>DSA Lab</p><h1>${escapeHtml(seo.title)}</h1><p>${escapeHtml(seo.description)}</p></header><div class="seo-topic-index">${categoryLists}</div></main>`;
   }
 
   const localized = localizedSeoAlgorithm(algorithm, language);
   const labels = language === 'en'
     ? { category: 'Category', complexity: 'Complexity', learn: 'Learn with an interactive visualization' }
     : { category: 'Categoría', complexity: 'Complejidad', learn: 'Aprende con una visualización interactiva' };
-  return `<main class="seo-prerendered"><article><header><p>${escapeHtml(localized.category)}</p><h1>${escapeHtml(localized.name)}</h1><p>${escapeHtml(localized.description)}</p></header><section><h2>${labels.learn}</h2><p><strong>${labels.category}:</strong> ${escapeHtml(localized.category)}. <strong>${labels.complexity}:</strong> ${escapeHtml(localized.complexity)}.</p><p>${escapeHtml(seo.description)}</p></section></article>${renderNavigation(algorithm, language)}</main>`;
+  return `<main class="seo-prerendered">${renderSkeleton()}<article><header><p>${escapeHtml(localized.category)}</p><h1>${escapeHtml(localized.name)}</h1><p>${escapeHtml(localized.description)}</p></header><section><h2>${labels.learn}</h2><p><strong>${labels.category}:</strong> ${escapeHtml(localized.category)}. <strong>${labels.complexity}:</strong> ${escapeHtml(localized.complexity)}.</p><p>${escapeHtml(seo.description)}</p></section></article>${renderNavigation(algorithm, language)}</main>`;
 }
 
 function renderPage(algorithm, language) {

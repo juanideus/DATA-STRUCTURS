@@ -79,6 +79,22 @@
         background: #fff;
       }
       #root > .seo-prerendered li { margin: 8px 0; }
+      .seo-skeleton { position: fixed; inset: 0; z-index: 20; overflow: hidden; background: #f4f0e8; animation: seo-skeleton-dismiss 0s 4s forwards; }
+      .seo-skeleton-layout { display: flex; min-height: 100vh; max-width: 1600px; margin: 0 auto; padding: 18px; gap: 20px; }
+      .seo-skeleton-sidebar { width: 246px; flex: none; padding: 24px 20px; border: 1px solid #e3ded5; border-radius: 18px; background: #fffdfa; }
+      .seo-skeleton-mark { display: block; width: 36px; height: 36px; margin-bottom: 44px; border-radius: 11px; background: #dce7e2; }
+      .seo-skeleton-line { display: block; height: 14px; margin-bottom: 18px; border-radius: 7px; background: #e8e5df; }
+      .seo-skeleton-line.short { width: 52%; } .seo-skeleton-line.medium { width: 72%; } .seo-skeleton-line.tiny { width: 28%; }
+      .seo-skeleton-content { flex: 1; min-width: 0; }
+      .seo-skeleton-top { display: flex; justify-content: space-between; align-items: center; height: 56px; padding: 0 10px; }
+      .seo-skeleton-top .seo-skeleton-line { width: 116px; margin: 0; }
+      .seo-skeleton-top .seo-skeleton-line.tiny { width: 56px; }
+      .seo-skeleton-hero { min-height: 244px; margin-top: 26px; padding: 38px; border: 1px solid #e3ded5; border-radius: 22px; background: #fffdfa; }
+      .seo-skeleton-hero .title { width: min(66%, 550px); height: 38px; border-radius: 12px; }
+      .seo-skeleton-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 20px; }
+      .seo-skeleton-cards span { height: 180px; border: 1px solid #e3ded5; border-radius: 18px; background: #fffdfa; }
+      @keyframes seo-skeleton-dismiss { to { visibility: hidden; pointer-events: none; } }
+      @media (max-width: 700px) { .seo-skeleton-layout { padding: 12px; gap: 0; } .seo-skeleton-sidebar { display: none; } .seo-skeleton-hero { min-height: 210px; margin-top: 14px; padding: 25px; } .seo-skeleton-hero .title { width: 88%; height: 30px; } .seo-skeleton-cards { grid-template-columns: 1fr 1fr; gap: 10px; } .seo-skeleton-cards span { height: 130px; } .seo-skeleton-cards span:last-child { display: none; } }
     </style>
   </head>
   <body>
