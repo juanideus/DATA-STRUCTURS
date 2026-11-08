@@ -1061,3 +1061,21 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .skip-list-scene>small{max-width:520px;color:var(--muted);font-size:10px}
 .hash-slot.deleted{border-style:dashed;background:var(--cream);color:var(--muted)}
 .hash-slot.deleted strong{font-size:9px}
+
+/* Expanded visualization keeps a full row and preserves node label sizes. */
+.visual-size-control{display:flex;justify-content:flex-end;padding:10px 16px;border-bottom:1px solid var(--line)}
+.visual-size-control button{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--cream);color:var(--ink);font:inherit;font-size:12px;cursor:pointer}
+.visual-size-control button[aria-pressed="true"]{border-color:var(--orange);color:var(--orange)}
+.visual-size-control button:focus-visible{outline:2px solid var(--orange);outline-offset:3px}
+.lab-grid.visual-expanded{grid-template-columns:minmax(0,1fr)}
+.visual-expanded .canvas-grid{height:clamp(440px,65vh,700px)}
+@media(max-width:600px){.visual-expanded .canvas-grid{height:clamp(360px,60svh,520px)}}
+
+/* Animate both panel bounds when switching between split and expanded views. */
+.lab-grid>.visual-panel{view-transition-name:dsa-visual-panel}
+.lab-grid>.code-panel{view-transition-name:dsa-code-panel}
+::view-transition-group(dsa-visual-panel),::view-transition-group(dsa-code-panel){animation-duration:360ms;animation-timing-function:cubic-bezier(.22,1,.36,1)}
+::view-transition-old(dsa-visual-panel),::view-transition-new(dsa-visual-panel),::view-transition-old(dsa-code-panel),::view-transition-new(dsa-code-panel){height:100%;mix-blend-mode:normal}
+::view-transition-group(root){animation-duration:360ms}
+@media(prefers-reduced-motion:reduce){::view-transition-group(*){animation-duration:0s!important}}
+html[data-reduce-motion="true"]::view-transition-group(*){animation-duration:0s!important}

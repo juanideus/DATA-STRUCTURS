@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import {
   ArrowLeft, ArrowRight, BookOpen, Boxes, Brain, ChevronDown, CircleHelp, ClipboardCopy, Gauge,
   Eraser, Maximize2, Menu, PanelLeftOpen, Pause, Play, RotateCcw, Shuffle, Sparkles, X,
@@ -410,6 +411,25 @@ function App() {
   const [codeContextAlgorithm, setCodeContextAlgorithm] = useState(null);
   const [copied, setCopied] = useState(false);
   const [fullCodeOpen, setFullCodeOpen] = useState(false);
+  const [visualExpanded, setVisualExpanded] = useState(false);
+  const visualTransitionRef = useRef(null);
+  const toggleVisualExpanded = () => {
+    const update = () => flushSync(() => setVisualExpanded(value => !value));
+    const reduceMotion = document.documentElement.dataset.reduceMotion === 'true'
+      || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    visualTransitionRef.current?.skipTransition();
+    if (reduceMotion || typeof document.startViewTransition !== 'function') {
+      update();
+      return;
+    }
+    const transition = document.startViewTransition(update);
+    visualTransitionRef.current = transition;
+    // A superseded transition can reject ready; the state update still runs.
+    transition.ready.catch(() => {});
+    transition.finished.finally(() => {
+      if (visualTransitionRef.current === transition) visualTransitionRef.current = null;
+    }).catch(() => {});
+  };
   const codePanelRef = useRef(null);
   const fullCodePreRef = useRef(null);
   const fullCodeDialogRef = useDialogFocus({ open: fullCodeOpen, onClose: () => setFullCodeOpen(false) });
@@ -1301,8 +1321,9 @@ function App() {
         ? <Suspense fallback={<DescriptionFallback/>}><EnglishFoundationLesson algorithm={algorithm}/></Suspense>
         : algorithm.type === 'complexity' ? <Suspense fallback={<DescriptionFallback/>}><ComplexityLesson/></Suspense> : algorithm.type === 'oop' ? <Suspense fallback={<DescriptionFallback/>}><OopLesson/></Suspense> : algorithm.type === 'foundation' ? <Suspense fallback={<DescriptionFallback/>}><FoundationLesson algorithm={algorithm}/></Suspense> : <Suspense fallback={<DescriptionFallback/>}><DataStructuresLesson/></Suspense>
       : <>
-      <section className={`lab-grid ${['dijkstra', 'a-star'].includes(baseAlgorithm.id) ? 'pathfinding-grid' : ''}`}>
+      <section className={`lab-grid ${visualExpanded ? 'visual-expanded' : ''} ${['dijkstra', 'a-star'].includes(baseAlgorithm.id) ? 'pathfinding-grid' : ''}`}>
         <article className="panel visual-panel" data-tour="visualizer">
+          <div className="visual-size-control"><button type="button" aria-pressed={visualExpanded} onClick={toggleVisualExpanded}><Maximize2 size={16}/>{language === 'en' ? visualExpanded ? 'Restore split view' : 'Expand visualization' : visualExpanded ? 'Volver a vista dividida' : 'Ampliar visualización'}</button></div>
           <div className="panel-head"><div><span className="panel-index">01</span><h2>{t('visualization')}</h2></div><div className="panel-head-actions">{operationDefinition.actions.length > 0 && <button className={`challenge-toggle ${challengeMode ? 'active' : ''}`} onClick={toggleChallengeMode} title={challengeMode ? t('exit') : t('challengeMode')} aria-label={challengeMode ? t('exit') : t('challengeMode')} aria-pressed={challengeMode}><Brain size={15}/>{challengeMode ? t('exit') : t('challenge')}</button>}<button onClick={createNewExample} title={t('generateData')}><Shuffle size={15}/> {t('newExample')}</button><button className="clear-demo-button" onClick={clearDemo} title={t(['dijkstra', 'a-star'].includes(baseAlgorithm.id) ? 'clearSearch' : 'clearCurrentData')}><Eraser size={15}/> {t(['dijkstra', 'a-star'].includes(baseAlgorithm.id) ? 'clearSearch' : 'clearData')}</button><button onClick={resetDemo} title={t('originalData')}><RotateCcw size={15}/> {t('reset')}</button></div></div>
           <div className="visual-statusbar"><div className={`step-badge ${currentAnimationFrame?.iteration != null ? 'loop-step' : ''}`}>{!currentAnimationFrame ? t('currentState') : currentAnimationFrame?.loopExit ? <>{t('loopEnd')}</> : currentAnimationFrame?.iteration != null ? <>{t('iteration')} <b>{Math.min(currentAnimationFrame.iteration + 1, currentAnimationFrame.totalIterations)}/{currentAnimationFrame.totalIterations}</b></> : <>{t('step')} <b>{String(step+1).padStart(2,'0')}</b></>}</div>{currentAnimationFrame?.traceMode === 'summary' && <span>{language === 'en' ? 'State overview · no line-by-line trace' : 'Resumen de estados · sin traza línea por línea'}</span>}{currentAnimationFrame?.codeUnmapped && <span>{language === 'en' ? 'No exact code-line mapping for this step' : 'Este paso no tiene una línea equivalente exacta'}</span>}</div>
           <div className="canvas-grid" data-visualizer={algorithm.id}><Suspense fallback={<div className="description-loading" aria-label={t('loadingDescription')}><span/></div>}><MemoizedVisualizer algorithm={visualAlgorithm} step={operationFrames.length ? currentAnimationFrame?.position ?? 0 : 0}/></Suspense></div>

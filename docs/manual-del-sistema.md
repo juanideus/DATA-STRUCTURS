@@ -55,6 +55,8 @@ Estas acciones terminan la reproducción activa y vuelven el indicador de paso a
 
 ## 4. Reproducción y código
 
+**Ampliar visualización** permite dedicar toda la fila a la animación y aumentar la altura del área de dibujo. El código aparece debajo. Usa **Volver a vista dividida** para recuperar la distribución habitual. El cambio conserva el estado de la operación y respeta la preferencia de movimiento reducido; en navegadores sin soporte de transiciones de vista se aplica directamente.
+
 Después de ejecutar una operación, usa los controles del reproductor:
 
 - Flecha izquierda: paso anterior.
