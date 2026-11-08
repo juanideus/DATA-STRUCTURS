@@ -23,6 +23,8 @@ test('privacy replaces the sidebar credit and is available in both languages', a
   await expect(page.getByRole('heading', { level: 1, name: 'Política de privacidad' })).toBeVisible();
   await expect(page.getByText(/Versión 1\.0/)).toBeVisible();
   await expect(page.getByText(/90 días después de cerrar el caso/)).toBeVisible();
+  await expect(page.getByText(/servicios de envío y seguridad/)).toBeVisible();
+  await expect(page.locator('body')).not.toContainText(/Railway|\bAPI\b/);
   await expect(page.getByRole('link', { name: 'Cloudflare Turnstile' })).toHaveAttribute('href', 'https://www.cloudflare.com/turnstile-privacy-policy/');
   const reviewedOn = await page.locator('time').getAttribute('datetime');
   expect(reviewedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
@@ -32,6 +34,8 @@ test('privacy replaces the sidebar credit and is available in both languages', a
   await expect(page.getByRole('heading', { level: 1, name: 'Privacy policy' })).toBeVisible();
   await expect(page.getByText(/Version 1\.0/)).toBeVisible();
   await expect(page.getByText(/90 days after the case is closed/)).toBeVisible();
+  await expect(page.getByText(/submission and security services/)).toBeVisible();
+  await expect(page.locator('body')).not.toContainText(/Railway|\bAPI\b/);
   await expect(page.locator('time')).toHaveAttribute('datetime', reviewedOn);
   await expect(page.getByRole('link', { name: 'Cloudflare Turnstile' })).toHaveAttribute('href', 'https://www.cloudflare.com/turnstile-privacy-policy/');
   await expect(page.locator('script')).toHaveCount(0);
