@@ -1,9 +1,10 @@
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
-import { Boxes, ChevronDown, PanelLeftClose, Search, Sparkles, X } from 'lucide-react';
+import { Boxes, ChevronDown, PanelLeftClose, Search, Shield, Sparkles, X } from 'lucide-react';
 import { algorithms, categories, navigationIndexes } from '../data/algorithms.js';
 import { useDialogFocus } from '../accessibility/useDialogFocus.js';
 import { categoryNames, localizeAlgorithm, useLanguage } from '../i18n.jsx';
 import { seoPath } from '../seo.js';
+import { privacyPolicyPath } from '../logic/privacyPolicy.js';
 
 const normalizeSidebarText = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es').trim();
 const sidebarGroupIds = new Map(categories.map(category => [category, `nav-group-${normalizeSidebarText(category).replace(/[^a-z0-9]+/g, '-')}`]));
@@ -69,7 +70,7 @@ function Sidebar({ selected, onSelect, onHome, query, setQuery, mobileOpen, setM
     </nav>
     <div className="sidebar-foot">
       <span><Sparkles size={14}/> {algorithms.length} {t('includedTopics')}</span>
-      <div className="author-credit"><small>{t('author')}</small><strong>Juan Zúñiga Maluenda</strong></div>
+      <a className="sidebar-privacy" href={privacyPolicyPath(language)}><Shield size={14} aria-hidden="true"/> {t('privacyPolicy')}</a>
     </div>
   </aside>;
 }

@@ -236,15 +236,15 @@ test('el modo inglés traduce también la interfaz interactiva, desafíos, prueb
 
   await page.getByRole('button', { name: 'Report a problem' }).click();
   const report = page.locator('.bug-modal');
-  await expect(report.getByText(/^Your name Required$/)).toBeVisible();
+  await expect(report.getByText(/^Your name or alias Required$/)).toBeVisible();
   await expect(report.getByText(/^What kind of problem is it\? Required$/)).toBeVisible();
   await expect(report).not.toContainText('Tu nombre');
   await report.getByRole('button', { name: 'Send report' }).click();
-  await expect(report.getByText('Enter your name.', { exact: true })).toBeVisible();
+  await expect(report.getByText('Enter your name or alias.', { exact: true })).toBeVisible();
   await expect(report.getByText('Enter a short summary of the problem.', { exact: true })).toBeVisible();
   await expect(report.getByText('Select the kind of problem you found.', { exact: true })).toBeVisible();
   await expect(report.getByText('Tell us what happened.', { exact: true })).toBeVisible();
-  await expect(report).not.toContainText('Escribe tu nombre.');
+  await expect(report).not.toContainText('Escribe tu nombre o alias.');
 });
 
 test('el formulario de reportes explica cada dato faltante y enfoca el primer error', async ({ page }) => {
@@ -254,7 +254,7 @@ test('el formulario de reportes explica cada dato faltante y enfoca el primer er
 
   await report.getByRole('button', { name: 'Enviar reporte' }).click();
   await expect(report.getByText('Revisa los campos marcados antes de continuar.')).toBeVisible();
-  await expect(report.getByText('Escribe tu nombre.', { exact: true })).toBeVisible();
+  await expect(report.getByText('Escribe tu nombre o alias.', { exact: true })).toBeVisible();
   await expect(report.getByText('Escribe un resumen corto del problema.', { exact: true })).toBeVisible();
   await expect(report.getByText('Selecciona el tipo de problema que encontraste.', { exact: true })).toBeVisible();
   await expect(report.getByText('Cuéntanos qué ocurrió.', { exact: true })).toBeVisible();
@@ -267,7 +267,7 @@ test('el formulario de reportes explica cada dato faltante y enfoca el primer er
   await report.getByRole('textbox', { name: /Cuéntanos qué ocurrió/ }).fill('Se frena');
   await report.getByRole('button', { name: 'Enviar reporte' }).click();
 
-  await expect(report.getByText('Tu nombre debe tener al menos 2 caracteres.', { exact: true })).toBeVisible();
+  await expect(report.getByText('Tu nombre o alias debe tener al menos 2 caracteres.', { exact: true })).toBeVisible();
   await expect(report.getByText('Escribe un correo válido, por ejemplo nombre@correo.com.', { exact: true })).toBeVisible();
   await expect(report.getByText('La descripción debe tener al menos 10 caracteres.', { exact: true })).toBeVisible();
 
