@@ -9,7 +9,7 @@ const LANGUAGE_KEY = 'dsa-language';
 
 const ui = {
   es: {
-    visualAlgorithms: 'Algoritmos visuales', search: 'Buscar algoritmo…', includedTopics: 'temas incluidos', author: 'Autor',
+    visualAlgorithms: 'Algoritmos visuales', search: 'Buscar algoritmo…', includedTopics: 'temas incluidos', privacyPolicy: 'Política de privacidad',
     hideMenu: 'Ocultar menú lateral', showMenu: 'Mostrar menú lateral', openMenu: 'Abrir menú', close: 'Cerrar', closeForm: 'Cerrar formulario',
     welcome: 'Bienvenida', theoryGuide: 'Guía teórica', interactivePractice: 'Práctica interactiva', content: 'Contenido', complexity: 'Complejidad',
     fundamentalsCharts: 'Fundamentos y gráficos', fundamentalConcepts: 'Conceptos fundamentales', asymptoticAnalysis: 'Análisis asintótico',
@@ -25,7 +25,7 @@ const ui = {
     loopExit: 'La condición dio false: el ciclo termina y el programa continúa.',
   },
   en: {
-    visualAlgorithms: 'Visual algorithms', search: 'Search algorithms…', includedTopics: 'topics included', author: 'Author',
+    visualAlgorithms: 'Visual algorithms', search: 'Search algorithms…', includedTopics: 'topics included', privacyPolicy: 'Privacy policy',
     hideMenu: 'Hide sidebar', showMenu: 'Show sidebar', openMenu: 'Open menu', close: 'Close', closeForm: 'Close form',
     welcome: 'Welcome', theoryGuide: 'Theory guide', interactivePractice: 'Interactive practice', content: 'Content', complexity: 'Complexity',
     fundamentalsCharts: 'Fundamentals and charts', fundamentalConcepts: 'Fundamental concepts', asymptoticAnalysis: 'Asymptotic analysis',

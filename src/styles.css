@@ -259,8 +259,6 @@ body{background:
 .nav-group button{font-size:13px;line-height:1.35}
 .nav-group button>span{font-size:11px}
 .sidebar-foot>span{font-size:12px}
-.author-credit small{font-size:9px}
-.author-credit strong{font-size:11px}
 
 .hero p{font-size:14px;line-height:1.65}
 .eyebrow span,.eyebrow i{font-size:10px}
@@ -453,10 +451,10 @@ body{background:
   .operation-actions button{flex:1 1 auto}
 }
 
-/* Sidebar author credit */
-.author-credit{margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.09);display:flex;align-items:center;justify-content:space-between}
-.author-credit small{font-size:8px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:#788e88}
-.author-credit strong{max-width:150px;font-family:'DM Mono',monospace;font-size:10px;font-weight:500;line-height:1.35;text-align:right;color:#eff5f1}
+/* Privacy link stays reachable independently of the algorithm list. */
+.sidebar-privacy{display:flex;align-items:center;gap:8px;min-height:36px;margin-top:5px;padding:4px 0;color:#eff5f1;font-size:12px;text-decoration:underline;text-underline-offset:3px}
+.sidebar-privacy:hover{color:#fff;text-decoration-thickness:2px}
+.sidebar-privacy:focus-visible{outline:2px solid currentColor;outline-offset:3px;border-radius:4px}
 
 
 /* Compact structure header, leaving room for future educational content */
@@ -525,6 +523,9 @@ body{background:
 .bug-form-actions{grid-column:1/-1;padding-top:5px;display:flex;align-items:center;justify-content:flex-end;gap:8px}
 .bug-form-actions p{margin:0 auto 0 0;max-width:230px;display:flex;align-items:center;gap:6px;color:var(--muted);font-size:9px;line-height:1.45}
 .bug-form-actions p svg{flex:0 0 auto;color:var(--green)}
+.report-privacy-link{color:var(--ink);text-underline-offset:2px}
+.report-privacy-link:hover{text-decoration-thickness:2px}
+.report-privacy-link:focus-visible{outline:2px solid currentColor;outline-offset:2px}
 .bug-form-actions button{height:41px;padding:0 14px;border:1px solid #cbc7bd;border-radius:9px;background:#fff;color:var(--ink);font-size:11px;font-weight:800;cursor:pointer}
 .bug-form-actions button[type='submit']{border-color:var(--orange);display:flex;align-items:center;gap:7px;background:var(--orange);color:#fff}
 .bug-required{margin-left:4px;color:#a9442c;font-size:10px;font-weight:750}
@@ -568,7 +569,7 @@ body{background:var(--paper)}
 .brand{height:82px;padding:18px 20px}
 .brand-mark{border-radius:9px;box-shadow:none}
 .brand-home:hover .brand-mark{transform:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.2)}
-.brand-copy>span,.nav-heading,.author-credit small{text-transform:none;letter-spacing:.025em}
+.brand-copy>span,.nav-heading{text-transform:none;letter-spacing:.025em}
 .sidebar .search{border-radius:7px;background:rgba(7,20,16,.17);border-color:rgba(255,255,255,.16)}
 .sidebar .search:focus-within{border-color:rgba(255,255,255,.4);box-shadow:none}
 .sidebar .search input{min-width:0;flex:1}
@@ -581,7 +582,6 @@ body{background:var(--paper)}
 .nav-group button:hover{background:rgba(255,255,255,.055)}
 .nav-group button.selected{background:#f6f3ed;color:var(--ink);box-shadow:none}
 .sidebar-foot{padding:14px 18px}
-.author-credit{border-color:rgba(255,255,255,.12)}
 
 /* Welcome */
 .welcome-page{padding-top:22px}

@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import react from '@vitejs/plugin-react';
 import { build } from 'vite';
 import { fileURLToPath } from 'node:url';
+import { normalizeReport, validateReport } from '../../report/src/validation.js';
 
 const fixtureOrigin = 'http://127.0.0.1:4173';
 const fixturePath = '/__security/turnstile-fixture';
@@ -313,6 +314,34 @@ async function fillReport(page, language = 'es') {
   await dialog.getByRole('combobox').selectOption(language === 'en' ? 'Something does not work' : 'Algo no funciona');
   await dialog.getByRole('textbox', { name: language === 'en' ? /^Tell us what happened/ : /^Cuéntanos qué ocurrió/ }).fill('Prueba local aislada: no se contacta ningún servicio real.');
   await dialog.getByRole('textbox', { name: language === 'en' ? /^How can we reproduce it/ : /^¿Cómo podemos repetirlo/ }).fill('Abrir formulario, completar y enviar al mock.');
+}
+
+for (const language of ['es', 'en']) {
+  test(`privacy requests accept an alias and only send contents on submit (${language})`, async ({ page }, testInfo) => {
+    const counters = await openReportFixture(page, { language });
+    const english = language === 'en';
+    const dialog = page.getByRole('dialog');
+    const alias = dialog.getByRole('textbox', { name: english ? /^Your name or alias/ : /^Tu nombre o alias/ });
+    await expect(alias).toBeVisible();
+    await expect.poll(() => counters.health).toBeGreaterThan(0);
+    await expect.poll(() => counters.downloads).toBe(1);
+    expect(counters.reports).toHaveLength(0);
+    await alias.fill('estudiante42');
+    await dialog.getByRole('textbox', { name: english ? /^Your email/ : /^Tu correo/ }).fill('privacy@example.test');
+    await dialog.getByRole('textbox', { name: english ? /^Short summary/ : /^Resumen corto/ }).fill(english ? 'Privacy request' : 'Solicitud de privacidad');
+    await dialog.getByRole('combobox').selectOption(english ? 'Another problem' : 'Otro problema');
+    await dialog.getByRole('textbox', { name: english ? /^Tell us what happened/ : /^Cuéntanos qué ocurrió/ }).fill('Solicitud simulada de acceso a los datos de un reporte.');
+    await page.getByRole('button', { name: english ? 'Complete mock verification' : 'Completar verificación simulada', exact: true }).click();
+    expect(counters.reports).toHaveLength(0);
+    await page.screenshot({ path: testInfo.outputPath('privacy-request.png'), fullPage: true });
+    await page.getByRole('button', { name: english ? 'Send report' : 'Enviar reporte', exact: true }).click();
+    await expect(page.locator('.bug-copy-status')).toContainText(english ? 'sent successfully' : 'enviado correctamente');
+    expect(counters.reports).toHaveLength(1);
+    expect(counters.reports[0]).toMatchObject({ name: 'estudiante42', email: 'privacy@example.test', steps: '' });
+    expect(validateReport(normalizeReport(counters.reports[0]))).toEqual({});
+    expect(counters.unexpectedRequests).toEqual([]);
+    expect(counters.pageErrors).toEqual([]);
+  });
 }
 
 test('the real report form sends validated fields without diagnostic query or fragment', async ({ page }) => {
