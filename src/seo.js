@@ -114,12 +114,6 @@ export function structuredData(algorithm = null, language = 'es') {
       alternateName: SITE_ALTERNATE_NAMES,
       description: HOME[safeLanguage].description,
       inLanguage: safeLanguage === 'en' ? 'en-US' : 'es-CL',
-      author: { '@id': `${SITE_ORIGIN}/#author` },
-    },
-    {
-      '@type': 'Person',
-      '@id': `${SITE_ORIGIN}/#author`,
-      name: 'Juan Zúñiga Maluenda',
     },
   ];
 
@@ -133,7 +127,6 @@ export function structuredData(algorithm = null, language = 'es') {
       url: homeUrl,
       description: seo.description,
       inLanguage: ['es-CL', 'en-US'],
-      author: { '@id': `${SITE_ORIGIN}/#author` },
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
     });
   } else {
@@ -158,7 +151,6 @@ export function structuredData(algorithm = null, language = 'es') {
         educationalLevel: 'Beginner',
         teaches: localized.name,
         isPartOf: { '@id': `${SITE_ORIGIN}/#website` },
-        author: { '@id': `${SITE_ORIGIN}/#author` },
       },
     );
   }

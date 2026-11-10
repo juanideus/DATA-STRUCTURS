@@ -4,6 +4,7 @@ import { useDialogFocus } from '../accessibility/useDialogFocus.js';
 import { useLanguage } from '../i18n.jsx';
 import TurnstileWidget from './TurnstileWidget.jsx';
 import { reportPageUrl } from '../logic/reportPrivacy.js';
+import { privacyPolicyPath } from '../logic/privacyPolicy.js';
 
 const REPORT_API_URL = String(import.meta.env.VITE_REPORT_API_URL || '').replace(/\/+$/, '');
 const TURNSTILE_SITE_KEY = String(import.meta.env.VITE_TURNSTILE_SITE_KEY || '').trim();
@@ -11,16 +12,16 @@ const EMPTY_REPORT = Object.freeze({ name:'', email:'', title:'', type:'', descr
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const validationMessages = language => language === 'en' ? {
-  nameRequired:'Enter your name.',
-  nameShort:'Your name must contain at least 2 characters.',
+  nameRequired:'Enter your name or alias.',
+  nameShort:'Your name or alias must contain at least 2 characters.',
   emailInvalid:'Enter a valid email, for example name@email.com.',
   titleRequired:'Enter a short summary of the problem.',
   typeRequired:'Select the kind of problem you found.',
   descriptionRequired:'Tell us what happened.',
   descriptionShort:'The description must contain at least 10 characters.',
 } : {
-  nameRequired:'Escribe tu nombre.',
-  nameShort:'Tu nombre debe tener al menos 2 caracteres.',
+  nameRequired:'Escribe tu nombre o alias.',
+  nameShort:'Tu nombre o alias debe tener al menos 2 caracteres.',
   emailInvalid:'Escribe un correo válido, por ejemplo nombre@correo.com.',
   titleRequired:'Escribe un resumen corto del problema.',
   typeRequired:'Selecciona el tipo de problema que encontraste.',
@@ -62,12 +63,12 @@ export default function BugReporter({ section }) {
   const close = useCallback(() => setOpen(false), []);
   const dialogRef = useDialogFocus({ open, onClose: close });
   const bc = language === 'en' ? {
-    name:'Your name', namePh:'E.g. Ana Torres', email:'Your email (optional)', emailPh:'So we can reply to you', summary:'Short summary', summaryPh:'E.g. The delete button does not respond',
+    name:'Your name or alias', namePh:'E.g. student42', email:'Your email (optional)', emailPh:'So we can reply to you', summary:'Short summary', summaryPh:'E.g. The delete button does not respond',
     type:'What kind of problem is it?', typePh:'Select an option', types:['Something does not work','It looks incorrect','Problem in the Java code','Problem in the C++ code','Content is difficult to understand','Another problem'],
     happened:'Tell us what happened', happenedPh:'What did you do, what appeared, and what did you expect?', repeat:'How can we reproduce it?', repeatPh:'1. I opened the structure...\n2. I pressed the button...\n3. Then this happened...',
     website:'Website', required:'Required', delivery:'The report will be sent directly to the DSA Lab team.', later:'Not now', copy:'Copy', sending:'Sending…', send:'Send report', review:'Review the marked fields before continuing.', fieldInvalid:'Check this field.', securityRequired:'Complete the security verification before sending.', securityError:'The security verification could not be completed. Close and reopen this form to try again. Your input will be kept.',
   } : {
-    name:'Tu nombre', namePh:'Ej.: Ana Torres', email:'Tu correo (opcional)', emailPh:'Para poder responderte', summary:'Resumen corto', summaryPh:'Ej.: El botón eliminar no responde',
+    name:'Tu nombre o alias', namePh:'Ej.: estudiante42', email:'Tu correo (opcional)', emailPh:'Para poder responderte', summary:'Resumen corto', summaryPh:'Ej.: El botón eliminar no responde',
     type:'¿Qué tipo de problema es?', typePh:'Selecciona una opción', types:['Algo no funciona','Se ve incorrecto','Problema en el código Java','Problema en el código C++','Contenido difícil de entender','Otro problema'],
     happened:'Cuéntanos qué ocurrió', happenedPh:'¿Qué hiciste, qué apareció y qué esperabas que ocurriera?', repeat:'¿Cómo podemos repetirlo?', repeatPh:'1. Entré a la estructura...\n2. Presioné el botón...\n3. Entonces ocurrió...',
     website:'Sitio web', required:'Obligatorio', delivery:'El reporte se enviará directamente al equipo de DSA Lab.', later:'Ahora no', copy:'Copiar', sending:'Enviando…', send:'Enviar reporte', review:'Revisa los campos marcados antes de continuar.', fieldInvalid:'Revisa este campo.', securityRequired:'Completa la verificación de seguridad antes de enviar.', securityError:'No se pudo completar la verificación de seguridad. Cierra y vuelve a abrir el formulario para reintentar. Tus datos se conservarán.',
@@ -223,7 +224,7 @@ export default function BugReporter({ section }) {
             <TurnstileWidget siteKey={TURNSTILE_SITE_KEY} language={language} onToken={acceptTurnstileToken} onError={rejectTurnstile} resetSignal={turnstileReset}/>
           </div>}
           {copyStatus && <p className={`bug-copy-status bug-copy-status-${statusTone}`} role="status" aria-live="polite">{copyStatus}</p>}
-          <div className="bug-form-actions"><p><Bug size={13}/> {bc.delivery}</p><button type="button" disabled={sending} onClick={close}>{bc.later}</button><button className="copy-report" type="button" disabled={sending} onClick={copyReport}><ClipboardCopy size={15}/> {bc.copy}</button><button type="submit" disabled={sending}>{sending ? bc.sending : bc.send} <Bug size={15}/></button></div>
+          <div className="bug-form-actions"><p><Bug size={13}/> <span>{bc.delivery} <a className="report-privacy-link" href={privacyPolicyPath(language)} target="_blank" rel="noopener noreferrer" aria-label={`${t('privacyPolicy')} ${language === 'en' ? '(opens in a new tab)' : '(abre en otra pestaña)'}`}>{t('privacyPolicy')}</a></span></p><button type="button" disabled={sending} onClick={close}>{bc.later}</button><button className="copy-report" type="button" disabled={sending} onClick={copyReport}><ClipboardCopy size={15}/> {bc.copy}</button><button type="submit" disabled={sending}>{sending ? bc.sending : bc.send} <Bug size={15}/></button></div>
         </form>
       </section>
     </div>}
