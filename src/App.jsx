@@ -94,6 +94,17 @@ const pathfindingCodeNeedle = (algorithmId, codeMode, frame) => {
     close: astar ? 'closed[current] = true;'
       : cpp ? 'settled[current] = true;' : 'visited[current] = true;',
     neighbors: cpp ? 'for (int i = 0; i < count; i++) {' : 'for (int i = 0; i < 4; i++) {',
+    'check-bounds': cpp ? null : 'if (nextRow < 0 || nextRow >= rows) continue;',
+    'check-obstacle': cpp ? null : astar ? 'if (map[next] < 0 || closed[next]) continue;' : 'if (map[next] < 0 || visited[next]) continue;',
+    'skip-neighbor': cpp ? (astar ? 'if (!closed[neighbor] && candidate < distance[neighbor]) {' : 'if (!settled[neighbor] && candidate < distance[neighbor]) {')
+      : astar ? 'if (map[next] < 0 || closed[next]) continue;' : 'if (map[next] < 0 || visited[next]) continue;',
+    candidate: cpp ? 'int candidate = distance[current] + map[neighbor];'
+      : astar ? 'int newG = g[current] + map[next];' : 'int newDistance = distance[current] + map[next];',
+    'compare-distance': cpp ? (astar ? 'if (!closed[neighbor] && candidate < distance[neighbor]) {' : 'if (!settled[neighbor] && candidate < distance[neighbor]) {')
+      : astar ? 'if (newG < g[next]) {' : 'if (newDistance < distance[next]) {',
+    'set-previous': cpp ? 'previous[neighbor] = current;' : 'previous[next] = current;',
+    'set-score': cpp ? 'score[neighbor] = candidate + heuristic(neighbor, goal);'
+      : 'f[next] = newG + heuristic(next, goal, columns, minCost);',
     relax: astar ? (cpp ? 'distance[neighbor] = candidate;' : 'g[next] = newG;')
       : cpp ? 'distance[neighbor] = candidate;' : 'distance[next] = newDistance;',
     finish: cpp ? (found ? 'return true;' : astar ? 'return false;' : 'return reached;')
@@ -101,6 +112,32 @@ const pathfindingCodeNeedle = (algorithmId, codeMode, frame) => {
         : 'return reconstructPath(previous, start, goal);',
   };
   return needles[frame.codePhase];
+};
+const pseudocodeStepFor = (actionId, frame) => {
+  const needle = frame.codeNeedle ?? '';
+  if (actionId === 'bfs-run') {
+    if (needle === 'visited[start] = true;' || needle === 'queue[end] = start;') return 'marcar el origen y encolarlo';
+    if (needle.includes('while (front < end)')) return 'mientras la cola no esté vacía';
+    if (needle.includes('queue[front]') || needle.includes('println(vertexNames[vertex])')) return 'desencolar y visitar un vértice';
+    if (needle.includes('for (int next') || needle.includes('if (hasEdge')) return 'para cada vecino aún no visitado:';
+    if (needle === 'visited[next] = true;') return 'marcar vecino como visitado';
+    if (needle === 'queue[end] = next;') return 'encolar vecino';
+  }
+  if (actionId === 'hanoi-solve') {
+    if (needle.includes('if (disks == 0)')) return 'si n = 0: retornar';
+    if (needle.includes('from, help, to)')) return 'hanoi(n-1, origen, auxiliar, destino)';
+    if (needle.includes('help, to, from)')) return 'hanoi(n-1, auxiliar, destino, origen)';
+    if (needle.includes('System.out.println("Move')) return 'mover disco n de origen a destino';
+    if (needle.startsWith('void hanoi(')) return 'hanoi(n, origen, destino, auxiliar):';
+  }
+  if (actionId === 'prim-run') {
+    if (needle.includes('void prim(')) return 'iniciar el árbol desde un vértice';
+    if (needle.includes('for (int added')) return 'mientras falten vértices:';
+    if (needle.includes('if (!inTree[vertex]')) return 'elegir el candidato alcanzable de coste mínimo';
+    if (needle.includes('if (current == -1')) return 'si no existe: informar grafo desconectado y terminar';
+    if (needle.includes('inTree[current] = true;')) return 'agregar el vértice y su arista al árbol';
+  }
+  return null;
 };
 const positionsForAlgorithm = (algorithm, jitter = false) => (
   usesNodeGraph(algorithm) ? graphPositionsFor(algorithm.id, jitter) : DEFAULT_GRAPH_POSITIONS.map(position => [...position])
@@ -965,7 +1002,40 @@ function App() {
       if (frame.codeNeedle === 'boolean hasEdge = adjacency[vertex][next];') return false;
       return actionId !== 'bfs-run' || !['front++;', 'end++;'].includes(frame.codeNeedle);
     });
+    if (codeMode === 'cpp' && baseAlgorithm.id === 'radix-sort' && sourceFrames) {
+      for (let index = sourceFrames.length - 1; index >= 0; index--) {
+        if (sourceFrames[index].sortPhase === 'radix-output-array') sourceFrames.splice(index, 1);
+        else if (sourceFrames[index].sortPhase === 'radix-decrement') {
+          const write = sourceFrames[index - 1];
+          if (write?.sortPhase === 'radix-output') {
+            write.variables = [...write.variables.filter(variable => variable.name !== 'count'),
+              ...sourceFrames[index].variables.filter(variable => variable.name === 'count')];
+            sourceFrames[index - 1] = sourceFrames[index];
+            sourceFrames[index] = write;
+            sourceFrames[index - 1].message = 'C++ decrementa el contador antes de calcular la posición de output.';
+          }
+        }
+      }
+      for (let index = sourceFrames.length - 1; index >= 0; index--) {
+        if (sourceFrames[index].sortPhase !== 'radix-pass') continue;
+        const pass = sourceFrames[index];
+        sourceFrames.splice(index, 0, {
+          ...pass, sortPhase: 'radix-output-array', codeNeedle: 'int* output = new int[CAPACITY]{};',
+          sortAuxValues: new Array(pass.values.length), sortAuxLabel: 'output',
+          message: 'Se reserva output dinámicamente para esta pasada.',
+        });
+      }
+      for (let index = sourceFrames.length - 1; index >= 0; index--) {
+        if (sourceFrames[index].sortPhase !== 'radix-write') continue;
+        if (sourceFrames[index + 1]?.sortPhase === 'radix-write') continue;
+        const last = sourceFrames[index];
+        sourceFrames.splice(index + 1, 0,
+          { ...last, sortPhase: 'radix-free-count', sortWriteIndex: null, sortWriteTarget: null, codeNeedle: 'delete[] count;', message: 'Se libera count al terminar esta pasada.' },
+          { ...last, sortPhase: 'radix-free-output', sortWriteIndex: null, sortWriteTarget: null, codeNeedle: 'delete[] output;', message: 'Se libera output al terminar esta pasada.' });
+      }
+    }
     const traceFrames = sourceFrames?.map((frame, index) => {
+      if (codeMode === 'pseudo') frame = { ...frame, pseudoStep: pseudocodeStepFor(actionId, frame) };
       if (baseAlgorithm.id === 'arbol-enhebrado') frame = { ...frame, completed: index === sourceFrames.length - 1 };
       if (baseAlgorithm.id === 'arbol-enhebrado' && codeMode === 'cpp') {
         frame = { ...frame, variables: frame.variables.map(variable => variable.cppValue ? { ...variable, value: variable.cppValue } : variable) };
@@ -974,7 +1044,9 @@ function App() {
         return { ...frame, traceMode: 'summary', codeLine: null };
       }
       if (frame.codePhase && codeMode !== 'pseudo') {
-        return { ...frame, codeNeedle: pathfindingCodeNeedle(baseAlgorithm.id, codeMode, frame) };
+        return { ...frame, codeNeedle: pathfindingCodeNeedle(baseAlgorithm.id, codeMode, frame),
+          variables: codeMode === 'cpp' ? frame.variables?.map(variable => variable.name === 'next'
+            ? { ...variable, name: 'neighbor' } : variable) : frame.variables };
       }
       if (cppNeedle) {
         const codeNeedle = cppNeedle(baseAlgorithm.id, actionId, frame) ?? frame.codeNeedle;
@@ -1177,10 +1249,12 @@ function App() {
       } else {
         synchronizedFrames = [makeFrame(previousFibonacciForest, previousValues, initialLine, 'Se identifica la raíz mínima.')];
         for (const stage of result.fibonacciStages ?? []) {
-          const codeLine = stage.phase === 'promote' ? lineOf(/add(?:Root|ToRootList)\(/)
+          const codeLine = stage.phase === 'detach' ? lineOf(codeMode === 'cpp' ? /removeFromList\(removed\)/ : /detach\(removed\)/)
+            : stage.phase === 'promote' ? lineOf(/add(?:Root|ToRootList)\(/)
             : stage.phase === 'link' ? lineOf(/link(?:Child|AsChild)\(second, first\)/)
               : lineOf(/consolidate\(\)/);
-          const message = stage.phase === 'promote'
+          const message = stage.phase === 'detach' ? 'Se retira el mínimo; no tiene hijos que promover.'
+            : stage.phase === 'promote'
             ? 'Los hijos del mínimo pasan a la lista de raíces.'
             : stage.phase === 'link'
               ? `Se enlaza ${stage.child} como hijo de ${stage.parent} porque ambas raíces tenían el mismo grado.`

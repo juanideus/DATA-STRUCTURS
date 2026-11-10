@@ -63,6 +63,9 @@ function createTrace(values, edges, algorithmId) {
       sortFixedPositions: algorithmId === 'insertion' && !options.completed ? EMPTY_POSITIONS : options.sortFixedPositions ?? currentFixedPositions(),
       sortOrderedPositions: algorithmId === 'insertion' && !options.completed ? currentFixedPositions() : EMPTY_POSITIONS,
       sortWriteIndex: options.sortWriteIndex ?? null,
+      sortWriteTarget: options.sortWriteTarget ?? (options.sortWriteIndex != null ? 'values' : null),
+      sortReadTarget: options.sortReadTarget ?? null,
+      sortReadIndex: options.sortReadIndex ?? null,
       sortAuxValues: Array.isArray(options.sortAuxValues) ? [...options.sortAuxValues] : options.sortAuxValues,
       sortAuxLabel: options.sortAuxLabel,
       sortGap: options.sortGap,
@@ -345,23 +348,23 @@ function radixSort(values, edges) {
       const digit = Math.floor((numeric(working[i]) - min) / exp) % 10;
       add('int digit = (int) ((((long) values[i] - offset) / exp) % 10);', `${working[i]} tiene dígito ${digit} en esta pasada.`, 'radix-digit', { position: i, sortComparePositions: [i], sortAuxValues: count, sortAuxLabel: `dígito ×${exp}`, variables: { exp, i, digit, value: working[i] } });
       count[digit]++;
-      add('count[digit]++;', `El contador del dígito ${digit} aumenta a ${count[digit]}.`, 'radix-count', { position: i, sortComparePositions: [i], sortAuxValues: count, sortAuxLabel: `dígito ×${exp}`, variables: { exp, i, digit, count: count[digit] } });
+      add('count[digit]++;', `El contador del dígito ${digit} aumenta a ${count[digit]}.`, 'radix-count', { position: i, sortComparePositions: [i], sortWriteIndex: digit, sortWriteTarget: 'count', sortAuxValues: count, sortAuxLabel: `dígito ×${exp}`, variables: { exp, i, digit, count: count[digit] } });
     }
     for (let i = 1; i < 10; i++) {
       count[i] += count[i - 1];
-      add('count[i] += count[i - 1];', `El acumulado hasta el dígito ${i} es ${count[i]}.`, 'radix-prefix', { sortAuxValues: count, sortAuxLabel: `acumulado ×${exp}`, variables: { exp, i, count: count[i] } });
+      add('count[i] += count[i - 1];', `El acumulado hasta el dígito ${i} es ${count[i]}.`, 'radix-prefix', { sortWriteIndex: i, sortWriteTarget: 'count', sortAuxValues: count, sortAuxLabel: `acumulado ×${exp}`, variables: { exp, i, count: count[i] } });
     }
     for (let i = working.length - 1; i >= 0; i--) {
       const digit = Math.floor((numeric(working[i]) - min) / exp) % 10;
       const position = count[digit] - 1;
       output[position] = working[i];
-      add('output[count[digit] - 1] = values[i];', `${working[i]} se coloca de forma estable en output[${position}].`, 'radix-output', { position: i, sortWriteIndex: position, sortAuxValues: output, sortAuxLabel: 'output', variables: { exp, i, digit, position } });
+      add('output[count[digit] - 1] = values[i];', `${working[i]} se coloca de forma estable en output[${position}].`, 'radix-output', { position: i, sortWriteIndex: position, sortWriteTarget: 'output', sortReadTarget: 'values', sortReadIndex: i, sortAuxValues: output, sortAuxLabel: 'output', variables: { exp, i, digit, position } });
       count[digit]--;
-      add('count[digit]--;', `La próxima clave con dígito ${digit} se colocará una posición antes.`, 'radix-decrement', { position: i, sortWriteIndex: position, sortAuxValues: count, sortAuxLabel: `acumulado ×${exp}`, variables: { exp, i, digit, position, count: count[digit] } });
+      add('count[digit]--;', `La próxima clave con dígito ${digit} se colocará una posición antes.`, 'radix-decrement', { position: i, sortWriteIndex: digit, sortWriteTarget: 'count', sortAuxValues: count, sortAuxLabel: `acumulado ×${exp}`, variables: { exp, i, digit, position, count: count[digit] } });
     }
     for (let i = 0; i < working.length; i++) {
       working[i] = output[i];
-      add('values[i] = output[i];', `${working[i]} vuelve al índice ${i} después de esta pasada.`, 'radix-write', { position: i, sortWriteIndex: i, sortAuxValues: output, sortAuxLabel: 'output', variables: { exp, i } });
+      add('values[i] = output[i];', `${working[i]} vuelve al índice ${i} después de esta pasada.`, 'radix-write', { position: i, sortWriteIndex: i, sortWriteTarget: 'values', sortReadTarget: 'output', sortReadIndex: i, sortAuxValues: output, sortAuxLabel: 'output', variables: { exp, i } });
     }
     if (exp > Number.MAX_SAFE_INTEGER / 10) break;
   }

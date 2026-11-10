@@ -53,7 +53,7 @@ assert.equal(forest.roots.length, 7, 'Insertar no debe consolidar');
 const first = forest.extractMinimum();
 assert.equal(first.removed, 1);
 assert.equal(first.forest.roots.length, 2, 'Después de extraer, grados iguales se consolidan');
-assert.equal(first.stages[0].phase, 'promote');
+assert.equal(first.stages[0].phase, 'detach', 'Sin hijos no se inventa una promoción');
 assert.ok(first.stages.some(stage => stage.phase === 'link'), 'La extracción debe mostrar enlaces durante la consolidación');
 assert.equal(first.stages.at(-1).phase, 'settled');
 assert.deepEqual(forest.all().map(node => node.value).toSorted((a, b) => a - b), [3, 7, 18, 24, 31, 39]);

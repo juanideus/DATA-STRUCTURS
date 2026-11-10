@@ -58,7 +58,7 @@ export const algorithms = [
   item('expression-tree','Árbol de expresión','Árboles','tree','Construcción / evaluación O(n)','Representa operadores como nodos internos y operandos como hojas.',`evaluar(nodo):\n  si operando: retornar valor\n  a ← evaluar(izq)\n  b ← evaluar(der)\n  retornar aplicar(nodo.op, a, b)`,['+','*','-','8','3','7','2']),
   item('ast','AST (Abstract Syntax Tree)','Árboles','tree','Construcción O(n) · Recorrido O(n)','Representa la estructura significativa de una instrucción Java mediante sentencias, operadores, identificadores y literales.',`analizar(asignación):\n  leer identificador izquierdo\n  comprobar =\n  construir expresión por precedencia\n  crear raíz ASSIGN`,['ASSIGN','total','+',undefined,undefined,'price','*',undefined,undefined,undefined,undefined,undefined,undefined,'quantity','2']),
 
-  item('hash-table','Hash Table','Hashing','hash','Promedio O(1) · Peor O(n)','Mapea claves a posiciones de un arreglo mediante una función hash.',`insertar(clave, valor):\n  i ← hash(clave) mod capacidad\n  tabla[i] ← (clave, valor)`,['ana','sol','luz','mar','leo']),
+  item('hash-table','Hash Table','Hashing','hash','Promedio O(1) · Peor O(n)','Mapea claves a posiciones de un arreglo mediante una función hash.',`insertar(clave, valor):\n  i ← hash(clave) mod capacidad\n  mientras tabla[i] está ocupada por otra clave:\n    i ← (i + 1) mod capacidad\n  si tabla[i] contiene clave: actualizar su valor\n  si no: guardar (clave, valor) en tabla[i]`,['ana','sol','luz','mar','leo']),
   item('hash-open','Open Addressing','Hashing','hash','Promedio O(1) · Peor O(n)','Resuelve colisiones buscando otra celda dentro de la misma tabla.',`i ← hash(clave)\nmientras tabla[i] ocupada\n  i ← (i + 1) mod capacidad\ntabla[i] ← clave`,[18,29,40,13,24]),
   item('hash-chaining','Separate Chaining','Hashing','hash','Promedio O(1) · Peor O(n)','Cada posición mantiene una lista de claves que colisionaron.',`i ← hash(clave) mod capacidad\ntabla[i].agregar((clave, valor))`,[12,22,32,15,25,8]),
 
@@ -107,7 +107,7 @@ export const algorithms = [
     0,0,0,0,8,0,0,7,9,
   ]),
 
-  item('matriz','Matriz','Otros','matrix','Acceso O(1) · Recorridos O(n) · Transponer O(n²)','Organiza valores en una cuadrícula densa de filas y columnas. Cada celda se identifica por dos índices y ocupa una posición fija.',`guardar(valor, fila, columna):
+  item('matriz','Matriz','Otros','matrix','Acceso O(1) · Recorridos O(F·C) · Transponer O(F·C)','Organiza valores en una cuadrícula densa de F filas y C columnas. Cada celda se identifica por dos índices y ocupa una posición fija.',`guardar(valor, fila, columna):
   verificar 0 ≤ fila < 4
   verificar 0 ≤ columna < 4
   matriz[fila][columna] ← valor
@@ -146,7 +146,7 @@ transponer():
     {value:5,row:4,column:5},
   ]),
   item('union-find','Union-Find','Otros','union','Casi O(1) amortizado','Mantiene componentes disjuntos con compresión de caminos y unión por rango.',`find(x):\n  si padre[x] ≠ x: padre[x] ← find(padre[x])\n  retornar padre[x]\nunion(a,b): enlazar raíces`,[0,0,2,2,4,4,6,6]),
-  item('lru-cache','LRU Cache','Otros','cache','Get / Put O(1)','Descarta el elemento menos usado recientemente combinando hash y lista doble.',`get(clave):\n  si existe: mover al frente\nput(clave, valor):\n  insertar al frente\n  si excede capacidad: quitar cola`,['A','D','B','F','C']),
+  item('lru-cache','LRU Cache','Otros','cache','Get / Put O(1)','Descarta el elemento menos usado recientemente combinando hash y lista doble.',`get(clave):\n  si existe: mover al final (tail)\nput(clave, valor):\n  insertar o mover al final (tail)\n  si excede capacidad: quitar el primero (head)`,['A','D','B','F','C']),
   item('bloom-filter','Bloom Filter','Otros','bloom','Insertar / consultar O(k)','Filtro probabilístico compacto: puede dar falsos positivos, nunca falsos negativos.',`insertar(x):\n  para cada hash hᵢ\n    bits[hᵢ(x)] ← 1\ncontiene(x): comprobar todos esos bits`,[1,0,1,1,0,1,0,0,1,1,0,1]),
 ];
 

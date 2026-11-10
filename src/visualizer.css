@@ -131,6 +131,8 @@
 .tree-ast .ast-literal-node{background:#f5efe0;border-color:#a98743;color:#5c471d}
 .tree-ast .tree-node.active{background:var(--orange);border-color:var(--orange);color:#fff}
 .tree-merkle-tree .tree-node{width:66px;border-radius:9px}
+.merkle-visual{min-width:0}
+.merkle-caveat{margin:0 0 12px;color:var(--ink);font-size:12px;line-height:1.45;text-align:center}
 .tree-merkle-tree .tree-value{font-size:8px}
 .tree-segment-tree .tree-node{border-radius:8px;background:#f9f2df;border-color:#c08d2d}
 .tree-segment-tree .tree-node:first-of-type{background:#c08d2d;color:#fff}
@@ -670,6 +672,7 @@
 }
 .sort-cell.auxiliary span{font-size:14px}
 .sort-cell.auxiliary.writing{border-style:solid;background:#fff4ee}
+.sort-cell.reading{outline:2px dashed currentColor;outline-offset:-4px}
 .sort-legend{
   min-height:20px;
   display:flex;
