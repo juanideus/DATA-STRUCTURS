@@ -2889,12 +2889,14 @@ function executeSparseMatrixOperation({ actionId, fields, values, edges }) {
     variables = sparseVariables({ row, column, value, count: cells.length }),
     completed = false,
     failed = false,
+    codeLanguage,
   }) => ({
     values: sortSparseCells(cells),
     edges,
     position: activeCell ? positionOf(cells, sparseCellKey(activeCell)) : 0,
     codeLine: 0,
     codeNeedle,
+    codeLanguage,
     message,
     delayMs: completed ? 650 : 560,
     completed,
@@ -3156,6 +3158,16 @@ function executeSparseMatrixOperation({ actionId, fields, values, edges }) {
       codeNeedle: 'previousColumn.up = target.up;',
       phase: 'detach-column',
       extraState: { removedCellKey: key },
+      variables: sparseVariables({ row, column, count: before.length }),
+    }));
+    frames.push(makeFrame({
+      cells: after, message: 'Se libera el nodo ya desconectado.', codeNeedle: 'delete target;',
+      codeLanguage: 'cpp', phase: 'free-node', extraState: { removedCellKey: key },
+      variables: sparseVariables({ row, column, count: before.length }),
+    }));
+    frames.push(makeFrame({
+      cells: after, message: `nonZeroCount disminuye a ${after.length}.`, codeNeedle: 'nonZeroCount--;',
+      codeLanguage: 'cpp', phase: 'decrement-count', extraState: { removedCellKey: key },
       variables: sparseVariables({ row, column, count: after.length }),
     }));
     return done(after, `${existing.value} fue eliminado de (${row}, ${column}) en AROW y ACOL.`, frames, null);
@@ -3623,6 +3635,9 @@ function executeMergeSort(values, edges) {
       sortRightRange: rightRange,
       sortComparePositions: comparePositions,
       sortWriteIndex: writeIndex,
+      sortWriteTarget: phase === 'merge-write' ? 'values' : phase.startsWith('merge-copy-') ? 'help' : null,
+      sortReadTarget: phase === 'merge-write' ? 'help' : phase.startsWith('merge-copy-') ? 'values' : null,
+      sortReadIndex: phase === 'merge-write' ? writeIndex : phase.startsWith('merge-copy-') ? position : null,
       sortAuxValues: [...help],
       variables: sortFrameVariables(working, variables),
       delayMs,
@@ -4277,13 +4292,12 @@ function extractBinaryMaxHeap(values, edges) {
       });
 
       const leftIsLarger = left < heap.length && Number(heap[left]) > Number(heap[largest]);
-      if (leftIsLarger) largest = left;
       addFrame({
         heap,
         position: left < heap.length ? left : index,
         codeNeedle: 'if (left < size && heap[left] > heap[largest]) {',
         message: leftIsLarger
-          ? `${heap[left]} es mayor que ${heap[index]}; largest cambia al hijo izquierdo.`
+          ? `${heap[left]} es mayor que ${heap[index]}; se ejecutará la asignación.`
           : 'El hijo izquierdo no existe o no supera al candidato actual.',
         phase: 'compare-left',
         index,
@@ -4293,16 +4307,19 @@ function extractBinaryMaxHeap(values, edges) {
         condition: leftIsLarger,
         candidates,
       });
+      if (leftIsLarger) {
+        largest = left;
+        addFrame({ heap, position: left, codeNeedle: 'largest = left;', message: `largest cambia al hijo izquierdo (${left}).`, phase: 'assign-left', index, left, right, largest, candidates });
+      }
 
       const previousLargest = largest;
       const rightIsLarger = right < heap.length && Number(heap[right]) > Number(heap[largest]);
-      if (rightIsLarger) largest = right;
       addFrame({
         heap,
         position: right < heap.length ? right : largest,
         codeNeedle: 'if (right < size && heap[right] > heap[largest]) {',
         message: rightIsLarger
-          ? `${heap[right]} supera al candidato ${heap[previousLargest]}; largest cambia al hijo derecho.`
+          ? `${heap[right]} supera al candidato ${heap[previousLargest]}; se ejecutará la asignación.`
           : 'El hijo derecho no existe o no supera al candidato actual.',
         phase: 'compare-right',
         index,
@@ -4312,6 +4329,10 @@ function extractBinaryMaxHeap(values, edges) {
         condition: rightIsLarger,
         candidates,
       });
+      if (rightIsLarger) {
+        largest = right;
+        addFrame({ heap, position: right, codeNeedle: 'largest = right;', message: `largest cambia al hijo derecho (${right}).`, phase: 'assign-right', index, left, right, largest, candidates });
+      }
 
       const heapPropertyRestored = largest === index;
       addFrame({

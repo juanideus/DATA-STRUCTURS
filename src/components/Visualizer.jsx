@@ -703,6 +703,9 @@ function SortVisual({ algorithm, step }) {
   const en = algorithm.language === 'en';
   const isQuick = algorithm.id === 'quick-sort';
   const isMerge = algorithm.id === 'merge-sort';
+  const writes = target => frame && 'sortWriteTarget' in frame
+    ? frame.sortWriteTarget === target
+    : frame?.sortWriteIndex != null && target === 'values';
   const phaseLabel = SORT_PHASE_LABELS[frame?.sortPhase]?.[en ? 1 : 0]
     ?? (en ? 'Sorting step' : 'Paso de ordenamiento');
 
@@ -710,7 +713,8 @@ function SortVisual({ algorithm, step }) {
     if (index === frame?.sortPivotIndex) return en ? 'PIVOT' : 'PIVOTE';
     if (index === frame?.sortCompareIndex) return 'current';
     if (frame?.sortSwapPositions?.includes(index)) return 'SWAP';
-    if (index === frame?.sortWriteIndex) return 'write';
+    if (writes('values') && index === frame?.sortWriteIndex) return 'write';
+    if (frame?.sortReadTarget === 'values' && index === frame?.sortReadIndex) return en ? 'read' : 'leer';
     if (frame?.sortComparePositions?.[0] === index) return 'a';
     if (frame?.sortComparePositions?.[1] === index) return 'b';
     if (indexInsideRange(index, frame?.sortLeftRange)) return en ? 'LEFT' : 'IZQ.';
@@ -724,6 +728,8 @@ function SortVisual({ algorithm, step }) {
   const auxiliaryLabel = en
     ? (frame?.sortAuxLabel ?? 'help').replace(/^dígito ×(\d+)$/, 'digit ×$1').replace(/^acumulado ×(\d+)$/, 'cumulative count ×$1')
     : frame?.sortAuxLabel ?? 'help';
+  const auxiliaryTarget = frame?.sortAuxLabel?.startsWith('acumulado') || frame?.sortAuxLabel?.startsWith('dígito')
+    ? 'count' : frame?.sortAuxLabel ?? 'help';
   return <div className={`sort-visual sort-${algorithm.id}-visual`} role="img" aria-label={`${en ? 'Real visualization of' : 'Visualización real de'} ${algorithm.name}`}>
     <div className="sort-phase-label">
       <span>{algorithm.name.toUpperCase()}</span>
@@ -746,7 +752,8 @@ function SortVisual({ algorithm, step }) {
             frame?.sortSwapPositions?.includes(index) ? 'swapping' : '',
             frame?.sortFixedPositions?.includes(index) ? 'fixed' : '',
             frame?.sortOrderedPositions?.includes(index) ? 'ordered-prefix' : '',
-            index === frame?.sortWriteIndex ? 'writing' : '',
+            writes('values') && index === frame?.sortWriteIndex ? 'writing' : '',
+            frame?.sortReadTarget === 'values' && index === frame?.sortReadIndex ? 'reading' : '',
             index === step ? 'active' : '',
           ].filter(Boolean).join(' ');
           return <div className={classes} data-sort-index={index} key={`${index}-${value}`}>
@@ -760,7 +767,7 @@ function SortVisual({ algorithm, step }) {
       <em>{auxiliaryLabel}</em>
       <div className="sort-cells">
         {auxiliary.map((auxValue, index) => <div
-          className={`sort-cell auxiliary ${index === frame?.sortWriteIndex ? 'writing' : ''}`}
+          className={`sort-cell auxiliary ${writes(auxiliaryTarget) && index === frame?.sortWriteIndex ? 'writing' : ''} ${frame?.sortReadTarget === auxiliaryTarget && index === frame?.sortReadIndex ? 'reading' : ''}`}
           data-aux-index={index}
           key={`aux-${index}`}
         >
@@ -1198,7 +1205,9 @@ function MerkleTreeDiagram({ algorithm, step }) {
       }
     });
   }
-  return <div className="tree-canvas tree-merkle-tree merkle-tree-full" role="img" aria-label={`${en ? 'Merkle Tree, root' : 'Árbol Merkle, raíz'} ${formatMerkleHash(levels.at(-1)[0].hash)}`}>
+  return <div className="merkle-visual">
+  <p className="merkle-caveat">{en ? 'Teaching hash: collisions are possible; do not use for security integrity.' : 'Hash didáctico: admite colisiones; no usar para verificar integridad de seguridad.'}</p>
+  <div className="tree-canvas tree-merkle-tree merkle-tree-full" role="img" aria-label={`${en ? 'Merkle Tree, root' : 'Árbol Merkle, raíz'} ${formatMerkleHash(levels.at(-1)[0].hash)}`}>
     <span className="tree-kind-label">{en ? 'COMPUTED ROOT' : 'RAÍZ REAL'} · {formatMerkleHash(levels.at(-1)[0].hash)}</span>
     <svg className="edge-layer" aria-hidden="true">{edges.map(([from, to, key]) => <TreeEdge key={key} from={[from.x, from.y]} to={[to.x, to.y]} startPadding={16} endPadding={16}/>)}</svg>
     {levels.flatMap((nodes, level) => nodes.map((node, index) => {
@@ -1212,7 +1221,7 @@ function MerkleTreeDiagram({ algorithm, step }) {
         key={`${level}-${index}`}
       ><span className="tree-value">{fullHash.slice(-4)}</span><small className="tree-node-badge">{level === 0 ? node.label : level === levels.length - 1 ? 'ROOT' : 'HASH'}</small></div>;
     }))}
-  </div>;
+  </div></div>;
 }
 
 function FibonacciHeapDiagram({ algorithm, step }) {

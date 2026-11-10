@@ -24,7 +24,9 @@ export function createFibonacciForest(values = [], previous = null) {
     }
     const [removed] = roots.splice(minimumIndex, 1);
     roots.push(...removed.children);
-    const stages = [{ phase: 'promote', forest: snapshot(), removed: removed.value }];
+    const stages = removed.children.length
+      ? [{ phase: 'promote', forest: snapshot(), removed: removed.value, children: removed.children.map(child => child.value) }]
+      : [{ phase: 'detach', forest: snapshot(), removed: removed.value }];
     const byDegree = new Map();
     const work = roots.splice(0);
     for (let index = 0; index < work.length; index++) {

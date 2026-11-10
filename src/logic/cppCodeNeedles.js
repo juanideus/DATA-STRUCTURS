@@ -12,6 +12,8 @@ const radixNeedles = {
   'radix-output': 'output[--count[digit]]',
   'radix-decrement': 'output[--count[digit]]',
   'radix-write': 'values[i] = output[i];',
+  'radix-free-count': 'delete[] count;',
+  'radix-free-output': 'delete[] output;',
   'radix-complete': 'return true;',
 };
 

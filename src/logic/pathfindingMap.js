@@ -120,15 +120,27 @@ function reconstructPath(previous, start, goal) {
   return [];
 }
 
-function mapFrame({ map, mode, current, open, closed, distance, minimumStepCost, message, codeLine, codePhase, path = [], delayMs }) {
+function mapFrame({ map, mode, current, open, closed, distance, minimumStepCost, message, codeLine, codePhase, neighbor = null, candidate = null, condition = null, path = [], delayMs }) {
   const h = current == null ? 0 : heuristic(current, map.goal, map.columns, minimumStepCost);
   const g = current == null ? 0 : distance[current];
   const [row, column] = current == null ? [null, null] : coordinates(current, map.columns);
   const algorithmName = mode === 'astar' ? 'A*' : 'Dijkstra';
+  const javaNeedles = {
+    'check-bounds': 'if (nextRow < 0 || nextRow >= rows) continue;',
+    'check-obstacle': mode === 'astar' ? 'if (map[next] < 0 || closed[next]) continue;' : 'if (map[next] < 0 || visited[next]) continue;',
+    neighbors: 'for (int i = 0; i < 4; i++) {',
+    'skip-neighbor': mode === 'astar' ? 'if (map[next] < 0 || closed[next]) continue;' : 'if (map[next] < 0 || visited[next]) continue;',
+    candidate: mode === 'astar' ? 'int newG = g[current] + map[next];' : 'int newDistance = distance[current] + map[next];',
+    'compare-distance': mode === 'astar' ? 'if (newG < g[next]) {' : 'if (newDistance < distance[next]) {',
+    relax: mode === 'astar' ? 'g[next] = newG;' : 'distance[next] = newDistance;',
+    'set-previous': 'previous[next] = current;',
+    'set-score': 'f[next] = newG + heuristic(next, goal, columns, minCost);',
+  };
 
   return {
     position: current ?? 0,
     codeLine,
+    codeNeedle: javaNeedles[codePhase],
     codePhase,
     delayMs: delayMs ?? (path.length > 0 ? 520 : closed.size === 0 ? 320 : 90),
     message,
@@ -145,6 +157,9 @@ function mapFrame({ map, mode, current, open, closed, distance, minimumStepCost,
     variables: [
       { name: 'algoritmo', value: algorithmName },
       { name: 'casilla', value: row == null ? '—' : `(${row}, ${column})` },
+      ...(neighbor == null ? [] : [{ name: 'next', value: `(${coordinates(neighbor, map.columns).join(', ')})` }]),
+      ...(candidate == null ? [] : [{ name: mode === 'astar' ? 'newG' : 'newDistance', value: candidate }]),
+      ...(condition == null ? [] : [{ name: 'condición', value: condition }]),
       { name: 'distancia g', value: Number.isFinite(g) ? g : '∞' },
       ...(mode === 'astar' ? [
         { name: 'heurística h', value: h },
@@ -248,35 +263,41 @@ export function runGridPathfinding({ map = DEFAULT_PATH_MAP, mode = 'dijkstra' }
         : 'Marcamos la casilla actual como visitada.',
     }));
 
-    let relaxedNeighbors = 0;
-    for (const neighbor of neighborsOf(current, cityMap)) {
-      if (closed.has(neighbor)) continue;
-      const newDistance = distance[current] + cityMap.cells[neighbor].cost;
-      if (newDistance < distance[neighbor]) {
-        distance[neighbor] = newDistance;
+    const [currentRow, currentColumn] = coordinates(current, cityMap.columns);
+    for (const [rowDelta, columnDelta] of DIRECTIONS) {
+      const nextRow = currentRow + rowDelta;
+      const nextColumn = currentColumn + columnDelta;
+      const inBounds = nextRow >= 0 && nextRow < cityMap.rows && nextColumn >= 0 && nextColumn < cityMap.columns;
+      if (!inBounds) {
+        frames.push(mapFrame({ map: cityMap, minimumStepCost, mode, current, open, closed, distance,
+          codePhase: 'check-bounds', condition: false, delayMs: 110,
+          message: `La posición (${nextRow}, ${nextColumn}) está fuera del mapa.` }));
+        continue;
+      }
+      const neighbor = indexOf(nextRow, nextColumn, cityMap.columns);
+      const base = { map: cityMap, minimumStepCost, mode, current, neighbor, open, closed, distance, delayMs: 110 };
+      if (!Number.isFinite(cityMap.cells[neighbor].cost) || cityMap.cells[neighbor].cost < 0) {
+        frames.push(mapFrame({ ...base, codePhase: 'check-obstacle', condition: false, message: 'La casilla es un obstáculo; se omite.' }));
+        continue;
+      }
+      frames.push(mapFrame({ ...base, codePhase: 'neighbors', message: `Se examina la casilla vecina ${coordinates(neighbor, cityMap.columns).join(', ')}.` }));
+      if (closed.has(neighbor)) {
+        frames.push(mapFrame({ ...base, codePhase: 'skip-neighbor', condition: false, message: 'La casilla ya está cerrada; se omite.' }));
+        continue;
+      }
+      const candidate = distance[current] + cityMap.cells[neighbor].cost;
+      const improves = candidate < distance[neighbor];
+      frames.push(mapFrame({ ...base, codePhase: 'candidate', candidate, message: `El coste candidato para esta casilla es ${candidate}.` }));
+      frames.push(mapFrame({ ...base, codePhase: 'compare-distance', candidate, condition: improves, message: improves ? 'El candidato mejora la distancia.' : 'El candidato no mejora la distancia.' }));
+      if (improves) {
+        distance[neighbor] = candidate;
+        frames.push(mapFrame({ ...base, codePhase: 'relax', candidate, message: `La distancia de esta casilla cambia a ${candidate}.` }));
         previous[neighbor] = current;
+        frames.push(mapFrame({ ...base, codePhase: 'set-previous', candidate, message: 'La casilla actual queda como predecesora.' }));
         open.add(neighbor);
-        relaxedNeighbors += 1;
+        if (mode === 'astar') frames.push(mapFrame({ ...base, codePhase: 'set-score', candidate, message: 'Se actualiza la prioridad estimada.' }));
       }
     }
-
-    frames.push(mapFrame({
-      map: cityMap,
-      minimumStepCost,
-      mode,
-      current,
-      open,
-      closed,
-      distance,
-      delayMs: 110,
-      codeLine: relaxedNeighbors > 0
-        ? mode === 'astar' ? 38 : 31
-        : mode === 'astar' ? 28 : 21,
-      codePhase: relaxedNeighbors > 0 ? 'relax' : 'neighbors',
-      message: relaxedNeighbors > 0
-        ? `Actualizamos ${relaxedNeighbors} ${relaxedNeighbors === 1 ? 'casilla vecina' : 'casillas vecinas'} con una ruta más corta.`
-        : 'Revisamos las casillas vecinas, pero ninguna mejora su distancia.',
-    }));
   }
 
   const found = Number.isFinite(distance[cityMap.goal]);

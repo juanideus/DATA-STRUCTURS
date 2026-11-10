@@ -57,7 +57,9 @@ const trieRemove = `bool removeRecursive(Node* node, const std::string& word, in
 function trieCpp(actionId) {
   const operation = trieOperations[actionId];
   if (!operation) return null;
-  return `class Trie {
+  return `#include <string>
+
+class Trie {
 public:
     static const int ALPHABET = 26;
     struct Node {
@@ -426,7 +428,9 @@ unsigned int combineHash(unsigned int left, unsigned int right) const {
 function merkleCpp(actionId) {
   const operation = merkleOperations[actionId];
   if (!operation) return null;
-  return `class MerkleTree {
+  return `#include <string>
+
+class MerkleTree {
 public:
     static const int CAPACITY = 8;
     std::string* blocks;

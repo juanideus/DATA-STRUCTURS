@@ -306,14 +306,14 @@ export const educationalDescriptions = {
     'Su ocupación mínima típica es cercana a dos tercios, mayor que la de un B-Tree tradicional.'
   ),
   'merkle-tree': guide(
-    'Un Merkle Tree resume bloques de datos mediante hashes organizados en un árbol para comprobar su integridad.',
-    'Las hojas contienen hashes de los bloques y cada padre calcula el hash de sus hijos. Cambiar un solo dato modifica todos los hashes desde su hoja hasta la raíz.',
+    'Un Merkle Tree resume bloques de datos mediante hashes organizados en un árbol. Esta demostración usa un hash sencillo, no criptográfico.',
+    'Las hojas contienen hashes de los bloques y cada padre combina los hashes de sus hijos. Los cambios suelen propagarse hasta la raíz, pero este hash admite colisiones: datos distintos pueden producir la misma raíz.',
     'Calcular hashes de hojas|Combinar pares hasta obtener la raíz|Crear una prueba de pertenencia|Verificar integridad recalculando una ruta',
     'Detecta cambios eficientemente|Pruebas pequeñas de pertenencia|Compara grandes conjuntos con una sola raíz|Permite verificación distribuida',
     'No almacena ni cifra los datos por sí mismo|Depende de una función hash segura|Actualizar cambia toda la ruta superior|Hay que definir cómo tratar un número impar de hojas',
     'Blockchain|Git y control de versiones|Sistemas distribuidos|Verificación de archivos',
     'La raíz funciona como una huella digital de todos los bloques inferiores.',
-    'Un Merkle Tree demuestra integridad, pero no reemplaza el cifrado ni el control de acceso.'
+    'Esta visualización enseña la estructura; su hash no sirve para verificar integridad de seguridad. Una aplicación real necesita un hash criptográfico apropiado.'
   ),
   'kd-tree': guide(
     'Un KD-Tree organiza puntos de k dimensiones alternando el eje usado para dividir el espacio.',

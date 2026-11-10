@@ -795,6 +795,7 @@ export function createLinkedListSynchronizedFrames({
       const returnsBoolean = !['add-start', 'add-end'].includes(actionId);
       addFrame({
         pattern: isInsertion ? /size\+\+;/ : /size--;/,
+        occurrence: actionId === 'remove-index' && requestedIndex > 0 ? 1 : 0,
         message: isInsertion
           ? `size aumenta a ${afterValues.length}.`
           : `size disminuye a ${afterValues.length}.`,
@@ -807,6 +808,7 @@ export function createLinkedListSynchronizedFrames({
         const sizeLine = frames.at(-1).codeLine;
         addFrame({
           pattern: /return true;/,
+          occurrence: actionId === 'remove-index' && requestedIndex > 0 ? 1 : 0,
           message,
           position,
           values: afterValues,
@@ -2233,8 +2235,11 @@ export function adaptFramesToCode(frames, code, keepOriginalLines) {
         codeUnmapped: true,
       };
     }
-    const progress = frames.length <= 1 ? 1 : index / (frames.length - 1);
-    const line = lines[Math.min(lines.length - 1, Math.round(progress * Math.max(0, lines.length - 1)))];
-    return { ...frame, codeLine: line?.index ?? 0 };
+    // Pseudocode has no trustworthy line unless the trace names the executed step.
+    const step = frame.pseudoStep ?? frame.traceKey ?? frame.sortPhase ?? frame.codePhase;
+    const line = step == null ? null : sourceLines.findIndex(sourceLine => (
+      sourceLine.trim().replace(/^\s+/, '') === String(step).trim()
+    ));
+    return { ...frame, codeLine: line != null && line >= 0 ? line : null, codeUnmapped: line == null || line < 0 };
   });
 }
