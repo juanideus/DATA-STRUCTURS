@@ -9,7 +9,7 @@ Servicio independiente para recibir el formulario **Informar problema** de DSA L
 
 ## Desarrollo local
 
-Requiere Node.js 24.22.2 LTS o una versión posterior de la línea 24. El runtime exacto está fijado en `devEngines` para Railway.
+Requiere Node.js 24.22.2 LTS o una versión posterior de la línea 24. `devEngines` acepta actualizaciones compatibles para no bloquear los despliegues al recibir parches de seguridad.
 
 ```bash
 cd report
