@@ -19,12 +19,12 @@ test('manifiestos y lockfiles mantienen el mismo contrato de Node LTS', () => {
   assert.match(version, /^24\.\d+\.\d+$/);
   const rootManifest = JSON.parse(read('package.json'));
   const root = rootManifest.engines.node;
-  assert.equal(rootManifest.devEngines.runtime.version, version);
-  assert.ok(root.includes(`^${version}`));
+  assert.equal(root, `^${version}`);
+  assert.equal(rootManifest.devEngines.runtime.version, root);
   assert.equal(JSON.parse(read('package-lock.json')).packages[''].engines.node, root);
   const report = JSON.parse(read('report/package.json'));
   assert.equal(report.engines.node, root);
-  assert.equal(report.devEngines.runtime.version, version);
+  assert.equal(report.devEngines.runtime.version, root);
   assert.equal(JSON.parse(read('report/package-lock.json')).packages[''].engines.node, root);
 });
 
